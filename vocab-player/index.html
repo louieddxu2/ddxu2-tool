@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>語音閃卡播放器</title>
+    <title>閃卡語音撥放器</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
     <script src="https://unpkg.com/lucide@0.542.0"></script>
@@ -35,9 +35,9 @@
 
             const appMeta = {
                 id: 'vocab-player', 
-                name: '語音閃卡', 
-                nameZh: '語音閃卡',
-                nameEn: 'Voice Flashcards',
+                name: '閃卡語音撥放器', 
+                nameZh: '閃卡語音撥放器',
+                nameEn: 'Flashcard Voice Player',
                 path: appPath,
                 icon: 'languages', 
                 color: 'emerald' 
@@ -60,7 +60,7 @@
             </a>
             
             <h1 class="text-lg font-bold flex flex-1 justify-center items-center">
-                <i data-lucide="globe-2" class="w-4 h-4 mr-1.5"></i> <span id="app-title">語音閃卡播放器</span>
+                <i data-lucide="globe-2" class="w-4 h-4 mr-1.5"></i> <span id="app-title">閃卡語音撥放器</span>
             </h1>
             
             <div class="w-9"></div> <!-- 平衡版面用的空白 -->
@@ -186,6 +186,12 @@
                     <button id="btn-add-word" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 mt-1 rounded-xl transition-colors flex justify-center items-center shadow-md">
                         <i data-lucide="plus" class="w-5 h-5 mr-1"></i> <span id="btn-add-word-text">新增至當前牌組</span>
                     </button>
+                    <div class="flex items-center gap-2 mt-1">
+                        <button id="btn-open-paste-import" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-colors">
+                            <span id="btn-paste-import-text">貼上表格匯入</span>
+                        </button>
+                        <p id="paste-import-hint" class="text-[11px] text-slate-500 leading-tight">可直接貼上 Excel/試算表兩欄內容</p>
+                    </div>
                 </div>
             </div>
 
@@ -240,6 +246,22 @@
         </div>
     </div>
 
+    <!-- 貼上表格匯入彈窗 -->
+    <div id="paste-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[120] flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div id="paste-modal-content" class="bg-white rounded-2xl p-5 w-11/12 max-w-md shadow-2xl transform scale-95 transition-transform duration-200 mx-auto">
+            <h3 class="text-lg font-bold text-slate-800 mb-2 flex items-center">
+                <i data-lucide="clipboard-paste" class="w-5 h-5 text-blue-500 mr-2"></i> <span id="paste-modal-title">貼上表格匯入</span>
+            </h3>
+            <p id="paste-modal-desc" class="text-xs text-slate-500 mb-3">請貼上兩欄資料（A 欄=語言A，B 欄=語言B）。</p>
+            <textarea id="paste-import-textarea" rows="8" class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="A欄    B欄&#10;你好    Hello&#10;謝謝    Thank you"></textarea>
+            <p id="paste-preview" class="text-xs text-slate-500 mt-2">尚未貼上資料</p>
+            <div class="flex justify-end gap-2 mt-4">
+                <button id="btn-cancel-paste" class="px-4 py-2 text-slate-600 bg-slate-100 rounded-xl font-medium hover:bg-slate-200 transition-colors">取消</button>
+                <button id="btn-confirm-paste" class="px-4 py-2 text-white bg-blue-600 rounded-xl font-medium hover:bg-blue-700 transition-colors">匯入</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         lucide.createIcons();
 
@@ -267,7 +289,7 @@
         ];
         const UI_TEXT = {
             zh: {
-                appTitle: '語音閃卡播放器',
+                appTitle: '閃卡語音撥放器',
                 homeAria: '返回大廳',
                 labelLangA: '語言 A (如母語)',
                 labelLangB: '語言 B (學習目標)',
@@ -281,6 +303,15 @@
                 masteredButton: '已熟練移除',
                 deckBindPrefix: '新增將綁定為：',
                 addWordButton: '新增至當前牌組',
+                pasteImportButton: '貼上表格匯入',
+                pasteImportHint: '可直接貼上 Excel/試算表兩欄內容',
+                pasteModalTitle: '貼上表格匯入',
+                pasteModalDesc: '請貼上兩欄資料（A 欄=語言A，B 欄=語言B）。',
+                pastePreviewEmpty: '尚未貼上資料',
+                pastePreviewReady: (rows) => `已偵測 ${rows} 筆可匯入資料`,
+                pasteImportConfirm: '匯入',
+                pasteNeedData: '請先貼上可辨識的兩欄資料',
+                pasteImportResult: (added, skipped) => `已匯入 ${added} 筆，略過 ${skipped} 筆`,
                 listLimitPrefix: '僅顯示最新 100 筆資料 (共 ',
                 listLimitSuffix: ' 筆)',
                 emptyState: '目前語言組合沒有詞彙<br>請在上方新增',
@@ -323,7 +354,7 @@
                 playDone: '本次牌組播放完畢'
             },
             en: {
-                appTitle: 'Voice Flashcard Player',
+                appTitle: 'Flashcard Voice Player',
                 homeAria: 'Back to Launcher',
                 labelLangA: 'Language A (native)',
                 labelLangB: 'Language B (target)',
@@ -337,6 +368,15 @@
                 masteredButton: 'Mark Mastered',
                 deckBindPrefix: 'New card will be saved to:',
                 addWordButton: 'Add To Current Deck',
+                pasteImportButton: 'Paste Table Import',
+                pasteImportHint: 'Paste two columns from Excel/Sheets',
+                pasteModalTitle: 'Paste Table Import',
+                pasteModalDesc: 'Paste two columns (A = Language A, B = Language B).',
+                pastePreviewEmpty: 'No pasted data yet',
+                pastePreviewReady: (rows) => `${rows} valid rows detected`,
+                pasteImportConfirm: 'Import',
+                pasteNeedData: 'Paste valid two-column data first',
+                pasteImportResult: (added, skipped) => `${added} imported, ${skipped} skipped`,
                 listLimitPrefix: 'Showing latest 100 items (total ',
                 listLimitSuffix: ')',
                 emptyState: 'No cards for this language pair yet.<br>Add one above.',
@@ -468,7 +508,7 @@
         function applyStaticTexts() {
             document.title = t('appTitle');
             document.getElementById('app-title').textContent = t('appTitle');
-            document.querySelector('a[href="/"]').setAttribute('aria-label', t('homeAria'));
+            document.querySelector('[data-home-link]').setAttribute('aria-label', t('homeAria'));
             document.getElementById('label-lang-a').textContent = t('labelLangA');
             document.getElementById('label-lang-b').textContent = t('labelLangB');
             document.getElementById('tab-player-text').textContent = t('tabPlayer');
@@ -481,6 +521,8 @@
             document.getElementById('btn-mastered-text').textContent = t('masteredButton');
             document.getElementById('deck-bind-prefix').textContent = t('deckBindPrefix');
             document.getElementById('btn-add-word-text').textContent = t('addWordButton');
+            document.getElementById('btn-paste-import-text').textContent = t('pasteImportButton');
+            document.getElementById('paste-import-hint').textContent = t('pasteImportHint');
             document.getElementById('list-limit-prefix').textContent = t('listLimitPrefix');
             document.getElementById('list-limit-suffix').textContent = t('listLimitSuffix');
             document.getElementById('empty-state-text').innerHTML = t('emptyState');
@@ -489,6 +531,10 @@
             document.getElementById('custom-lang-empty-tip').textContent = t('customLangEmptyTip');
             document.getElementById('prompt-btn-cancel').textContent = t('promptCancel');
             document.getElementById('prompt-btn-confirm').textContent = t('promptConfirm');
+            document.getElementById('paste-modal-title').textContent = t('pasteModalTitle');
+            document.getElementById('paste-modal-desc').textContent = t('pasteModalDesc');
+            document.getElementById('btn-cancel-paste').textContent = t('promptCancel');
+            document.getElementById('btn-confirm-paste').textContent = t('pasteImportConfirm');
             document.getElementById('modal-btn-cancel').textContent = t('modalCancel');
             document.getElementById('modal-btn-confirm').textContent = t('modalOk');
             document.getElementById('text-play-stop').textContent = isPlaying ? t('playStop') : t('playStart');
@@ -624,6 +670,46 @@
         function normalizeText(value) {
             return value.trim().replace(/\s+/g, ' ');
         }
+        function splitCSVLine(line, delimiter) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') { current += '"'; i += 1; }
+                    else inQuotes = !inQuotes;
+                } else if (char === delimiter && !inQuotes) {
+                    result.push(current); current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current);
+            return result;
+        }
+        function parsePastedRows(rawText) {
+            const lines = rawText.replace(/\r/g, '\n').split('\n').map(v => v.trim()).filter(Boolean);
+            const parsed = [];
+            lines.forEach(line => {
+                let cols = [];
+                if (line.includes('\t')) cols = line.split('\t');
+                else if (line.includes(',')) cols = splitCSVLine(line, ',');
+                else if (line.includes(';')) cols = splitCSVLine(line, ';');
+                if (cols.length < 2) return;
+                const a = normalizeText(cols[0] || '');
+                const b = normalizeText(cols[1] || '');
+                if (!a || !b) return;
+                parsed.push([a, b]);
+            });
+            if (parsed.length > 1) {
+                const [firstA, firstB] = parsed[0].map(v => v.toLowerCase());
+                const headerHints = ['語言', 'lang', 'language', 'text', '詞彙', 'term', 'word'];
+                const looksLikeHeader = headerHints.some(h => firstA.includes(h) || firstB.includes(h));
+                if (looksLikeHeader) parsed.shift();
+            }
+            return parsed;
+        }
 
         // ==========================================
         // 資料庫模組 (100筆渲染限制)
@@ -709,6 +795,55 @@
                 await addWordFromInputs();
             }
         });
+        const pasteModal = document.getElementById('paste-modal');
+        const pasteModalContent = document.getElementById('paste-modal-content');
+        const pasteTextarea = document.getElementById('paste-import-textarea');
+        const pastePreview = document.getElementById('paste-preview');
+        function updatePastePreview() {
+            const rows = parsePastedRows(pasteTextarea.value);
+            pastePreview.textContent = rows.length > 0 ? t('pastePreviewReady', rows.length) : t('pastePreviewEmpty');
+        }
+        function openPasteModal() {
+            pasteTextarea.value = '';
+            updatePastePreview();
+            pasteModal.classList.remove('hidden');
+            setTimeout(() => {
+                pasteModal.classList.remove('opacity-0');
+                pasteModalContent.classList.remove('scale-95');
+                pasteModalContent.classList.add('scale-100');
+                pasteTextarea.focus();
+            }, 10);
+        }
+        function closePasteModal() {
+            pasteModal.classList.add('opacity-0');
+            pasteModalContent.classList.remove('scale-100');
+            pasteModalContent.classList.add('scale-95');
+            setTimeout(() => pasteModal.classList.add('hidden'), 200);
+        }
+        async function importFromPastedText() {
+            const rows = parsePastedRows(pasteTextarea.value);
+            if (rows.length === 0) return showToast(t('pasteNeedData'));
+            const langs = getCurrentLangs();
+            const existing = await db.words.filter(w => w.langA === langs.A && w.langB === langs.B).toArray();
+            const keySet = new Set(existing.map(w => `${normalizeText(w.textA)}\u0001${normalizeText(w.textB)}`));
+            const records = [];
+            let skipped = 0;
+            rows.forEach(([textA, textB]) => {
+                const key = `${textA}\u0001${textB}`;
+                if (keySet.has(key)) { skipped += 1; return; }
+                keySet.add(key);
+                records.push({ textA, textB, langA: langs.A, langB: langs.B, createdAt: new Date().getTime() });
+            });
+            if (records.length > 0) await db.words.bulkAdd(records);
+            showToast(t('pasteImportResult', records.length, skipped));
+            closePasteModal();
+            loadWordList();
+            document.getElementById('input-a').focus();
+        }
+        document.getElementById('btn-open-paste-import').addEventListener('click', openPasteModal);
+        document.getElementById('btn-cancel-paste').addEventListener('click', closePasteModal);
+        document.getElementById('btn-confirm-paste').addEventListener('click', importFromPastedText);
+        pasteTextarea.addEventListener('input', updatePastePreview);
 
         // ==========================================
         // 語音引擎與播放 (支援熟練刪除 Skip)
