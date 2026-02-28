@@ -1,0 +1,955 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>多語系隨機聽讀播放器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+    <script src="https://unpkg.com/lucide@0.542.0"></script>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%2310b981'/%3E%3C/svg%3E">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        body { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col relative">
+
+    <!-- ========================================== -->
+    <!-- 魔法機制：自動向大廳註冊本資料夾路徑 -->
+    <!-- ========================================== -->
+    <script>
+        (function autoRegister() {
+            // 自動抓取所在資料夾 (例如 /vocab-player/)
+            let appPath = window.location.pathname;
+            if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
+            if (!appPath.endsWith('/')) appPath += '/';
+            if (appPath === '/') return; // 避免註冊到根目錄
+
+            const appMeta = {
+                id: 'vocab-player', 
+                name: '語音閃卡', 
+                nameZh: '語音閃卡',
+                nameEn: 'Voice Flashcards',
+                path: appPath,
+                icon: 'languages', 
+                color: 'emerald' 
+            };
+            
+            let launcherData = JSON.parse(localStorage.getItem('myAppLauncherStorage')) || [];
+            const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
+            if (existingIndex === -1) launcherData.push(appMeta);
+            else launcherData[existingIndex] = { ...launcherData[existingIndex], ...appMeta };
+            localStorage.setItem('myAppLauncherStorage', JSON.stringify(launcherData));
+        })();
+    </script>
+
+    <!-- 頂部導覽 (含返回大廳按鈕) -->
+    <header class="bg-blue-600 text-white px-3 py-2.5 shadow-md sticky top-0 z-20">
+        <div class="flex items-center justify-between mb-2">
+            <!-- 返回大廳按鈕 -->
+            <a href="/" aria-label="返回大廳" class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors flex items-center justify-center">
+                <i data-lucide="home" class="w-5 h-5"></i>
+            </a>
+            
+            <h1 class="text-lg font-bold flex flex-1 justify-center items-center">
+                <i data-lucide="globe-2" class="w-4 h-4 mr-1.5"></i> <span id="app-title">語音閃卡播放器</span>
+            </h1>
+            
+            <div class="w-9"></div> <!-- 平衡版面用的空白 -->
+        </div>
+        
+        <div class="flex items-center justify-between bg-blue-700/50 rounded-lg p-1.5 gap-2 text-sm">
+            <div class="flex-1 flex flex-col">
+                <label id="label-lang-a" class="text-blue-200 text-xs mb-0.5 px-1">語言 A (如母語)</label>
+                <select id="select-langA" class="bg-white text-slate-800 rounded p-1.5 outline-none w-full font-medium text-sm"></select>
+            </div>
+            <i data-lucide="arrow-right-left" class="w-5 h-5 text-blue-300 mt-4 shrink-0"></i>
+            <div class="flex-1 flex flex-col">
+                <label id="label-lang-b" class="text-blue-200 text-xs mb-0.5 px-1">語言 B (學習目標)</label>
+                <select id="select-langB" class="bg-white text-slate-800 rounded p-1.5 outline-none w-full font-medium text-sm"></select>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-grow flex flex-col max-w-md w-full mx-auto bg-white shadow-sm overflow-hidden relative">
+        
+        <div class="flex border-b border-slate-200 bg-white z-10">
+            <button id="tab-player" class="flex-1 py-3 text-center font-medium text-blue-600 border-b-2 border-blue-600 transition-colors">
+                <i data-lucide="play-circle" class="inline-block w-5 h-5 mb-1 mr-1"></i> <span id="tab-player-text">播放</span>
+            </button>
+            <button id="tab-library" class="flex-1 py-3 text-center font-medium text-slate-400 border-b-2 border-transparent transition-colors">
+                <i data-lucide="library" class="inline-block w-5 h-5 mb-1 mr-1"></i> <span id="tab-library-text">詞彙</span> (<span id="word-count-badge">0</span>)
+            </button>
+        </div>
+
+        <!-- ================= 播放器分頁 ================= -->
+        <div id="view-player" class="flex-1 flex flex-col p-5 overflow-y-auto">
+            <div class="bg-slate-100 rounded-xl p-4 mb-6 shadow-inner border border-slate-200">
+                <h2 class="text-sm font-bold text-slate-500 mb-3 flex items-center uppercase tracking-wider">
+                    <i data-lucide="repeat" class="w-4 h-4 mr-1"></i> <span id="repeat-settings-title">朗讀次數設定</span>
+                </h2>
+                
+                <div class="flex items-center justify-between mb-3 bg-white p-2 rounded-lg shadow-sm">
+                    <span class="text-slate-700 font-medium flex items-center" id="label-repeat-A">
+                        <span class="w-3 h-3 rounded-full bg-indigo-400 mr-2"></span>語言 A
+                    </span>
+                    <div class="flex items-center">
+                        <button class="btn-minus w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center active:bg-slate-200" data-target="repeatA">-</button>
+                        <input type="number" id="repeatA" value="1" min="0" max="10" class="w-10 text-center bg-transparent font-bold text-lg mx-1 outline-none" readonly>
+                        <button class="btn-plus w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center active:bg-slate-200" data-target="repeatA">+</button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between bg-white p-2 rounded-lg shadow-sm">
+                    <span class="text-slate-700 font-medium flex items-center" id="label-repeat-B">
+                        <span class="w-3 h-3 rounded-full bg-emerald-400 mr-2"></span>語言 B
+                    </span>
+                    <div class="flex items-center">
+                        <button class="btn-minus w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center active:bg-slate-200" data-target="repeatB">-</button>
+                        <input type="number" id="repeatB" value="5" min="0" max="20" class="w-10 text-center bg-transparent font-bold text-lg mx-1 outline-none" readonly>
+                        <button class="btn-plus w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center active:bg-slate-200" data-target="repeatB">+</button>
+                    </div>
+                </div>
+
+                <div class="mt-3 bg-white p-3 rounded-lg shadow-sm">
+                    <div class="flex items-center justify-between text-sm mb-2">
+                        <span id="pause-settings-title" class="text-slate-700 font-medium">停頓時間</span>
+                        <span id="pause-scale-value" class="text-blue-600 font-bold">100%</span>
+                    </div>
+                    <input id="pause-scale" type="range" min="50" max="200" step="10" value="100" class="w-full accent-blue-600">
+                    <p id="pause-preview" class="text-xs text-slate-500 mt-1">詞內停頓: 600/800ms，詞間停頓: 1000ms</p>
+                </div>
+            </div>
+
+            <!-- 播放狀態顯示 -->
+            <div class="flex-1 flex flex-col items-center justify-center mb-6 min-h-[160px] relative">
+                <div id="status-container" class="text-center w-full hidden">
+                    <p id="current-text-b" class="text-4xl font-bold text-emerald-600 mb-3 drop-shadow-sm min-h-[3rem] break-words"></p>
+                    <p id="current-text-a" class="text-xl text-indigo-500 min-h-[2rem] break-words"></p>
+                    
+                    <div class="mt-6 flex items-center justify-center gap-3">
+                        <div class="inline-flex items-center justify-center px-4 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-bold tracking-widest shadow-sm">
+                            <span id="current-progress">0 / 0</span>
+                        </div>
+                        <button id="btn-mastered" class="inline-flex items-center justify-center px-3 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-600 rounded-full text-sm font-bold shadow-sm transition-colors active:scale-95">
+                            <i data-lucide="check-circle" class="w-4 h-4 mr-1"></i> <span id="btn-mastered-text">已熟練移除</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="idle-container" class="text-center text-slate-400">
+                    <i data-lucide="headphones" class="w-16 h-16 mx-auto mb-3 opacity-30"></i>
+                    <p id="idle-hint" class="font-medium">點擊下方按鈕開始隨機播放</p>
+                </div>
+            </div>
+
+            <div class="mt-auto pb-2">
+                <div class="flex items-stretch gap-2">
+                    <button id="btn-play-stop" class="flex-1 bg-blue-600 text-white rounded-2xl py-4 text-xl font-bold shadow-lg shadow-blue-200 transition-all transform active:scale-95 flex items-center justify-center">
+                        <i data-lucide="play" id="icon-play" class="w-6 h-6 mr-2"></i>
+                        <i data-lucide="square" id="icon-stop" class="w-6 h-6 mr-2 hidden"></i>
+                        <span id="text-play-stop">開始隨機播放</span>
+                    </button>
+                    <div class="w-44 shrink-0 bg-slate-100 border border-slate-200 rounded-2xl p-2.5 flex flex-col justify-center gap-2">
+                        <label class="flex items-center gap-2 text-xs text-slate-700 font-medium">
+                            <input id="opt-continuous" type="checkbox" class="w-4 h-4 accent-blue-600">
+                            <span id="label-continuous-play">持續播放</span>
+                        </label>
+                        <div class="flex items-center gap-1.5">
+                            <input id="opt-limit-enabled" type="checkbox" class="w-4 h-4 accent-blue-600">
+                            <label id="label-limit-play" for="opt-limit-enabled" class="text-xs text-slate-700 font-medium whitespace-nowrap">指定次數</label>
+                            <input id="opt-limit-count" type="number" min="1" max="9999" value="50" disabled class="w-16 text-center text-xs px-2 py-1 rounded-md border border-slate-300 bg-white disabled:bg-slate-200 disabled:text-slate-400 outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 詞彙庫分頁 ================= -->
+        <div id="view-library" class="flex-1 flex flex-col hidden overflow-hidden bg-slate-50">
+            <div class="bg-white p-4 shadow-sm z-10 border-b border-slate-200">
+                <div class="text-xs text-slate-500 mb-2 font-medium flex items-center">
+                    <i data-lucide="info" class="w-3 h-3 mr-1"></i> 
+                    <span id="deck-bind-prefix">新增將綁定為：</span><span id="current-deck-label" class="text-blue-600 ml-1 font-bold">中文 ➔ 越南文</span>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <input type="text" id="input-a" placeholder="語言 A 詞彙 (如: 你好)" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    <input type="text" id="input-b" placeholder="語言 B 詞彙 (如: Xin chào)" enterkeyhint="done" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    <button id="btn-add-word" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 mt-1 rounded-xl transition-colors flex justify-center items-center shadow-md">
+                        <i data-lucide="plus" class="w-5 h-5 mr-1"></i> <span id="btn-add-word-text">新增至當前牌組</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4">
+                <ul id="word-list" class="space-y-3 pb-6"></ul>
+                <div id="list-limit-notice" class="text-center text-slate-400 text-xs py-4 hidden">
+                    <span id="list-limit-prefix">僅顯示最新 100 筆資料 (共 </span><span id="total-count-notice"></span><span id="list-limit-suffix"> 筆)</span>
+                </div>
+                <div id="empty-state" class="text-center text-slate-400 mt-10 hidden">
+                    <i data-lucide="box" class="w-12 h-12 mx-auto mb-2 opacity-30"></i>
+                    <p id="empty-state-text">目前語言組合沒有詞彙<br>請在上方新增</p>
+                </div>
+                <div class="h-10"></div>
+            </div>
+        </div>
+        
+        <div id="toast" class="absolute bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-800/90 backdrop-blur text-white px-5 py-2.5 rounded-full shadow-xl opacity-0 transition-opacity duration-300 pointer-events-none z-50 whitespace-nowrap font-medium text-sm">
+            提示訊息
+        </div>
+
+    </main>
+
+    <!-- 統一自訂彈窗系統 (Alert/Confirm) -->
+    <div id="custom-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div id="custom-modal-content" class="bg-white rounded-2xl p-6 w-5/6 max-w-sm shadow-2xl transform scale-95 transition-transform duration-200 mx-auto">
+            <h3 id="modal-title" class="text-lg font-bold text-slate-800 mb-2 flex items-center"></h3>
+            <p id="modal-message" class="text-slate-500 text-sm mb-6 leading-relaxed">訊息內容</p>
+            <div class="flex justify-end gap-3">
+                <button id="modal-btn-cancel" class="px-4 py-2 text-slate-600 bg-slate-100 rounded-xl font-medium hover:bg-slate-200 transition-colors hidden">取消</button>
+                <button id="modal-btn-confirm" class="px-4 py-2 text-white bg-blue-500 rounded-xl font-medium hover:bg-blue-600 transition-colors shadow-sm">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增自訂語言的輸入彈窗 -->
+    <div id="prompt-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[110] flex items-start justify-center pt-20 hidden opacity-0 transition-opacity duration-200">
+        <div id="prompt-modal-content" class="bg-white rounded-2xl p-6 w-11/12 max-w-sm shadow-2xl transform scale-95 transition-transform duration-200 mx-auto">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                <i data-lucide="languages" class="w-5 h-5 text-indigo-500 mr-2"></i> <span id="custom-lang-title">新增自訂語言</span>
+            </h3>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label id="custom-lang-label" class="block text-sm font-medium text-slate-700 mb-2">選擇要加入的語言</label>
+                    <select id="select-custom-lang" class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"></select>
+                    <p id="custom-lang-empty-tip" class="text-xs text-slate-400 mt-1.5 leading-snug hidden">常見語言都已加入，暫時沒有可新增的選項。</p>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button id="prompt-btn-cancel" class="px-4 py-2 text-slate-600 bg-slate-100 rounded-xl font-medium hover:bg-slate-200 transition-colors">取消</button>
+                <button id="prompt-btn-confirm" class="px-4 py-2 text-white bg-indigo-500 rounded-xl font-medium hover:bg-indigo-600 transition-colors shadow-sm">新增並儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // ==========================================
+        // 動態語言管理
+        // ==========================================
+        const defaultLangs = [
+            { code: 'zh-TW', nameZh: '繁體中文', nameEn: 'Traditional Chinese' },
+            { code: 'zh-CN', nameZh: '簡體中文', nameEn: 'Simplified Chinese' },
+            { code: 'en-US', nameZh: '英文', nameEn: 'English' },
+            { code: 'vi-VN', nameZh: '越南文', nameEn: 'Vietnamese' },
+            { code: 'ja-JP', nameZh: '日文', nameEn: 'Japanese' },
+            { code: 'ko-KR', nameZh: '韓文', nameEn: 'Korean' }
+        ];
+        const commonLangPresets = [
+            { code: 'en-US', nameZh: '英文', nameEn: 'English' }, { code: 'zh-TW', nameZh: '繁體中文', nameEn: 'Traditional Chinese' },
+            { code: 'zh-CN', nameZh: '簡體中文', nameEn: 'Simplified Chinese' }, { code: 'ja-JP', nameZh: '日文', nameEn: 'Japanese' },
+            { code: 'ko-KR', nameZh: '韓文', nameEn: 'Korean' }, { code: 'vi-VN', nameZh: '越南文', nameEn: 'Vietnamese' },
+            { code: 'th-TH', nameZh: '泰文', nameEn: 'Thai' }, { code: 'fr-FR', nameZh: '法文', nameEn: 'French' },
+            { code: 'de-DE', nameZh: '德文', nameEn: 'German' }, { code: 'es-ES', nameZh: '西班牙文', nameEn: 'Spanish' },
+            { code: 'it-IT', nameZh: '義大利文', nameEn: 'Italian' }, { code: 'pt-BR', nameZh: '葡萄牙文', nameEn: 'Portuguese' },
+            { code: 'ru-RU', nameZh: '俄文', nameEn: 'Russian' }, { code: 'id-ID', nameZh: '印尼文', nameEn: 'Indonesian' },
+            { code: 'ms-MY', nameZh: '馬來文', nameEn: 'Malay' }, { code: 'hi-IN', nameZh: '印地文', nameEn: 'Hindi' },
+            { code: 'ar-SA', nameZh: '阿拉伯文', nameEn: 'Arabic' }, { code: 'tr-TR', nameZh: '土耳其文', nameEn: 'Turkish' }
+        ];
+        const UI_TEXT = {
+            zh: {
+                appTitle: '語音閃卡播放器',
+                homeAria: '返回大廳',
+                labelLangA: '語言 A (如母語)',
+                labelLangB: '語言 B (學習目標)',
+                tabPlayer: '播放',
+                tabLibrary: '詞彙',
+                repeatSettingsTitle: '朗讀次數設定',
+                pauseSettingsTitle: '停頓時間',
+                idleHint: '點擊下方按鈕開始隨機播放',
+                continuousPlay: '持續播放',
+                limitPlay: '指定次數',
+                masteredButton: '已熟練移除',
+                deckBindPrefix: '新增將綁定為：',
+                addWordButton: '新增至當前牌組',
+                listLimitPrefix: '僅顯示最新 100 筆資料 (共 ',
+                listLimitSuffix: ' 筆)',
+                emptyState: '目前語言組合沒有詞彙<br>請在上方新增',
+                customLangTitle: '新增自訂語言',
+                customLangLabel: '選擇要加入的語言',
+                customLangEmptyTip: '常見語言都已加入，暫時沒有可新增的選項。',
+                promptCancel: '取消',
+                promptConfirm: '新增並儲存',
+                addNewLangOption: '+ 新增自訂語言...',
+                inputPlaceholder: (name) => `${name} 詞彙`,
+                deckLabel: (a, b) => `${a} ➔ ${b}`,
+                playStart: '開始隨機播放',
+                playStop: '停止播放',
+                pausePreview: (a, b, w) => `詞內停頓: ${a}/${b}ms，詞間停頓: ${w}ms`,
+                playbackRound: (i, total, r) => `${i} / ${total} (第${r}輪)`,
+                deleteWordAria: (text) => `刪除詞彙 ${text}`,
+                repeatMinusAria: (name) => `減少 ${name} 朗讀次數`,
+                repeatPlusAria: (name) => `增加 ${name} 朗讀次數`,
+                modalOk: '確定',
+                modalCancel: '取消',
+                unsupportedSpeechTitle: '不支援語音引擎',
+                unsupportedSpeechMessage: '你的瀏覽器不支援 Web Speech API。',
+                unsupportedSpeechConfirm: '我知道了',
+                deleteConfirmTitle: '確認刪除',
+                deleteConfirmMessage: '確定要刪除這個詞彙嗎？',
+                deleteConfirmButton: '確定刪除',
+                playingLangLocked: '播放中暫停語言切換',
+                customLangExists: '這個語言代碼已經存在',
+                noLangOption: '沒有可新增的語言選項',
+                customLangAdded: (name) => `成功新增並切換至：${name}`,
+                deleteDone: '已刪除詞彙',
+                addNeedBoth: '請輸入完整的雙語詞彙',
+                addDuplicate: '此語言組合已存在相同詞彙',
+                addSuccess: '已新增至牌組',
+                saveFailed: '儲存失敗',
+                speechBlocked: '語音播放被阻擋，請檢查瀏覽器權限',
+                masteredRemoved: '已移除，跳過此詞彙',
+                noWords: '目前語言組合沒有詞彙，請先新增',
+                playDoneLimited: (count) => `本次播放完成（可用詞彙 ${count} 筆）`,
+                playDone: '本次牌組播放完畢'
+            },
+            en: {
+                appTitle: 'Voice Flashcard Player',
+                homeAria: 'Back to Launcher',
+                labelLangA: 'Language A (native)',
+                labelLangB: 'Language B (target)',
+                tabPlayer: 'Player',
+                tabLibrary: 'Cards',
+                repeatSettingsTitle: 'Repeat Settings',
+                pauseSettingsTitle: 'Pause Timing',
+                idleHint: 'Tap the button below to start random playback',
+                continuousPlay: 'Continuous',
+                limitPlay: 'Play count',
+                masteredButton: 'Mark Mastered',
+                deckBindPrefix: 'New card will be saved to:',
+                addWordButton: 'Add To Current Deck',
+                listLimitPrefix: 'Showing latest 100 items (total ',
+                listLimitSuffix: ')',
+                emptyState: 'No cards for this language pair yet.<br>Add one above.',
+                customLangTitle: 'Add Custom Language',
+                customLangLabel: 'Choose a language to add',
+                customLangEmptyTip: 'All common languages are already added.',
+                promptCancel: 'Cancel',
+                promptConfirm: 'Add and Save',
+                addNewLangOption: '+ Add custom language...',
+                inputPlaceholder: (name) => `${name} term`,
+                deckLabel: (a, b) => `${a} -> ${b}`,
+                playStart: 'Start Random Playback',
+                playStop: 'Stop',
+                pausePreview: (a, b, w) => `In-word pause: ${a}/${b}ms, between words: ${w}ms`,
+                playbackRound: (i, total, r) => `${i} / ${total} (Round ${r})`,
+                deleteWordAria: (text) => `Delete card ${text}`,
+                repeatMinusAria: (name) => `Decrease ${name} repeat count`,
+                repeatPlusAria: (name) => `Increase ${name} repeat count`,
+                modalOk: 'OK',
+                modalCancel: 'Cancel',
+                unsupportedSpeechTitle: 'Speech Not Supported',
+                unsupportedSpeechMessage: 'This browser does not support Web Speech API.',
+                unsupportedSpeechConfirm: 'Understood',
+                deleteConfirmTitle: 'Delete Card',
+                deleteConfirmMessage: 'Delete this card?',
+                deleteConfirmButton: 'Delete',
+                playingLangLocked: 'Language cannot be changed while playing',
+                customLangExists: 'This language code already exists',
+                noLangOption: 'No language can be added now',
+                customLangAdded: (name) => `Added and switched to: ${name}`,
+                deleteDone: 'Card deleted',
+                addNeedBoth: 'Please enter both language fields',
+                addDuplicate: 'This card already exists in the current pair',
+                addSuccess: 'Card added',
+                saveFailed: 'Save failed',
+                speechBlocked: 'Speech playback is blocked by browser permissions',
+                masteredRemoved: 'Removed and skipped this card',
+                noWords: 'No cards in this language pair yet',
+                playDoneLimited: (count) => `Playback completed (${count} cards available)`,
+                playDone: 'Playback finished'
+            }
+        };
+        const PLAYBACK_BASE_MS = {
+            pauseAfterA: 600,
+            pauseAfterB: 800,
+            pauseBetweenWords: 1000,
+            pauseBetweenRounds: 1000
+        };
+
+        let uiLocale = 'zh';
+        let isPlaying = false;
+        let hasInitializedLangSelect = false;
+        function isChineseCode(code) {
+            return (code || '').toLowerCase().startsWith('zh');
+        }
+        function deriveUiLocaleFromCode(code) {
+            return isChineseCode(code) ? 'zh' : 'en';
+        }
+        function detectBrowserLocale() {
+            const firstLang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en-US';
+            return deriveUiLocaleFromCode(firstLang);
+        }
+        function t(key, ...args) {
+            const value = UI_TEXT[uiLocale][key];
+            return typeof value === 'function' ? value(...args) : value;
+        }
+        function getLangDisplayName(lang) {
+            if (uiLocale === 'en') return lang.nameEn || lang.name || lang.nameZh || lang.code;
+            return lang.nameZh || lang.name || lang.nameEn || lang.code;
+        }
+
+        function getAllLangs() {
+            const customLangs = JSON.parse(localStorage.getItem('myCustomLangs')) || [];
+            return [...defaultLangs, ...customLangs];
+        }
+
+        let langNamesMap = {};
+
+        function renderLangSelects() {
+            const selectA = document.getElementById('select-langA');
+            const selectB = document.getElementById('select-langB');
+            const defaultA = uiLocale === 'zh' ? 'zh-TW' : 'en-US';
+            const currentA = selectA.value || defaultA;
+            const currentB = selectB.value || 'vi-VN';
+            const allLangs = getAllLangs();
+            
+            let optionsHTML = '';
+            langNamesMap = {};
+            allLangs.forEach(lang => {
+                const displayName = getLangDisplayName(lang);
+                optionsHTML += `<option value="${lang.code}">${displayName}</option>`;
+                langNamesMap[lang.code] = displayName;
+            });
+            optionsHTML += `<option disabled>──────────</option>`;
+            optionsHTML += `<option value="ADD_NEW" class="text-blue-600 font-bold">${t('addNewLangOption')}</option>`;
+
+            selectA.innerHTML = optionsHTML; selectB.innerHTML = optionsHTML;
+            selectA.value = allLangs.some(l => l.code === currentA) ? currentA : allLangs[0].code;
+            selectB.value = allLangs.some(l => l.code === currentB) ? currentB : allLangs[1].code;
+            if (!hasInitializedLangSelect && uiLocale === 'en' && allLangs.some(l => l.code === 'en-US')) {
+                selectA.value = 'en-US';
+            }
+            selectA.dataset.prevValue = selectA.value; selectB.dataset.prevValue = selectB.value;
+            hasInitializedLangSelect = true;
+        }
+
+        function handleLangChange(e) {
+            if (isPlaying) {
+                e.target.value = e.target.dataset.prevValue;
+                showToast(t('playingLangLocked'));
+                return;
+            }
+            const selectEl = e.target;
+            if (selectEl.value === 'ADD_NEW') {
+                selectEl.value = selectEl.dataset.prevValue;
+                openPromptModal(selectEl.id);
+            } else {
+                selectEl.dataset.prevValue = selectEl.value;
+                syncUiLocaleFromLangA();
+                updateLabels();
+            }
+        }
+        document.getElementById('select-langA').addEventListener('change', handleLangChange);
+        document.getElementById('select-langB').addEventListener('change', handleLangChange);
+
+        const promptModal = document.getElementById('prompt-modal');
+        const promptContent = document.getElementById('prompt-modal-content');
+        let currentTargetSelectId = null;
+        function applyStaticTexts() {
+            document.getElementById('app-title').textContent = t('appTitle');
+            document.querySelector('a[href="/"]').setAttribute('aria-label', t('homeAria'));
+            document.getElementById('label-lang-a').textContent = t('labelLangA');
+            document.getElementById('label-lang-b').textContent = t('labelLangB');
+            document.getElementById('tab-player-text').textContent = t('tabPlayer');
+            document.getElementById('tab-library-text').textContent = t('tabLibrary');
+            document.getElementById('repeat-settings-title').textContent = t('repeatSettingsTitle');
+            document.getElementById('pause-settings-title').textContent = t('pauseSettingsTitle');
+            document.getElementById('idle-hint').textContent = t('idleHint');
+            document.getElementById('label-continuous-play').textContent = t('continuousPlay');
+            document.getElementById('label-limit-play').textContent = t('limitPlay');
+            document.getElementById('btn-mastered-text').textContent = t('masteredButton');
+            document.getElementById('deck-bind-prefix').textContent = t('deckBindPrefix');
+            document.getElementById('btn-add-word-text').textContent = t('addWordButton');
+            document.getElementById('list-limit-prefix').textContent = t('listLimitPrefix');
+            document.getElementById('list-limit-suffix').textContent = t('listLimitSuffix');
+            document.getElementById('empty-state-text').innerHTML = t('emptyState');
+            document.getElementById('custom-lang-title').textContent = t('customLangTitle');
+            document.getElementById('custom-lang-label').textContent = t('customLangLabel');
+            document.getElementById('custom-lang-empty-tip').textContent = t('customLangEmptyTip');
+            document.getElementById('prompt-btn-cancel').textContent = t('promptCancel');
+            document.getElementById('prompt-btn-confirm').textContent = t('promptConfirm');
+            document.getElementById('modal-btn-cancel').textContent = t('modalCancel');
+            document.getElementById('modal-btn-confirm').textContent = t('modalOk');
+            document.getElementById('text-play-stop').textContent = isPlaying ? t('playStop') : t('playStart');
+            renderPausePreview();
+        }
+        function syncUiLocaleFromLangA() {
+            const selectedLangA = document.getElementById('select-langA').value;
+            const nextLocale = deriveUiLocaleFromCode(selectedLangA);
+            if (nextLocale === uiLocale) return;
+            uiLocale = nextLocale;
+            applyStaticTexts();
+            renderLangSelects();
+        }
+
+        function openPromptModal(targetSelectId) {
+            currentTargetSelectId = targetSelectId;
+            renderCustomLangSelect();
+            promptModal.classList.remove('hidden');
+            setTimeout(() => {
+                promptModal.classList.remove('opacity-0');
+                promptContent.classList.remove('scale-95'); promptContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function renderCustomLangSelect() {
+            const selectEl = document.getElementById('select-custom-lang');
+            const emptyTip = document.getElementById('custom-lang-empty-tip');
+            const confirmBtn = document.getElementById('prompt-btn-confirm');
+            if (!selectEl) return;
+
+            const allLangs = getAllLangs();
+            const existingCodes = new Set(allLangs.map(l => l.code));
+            const available = commonLangPresets.filter(lang => !existingCodes.has(lang.code));
+
+            selectEl.innerHTML = '';
+            if (available.length === 0) {
+                selectEl.disabled = true;
+                confirmBtn.disabled = true;
+                confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                emptyTip.classList.remove('hidden');
+                return;
+            }
+
+            selectEl.disabled = false;
+            confirmBtn.disabled = false;
+            confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            emptyTip.classList.add('hidden');
+
+            available.forEach(lang => {
+                const option = document.createElement('option');
+                option.value = lang.code;
+                option.textContent = `${getLangDisplayName(lang)} (${lang.code})`;
+                selectEl.appendChild(option);
+            });
+        }
+
+        function closePromptModal() {
+            promptModal.classList.add('opacity-0');
+            promptContent.classList.remove('scale-100'); promptContent.classList.add('scale-95');
+            setTimeout(() => promptModal.classList.add('hidden'), 200);
+        }
+
+        document.getElementById('prompt-btn-cancel').addEventListener('click', closePromptModal);
+        document.getElementById('prompt-btn-confirm').addEventListener('click', () => {
+            const selectEl = document.getElementById('select-custom-lang');
+            const selectedCode = selectEl.value;
+            const selectedLang = commonLangPresets.find(l => l.code === selectedCode);
+            if (!selectedLang) return showToast(t('noLangOption'));
+            const nameZh = selectedLang.nameZh;
+            const nameEn = selectedLang.nameEn;
+            const displayName = getLangDisplayName(selectedLang);
+            const code = selectedLang.code;
+
+            const customLangs = JSON.parse(localStorage.getItem('myCustomLangs')) || [];
+            if (customLangs.some(l => l.code === code) || defaultLangs.some(l => l.code === code)) {
+                return showToast(t('customLangExists'));
+            }
+            customLangs.push({ name: nameZh, nameZh: nameZh, nameEn: nameEn, code: code });
+            localStorage.setItem('myCustomLangs', JSON.stringify(customLangs));
+            
+            renderLangSelects();
+            const targetSelect = document.getElementById(currentTargetSelectId);
+            targetSelect.value = code; targetSelect.dataset.prevValue = code;
+            if (currentTargetSelectId === 'select-langA') syncUiLocaleFromLangA();
+            updateLabels(); closePromptModal(); showToast(t('customLangAdded', displayName));
+        });
+
+        uiLocale = detectBrowserLocale();
+        renderLangSelects();
+        applyStaticTexts();
+
+        // ==========================================
+        // 彈窗與 Toast
+        // ==========================================
+        const modalEl = document.getElementById('custom-modal');
+        const modalContent = document.getElementById('custom-modal-content');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const btnCancel = document.getElementById('modal-btn-cancel');
+        const btnConfirm = document.getElementById('modal-btn-confirm');
+        let currentConfirmCallback = null;
+
+        function showModal({ title, message, type = 'alert', confirmText = t('modalOk'), confirmColor = 'bg-blue-600', icon = 'info', onConfirm = null }) {
+            const iconColor = type === 'confirm' ? 'text-red-500' : 'text-blue-500';
+            modalTitle.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5 mr-2 ${iconColor}"></i> ${title}`;
+            modalMessage.textContent = message;
+            btnConfirm.textContent = confirmText;
+            btnConfirm.className = `px-4 py-2 text-white rounded-xl font-medium transition-colors shadow-sm ${confirmColor}`;
+            type === 'confirm' ? btnCancel.classList.remove('hidden') : btnCancel.classList.add('hidden');
+            currentConfirmCallback = onConfirm; lucide.createIcons({ root: modalTitle });
+
+            modalEl.classList.remove('hidden');
+            setTimeout(() => {
+                modalEl.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95'); modalContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            modalEl.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100'); modalContent.classList.add('scale-95');
+            setTimeout(() => { modalEl.classList.add('hidden'); currentConfirmCallback = null; }, 200);
+        }
+        btnCancel.addEventListener('click', closeModal);
+        btnConfirm.addEventListener('click', () => { if (currentConfirmCallback) currentConfirmCallback(); closeModal(); });
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg; toast.classList.remove('opacity-0'); toast.classList.add('opacity-100');
+            setTimeout(() => { toast.classList.remove('opacity-100'); toast.classList.add('opacity-0'); }, 2500);
+        }
+
+        function normalizeText(value) {
+            return value.trim().replace(/\s+/g, ' ');
+        }
+
+        // ==========================================
+        // 資料庫模組 (100筆渲染限制)
+        // ==========================================
+        const db = new Dexie("PolyglotVocabDB");
+        db.version(1).stores({ words: '++id, textA, textB, langA, langB, createdAt' });
+
+        function getCurrentLangs() {
+            return { A: document.getElementById('select-langA').value, B: document.getElementById('select-langB').value };
+        }
+
+        async function loadWordList() {
+            const langs = getCurrentLangs();
+            const allWords = await db.words.filter(w => w.langA === langs.A && w.langB === langs.B).reverse().toArray();
+            
+            const listEl = document.getElementById('word-list');
+            const emptyState = document.getElementById('empty-state');
+            const limitNotice = document.getElementById('list-limit-notice');
+            const totalCount = allWords.length;
+            
+            document.getElementById('word-count-badge').textContent = totalCount;
+            listEl.innerHTML = '';
+            
+            if (totalCount === 0) {
+                emptyState.classList.remove('hidden'); limitNotice.classList.add('hidden'); return;
+            }
+            emptyState.classList.add('hidden');
+            
+            const displayLimit = 100;
+            const wordsToRender = allWords.slice(0, displayLimit);
+            
+            if (totalCount > displayLimit) {
+                limitNotice.classList.remove('hidden'); document.getElementById('total-count-notice').textContent = totalCount;
+            } else { limitNotice.classList.add('hidden'); }
+            
+            wordsToRender.forEach(word => {
+                const li = document.createElement('li');
+                li.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center";
+                li.innerHTML = `
+                    <div class="flex-1 pr-4">
+                        <p class="font-bold text-lg text-emerald-700">${word.textB}</p>
+                        <p class="text-slate-500 text-sm mt-1">${word.textA}</p>
+                    </div>
+                    <button onclick="requestDeleteWord(${word.id})" aria-label="${t('deleteWordAria', word.textB)}" class="p-2 text-slate-300 hover:text-red-500 transition-colors focus:outline-none">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                `;
+                listEl.appendChild(li);
+            });
+            lucide.createIcons({ root: listEl });
+        }
+
+        window.requestDeleteWord = function(id) {
+            showModal({
+                title: t('deleteConfirmTitle'), message: t('deleteConfirmMessage'), type: 'confirm', confirmText: t('deleteConfirmButton'), confirmColor: 'bg-red-500 hover:bg-red-600', icon: 'alert-triangle',
+                onConfirm: async () => { await db.words.delete(id); loadWordList(); showToast(t('deleteDone')); }
+            });
+        };
+
+        async function addWordFromInputs() {
+            const inputA = document.getElementById('input-a');
+            const inputB = document.getElementById('input-b');
+            const valA = normalizeText(inputA.value);
+            const valB = normalizeText(inputB.value);
+            const langs = getCurrentLangs();
+            if (!valA || !valB) return showToast(t('addNeedBoth'));
+            try {
+                const isDuplicate = await db.words
+                    .filter(w => w.langA === langs.A && w.langB === langs.B && normalizeText(w.textA) === valA && normalizeText(w.textB) === valB)
+                    .first();
+                if (isDuplicate) return showToast(t('addDuplicate'));
+
+                await db.words.add({ textA: valA, textB: valB, langA: langs.A, langB: langs.B, createdAt: new Date().getTime() });
+                inputA.value = ''; inputB.value = ''; inputA.focus();
+                showToast(t('addSuccess')); loadWordList();
+            } catch (error) { showToast(t('saveFailed')); }
+        }
+
+        document.getElementById('btn-add-word').addEventListener('click', addWordFromInputs);
+        document.getElementById('input-b').addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                await addWordFromInputs();
+            }
+        });
+
+        // ==========================================
+        // 語音引擎與播放 (支援熟練刪除 Skip)
+        // ==========================================
+        let shouldStop = false;
+        let skipCurrentWord = false; 
+        let currentPlayingWordId = null; 
+        const synth = window.speechSynthesis;
+
+        if (!('speechSynthesis' in window)) {
+            setTimeout(() => { showModal({ title: t('unsupportedSpeechTitle'), message: t('unsupportedSpeechMessage'), type: 'alert', confirmText: t('unsupportedSpeechConfirm'), icon: 'alert-circle' }); }, 500);
+        }
+        function getVoiceForLang(langCode) {
+            const voices = synth.getVoices();
+            let voice = voices.find(v => v.lang.replace('_','-') === langCode);
+            if (!voice) voice = voices.find(v => v.lang.startsWith(langCode.split('-')[0]));
+            return voice;
+        }
+
+        function speakText(text, langCode) {
+            return new Promise((resolve) => {
+                if (shouldStop || skipCurrentWord || !text) return resolve();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = langCode;
+                const voice = getVoiceForLang(langCode);
+                if (voice) utterance.voice = voice;
+                
+                if(langCode.includes('vi')) utterance.rate = 0.85; 
+                else if(langCode.includes('en')) utterance.rate = 0.9;
+                else utterance.rate = 1.0;
+
+                utterance.onend = resolve;
+                utterance.onerror = (e) => {
+                    if (e.error === 'not-allowed') showToast(t('speechBlocked'));
+                    resolve(); 
+                };
+                synth.speak(utterance);
+            });
+        }
+
+        const delay = (ms) => new Promise(resolve => {
+            const interval = setInterval(() => {
+                if (shouldStop || skipCurrentWord) { clearInterval(interval); resolve(); }
+            }, 50);
+            setTimeout(() => { clearInterval(interval); resolve(); }, ms);
+        });
+
+        function shuffleArray(array) {
+            const newArr = [...array];
+            for (let i = newArr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            return newArr;
+        }
+
+        document.getElementById('btn-mastered').addEventListener('click', async () => {
+            if (currentPlayingWordId) {
+                await db.words.delete(currentPlayingWordId);
+                showToast(t('masteredRemoved'));
+                skipCurrentWord = true; synth.cancel(); loadWordList();
+            }
+        });
+
+        async function startPlayLoop() {
+            const langs = getCurrentLangs();
+            const words = await db.words.filter(w => w.langA === langs.A && w.langB === langs.B).toArray();
+            
+            if (words.length === 0) { showToast(t('noWords')); togglePlayState(true); return; }
+
+            const countA = parseInt(document.getElementById('repeatA').value, 10) || 0;
+            const countB = parseInt(document.getElementById('repeatB').value, 10) || 0;
+            const pauseScale = (parseInt(document.getElementById('pause-scale').value, 10) || 100) / 100;
+            const pauseAfterA = Math.round(PLAYBACK_BASE_MS.pauseAfterA * pauseScale);
+            const pauseAfterB = Math.round(PLAYBACK_BASE_MS.pauseAfterB * pauseScale);
+            const pauseBetweenWords = Math.round(PLAYBACK_BASE_MS.pauseBetweenWords * pauseScale);
+            const pauseBetweenRounds = Math.round(PLAYBACK_BASE_MS.pauseBetweenRounds * pauseScale);
+            const isContinuous = document.getElementById('opt-continuous').checked;
+            const isLimitEnabled = document.getElementById('opt-limit-enabled').checked;
+            const limitCount = Math.max(1, parseInt(document.getElementById('opt-limit-count').value, 10) || 1);
+            const totalTarget = isLimitEnabled ? limitCount : (isContinuous ? null : words.length);
+
+            const elProgress = document.getElementById('current-progress');
+            const elTextA = document.getElementById('current-text-a');
+            const elTextB = document.getElementById('current-text-b');
+
+            let playedCount = 0;
+            let roundIndex = 0;
+
+            try {
+                while (!shouldStop) {
+                    roundIndex += 1;
+                    let playList = shuffleArray(words);
+                    if (isLimitEnabled) {
+                        const remaining = limitCount - playedCount;
+                        playList = playList.slice(0, Math.max(0, Math.min(remaining, playList.length)));
+                    }
+                    if (playList.length === 0) break;
+
+                    for (let i = 0; i < playList.length; i++) {
+                        if (shouldStop) break;
+                        
+                        const word = playList[i];
+                        currentPlayingWordId = word.id;
+                        skipCurrentWord = false;
+                        playedCount += 1;
+
+                        if (totalTarget) elProgress.textContent = `${playedCount} / ${totalTarget}`;
+                        else elProgress.textContent = t('playbackRound', i + 1, playList.length, roundIndex);
+                        elTextA.textContent = word.textA; elTextB.textContent = word.textB;
+                        
+                        const maxIterations = Math.max(countA, countB);
+
+                        for (let r = 0; r < maxIterations; r++) {
+                            if (shouldStop || skipCurrentWord) break;
+                            if (r < countA && !skipCurrentWord) { await speakText(word.textA, word.langA); await delay(pauseAfterA); }
+                            if (shouldStop || skipCurrentWord) break;
+                            if (r < countB && !skipCurrentWord) { await speakText(word.textB, word.langB); await delay(pauseAfterB); }
+                        }
+                        if (!shouldStop && !skipCurrentWord && i < playList.length - 1) await delay(pauseBetweenWords);
+                        if (isLimitEnabled && playedCount >= limitCount) break;
+                    }
+
+                    if (!isContinuous) break;
+                    if (isLimitEnabled && playedCount >= limitCount) break;
+                    if (!shouldStop) await delay(pauseBetweenRounds);
+                }
+            } finally {
+                currentPlayingWordId = null;
+                if (isPlaying) {
+                    togglePlayState(true);
+                    if (!shouldStop && !skipCurrentWord) {
+                        if (isLimitEnabled && playedCount < limitCount && !isContinuous) showToast(t('playDoneLimited', playedCount));
+                        else showToast(t('playDone'));
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // UI 控制與切換
+        // ==========================================
+        const btnPlayStop = document.getElementById('btn-play-stop');
+        const optLimitEnabled = document.getElementById('opt-limit-enabled');
+        const optLimitCount = document.getElementById('opt-limit-count');
+        const pauseScaleInput = document.getElementById('pause-scale');
+        const pauseScaleValue = document.getElementById('pause-scale-value');
+        const pausePreview = document.getElementById('pause-preview');
+        const lockWhilePlayingEls = [
+            document.getElementById('select-langA'),
+            document.getElementById('select-langB'),
+            document.getElementById('pause-scale'),
+            document.getElementById('opt-continuous'),
+            document.getElementById('opt-limit-enabled'),
+            document.getElementById('opt-limit-count'),
+            document.getElementById('tab-player'),
+            document.getElementById('tab-library')
+        ];
+        function setPlayingControlsDisabled(disabled) {
+            lockWhilePlayingEls.forEach(el => {
+                if (!el) return;
+                el.disabled = disabled;
+            });
+            document.querySelectorAll('.btn-minus, .btn-plus').forEach(btn => {
+                btn.disabled = disabled;
+                btn.classList.toggle('opacity-50', disabled);
+                btn.classList.toggle('cursor-not-allowed', disabled);
+            });
+        }
+        function renderPausePreview() {
+            const scaleInputEl = document.getElementById('pause-scale');
+            const scaleValueEl = document.getElementById('pause-scale-value');
+            const previewEl = document.getElementById('pause-preview');
+            const scale = parseInt(scaleInputEl.value, 10) || 100;
+            const factor = scale / 100;
+            scaleValueEl.textContent = `${scale}%`;
+            previewEl.textContent = t('pausePreview', Math.round(PLAYBACK_BASE_MS.pauseAfterA * factor), Math.round(PLAYBACK_BASE_MS.pauseAfterB * factor), Math.round(PLAYBACK_BASE_MS.pauseBetweenWords * factor));
+        }
+        pauseScaleInput.addEventListener('input', renderPausePreview);
+        renderPausePreview();
+        optLimitEnabled.addEventListener('change', () => { optLimitCount.disabled = !optLimitEnabled.checked; });
+        optLimitCount.addEventListener('input', () => {
+            if (optLimitCount.value === '') return;
+            const parsed = parseInt(optLimitCount.value, 10);
+            if (!Number.isFinite(parsed) || parsed < 1) optLimitCount.value = '1';
+            if (parsed > 9999) optLimitCount.value = '9999';
+        });
+
+        function togglePlayState(forceStop = false) {
+            if (isPlaying || forceStop) {
+                isPlaying = false; shouldStop = true; synth.cancel();
+                setPlayingControlsDisabled(false);
+                optLimitCount.disabled = !optLimitEnabled.checked;
+                btnPlayStop.className = "flex-1 bg-blue-600 text-white rounded-2xl py-4 text-xl font-bold shadow-lg shadow-blue-200 transition-all transform active:scale-95 flex items-center justify-center";
+                document.getElementById('icon-play').classList.remove('hidden'); document.getElementById('icon-stop').classList.add('hidden');
+                document.getElementById('text-play-stop').textContent = t('playStart');
+                document.getElementById('idle-container').classList.remove('hidden'); document.getElementById('status-container').classList.add('hidden');
+            } else {
+                isPlaying = true; shouldStop = false;
+                setPlayingControlsDisabled(true);
+                const unlockUtterance = new SpeechSynthesisUtterance(' '); unlockUtterance.volume = 0.01; synth.speak(unlockUtterance);
+                btnPlayStop.className = "flex-1 bg-red-500 text-white rounded-2xl py-4 text-xl font-bold shadow-lg shadow-red-200 transition-all transform active:scale-95 flex items-center justify-center";
+                document.getElementById('icon-play').classList.add('hidden'); document.getElementById('icon-stop').classList.remove('hidden');
+                document.getElementById('text-play-stop').textContent = t('playStop');
+                document.getElementById('idle-container').classList.add('hidden'); document.getElementById('status-container').classList.remove('hidden');
+                startPlayLoop();
+            }
+        }
+        btnPlayStop.addEventListener('click', () => togglePlayState());
+
+        function updateLabels() {
+            const langs = getCurrentLangs();
+            const nameA = langNamesMap[langs.A] || langs.A; const nameB = langNamesMap[langs.B] || langs.B;
+            document.getElementById('label-repeat-A').innerHTML = `<span class="w-3 h-3 rounded-full bg-indigo-400 mr-2"></span>${nameA}`;
+            document.getElementById('label-repeat-B').innerHTML = `<span class="w-3 h-3 rounded-full bg-emerald-400 mr-2"></span>${nameB}`;
+            document.getElementById('input-a').placeholder = t('inputPlaceholder', nameA); document.getElementById('input-b').placeholder = t('inputPlaceholder', nameB);
+            document.getElementById('current-deck-label').textContent = t('deckLabel', nameA, nameB);
+            document.querySelectorAll('.btn-minus[data-target=\"repeatA\"]').forEach(btn => btn.setAttribute('aria-label', t('repeatMinusAria', nameA)));
+            document.querySelectorAll('.btn-plus[data-target=\"repeatA\"]').forEach(btn => btn.setAttribute('aria-label', t('repeatPlusAria', nameA)));
+            document.querySelectorAll('.btn-minus[data-target=\"repeatB\"]').forEach(btn => btn.setAttribute('aria-label', t('repeatMinusAria', nameB)));
+            document.querySelectorAll('.btn-plus[data-target=\"repeatB\"]').forEach(btn => btn.setAttribute('aria-label', t('repeatPlusAria', nameB)));
+            loadWordList();
+        }
+
+        document.querySelectorAll('.btn-minus').forEach(btn => btn.addEventListener('click', (e) => {
+            const input = document.getElementById(e.target.dataset.target); if (input.value > 0) input.value = parseInt(input.value) - 1;
+        }));
+        document.querySelectorAll('.btn-plus').forEach(btn => btn.addEventListener('click', (e) => {
+            const input = document.getElementById(e.target.dataset.target); if (input.value < 20) input.value = parseInt(input.value) + 1;
+        }));
+        const tabPlayer = document.getElementById('tab-player'); const tabLibrary = document.getElementById('tab-library');
+        tabPlayer.addEventListener('click', () => {
+            tabPlayer.className = "flex-1 py-3 text-center font-medium text-blue-600 border-b-2 border-blue-600 transition-colors";
+            tabLibrary.className = "flex-1 py-3 text-center font-medium text-slate-400 border-b-2 border-transparent transition-colors";
+            document.getElementById('view-player').classList.remove('hidden'); document.getElementById('view-library').classList.add('hidden');
+        });
+        tabLibrary.addEventListener('click', () => {
+            tabLibrary.className = "flex-1 py-3 text-center font-medium text-blue-600 border-b-2 border-blue-600 transition-colors";
+            tabPlayer.className = "flex-1 py-3 text-center font-medium text-slate-400 border-b-2 border-transparent transition-colors";
+            document.getElementById('view-library').classList.remove('hidden'); document.getElementById('view-player').classList.add('hidden');
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = () => synth.getVoices();
+            updateLabels();
+        });
+    </script>
+</body>
+</html>

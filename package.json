@@ -1,0 +1,14 @@
+{
+  "name": "ddxu2-tool",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Static launcher + tools for Vercel",
+  "scripts": {
+    "dev": "http-server . -p 5500 -c-1",
+    "dev:open": "http-server . -p 5500 -c-1 -o /",
+    "start": "http-server . -p 5500 -c-1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

@@ -1,0 +1,264 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的 AI 專屬百寶箱</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@0.542.0"></script>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3C/svg%3E">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <style>
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        body { -webkit-tap-highlight-color: transparent; }
+        .app-card { transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; }
+        .app-card:active { transform: scale(0.96); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col relative">
+
+    <!-- 頂部導覽列 (與工具一致的清爽風格) -->
+    <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-20 flex flex-col items-center relative">
+        <div class="flex items-center justify-center mb-1 mt-2">
+            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mr-3 backdrop-blur-sm">
+                <i data-lucide="layers" class="w-6 h-6 text-white"></i>
+            </div>
+            <h1 id="launcher-title" class="text-2xl font-extrabold tracking-tight">小工具 by ddxu2</h1>
+        </div>
+        <p id="launcher-subtitle" class="text-blue-200 text-xs mb-2">開啟新工具的網址即會自動添加至此</p>
+        
+        <!-- 編輯模式切換按鈕 -->
+        <button id="btn-toggle-edit" class="absolute top-5 right-4 p-2 bg-blue-700 hover:bg-blue-800 rounded-full text-blue-200 hover:text-white transition-colors z-20 focus:outline-none">
+            <i data-lucide="settings-2" class="w-5 h-5"></i>
+        </button>
+    </header>
+
+    <!-- 主要內容區 (與工具一致的居中容器) -->
+    <main class="flex-grow flex flex-col max-w-md w-full mx-auto bg-slate-50 shadow-sm overflow-hidden relative">
+        
+        <div class="p-6 flex-1 overflow-y-auto">
+            <h2 class="text-sm font-bold text-slate-500 mb-4 flex items-center uppercase tracking-wider">
+                <i data-lucide="grid" class="w-4 h-4 mr-1"></i> <span id="linked-tools-title">已連結的工具</span>
+            </h2>
+
+            <!-- 動態生成的 App 網格區 -->
+            <div id="app-grid" class="grid grid-cols-2 gap-4 pb-24"></div>
+            
+            <!-- 空狀態提示 -->
+            <div id="empty-state" class="text-center text-slate-400 mt-16 hidden">
+                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200 shadow-sm">
+                    <i data-lucide="ghost" class="w-8 h-8 text-slate-300"></i>
+                </div>
+                <p id="empty-title" class="font-bold text-slate-600 mb-2">大廳目前空空如也</p>
+                <p id="empty-subtitle" class="text-xs text-slate-500 leading-relaxed">請在瀏覽器直接開啟你的第一個工具網址<br>它就會自動出現在這裡</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 刪除確認彈窗 -->
+    <div id="delete-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[110] flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div id="delete-modal-content" class="bg-white rounded-3xl p-6 w-11/12 max-w-sm shadow-2xl transform scale-95 transition-transform duration-200 mx-auto text-center">
+            <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+                <i data-lucide="trash-2" class="w-8 h-8 text-red-500"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">確認移除捷徑</h3>
+            <p class="text-slate-500 text-sm mb-8 leading-relaxed px-2">確定要從大廳移除這個工具按鈕嗎？<br><span class="text-xs text-slate-400">(這不會刪除您上傳至伺服器的實體檔案)</span></p>
+            <div class="flex justify-center gap-3 w-full">
+                <button id="btn-cancel-delete" class="flex-1 py-3 text-slate-600 bg-slate-100 rounded-2xl font-bold hover:bg-slate-200 transition-colors focus:outline-none">取消</button>
+                <button id="btn-confirm-delete" class="flex-1 py-3 text-white bg-red-500 rounded-2xl font-bold hover:bg-red-600 transition-colors shadow-md shadow-red-500/20 focus:outline-none">確定移除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全局提示框 (Toast) -->
+    <div id="toast" class="fixed bottom-28 left-1/2 transform -translate-x-1/2 bg-slate-800/95 backdrop-blur-md text-white px-6 py-3 rounded-full shadow-2xl opacity-0 transition-opacity duration-300 pointer-events-none z-[120] whitespace-nowrap font-bold text-sm flex items-center">
+        <span id="toast-msg">提示訊息</span>
+    </div>
+
+    <script>
+        // 初始化 Icons
+        lucide.createIcons();
+
+        // ==========================================
+        // 大廳核心邏輯：從 LocalStorage 讀取所有註冊的 App
+        // ==========================================
+        const UI_TEXT = {
+            zh: {
+                launcherTitle: '小工具 by ddxu2',
+                launcherSubtitle: '開啟新工具的網址即會自動添加至此',
+                linkedToolsTitle: '已連結的工具',
+                emptyTitle: '大廳目前空空如也',
+                emptySubtitle: '透過工具網址進入，工具就會自動添加於此目錄。',
+                deleteTitle: '確認移除捷徑',
+                deleteMessage: '確定要從大廳移除這個工具按鈕嗎？<br><span class="text-xs text-slate-400">(這不會刪除你儲存在此網頁的資料)</span>',
+                cancel: '取消',
+                confirmDelete: '確定移除',
+                toastRemoved: '已移除捷徑'
+            },
+            en: {
+                launcherTitle: 'Tools by ddxu2',
+                launcherSubtitle: 'Open a tool URL and it will be added here automatically',
+                linkedToolsTitle: 'Linked Tools',
+                emptyTitle: 'No tools yet',
+                emptySubtitle: 'Open a tool URL, and it will be added to this directory automatically.',
+                deleteTitle: 'Remove Shortcut',
+                deleteMessage: 'Remove this tool shortcut from the launcher?<br><span class="text-xs text-slate-400">(This will not delete data saved on this webpage)</span>',
+                cancel: 'Cancel',
+                confirmDelete: 'Remove',
+                toastRemoved: 'Shortcut removed'
+            }
+        };
+        let uiLocale = ((navigator.languages && navigator.languages[0]) || navigator.language || 'en-US').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+        let myApps = JSON.parse(localStorage.getItem('myAppLauncherStorage')) || [];
+        let isEditMode = false;
+        let deleteTargetId = null;
+
+        const grid = document.getElementById('app-grid');
+        const emptyState = document.getElementById('empty-state');
+        
+        // 明亮主題的清爽顏色對照表
+        const colorMap = {
+            blue: { text: "text-blue-500", bg: "bg-blue-50" },
+            emerald: { text: "text-emerald-500", bg: "bg-emerald-50" },
+            amber: { text: "text-amber-500", bg: "bg-amber-50" },
+            rose: { text: "text-rose-500", bg: "bg-rose-50" },
+            purple: { text: "text-purple-500", bg: "bg-purple-50" }
+        };
+        function t(key) { return UI_TEXT[uiLocale][key]; }
+        function getAppDisplayName(app) {
+            if (uiLocale === 'en') return app.nameEn || (app.nameI18n && app.nameI18n.en) || app.name;
+            return app.nameZh || (app.nameI18n && app.nameI18n.zh) || app.name;
+        }
+        function applyStaticTexts() {
+            document.getElementById('launcher-title').textContent = t('launcherTitle');
+            document.getElementById('launcher-subtitle').textContent = t('launcherSubtitle');
+            document.getElementById('linked-tools-title').textContent = t('linkedToolsTitle');
+            document.getElementById('empty-title').textContent = t('emptyTitle');
+            document.getElementById('empty-subtitle').innerHTML = t('emptySubtitle');
+            document.getElementById('btn-cancel-delete').textContent = t('cancel');
+            document.getElementById('btn-confirm-delete').textContent = t('confirmDelete');
+            document.getElementById('delete-modal-content').querySelector('h3').textContent = t('deleteTitle');
+            document.getElementById('delete-modal-content').querySelector('p').innerHTML = t('deleteMessage');
+        }
+
+        // 渲染大廳網格
+        function renderGrid() {
+            grid.innerHTML = '';
+            
+            if (myApps.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+            }
+            
+            myApps.forEach(app => {
+                const theme = colorMap[app.color] || colorMap.blue;
+                const linkHref = isEditMode ? 'javascript:void(0)' : app.path;
+                const shakeClass = isEditMode ? 'animate-pulse ring-2 ring-red-400' : '';
+                
+                const cardHTML = `
+                    <div class="relative group h-full">
+                        <!-- 刪除按鈕 (僅在編輯模式顯示) -->
+                        <button onclick="requestDelete('${app.id}')" class="${isEditMode ? 'flex' : 'hidden'} absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full items-center justify-center shadow-md z-10 hover:bg-red-600 transition-colors focus:outline-none">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+
+                        <a href="${linkHref}" class="app-card block bg-white border border-slate-200 hover:border-blue-400 rounded-3xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center text-center ${shakeClass} relative overflow-hidden transition-all h-full min-h-[140px]">
+                            <div class="w-14 h-14 ${theme.bg} rounded-full flex items-center justify-center mb-4 transition-colors">
+                                <i data-lucide="${app.icon || 'box'}" class="w-7 h-7 ${theme.text}"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-700 mb-1.5 leading-tight">${getAppDisplayName(app)}</h3>
+                            <p class="text-[10px] font-mono text-slate-400 truncate w-full px-1">${app.path}</p>
+                        </a>
+                    </div>
+                `;
+                grid.innerHTML += cardHTML;
+            });
+
+            // 重新初始化動態生成的圖示
+            lucide.createIcons();
+        }
+
+        function saveApps() {
+            localStorage.setItem('myAppLauncherStorage', JSON.stringify(myApps));
+            renderGrid();
+        }
+
+        // ==========================================
+        // UI 互動邏輯
+        // ==========================================
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            toast.classList.remove('opacity-0'); toast.classList.add('opacity-100');
+            setTimeout(() => { toast.classList.remove('opacity-100'); toast.classList.add('opacity-0'); }, 2500);
+        }
+
+        // 切換編輯模式
+        document.getElementById('btn-toggle-edit').addEventListener('click', () => {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('btn-toggle-edit');
+            if (isEditMode) {
+                btn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600', 'ring-4', 'ring-red-500/30');
+                btn.classList.remove('bg-blue-700', 'text-blue-200', 'hover:bg-blue-800');
+            } else {
+                btn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600', 'ring-4', 'ring-red-500/30');
+                btn.classList.add('bg-blue-700', 'text-blue-200', 'hover:bg-blue-800');
+            }
+            renderGrid();
+        });
+
+        // 刪除彈窗邏輯
+        const deleteModal = document.getElementById('delete-modal');
+        const deleteContent = document.getElementById('delete-modal-content');
+
+        window.requestDelete = function(id) {
+            deleteTargetId = id;
+            deleteModal.classList.remove('hidden');
+            setTimeout(() => {
+                deleteModal.classList.remove('opacity-0');
+                deleteContent.classList.remove('scale-95'); deleteContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        document.getElementById('btn-cancel-delete').addEventListener('click', () => {
+            deleteModal.classList.add('opacity-0');
+            deleteContent.classList.remove('scale-100'); deleteContent.classList.add('scale-95');
+            setTimeout(() => { deleteModal.classList.add('hidden'); deleteTargetId = null; }, 200);
+        });
+
+        document.getElementById('btn-confirm-delete').addEventListener('click', () => {
+            myApps = myApps.filter(app => app.id !== deleteTargetId);
+            saveApps();
+            showToast(t('toastRemoved'));
+            
+            // 如果刪除後沒有 app 了，自動關閉編輯模式
+            if (myApps.length === 0 && isEditMode) {
+                document.getElementById('btn-toggle-edit').click();
+            }
+            
+            document.getElementById('btn-cancel-delete').click();
+        });
+
+        // ==========================================
+        // 核心機制：自動感應與刷新
+        // 當使用者從子工具返回時，重新讀取 LocalStorage 檢查有無新註冊的工具
+        // ==========================================
+        window.addEventListener('focus', () => {
+            const updatedApps = JSON.parse(localStorage.getItem('myAppLauncherStorage')) || [];
+            // 如果數量不同，或最新一筆 ID 不同 (代表有新註冊或覆蓋)
+            if (updatedApps.length !== myApps.length || JSON.stringify(updatedApps) !== JSON.stringify(myApps)) {
+                myApps = updatedApps;
+                renderGrid();
+            }
+        });
+
+        // 初次載入渲染
+        applyStaticTexts();
+        renderGrid();
+    </script>
+</body>
+</html>
