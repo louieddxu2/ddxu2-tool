@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>多語系隨機聽讀播放器</title>
+    <title>語音閃卡播放器</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
     <script src="https://unpkg.com/lucide@0.542.0"></script>
@@ -466,6 +466,7 @@
         const promptContent = document.getElementById('prompt-modal-content');
         let currentTargetSelectId = null;
         function applyStaticTexts() {
+            document.title = t('appTitle');
             document.getElementById('app-title').textContent = t('appTitle');
             document.querySelector('a[href="/"]').setAttribute('aria-label', t('homeAria'));
             document.getElementById('label-lang-a').textContent = t('labelLangA');

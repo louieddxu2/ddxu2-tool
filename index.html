@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的 AI 專屬百寶箱</title>
+    <title>小工具 by ddxu2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@0.542.0"></script>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3C/svg%3E">
@@ -132,6 +132,7 @@
             return app.nameZh || (app.nameI18n && app.nameI18n.zh) || app.name;
         }
         function applyStaticTexts() {
+            document.title = t('launcherTitle');
             document.getElementById('launcher-title').textContent = t('launcherTitle');
             document.getElementById('launcher-subtitle').textContent = t('launcherSubtitle');
             document.getElementById('linked-tools-title').textContent = t('linkedToolsTitle');
