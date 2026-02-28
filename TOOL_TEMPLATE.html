@@ -32,6 +32,10 @@
       if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
       if (!appPath.endsWith('/')) appPath += '/';
       if (appPath === '/') return;
+      const launcherPath = appPath.replace(/[^/]+\/$/, '');
+      document.querySelectorAll('[data-home-link]').forEach(el => {
+        el.setAttribute('href', launcherPath || '/');
+      });
 
       const appMeta = {
         id: 'your-tool-id',
@@ -57,7 +61,7 @@
 
   <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-20">
     <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/" class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors">
         <i data-lucide="home" class="w-5 h-5"></i>
       </a>
       <h1 class="text-lg font-bold tracking-tight">雿?撌亙?迂</h1>

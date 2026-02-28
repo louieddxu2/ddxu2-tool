@@ -28,6 +28,10 @@
             if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
             if (!appPath.endsWith('/')) appPath += '/';
             if (appPath === '/') return; // 避免註冊到根目錄
+            const launcherPath = appPath.replace(/[^/]+\/$/, '');
+            document.querySelectorAll('[data-home-link]').forEach(el => {
+                el.setAttribute('href', launcherPath || '/');
+            });
 
             const appMeta = {
                 id: 'vocab-player', 
@@ -51,7 +55,7 @@
     <header class="bg-blue-600 text-white px-3 py-2.5 shadow-md sticky top-0 z-20">
         <div class="flex items-center justify-between mb-2">
             <!-- 返回大廳按鈕 -->
-            <a href="/" aria-label="返回大廳" class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors flex items-center justify-center">
+            <a href="/" data-home-link aria-label="返回大廳" class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors flex items-center justify-center">
                 <i data-lucide="home" class="w-5 h-5"></i>
             </a>
             
