@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>動態表單中心</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@0.542.0"></script>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <style>
+    ::-webkit-scrollbar { width: 0; background: transparent; }
+    body { -webkit-tap-highlight-color: transparent; }
+    
+    /* 底部彈出窗動畫 */
+    .bottom-sheet {
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateY(100%);
+    }
+    .bottom-sheet.open {
+      transform: translateY(0);
+    }
+    
+    /* 側欄動畫 */
+    .sidebar {
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateX(-100%);
+    }
+    .sidebar.open {
+      transform: translateX(0);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col overflow-hidden relative">
+
+  <script>
+    (function autoRegister() {
+      let appPath = window.location.pathname;
+      if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
+      if (!appPath.endsWith('/')) appPath += '/';
+      if (appPath === '/') return;
+
+      const launcherPath = appPath.replace(/[^/]+\/$/, '');
+      document.querySelectorAll('[data-home-link]').forEach(el => {
+        el.setAttribute('href', launcherPath || '/');
+      });
+
+      const appMeta = {
+        id: 'dynamic-sheet-hub',
+        name: '動態表單',
+        nameZh: '動態表單',
+        nameEn: 'Sheet Hub',
+        path: appPath,
+        icon: 'table',
+        color: 'blue'
+      };
+
+      const storageKey = 'myAppLauncherStorage';
+      const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
+      if (existingIndex === -1) launcherData.push(appMeta);
+      else launcherData[existingIndex] = { ...launcherData[existingIndex], ...appMeta };
+      localStorage.setItem(storageKey, JSON.stringify(launcherData));
+    })();
+  </script>
+
+  <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-20 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button id="btn-menu" class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors">
+        <i data-lucide="menu" class="w-6 h-6"></i>
+      </button>
+      <h1 id="header-title" class="text-lg font-bold tracking-tight">桌遊收藏紀錄</h1>
+    </div>
+    <div class="flex gap-2">
+      <button id="btn-sync" class="p-2 -mr-2 hover:bg-blue-700 rounded-full transition-colors relative">
+        <i data-lucide="cloud-off" class="w-5 h-5 text-blue-200"></i> </button>
+    </div>
+  </header>
+
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-30 hidden opacity-0 transition-opacity"></div>
+  <aside id="sidebar" class="sidebar fixed top-0 left-0 bottom-0 w-64 bg-white z-40 shadow-xl flex flex-col">
+    <div class="p-4 bg-slate-100 border-b">
+      <h2 class="font-bold text-slate-700">選擇試算表分頁</h2>
+    </div>
+    <div class="flex-grow overflow-y-auto p-2" id="sheet-list">
+      <button class="w-full text-left p-3 rounded-xl bg-blue-50 text-blue-700 font-medium mb-1 flex items-center gap-2">
+        <i data-lucide="table-2" class="w-4 h-4"></i> 桌遊收藏 (Mock)
+      </button>
+      <button class="w-full text-left p-3 rounded-xl text-slate-600 hover:bg-slate-50 font-medium flex items-center gap-2">
+        <i data-lucide="table-2" class="w-4 h-4"></i> 預留分頁
+      </button>
+    </div>
+    <div class="p-4 border-t">
+      <a href="/" data-home-link class="flex items-center gap-2 text-slate-500 hover:text-slate-700">
+        <i data-lucide="home" class="w-5 h-5"></i> 回到大廳
+      </a>
+    </div>
+  </aside>
+
+  <main class="flex-grow w-full max-w-md mx-auto p-4 overflow-y-auto pb-24" id="main-content">
+    </main>
+
+  <button class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform z-10">
+    <i data-lucide="plus" class="w-6 h-6"></i>
+  </button>
+
+  <div id="editor-overlay" class="fixed inset-0 bg-black/50 z-40 hidden opacity-0 transition-opacity"></div>
+  <div id="editor-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white rounded-t-3xl z-50 shadow-2xl flex flex-col" style="max-height: 85vh;">
+    <div class="p-4 border-b flex items-center justify-between">
+      <div>
+        <h3 id="editor-title" class="font-bold text-lg text-slate-800">編輯屬性</h3>
+        <p id="editor-subtitle" class="text-xs text-slate-500">對象名稱</p>
+      </div>
+      <button id="btn-close-editor" class="p-2 bg-slate-100 rounded-full text-slate-600 active:bg-slate-200">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+    <div id="editor-body" class="p-4 overflow-y-auto flex-grow flex flex-col gap-4">
+      </div>
+  </div>
+
+
+  <script>
+    lucide.createIcons();
+
+    // ==========================================
+    // 1. 架構定義：UI Schema 與 假資料 (Mock Data)
+    // ==========================================
+    // 這就是未來存在 Google 試算表 __App_Config__ 裡的設定
+    const schema = {
+      name: { label: '遊戲名稱', type: 'text' },
+      price: { label: '購入價格', type: 'number' },
+      status: { label: '持有狀態', type: 'select', options: ['未發貨', '已持有', '已售出', '願望清單'] },
+      rating: { label: '個人評分', type: 'select', options: ['1', '2', '3', '4', '5'] }
+    };
+
+    // 這就是未來從 Google 試算表抓下來的資料
+    let tableData = [
+      { id: '1', name: 'Gloomhaven (幽港迷城)', price: 3500, status: '已持有', rating: '5' },
+      { id: '2', name: 'Frosthaven', price: 5000, status: '未發貨', rating: '' },
+      { id: '3', name: '璀璨寶石', price: 1200, status: '已售出', rating: '3' }
+    ];
+
+    // ==========================================
+    // 2. 編輯器工廠 (Editor Factory Framework)
+    // ==========================================
+    // 💡【未來重構參照點】：
+    // 未來要擴充複雜的編輯器時，把這裡面的方法拆成獨立檔案。
+    // 例如： import renderTextEditor from './editors/text.js';
+    const EditorFactory = {
+      // 產出文字輸入介面
+      text: (value, onSave) => {
+        return `
+          <input type="text" id="input-text" value="${value || ''}" class="w-full p-4 bg-slate-100 rounded-xl text-lg outline-none focus:ring-2 focus:ring-blue-500">
+          <button id="btn-save" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold mt-4 active:scale-95 transition-transform">儲存</button>
+        `;
+      },
+      // 產出數字輸入介面（手機會跳出數字鍵盤）
+      number: (value, onSave) => {
+        return `
+          <input type="number" id="input-number" value="${value || ''}" placeholder="0" class="w-full p-4 bg-slate-100 rounded-xl text-2xl font-bold text-center outline-none focus:ring-2 focus:ring-blue-500">
+          <button id="btn-save" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold mt-4 active:scale-95 transition-transform">儲存</button>
+        `;
+      },
+      // 產出大按鈕選單（完美符合你原App的需求）
+      select: (value, onSave, options) => {
+        let html = '<div class="flex flex-col gap-3">';
+        options.forEach(opt => {
+          const isSelected = opt === value;
+          const bgClass = isSelected ? 'bg-blue-600 text-white shadow-md border-blue-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50';
+          html += `<button class="btn-select-option w-full py-4 rounded-2xl border text-lg font-bold transition-all active:scale-95 ${bgClass}" data-val="${opt}">${opt}</button>`;
+        });
+        html += '</div>';
+        return html;
+      },
+      
+      // 💡【未來擴充區】：
+      /*
+      calculator: (value, onSave) => { ...回傳一個九宮格計算機 UI... },
+      image: (value, onSave) => { ...回傳呼叫相機的 UI... },
+      random: (value, onSave, options) => { ...回傳隨機轉盤 UI... }
+      */
+    };
+
+
+    // ==========================================
+    // 3. UI 渲染邏輯
+    // ==========================================
+    const mainContent = document.getElementById('main-content');
+
+    function renderCards() {
+      mainContent.innerHTML = '';
+      tableData.forEach((row, index) => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl p-4 mb-4 shadow-sm border border-slate-200';
+        
+        // 標題 (固定取 name 屬性)
+        let html = `<h2 class="font-bold text-lg mb-3 text-slate-800">${row.name}</h2>`;
+        
+        // 渲染其他屬性為 Chip (標籤)
+        html += `<div class="flex flex-wrap gap-2">`;
+        Object.keys(schema).forEach(key => {
+          if (key === 'name') return; // 標題已經渲染過了
+          const attr = schema[key];
+          const val = row[key] || '---';
+          
+          // 點擊事件綁定 (開啟編輯器)
+          html += `
+            <button onclick="openEditor(${index}, '${key}')" class="flex flex-col items-start p-2 bg-slate-50 border border-slate-100 rounded-xl min-w-[48%] flex-grow active:bg-blue-50 transition-colors text-left">
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">${attr.label}</span>
+              <span class="text-sm font-semibold text-slate-700 mt-1 truncate w-full">${val}</span>
+            </button>
+          `;
+        });
+        html += `</div>`;
+        card.innerHTML = html;
+        mainContent.appendChild(card);
+      });
+    }
+
+
+    // ==========================================
+    // 4. 編輯器互動邏輯 (Bottom Sheet)
+    // ==========================================
+    const editorSheet = document.getElementById('editor-sheet');
+    const editorOverlay = document.getElementById('editor-overlay');
+    const editorBody = document.getElementById('editor-body');
+
+    function openEditor(rowIndex, attrKey) {
+      const row = tableData[rowIndex];
+      const attrConfig = schema[attrKey];
+      
+      // 設定標題
+      document.getElementById('editor-title').innerText = `編輯：${attrConfig.label}`;
+      document.getElementById('editor-subtitle').innerText = row.name;
+
+      // 呼叫對應的工廠方法渲染 UI
+      const currentVal = row[attrKey];
+      
+      if (attrConfig.type === 'select') {
+        editorBody.innerHTML = EditorFactory.select(currentVal, null, attrConfig.options);
+        // 綁定大按鈕事件 (點擊即儲存並關閉)
+        document.querySelectorAll('.btn-select-option').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            saveData(rowIndex, attrKey, e.target.getAttribute('data-val'));
+          });
+        });
+      } 
+      else if (attrConfig.type === 'text') {
+        editorBody.innerHTML = EditorFactory.text(currentVal);
+        const input = document.getElementById('input-text');
+        input.focus();
+        document.getElementById('btn-save').addEventListener('click', () => {
+          saveData(rowIndex, attrKey, input.value);
+        });
+      }
+      else if (attrConfig.type === 'number') {
+        editorBody.innerHTML = EditorFactory.number(currentVal);
+        const input = document.getElementById('input-number');
+        input.focus();
+        document.getElementById('btn-save').addEventListener('click', () => {
+          saveData(rowIndex, attrKey, input.value);
+        });
+      }
+
+      // 顯示動畫
+      editorOverlay.classList.remove('hidden');
+      setTimeout(() => {
+        editorOverlay.classList.remove('opacity-0');
+        editorSheet.classList.add('open');
+      }, 10);
+    }
+
+    function closeEditor() {
+      editorSheet.classList.remove('open');
+      editorOverlay.classList.add('opacity-0');
+      setTimeout(() => editorOverlay.classList.add('hidden'), 300);
+    }
+
+    function saveData(rowIndex, attrKey, newValue) {
+      // 更新本地資料
+      tableData[rowIndex][attrKey] = newValue;
+      
+      // 💡【未來擴充】：在這裡觸發 Google Sheets API 同步
+      console.log(`[Sync] 更新 Row:${rowIndex} Key:${attrKey} Value:${newValue}`);
+      
+      // 重新渲染畫面並關閉編輯器
+      renderCards();
+      closeEditor();
+    }
+
+    document.getElementById('btn-close-editor').addEventListener('click', closeEditor);
+    editorOverlay.addEventListener('click', closeEditor);
+
+
+    // ==========================================
+    // 5. 側邊欄互動邏輯
+    // ==========================================
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+    function toggleSidebar() {
+      const isOpen = sidebar.classList.contains('open');
+      if (isOpen) {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.add('opacity-0');
+        setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
+      } else {
+        sidebarOverlay.classList.remove('hidden');
+        setTimeout(() => {
+          sidebarOverlay.classList.remove('opacity-0');
+          sidebar.classList.add('open');
+        }, 10);
+      }
+    }
+
+    document.getElementById('btn-menu').addEventListener('click', toggleSidebar);
+    sidebarOverlay.addEventListener('click', toggleSidebar);
+
+    // ==========================================
+    // 6. 初始化執行
+    // ==========================================
+    renderCards();
+
+  </script>
+</body>
+</html>
