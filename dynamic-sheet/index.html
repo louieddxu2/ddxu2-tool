@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW" class="light">
 <head>
   <meta charset="UTF-8">
@@ -85,6 +85,16 @@
       <h2 class="font-bold text-slate-700 dark:text-slate-200">資料來源與同步</h2>
     </div>
     <div class="flex-grow p-3 space-y-4">
+      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs text-slate-500">Drawer 目錄</p>
+          <div class="flex gap-1">
+            <button id="btn-new-folder" class="px-2 py-1 text-[11px] bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">+ Folder</button>
+            <button id="btn-new-sheet" class="px-2 py-1 text-[11px] bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">+ Sheet</button>
+          </div>
+        </div>
+        <div id="drawer-tree" class="max-h-44 overflow-y-auto pr-1"></div>
+      </div>
       <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
         <p class="text-xs text-slate-500 mb-1">目前資料源</p>
         <p class="text-sm font-semibold">Google Sheets（待接線）</p>

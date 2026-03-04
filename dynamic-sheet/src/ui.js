@@ -1,3 +1,5 @@
+import { ROOT_NODE_ID } from "./constants.js";
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -5,6 +7,17 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function walkTree(nodes, parentId = ROOT_NODE_ID, depth = 0, out = []) {
+  const children = nodes
+    .filter((node) => node.parentId === parentId)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  for (const node of children) {
+    out.push({ node, depth });
+    if (node.type === "folder") walkTree(nodes, node.id, depth + 1, out);
+  }
+  return out;
 }
 
 export function createUI({ store, onSyncNow, onResetData }) {
@@ -21,6 +34,18 @@ export function createUI({ store, onSyncNow, onResetData }) {
   const editorTitle = document.getElementById("editor-title");
   const editorSubtitle = document.getElementById("editor-subtitle");
   const editorBody = document.getElementById("editor-body");
+
+  const drawerTree = document.getElementById("drawer-tree");
+  const btnNewFolder = document.getElementById("btn-new-folder");
+  const btnNewSheet = document.getElementById("btn-new-sheet");
+
+  function initTheme() {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = localStorage.getItem("theme");
+    const useDark = theme ? theme === "dark" : prefersDark;
+    document.documentElement.classList.toggle("dark", useDark);
+    document.getElementById("icon-theme").setAttribute("data-lucide", useDark ? "sun" : "moon");
+  }
 
   function setSyncStatus({ text, tone, pending }) {
     syncStatus.textContent = text;
@@ -62,6 +87,37 @@ export function createUI({ store, onSyncNow, onResetData }) {
     }, 10);
   }
 
+  function renderDrawer(state) {
+    const rows = walkTree(state.nodes);
+    if (rows.length === 0) {
+      drawerTree.innerHTML = '<p class="text-xs text-slate-500">No nodes</p>';
+      return;
+    }
+
+    let html = "";
+    for (const { node, depth } of rows) {
+      const active = state.activeNodeId === node.id;
+      const isFolder = node.type === "folder";
+      const pad = 10 + depth * 16;
+      const base = active
+        ? "bg-blue-50 text-blue-700 border-blue-200"
+        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700";
+      const icon = isFolder ? "folder" : "table-2";
+      const sub = !isFolder ? `<span class="text-[10px] ${node.permission === "editor" ? "text-emerald-600" : "text-amber-600"}">${node.permission || "viewer"}</span>` : "";
+      html += `
+        <button class="w-full text-left rounded-lg border px-2 py-2 mb-1 ${base}" data-node-id="${escapeHtml(node.id)}" style="padding-left:${pad}px">
+          <span class="inline-flex items-center gap-2">
+            <i data-lucide="${icon}" class="w-4 h-4"></i>
+            <span class="font-medium text-sm">${escapeHtml(node.name)}</span>
+            ${sub}
+          </span>
+        </button>
+      `;
+    }
+    drawerTree.innerHTML = html;
+    window.lucide.createIcons({ root: drawerTree });
+  }
+
   function renderGrid(state) {
     const schemaKeys = Object.keys(state.schema);
     const filteredRows = state.rows.filter((row) => {
@@ -72,81 +128,41 @@ export function createUI({ store, onSyncNow, onResetData }) {
     let html = '<table class="w-full text-sm whitespace-nowrap">';
     html += '<thead><tr>';
     html += '<th class="sticky-corner bg-slate-100 dark:bg-slate-800 border-b border-r border-slate-300 dark:border-slate-700 p-3 text-left text-slate-500 dark:text-slate-400 font-bold min-w-[140px] shadow-sm">物件名稱</th>';
-    schemaKeys.forEach((key) => {
-      if (key === "name") return;
+    for (const key of schemaKeys) {
+      if (key === "name") continue;
       html += `<th class="sticky-header clickable bg-slate-50 dark:bg-slate-800 border-b border-r border-slate-300 dark:border-slate-700 p-3 text-center text-slate-500 dark:text-slate-400 font-bold min-w-[110px] shadow-sm cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700" data-col-edit="${escapeHtml(key)}">${escapeHtml(state.schema[key].label)}</th>`;
-    });
+    }
     html += "</tr></thead>";
 
     html += "<tbody>";
-    if (filteredRows.length === 0) {
+    if (!state.sheetContextId) {
+      html += `<tr><td colspan="${Math.max(1, schemaKeys.length)}" class="p-10 text-center text-slate-400">請在左側選擇試算表節點</td></tr>`;
+    } else if (filteredRows.length === 0) {
       html += `<tr><td colspan="${schemaKeys.length}" class="p-10 text-center text-slate-400">找不到符合資料</td></tr>`;
     } else {
-      filteredRows.forEach((row) => {
+      for (const row of filteredRows) {
         html += "<tr>";
         html += `<td class="sticky-col clickable bg-slate-100 dark:bg-slate-800/90 border-b border-r border-slate-300 dark:border-slate-700 p-3 font-bold text-slate-800 dark:text-slate-200 shadow-sm max-w-[170px] overflow-hidden text-ellipsis cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700" data-row-edit="${escapeHtml(row.id)}">${escapeHtml(row.name)}</td>`;
-        schemaKeys.forEach((key) => {
-          if (key === "name") return;
+        for (const key of schemaKeys) {
+          if (key === "name") continue;
           html += `<td class="data-cell bg-white dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-700 p-3 text-center text-slate-700 dark:text-slate-300 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800" data-cell-edit="${escapeHtml(row.id)}" data-cell-key="${escapeHtml(key)}">${escapeHtml(row[key] || "")}</td>`;
-        });
+        }
         html += "</tr>";
-      });
+      }
     }
     html += "</tbody></table>";
     mainContent.innerHTML = html;
-    window.lucide.createIcons();
   }
 
-  function bindEvents() {
-    document.getElementById("btn-menu").addEventListener("click", toggleSidebar);
-    sidebarOverlay.addEventListener("click", toggleSidebar);
-    document.getElementById("btn-close-editor").addEventListener("click", closeEditor);
-    editorOverlay.addEventListener("click", closeEditor);
-    editorSheet.addEventListener("click", (event) => event.stopPropagation());
-
-    document.getElementById("btn-search").addEventListener("click", () => {
-      searchBar.classList.toggle("hidden");
-      if (!searchBar.classList.contains("hidden")) inputSearch.focus();
-    });
-    inputSearch.addEventListener("input", (event) => store.setSearchQuery(event.target.value));
-    document.getElementById("btn-clear-search").addEventListener("click", () => {
-      inputSearch.value = "";
-      store.setSearchQuery("");
-      searchBar.classList.add("hidden");
-    });
-
-    document.getElementById("btn-theme").addEventListener("click", () => {
-      document.documentElement.classList.toggle("dark");
-      const dark = document.documentElement.classList.contains("dark");
-      localStorage.setItem("theme", dark ? "dark" : "light");
-      document.getElementById("icon-theme").setAttribute("data-lucide", dark ? "sun" : "moon");
-      window.lucide.createIcons();
-    });
-
-    document.getElementById("btn-add-row").addEventListener("click", () => store.addRow());
-    document.getElementById("btn-add-column").addEventListener("click", () => store.addColumn());
-    document.getElementById("btn-sync-now").addEventListener("click", onSyncNow);
-    document.getElementById("btn-reset-data").addEventListener("click", onResetData);
-
-    mainContent.addEventListener("click", (event) => {
-      const cellEl = event.target.closest("[data-cell-edit]");
-      if (cellEl) {
-        openCellEditor(cellEl.getAttribute("data-cell-edit"), cellEl.getAttribute("data-cell-key"));
-        return;
-      }
-      const rowEl = event.target.closest("[data-row-edit]");
-      if (rowEl) {
-        openRowEditor(rowEl.getAttribute("data-row-edit"));
-        return;
-      }
-      const colEl = event.target.closest("[data-col-edit]");
-      if (colEl) {
-        openColumnEditor(colEl.getAttribute("data-col-edit"));
-      }
-    });
+  function setEditButtonsEnabled(enabled) {
+    document.getElementById("btn-add-row").disabled = !enabled;
+    document.getElementById("btn-add-column").disabled = !enabled;
+    document.getElementById("btn-add-row").classList.toggle("opacity-50", !enabled);
+    document.getElementById("btn-add-column").classList.toggle("opacity-50", !enabled);
   }
 
   function openCellEditor(rowId, key) {
+    if (!store.canEditCurrentSheet()) return;
     const state = store.getState();
     const row = state.rows.find((item) => item.id === rowId);
     const config = state.schema[key];
@@ -154,13 +170,13 @@ export function createUI({ store, onSyncNow, onResetData }) {
 
     if (config.type === "select") {
       let html = '<div class="flex flex-col gap-3">';
-      config.options.forEach((option) => {
+      for (const option of config.options || []) {
         const selected = option === row[key];
         const style = selected
           ? "bg-blue-600 text-white border-blue-600"
           : "bg-white dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600";
         html += `<button class="btn-select-option w-full py-3 rounded-xl border text-base font-semibold ${style}" data-value="${escapeHtml(option)}">${escapeHtml(option)}</button>`;
-      });
+      }
       html += '<button class="btn-select-option w-full py-3 rounded-xl border border-dashed border-slate-300 text-slate-400 font-semibold" data-value="">清除欄位</button>';
       html += "</div>";
       showEditor(config.label, row.name, html);
@@ -188,6 +204,7 @@ export function createUI({ store, onSyncNow, onResetData }) {
   }
 
   function openRowEditor(rowId) {
+    if (!store.canEditCurrentSheet()) return;
     const state = store.getState();
     const row = state.rows.find((item) => item.id === rowId);
     if (!row) return;
@@ -214,6 +231,7 @@ export function createUI({ store, onSyncNow, onResetData }) {
   }
 
   function openColumnEditor(key) {
+    if (!store.canEditCurrentSheet()) return;
     const state = store.getState();
     const config = state.schema[key];
     if (!config) return;
@@ -253,12 +271,119 @@ export function createUI({ store, onSyncNow, onResetData }) {
     }
   }
 
-  function initTheme() {
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const theme = localStorage.getItem("theme");
-    const useDark = theme ? theme === "dark" : prefersDark;
-    document.documentElement.classList.toggle("dark", useDark);
-    document.getElementById("icon-theme").setAttribute("data-lucide", useDark ? "sun" : "moon");
+  function collectFolderOptions() {
+    const nodes = store.getState().nodes.filter((node) => node.type === "folder");
+    if (nodes.length === 0) return `<option value="${ROOT_NODE_ID}">Workspace</option>`;
+    return nodes
+      .map((node) => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.name)}</option>`)
+      .join("");
+  }
+
+  function openCreateFolderModal() {
+    const html = `
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">資料夾名稱</label>
+      <input id="new-folder-name" type="text" placeholder="例如：專案A" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">上層資料夾</label>
+      <select id="new-folder-parent" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base">${collectFolderOptions()}</select>
+      <button id="new-folder-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">建立資料夾</button>
+    `;
+    showEditor("新增資料夾", "Drawer 目錄節點", html);
+    const input = document.getElementById("new-folder-name");
+    setTimeout(() => input.focus(), 80);
+    document.getElementById("new-folder-save").addEventListener("click", async () => {
+      const name = input.value.trim();
+      const parentId = document.getElementById("new-folder-parent").value;
+      if (!name) return;
+      await store.addFolder(name, parentId);
+      closeEditor();
+    });
+  }
+
+  function openCreateSheetModal() {
+    const html = `
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">節點名稱</label>
+      <input id="new-sheet-name" type="text" placeholder="例如：行銷清單" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">Google Sheet 連結或 ID</label>
+      <input id="new-sheet-url" type="text" placeholder="https://docs.google.com/spreadsheets/d/..." class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">權限模式</label>
+      <select id="new-sheet-permission" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base">
+        <option value="viewer">Viewer (read only)</option>
+        <option value="editor">Editor</option>
+      </select>
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">上層資料夾</label>
+      <select id="new-sheet-parent" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base">${collectFolderOptions()}</select>
+      <button id="new-sheet-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">建立 Sheet 節點</button>
+    `;
+    showEditor("新增試算表節點", "貼上 Google Sheet 連結", html);
+    const input = document.getElementById("new-sheet-name");
+    setTimeout(() => input.focus(), 80);
+    document.getElementById("new-sheet-save").addEventListener("click", async () => {
+      const name = document.getElementById("new-sheet-name").value.trim();
+      const url = document.getElementById("new-sheet-url").value.trim();
+      const permission = document.getElementById("new-sheet-permission").value;
+      const parentId = document.getElementById("new-sheet-parent").value;
+      try {
+        await store.addSheetNode({ name, url, parentId, permission });
+        closeEditor();
+      } catch (error) {
+        window.alert(error.message || "Invalid Google Sheet URL");
+      }
+    });
+  }
+
+  function bindEvents() {
+    document.getElementById("btn-menu").addEventListener("click", toggleSidebar);
+    sidebarOverlay.addEventListener("click", toggleSidebar);
+    document.getElementById("btn-close-editor").addEventListener("click", closeEditor);
+    editorOverlay.addEventListener("click", closeEditor);
+    editorSheet.addEventListener("click", (event) => event.stopPropagation());
+
+    document.getElementById("btn-search").addEventListener("click", () => {
+      searchBar.classList.toggle("hidden");
+      if (!searchBar.classList.contains("hidden")) inputSearch.focus();
+    });
+    inputSearch.addEventListener("input", (event) => store.setSearchQuery(event.target.value));
+    document.getElementById("btn-clear-search").addEventListener("click", () => {
+      inputSearch.value = "";
+      store.setSearchQuery("");
+      searchBar.classList.add("hidden");
+    });
+
+    document.getElementById("btn-theme").addEventListener("click", () => {
+      document.documentElement.classList.toggle("dark");
+      const dark = document.documentElement.classList.contains("dark");
+      localStorage.setItem("theme", dark ? "dark" : "light");
+      document.getElementById("icon-theme").setAttribute("data-lucide", dark ? "sun" : "moon");
+      window.lucide.createIcons();
+    });
+
+    document.getElementById("btn-add-row").addEventListener("click", () => store.addRow());
+    document.getElementById("btn-add-column").addEventListener("click", () => store.addColumn());
+    document.getElementById("btn-sync-now").addEventListener("click", onSyncNow);
+    document.getElementById("btn-reset-data").addEventListener("click", onResetData);
+    btnNewFolder.addEventListener("click", openCreateFolderModal);
+    btnNewSheet.addEventListener("click", openCreateSheetModal);
+
+    drawerTree.addEventListener("click", async (event) => {
+      const btn = event.target.closest("[data-node-id]");
+      if (!btn) return;
+      await store.setActiveNode(btn.getAttribute("data-node-id"));
+    });
+
+    mainContent.addEventListener("click", (event) => {
+      const cellEl = event.target.closest("[data-cell-edit]");
+      if (cellEl) {
+        openCellEditor(cellEl.getAttribute("data-cell-edit"), cellEl.getAttribute("data-cell-key"));
+        return;
+      }
+      const rowEl = event.target.closest("[data-row-edit]");
+      if (rowEl) {
+        openRowEditor(rowEl.getAttribute("data-row-edit"));
+        return;
+      }
+      const colEl = event.target.closest("[data-col-edit]");
+      if (colEl) openColumnEditor(colEl.getAttribute("data-col-edit"));
+    });
   }
 
   initTheme();
@@ -266,7 +391,12 @@ export function createUI({ store, onSyncNow, onResetData }) {
   window.lucide.createIcons();
 
   return {
-    renderGrid,
+    render(state) {
+      renderDrawer(state);
+      renderGrid(state);
+      setEditButtonsEnabled(store.canEditCurrentSheet());
+      window.lucide.createIcons();
+    },
     setSyncStatus
   };
 }

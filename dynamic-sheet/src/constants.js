@@ -1,8 +1,12 @@
 export const DB_NAME = "DynamicSheetHub";
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 export const SHEET_STORE = "sheets";
 export const OP_STORE = "operations";
-export const SHEET_ID = "current_sheet";
+export const NODE_STORE = "nodes";
+export const APP_META_STORE = "app_meta";
+
+export const ROOT_NODE_ID = "root";
+export const DEFAULT_ACTIVE_NODE_ID = "sample_sheet";
 
 export const DEFAULT_SCHEMA = {
   name: { label: "物件名稱", type: "text", options: [] },
@@ -13,5 +17,27 @@ export const DEFAULT_SCHEMA = {
 export const DEFAULT_ROWS = [
   { id: "1", name: "Gloomhaven", price: 3500, status: "已持有" },
   { id: "2", name: "Frosthaven", price: 5000, status: "未發貨" }
+];
+
+export const DEFAULT_NODES = [
+  {
+    id: ROOT_NODE_ID,
+    type: "folder",
+    name: "Workspace",
+    parentId: null,
+    order: 0,
+    createdAt: Date.now()
+  },
+  {
+    id: DEFAULT_ACTIVE_NODE_ID,
+    type: "sheet",
+    name: "Sample Sheet",
+    parentId: ROOT_NODE_ID,
+    order: 0,
+    spreadsheetId: "local-sample",
+    url: "",
+    permission: "editor",
+    createdAt: Date.now()
+  }
 ];
 

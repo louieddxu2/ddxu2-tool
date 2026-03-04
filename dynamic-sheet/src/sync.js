@@ -1,4 +1,4 @@
-import { deferOperation, deleteOperation, getPendingCount, listPendingOperations } from "./storage.js";
+import { deferOperation, deleteOperation, listPendingOperations } from "./storage.js";
 
 class NoopCloudAdapter {
   async applyOperations() {
@@ -6,15 +6,16 @@ class NoopCloudAdapter {
   }
 }
 
-export function createSyncEngine(onStatus) {
+export function createSyncEngine({ getActiveSheetId, onStatus }) {
   const adapter = window.dynamicSheetCloudAdapter || new NoopCloudAdapter();
   let syncing = false;
 
   async function syncNow() {
-    if (syncing) return;
+    const activeSheetId = getActiveSheetId();
+    if (!activeSheetId || syncing) return;
     syncing = true;
     try {
-      const pending = await listPendingOperations();
+      const pending = await listPendingOperations(activeSheetId);
       if (pending.length === 0) {
         onStatus({ text: "待同步 0 筆", tone: "ok", pending: 0 });
         return;
@@ -22,25 +23,17 @@ export function createSyncEngine(onStatus) {
 
       for (const op of pending) {
         try {
-          const result = await adapter.applyOperations([op]);
+          const result = await adapter.applyOperations([op], { spreadsheetId: activeSheetId });
           if (result && result.ok) {
             await deleteOperation(op.id);
           } else if (result && result.transient) {
             await deferOperation(op.id, (op.retries || 0) + 1);
           } else {
-            // Permanent failure: keep operation queued for manual resolution.
             await deferOperation(op.id, (op.retries || 0) + 1);
           }
         } catch (error) {
           await deferOperation(op.id, (op.retries || 0) + 1);
         }
-      }
-
-      const pendingCount = await getPendingCount();
-      if (window.dynamicSheetCloudAdapter) {
-        onStatus({ text: pendingCount > 0 ? `待同步 ${pendingCount} 筆` : "同步完成", tone: pendingCount > 0 ? "warn" : "ok", pending: pendingCount });
-      } else {
-        onStatus({ text: `未連線 adapter（待同步 ${pendingCount} 筆）`, tone: "warn", pending: pendingCount });
       }
     } finally {
       syncing = false;
