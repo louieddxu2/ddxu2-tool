@@ -347,6 +347,9 @@
                 addDuplicate: '此語言組合已存在相同詞彙',
                 addSuccess: '已新增至牌組',
                 saveFailed: '儲存失敗',
+                translateLoading: '翻譯中...',
+                translatePreviewReady: '已產生翻譯提示',
+                translatePreviewFailed: '翻譯失敗，請手動輸入另一欄',
                 speechBlocked: '語音播放被阻擋，請檢查瀏覽器權限',
                 masteredRemoved: '已移除，跳過此詞彙',
                 noWords: '目前語言組合沒有詞彙，請先新增',
@@ -415,6 +418,9 @@
                 addDuplicate: 'This card already exists in the current pair',
                 addSuccess: 'Card added',
                 saveFailed: 'Save failed',
+                translateLoading: 'Translating...',
+                translatePreviewReady: 'Translation hint is ready',
+                translatePreviewFailed: 'Translation failed. Please enter the other field manually.',
                 speechBlocked: 'Speech playback is blocked by browser permissions',
                 masteredRemoved: 'Removed and skipped this card',
                 noWords: 'No cards in this language pair yet',
@@ -722,9 +728,80 @@
         // ==========================================
         const db = new Dexie("PolyglotVocabDB");
         db.version(1).stores({ words: '++id, textA, textB, langA, langB, createdAt' });
+        let translationPreview = null;
+        let isTranslatingPreview = false;
+        let previewRequestId = 0;
 
         function getCurrentLangs() {
             return { A: document.getElementById('select-langA').value, B: document.getElementById('select-langB').value };
+        }
+
+        function isPreviewValidForCurrentInput(sourceField, sourceText) {
+            if (!translationPreview || !translationPreview.value) return false;
+            const langs = getCurrentLangs();
+            return translationPreview.sourceField === sourceField &&
+                translationPreview.sourceText === sourceText &&
+                translationPreview.langA === langs.A &&
+                translationPreview.langB === langs.B;
+        }
+
+        function clearPreviewHintForField(field) {
+            const inputA = document.getElementById('input-a');
+            const inputB = document.getElementById('input-b');
+            const langs = getCurrentLangs();
+            if (field === 'A') inputA.placeholder = t('inputPlaceholder', langNamesMap[langs.A] || langs.A);
+            if (field === 'B') inputB.placeholder = t('inputPlaceholder', langNamesMap[langs.B] || langs.B);
+        }
+
+        function clearTranslationPreview() {
+            previewRequestId += 1;
+            translationPreview = null;
+            clearPreviewHintForField('A');
+            clearPreviewHintForField('B');
+        }
+
+        async function requestTranslationPreview(sourceField, sourceText) {
+            if (!sourceText || isTranslatingPreview) return;
+            const langs = getCurrentLangs();
+            const sourceLang = sourceField === 'A' ? langs.A : langs.B;
+            const targetLang = sourceField === 'A' ? langs.B : langs.A;
+            const targetField = sourceField === 'A' ? 'B' : 'A';
+            const sourceInput = sourceField === 'A' ? document.getElementById('input-a') : document.getElementById('input-b');
+            const targetInput = targetField === 'A' ? document.getElementById('input-a') : document.getElementById('input-b');
+            const requestId = ++previewRequestId;
+            isTranslatingPreview = true;
+            targetInput.placeholder = t('translateLoading');
+
+            try {
+                const params = new URLSearchParams({
+                    q: sourceText,
+                    langpair: `${sourceLang}|${targetLang}`
+                });
+                const resp = await fetch(`https://api.mymemory.translated.net/get?${params.toString()}`);
+                if (!resp.ok) throw new Error('translate_http_error');
+                const payload = await resp.json();
+                const translated = normalizeText((payload && payload.responseData && payload.responseData.translatedText) || '');
+                if (!translated) throw new Error('translate_empty');
+                if (requestId !== previewRequestId) return;
+                if (normalizeText(sourceInput.value) !== sourceText) return;
+                if (normalizeText(targetInput.value)) return;
+                translationPreview = {
+                    sourceField,
+                    sourceText,
+                    targetField,
+                    value: translated,
+                    langA: langs.A,
+                    langB: langs.B
+                };
+                targetInput.placeholder = translated;
+                showToast(t('translatePreviewReady'));
+            } catch (error) {
+                if (translationPreview && translationPreview.targetField === targetField) translationPreview = null;
+                clearPreviewHintForField(targetField);
+                showToast(t('translatePreviewFailed'));
+            } finally {
+                isTranslatingPreview = false;
+            }
         }
 
         async function loadWordList() {
@@ -778,10 +855,26 @@
         async function addWordFromInputs() {
             const inputA = document.getElementById('input-a');
             const inputB = document.getElementById('input-b');
-            const valA = normalizeText(inputA.value);
-            const valB = normalizeText(inputB.value);
+            let valA = normalizeText(inputA.value);
+            let valB = normalizeText(inputB.value);
             const langs = getCurrentLangs();
-            if (!valA || !valB) return showToast(t('addNeedBoth'));
+            if (!valA && !valB) return showToast(t('addNeedBoth'));
+
+            if (!valA || !valB) {
+                const sourceField = valA ? 'A' : 'B';
+                const sourceText = valA || valB;
+                const targetField = sourceField === 'A' ? 'B' : 'A';
+                const targetInput = targetField === 'A' ? inputA : inputB;
+                targetInput.focus();
+                if (isPreviewValidForCurrentInput(sourceField, sourceText)) {
+                    if (targetField === 'A') valA = translationPreview.value;
+                    else valB = translationPreview.value;
+                } else {
+                    await requestTranslationPreview(sourceField, sourceText);
+                    return;
+                }
+            }
+
             try {
                 const isDuplicate = await db.words
                     .filter(w => w.langA === langs.A && w.langB === langs.B && normalizeText(w.textA) === valA && normalizeText(w.textB) === valB)
@@ -790,16 +883,45 @@
 
                 await db.words.add({ textA: valA, textB: valB, langA: langs.A, langB: langs.B, createdAt: new Date().getTime() });
                 inputA.value = ''; inputB.value = ''; inputA.focus();
+                clearTranslationPreview();
                 showToast(t('addSuccess')); loadWordList();
             } catch (error) { showToast(t('saveFailed')); }
         }
 
         document.getElementById('btn-add-word').addEventListener('click', addWordFromInputs);
+        document.getElementById('input-a').addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                await addWordFromInputs();
+            }
+        });
         document.getElementById('input-b').addEventListener('keydown', async (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 await addWordFromInputs();
             }
+        });
+        document.getElementById('input-a').addEventListener('input', (e) => {
+            const valA = normalizeText(e.target.value);
+            if (!valA) {
+                if (translationPreview && translationPreview.sourceField === 'A') clearTranslationPreview();
+                return;
+            }
+            if (translationPreview && translationPreview.sourceField === 'A' && translationPreview.sourceText !== valA) {
+                clearTranslationPreview();
+            }
+            if (translationPreview && translationPreview.targetField === 'A') clearTranslationPreview();
+        });
+        document.getElementById('input-b').addEventListener('input', (e) => {
+            const valB = normalizeText(e.target.value);
+            if (!valB) {
+                if (translationPreview && translationPreview.sourceField === 'B') clearTranslationPreview();
+                return;
+            }
+            if (translationPreview && translationPreview.sourceField === 'B' && translationPreview.sourceText !== valB) {
+                clearTranslationPreview();
+            }
+            if (translationPreview && translationPreview.targetField === 'B') clearTranslationPreview();
         });
         const pasteModal = document.getElementById('paste-modal');
         const pasteModalContent = document.getElementById('paste-modal-content');
@@ -1096,6 +1218,7 @@
             document.getElementById('label-repeat-A').innerHTML = `<span class="w-3 h-3 rounded-full bg-indigo-400 mr-2"></span>${nameA}`;
             document.getElementById('label-repeat-B').innerHTML = `<span class="w-3 h-3 rounded-full bg-emerald-400 mr-2"></span>${nameB}`;
             document.getElementById('input-a').placeholder = t('inputPlaceholder', nameA); document.getElementById('input-b').placeholder = t('inputPlaceholder', nameB);
+            clearTranslationPreview();
             document.getElementById('current-deck-label').textContent = t('deckLabel', nameA, nameB);
             document.querySelectorAll('.btn-minus[data-target=\"repeatA\"]').forEach(btn => btn.setAttribute('aria-label', t('repeatMinusAria', nameA)));
             document.querySelectorAll('.btn-plus[data-target=\"repeatA\"]').forEach(btn => btn.setAttribute('aria-label', t('repeatPlusAria', nameA)));
