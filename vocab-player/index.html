@@ -350,6 +350,9 @@
                 speechBlocked: '語音播放被阻擋，請檢查瀏覽器權限',
                 masteredRemoved: '已移除，跳過此詞彙',
                 noWords: '目前語言組合沒有詞彙，請先新增',
+                playbackBlockedTitle: '目前無法開始播放',
+                playbackBlockedNoWords: '這個語言組合還沒有詞彙，請先新增至少一筆。',
+                playbackBlockedRepeatZero: '語言 A 與語言 B 的朗讀次數不能同時為 0。',
                 playDoneLimited: (count) => `本次播放完成（可用詞彙 ${count} 筆）`,
                 playDone: '本次牌組播放完畢'
             },
@@ -415,6 +418,9 @@
                 speechBlocked: 'Speech playback is blocked by browser permissions',
                 masteredRemoved: 'Removed and skipped this card',
                 noWords: 'No cards in this language pair yet',
+                playbackBlockedTitle: 'Unable to start playback',
+                playbackBlockedNoWords: 'No cards in this language pair. Add at least one card first.',
+                playbackBlockedRepeatZero: 'Repeat count for both Language A and Language B cannot both be 0.',
                 playDoneLimited: (count) => `Playback completed (${count} cards available)`,
                 playDone: 'Playback finished'
             }
@@ -908,11 +914,35 @@
             }
         });
 
+        async function validatePlaybackStart() {
+            if (!('speechSynthesis' in window)) {
+                return { title: t('playbackBlockedTitle'), message: t('unsupportedSpeechMessage') };
+            }
+
+            const countA = parseInt(document.getElementById('repeatA').value, 10) || 0;
+            const countB = parseInt(document.getElementById('repeatB').value, 10) || 0;
+            if (countA === 0 && countB === 0) {
+                return { title: t('playbackBlockedTitle'), message: t('playbackBlockedRepeatZero') };
+            }
+
+            const langs = getCurrentLangs();
+            const wordCount = await db.words.filter(w => w.langA === langs.A && w.langB === langs.B).count();
+            if (wordCount === 0) {
+                return { title: t('playbackBlockedTitle'), message: t('playbackBlockedNoWords') };
+            }
+
+            return null;
+        }
+
         async function startPlayLoop() {
             const langs = getCurrentLangs();
             const words = await db.words.filter(w => w.langA === langs.A && w.langB === langs.B).toArray();
             
-            if (words.length === 0) { showToast(t('noWords')); togglePlayState(true); return; }
+            if (words.length === 0) {
+                showModal({ title: t('playbackBlockedTitle'), message: t('playbackBlockedNoWords'), type: 'alert', confirmText: t('modalOk'), icon: 'alert-circle' });
+                togglePlayState(true);
+                return;
+            }
 
             const countA = parseInt(document.getElementById('repeatA').value, 10) || 0;
             const countB = parseInt(document.getElementById('repeatB').value, 10) || 0;
@@ -1032,7 +1062,7 @@
             if (parsed > 9999) optLimitCount.value = '9999';
         });
 
-        function togglePlayState(forceStop = false) {
+        async function togglePlayState(forceStop = false) {
             if (isPlaying || forceStop) {
                 isPlaying = false; shouldStop = true; synth.cancel();
                 setPlayingControlsDisabled(false);
@@ -1042,6 +1072,12 @@
                 document.getElementById('text-play-stop').textContent = t('playStart');
                 document.getElementById('idle-container').classList.remove('hidden'); document.getElementById('status-container').classList.add('hidden');
             } else {
+                const blockedReason = await validatePlaybackStart();
+                if (blockedReason) {
+                    showModal({ title: blockedReason.title, message: blockedReason.message, type: 'alert', confirmText: t('modalOk'), icon: 'alert-circle' });
+                    return;
+                }
+
                 isPlaying = true; shouldStop = false;
                 setPlayingControlsDisabled(true);
                 const unlockUtterance = new SpeechSynthesisUtterance(' '); unlockUtterance.volume = 0.01; synth.speak(unlockUtterance);
@@ -1052,7 +1088,7 @@
                 startPlayLoop();
             }
         }
-        btnPlayStop.addEventListener('click', () => togglePlayState());
+        btnPlayStop.addEventListener('click', async () => { await togglePlayState(); });
 
         function updateLabels() {
             const langs = getCurrentLangs();
