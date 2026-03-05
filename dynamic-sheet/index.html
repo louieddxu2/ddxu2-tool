@@ -8,6 +8,14 @@
   <script src="https://unpkg.com/lucide@0.542.0"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
+    // Developer config only: set values before shipping to end users.
+    window.__DYNAMIC_SHEET_GOOGLE_CONFIG = window.__DYNAMIC_SHEET_GOOGLE_CONFIG || {
+      clientId: "",
+      apiKey: "",
+      sheetTabName: ""
+    };
+  </script>
+  <script>
     tailwind.config = { darkMode: "class" };
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3C/svg%3E">
@@ -100,16 +108,13 @@
       <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
         <p class="text-xs text-slate-500 mb-1">Google 帳戶</p>
         <p id="google-auth-status" class="text-sm font-semibold text-amber-600">尚未連結 Google 帳戶</p>
-        <p id="google-auth-detail" class="text-xs text-slate-500">請先設定 Client ID，並完成帳戶授權</p>
+        <p id="google-auth-detail" class="text-xs text-slate-500">連線成功後可搜尋自己的試算表或貼網址連結</p>
         <div class="grid grid-cols-2 gap-2 pt-1">
           <button id="btn-google-connect" class="px-2 py-2 text-xs bg-blue-600 text-white rounded-lg">連結帳戶</button>
           <button id="btn-google-disconnect" class="px-2 py-2 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">中斷連線</button>
           <button id="btn-google-find" class="px-2 py-2 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">尋找試算表</button>
           <button id="btn-google-link-url" class="px-2 py-2 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">貼網址連結</button>
         </div>
-        <button id="btn-google-config" class="w-full px-2 py-2 text-xs bg-white dark:bg-slate-900 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
-          設定 Google API（Client ID / API Key）
-        </button>
       </div>
 
       <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">

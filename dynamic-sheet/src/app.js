@@ -1,6 +1,7 @@
-﻿import { loadGoogleConfig, saveGoogleConfig } from "./googleConfig.js";
+﻿import { GOOGLE_APP_CONFIG } from "./googleAppConfig.js";
 import { createGoogleAuthManager } from "./googleAuth.js";
 import { resolveSheetFromInput, searchUserSheets } from "./googleSheets.js";
+import { createGoogleSyncAdapter } from "./googleSyncAdapter.js";
 import { clearAllData } from "./storage.js";
 import { createStore } from "./state.js";
 import { createSyncEngine } from "./sync.js";
@@ -8,18 +9,35 @@ import { createUI } from "./ui.js";
 
 const GOOGLE_SCOPE = [
   "https://www.googleapis.com/auth/drive.readonly",
-  "https://www.googleapis.com/auth/spreadsheets.readonly",
+  "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/drive.file"
 ].join(" ");
 
 const store = createStore();
 let ui = null;
 
-let googleConfig = { clientId: "", apiKey: "" };
+const googleConfig = {
+  clientId: GOOGLE_APP_CONFIG.clientId,
+  apiKey: GOOGLE_APP_CONFIG.apiKey,
+  sheetTabName: GOOGLE_APP_CONFIG.sheetTabName
+};
+
 const googleAuth = createGoogleAuthManager({
   getClientId: () => googleConfig.clientId,
   scope: GOOGLE_SCOPE
 });
+
+async function ensureGoogleToken() {
+  await googleAuth.init();
+  return googleAuth.ensureToken();
+}
+
+if (googleConfig.clientId) {
+  window.dynamicSheetCloudAdapter = createGoogleSyncAdapter({
+    getAccessToken: ensureGoogleToken,
+    sheetTabName: googleConfig.sheetTabName
+  });
+}
 
 const syncEngine = createSyncEngine({
   getActiveSheetId: () => store.getState().sheetContextId,
@@ -36,8 +54,8 @@ function getGoogleUiState(errorMessage = "") {
   if (!hasConfig) {
     return {
       tone: "warn",
-      status: "尚未設定 Google Client ID",
-      detail: "先在 Drawer 設定 API 後再連結帳戶",
+      status: "系統尚未設定 Google OAuth",
+      detail: "請由管理者在程式設定 clientId / apiKey",
       connected: false,
       hasConfig,
       email,
@@ -79,6 +97,7 @@ async function refreshPendingStatus() {
     ui.setSyncStatus({ text: "請先選擇一個 Sheet", tone: "warn", pending: 0 });
     return;
   }
+
   if (window.dynamicSheetCloudAdapter) {
     ui.setSyncStatus({
       text: pending > 0 ? `待同步 ${pending} 筆` : "同步佇列為空",
@@ -86,7 +105,7 @@ async function refreshPendingStatus() {
       pending
     });
   } else {
-    ui.setSyncStatus({ text: `尚未接上雲端 adapter（待同步 ${pending} 筆）`, tone: "warn", pending });
+    ui.setSyncStatus({ text: `未啟用雲端同步（待同步 ${pending} 筆）`, tone: "warn", pending });
   }
 }
 
@@ -104,16 +123,6 @@ async function onResetData() {
   window.location.reload();
 }
 
-async function onGoogleOpenConfig() {
-  ui.openGoogleConfigModal(googleConfig);
-}
-
-async function onGoogleSaveConfig(payload) {
-  googleConfig = await saveGoogleConfig(payload);
-  await googleAuth.init();
-  refreshGoogleStatus();
-}
-
 async function onGoogleConnect() {
   await googleAuth.init();
   await googleAuth.connect();
@@ -123,11 +132,6 @@ async function onGoogleConnect() {
 async function onGoogleDisconnect() {
   await googleAuth.disconnect();
   refreshGoogleStatus();
-}
-
-async function ensureGoogleToken() {
-  await googleAuth.init();
-  return googleAuth.ensureToken();
 }
 
 async function onGoogleSearchSheets(query) {
@@ -170,8 +174,6 @@ async function boot() {
     store,
     onSyncNow,
     onResetData,
-    onGoogleOpenConfig,
-    onGoogleSaveConfig,
     onGoogleConnect,
     onGoogleDisconnect,
     onGoogleSearchSheets,
@@ -184,7 +186,6 @@ async function boot() {
     refreshPendingStatus();
   });
 
-  googleConfig = await loadGoogleConfig();
   await googleAuth.init();
   refreshGoogleStatus();
 

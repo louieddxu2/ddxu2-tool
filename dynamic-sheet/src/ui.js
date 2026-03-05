@@ -25,8 +25,6 @@ export function createUI({
   store,
   onSyncNow,
   onResetData,
-  onGoogleOpenConfig,
-  onGoogleSaveConfig,
   onGoogleConnect,
   onGoogleDisconnect,
   onGoogleSearchSheets,
@@ -57,7 +55,6 @@ export function createUI({
   const btnGoogleDisconnect = document.getElementById("btn-google-disconnect");
   const btnGoogleFind = document.getElementById("btn-google-find");
   const btnGoogleLinkUrl = document.getElementById("btn-google-link-url");
-  const btnGoogleConfig = document.getElementById("btn-google-config");
 
   let googleState = {
     connected: false,
@@ -84,10 +81,7 @@ export function createUI({
   }
 
   function setGoogleState(state) {
-    googleState = {
-      ...googleState,
-      ...state
-    };
+    googleState = { ...googleState, ...state };
 
     googleAuthStatus.textContent = googleState.status || "尚未連線";
     googleAuthStatus.className = "text-sm font-semibold";
@@ -145,9 +139,7 @@ export function createUI({
   function collectFolderOptions() {
     const nodes = store.getState().nodes.filter((node) => node.type === "folder");
     if (nodes.length === 0) return `<option value="${ROOT_NODE_ID}">Workspace</option>`;
-    return nodes
-      .map((node) => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.name)}</option>`)
-      .join("");
+    return nodes.map((node) => `<option value="${escapeHtml(node.id)}">${escapeHtml(node.name)}</option>`).join("");
   }
 
   function renderDrawer(state) {
@@ -246,7 +238,6 @@ export function createUI({
       html += '<button class="btn-select-option w-full py-3 rounded-xl border border-dashed border-slate-300 text-slate-400 font-semibold" data-value="">清空</button>';
       html += "</div>";
       showEditor(config.label, row.name, html);
-
       editorBody.querySelectorAll(".btn-select-option").forEach((button) => {
         button.addEventListener("click", async () => {
           await store.updateCell(rowId, key, button.getAttribute("data-value") || "");
@@ -326,10 +317,7 @@ export function createUI({
     document.getElementById("col-save").addEventListener("click", async () => {
       const label = document.getElementById("col-label-input").value.trim();
       const type = document.getElementById("col-type-input").value;
-      const options = document.getElementById("col-options-input").value
-        .split(",")
-        .map((v) => v.trim())
-        .filter(Boolean);
+      const options = document.getElementById("col-options-input").value.split(",").map((v) => v.trim()).filter(Boolean);
       if (!label) return;
       await store.updateColumn(key, { label, type, options });
       closeEditor();
@@ -392,35 +380,12 @@ export function createUI({
       const url = document.getElementById("new-sheet-url").value.trim();
       const permission = document.getElementById("new-sheet-permission").value;
       const parentId = document.getElementById("new-sheet-parent").value;
-
       try {
         await store.addSheetNode({ name, url, parentId, permission });
         closeEditor();
       } catch (error) {
         window.alert(error.message || "Google Sheet 網址無效");
       }
-    });
-  }
-
-  function openGoogleConfigModal(initialConfig = {}) {
-    const html = `
-      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">OAuth Client ID</label>
-      <input id="google-client-id" type="text" value="${escapeHtml(initialConfig.clientId || "")}" placeholder="xxxxx.apps.googleusercontent.com" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
-      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">API Key (可選)</label>
-      <input id="google-api-key" type="text" value="${escapeHtml(initialConfig.apiKey || "")}" placeholder="AIza..." class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
-      <button id="google-config-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">儲存 API 設定</button>
-    `;
-    showEditor("Google API 設定", "設定後可連結帳戶", html);
-
-    document.getElementById("google-config-save").addEventListener("click", async () => {
-      const clientId = document.getElementById("google-client-id").value.trim();
-      const apiKey = document.getElementById("google-api-key").value.trim();
-      if (!clientId) {
-        window.alert("Client ID 不能為空");
-        return;
-      }
-      await onGoogleSaveConfig({ clientId, apiKey });
-      closeEditor();
     });
   }
 
@@ -436,9 +401,7 @@ export function createUI({
         <select id="google-search-parent" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm">${collectFolderOptions()}</select>
       </div>
       <button id="google-search-run" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">搜尋我的試算表</button>
-      <div id="google-search-results" class="border border-slate-200 dark:border-slate-700 rounded-xl max-h-64 overflow-y-auto p-2 text-sm text-slate-600 dark:text-slate-200">
-        尚未搜尋
-      </div>
+      <div id="google-search-results" class="border border-slate-200 dark:border-slate-700 rounded-xl max-h-64 overflow-y-auto p-2 text-sm text-slate-600 dark:text-slate-200">尚未搜尋</div>
     `;
 
     showEditor("尋找我的試算表", "選擇後會自動建立 Drawer 節點", html);
@@ -460,25 +423,19 @@ export function createUI({
           return;
         }
 
-        resultEl.innerHTML = files
-          .map((file) => {
-            const id = escapeHtml(file.id);
-            const name = escapeHtml(file.name || "Untitled");
-            const url = escapeHtml(file.webViewLink || `https://docs.google.com/spreadsheets/d/${file.id}/edit`);
-            const canEdit = Boolean(file.capabilities?.canEdit);
-            const editTag = canEdit ? "可編輯" : "唯讀";
-            return `
-              <button
-                class="google-sheet-result w-full text-left rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 mb-2 hover:bg-slate-50 dark:hover:bg-slate-800"
-                data-id="${id}"
-                data-name="${name}"
-                data-url="${url}">
-                <p class="font-medium">${name}</p>
-                <p class="text-xs text-slate-500">${editTag} · ${id}</p>
-              </button>
-            `;
-          })
-          .join("");
+        resultEl.innerHTML = files.map((file) => {
+          const id = escapeHtml(file.id);
+          const name = escapeHtml(file.name || "Untitled");
+          const url = escapeHtml(file.webViewLink || `https://docs.google.com/spreadsheets/d/${file.id}/edit`);
+          const canEdit = Boolean(file.capabilities?.canEdit);
+          const editTag = canEdit ? "可編輯" : "唯讀";
+          return `
+            <button class="google-sheet-result w-full text-left rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 mb-2 hover:bg-slate-50 dark:hover:bg-slate-800" data-id="${id}" data-name="${name}" data-url="${url}">
+              <p class="font-medium">${name}</p>
+              <p class="text-xs text-slate-500">${editTag} · ${id}</p>
+            </button>
+          `;
+        }).join("");
 
         resultEl.querySelectorAll(".google-sheet-result").forEach((button) => {
           button.addEventListener("click", async () => {
@@ -523,16 +480,10 @@ export function createUI({
       const customName = document.getElementById("google-link-name").value.trim();
       const permission = document.getElementById("google-link-permission").value;
       const parentId = document.getElementById("google-link-parent").value;
-
       if (!inputValue) return;
 
       try {
-        await onGoogleLinkSheetByUrl({
-          input: inputValue,
-          customName,
-          permission,
-          parentId
-        });
+        await onGoogleLinkSheetByUrl({ input: inputValue, customName, permission, parentId });
         closeEditor();
       } catch (error) {
         window.alert(error.message || "連結失敗");
@@ -575,10 +526,6 @@ export function createUI({
     btnNewFolder.addEventListener("click", openCreateFolderModal);
     btnNewSheet.addEventListener("click", openCreateSheetModal);
 
-    btnGoogleConfig.addEventListener("click", async () => {
-      await onGoogleOpenConfig();
-    });
-
     btnGoogleConnect.addEventListener("click", async () => {
       try {
         await onGoogleConnect();
@@ -610,13 +557,11 @@ export function createUI({
         openCellEditor(cellEl.getAttribute("data-cell-edit"), cellEl.getAttribute("data-cell-key"));
         return;
       }
-
       const rowEl = event.target.closest("[data-row-edit]");
       if (rowEl) {
         openRowEditor(rowEl.getAttribute("data-row-edit"));
         return;
       }
-
       const colEl = event.target.closest("[data-col-edit]");
       if (colEl) openColumnEditor(colEl.getAttribute("data-col-edit"));
     });
@@ -634,7 +579,6 @@ export function createUI({
       window.lucide.createIcons();
     },
     setSyncStatus,
-    setGoogleState,
-    openGoogleConfigModal
+    setGoogleState
   };
 }
