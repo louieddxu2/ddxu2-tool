@@ -1,107 +1,99 @@
-﻿專案開發指南：Dynamic Sheet Hub (動態表單中心)
+﻿Dynamic Sheet README (更新於 2026-03-05)
 
-1. 專案背景與核心願景
+1. 專案定位
 
-本專案旨在解決「在手機上操作傳統 Excel/Google 試算表極度困難」的痛點。
-目標是打造一款**「手機優先、大按鈕操作、架構動態可調」**的 PWA 雲端試算表編輯器。
+Dynamic Sheet 是一個手機優先 (mobile-first) 的資料編輯小工具，目標是讓使用者在小螢幕上也能快速維護類試算表資料。
+核心原則：
+- Local-first：所有操作先寫入本地 IndexedDB，再考慮同步雲端。
+- Grid + Bottom Sheet/Modal：維持表格總覽，但編輯互動集中在可點擊的大型控制元件。
+- Schema/Data 分離：欄位結構與資料列獨立儲存，降低擴充成本。
 
-核心設計理念：
+2. 目前已完成功能
 
-介面分離： 視覺上維持二維表格（Grid）的總覽感，但所有編輯動作必須透過底部彈出窗（Bottom Sheet）的專屬控制項（大選單、數字鍵盤等）進行，避免在小格子內直接輸入文字。
+- 多節點 Drawer：支援 `folder` 與 `sheet` 節點。
+- 多 Sheet 本地快取：每個 sheet 以 `sheet:<spreadsheetId>` 隔離儲存。
+- 權限模式：`viewer`（唯讀）與 `editor`（可編輯）。
+- 資料編輯：新增/刪除列、新增/刪除欄、修改儲存格、改名列與欄位。
+- 搜尋過濾：即時搜尋列資料。
+- 同步佇列骨架：每次編輯會 enqueue operation，支援延遲重試 (backoff)。
+- 手動 Sync 按鈕與 pending 顯示。
+- 主題切換：light/dark，並記錄在 localStorage。
 
-Metadata 與 Data 分離： 試算表的「欄位架構（Schema）」與「實際資料（Data）」分開定義。修改屬性類型不影響底層資料，賦予極高的擴充彈性。
+3. 程式架構（現況）
 
-本地優先 (Local-First)： 目前階段所有操作皆以 IndexedDB 儲存，確保無網路狀態下依然具備極速的操作體感。
+專案維持「無 bundler」的輕量部署方式，但已改為 ES Modules，不再是單一 HTML 包全部邏輯。
 
-2. 當前技術架構 (Baseline Stack)
+- `dynamic-sheet/index.html`
+  - 頁面骨架、樣式、模組入口。
+- `dynamic-sheet/src/app.js`
+  - 啟動流程、UI 與 store wiring、sync status 更新。
+- `dynamic-sheet/src/state.js`
+  - 應用狀態管理與所有資料操作入口。
+- `dynamic-sheet/src/storage.js`
+  - IndexedDB 存取層（sheet/nodes/meta/operations）。
+- `dynamic-sheet/src/sync.js`
+  - 同步引擎與 adapter 呼叫流程。
+- `dynamic-sheet/src/ui.js`
+  - 渲染與事件綁定（drawer、grid、editor modal）。
+- `dynamic-sheet/src/constants.js`
+  - DB/store 名稱、預設 schema/rows/nodes。
 
-為維持小工具的輕量化與隨插即用，本專案目前不依賴任何建置流程 (No Webpack/Vite/Node.js)。
+4. 儲存模型
 
-核心框架： 單一 index.html 包含所有 HTML/CSS/JS。
+IndexedDB stores:
+- `sheets`: 以 `id = sheet:<spreadsheetId>` 儲存 sheet 內容。
+- `nodes`: Drawer 樹狀節點。
+- `operations`: 待同步操作佇列（含 retry 與 nextRetryAt）。
+- `app_meta`: app 級別設定（例如 `activeNodeId`）。
 
-UI 樣式： Tailwind CSS (CDN 版本) + 內建暗色模式 (.dark class)。
-
-圖示庫： Lucide Icons (CDN 版本)。
-
-資料庫： 原生 window.indexedDB，已用 Promise 封裝為非同步函式 (initDB, loadFromDB, saveToDB)。
-
-狀態儲存： 深淺色主題紀錄使用 localStorage。
-
-3. 核心資料結構 (Data Structure)
-
-專案的靈魂在於動態生成的 JSON 結構。目前 IndexedDB 內的單一試算表資料如下：
+範例（簡化）：
 
 {
-  id: 'current_sheet', // 預留給未來多表單管理的主鍵
+  id: "sheet:local-sample",
   schema: {
-    // 鍵值(key)通常為隨機字串(如 col_12345)，name 為保留字(物件名稱)
-    name: { label: '遊戲名稱', type: 'text' },
-    col_1: { label: '購入價格', type: 'number' },
-    col_2: { label: '持有狀態', type: 'select', options: ['未發貨', '已持有', '已售出'] }
+    name: { label: "物件名稱", type: "text" },
+    price: { label: "購入價格", type: "number" },
+    status: { label: "持有狀態", type: "select", options: ["未到貨", "持有中"] }
   },
-  data: [
-    { id: '1700000000001', name: 'Gloomhaven', col_1: 3500, col_2: '已持有' },
-    { id: '1700000000002', name: 'Frosthaven', col_1: 5000, col_2: '未發貨' }
-  ]
+  rows: [
+    { id: "1", name: "Gloomhaven", price: 3500, status: "持有中" }
+  ],
+  permission: "editor"
 }
 
+5. 測試與執行
 
-⚠️ 重要開發守則：ID 綁定原則
+可用指令（在 repo root 執行）：
+- `npm run dev`：本地啟動靜態伺服器。
+- `npm test`：執行 dynamic-sheet 測試（state/storage/sync）。
+- `npm run test:dynamic-sheet:watch`：測試 watch 模式。
 
-絕對不要使用 Array Index 來綁定 UI 事件！ 由於系統實作了即時查詢（Search Filter）功能，畫面上的 Row Index 會偏移。所有資料列的編輯、刪除操作，必須強制傳遞並比對 row.id，以確保操作對象正確。
+目前測試覆蓋重點：
+- Google Sheet URL/ID 解析。
+- viewer 權限不可編輯。
+- 不同 sheet 的本地快取隔離。
+- operations queue 在成功/失敗情境的行為。
 
-4. UI 架構與設計模式
+6. 開發守則（重要）
 
-表格凍結窗格： 使用純 CSS position: sticky 實現 X 軸（表頭）與 Y 軸（第一欄：物件名稱）的固定，維持試算表的查閱手感。
+- 任何資料列操作一律以 `row.id` 當主鍵，不可依賴畫面 index。
+- 新增欄位型別時，編輯流程必須走 modal/bottom-sheet 互動，不使用 `prompt()`。
+- 修改 table/layout overflow 時，需重新驗證 sticky header/first column 沒被破壞。
+- 不要把雲端同步邏輯耦合進 UI；統一由 sync engine + adapter 處理。
 
-EditorFactory (策略模式/工廠模式)： 所有屬性的編輯器 UI 都封裝在 EditorFactory 物件中。這是為未來高擴充性留下的接口。新增一種屬性（例如：計算機），只需在 Factory 內新增一個回傳 HTML 字串的函式即可。
+7. 後續 Roadmap（建議）
 
-置中懸浮編輯器 (Modal)： 編輯視窗採用 bg-white/75 與 backdrop-blur-md 實現無明顯遮罩的毛玻璃效果，確保使用者能同時參考背後的表格數據。
+階段 A（近期）
+- 補齊文字與編碼清理（避免中文亂碼）。
+- 統一同步狀態訊息與錯誤分類。
+- 增加 UI 關鍵流程 smoke tests。
 
-5. 未來開發藍圖與擴充準備 (Roadmap)
+階段 B（中期）
+- 實作 Google OAuth + Picker + Sheets API adapter（最小可用版）。
+- 完成批次同步、衝突策略、手動重試 UX。
+- 加入 network offline/online 狀態導向提示。
 
-階段一：屬性編輯器擴充 (Editor Expansion)
-
-目前的 EditorFactory 僅有 text, number, select。未來可直接擴充：
-
-calculator: 點擊跳出滿版的九宮格數字計算機，包含 +5, +10 等快速加總按鈕（適用於桌遊計分）。
-
-auto_sum: 公式欄位，由使用者勾選要加總的屬性，該欄位變為 Read-only 自動計算結果。
-
-image: 串接手機原生相機 API 或圖片上傳。
-
-階段二：架構模組化 (Refactoring)
-
-當程式碼超過 1000 行時，建議將單一 HTML 拆分為 ES Modules (<script type="module">)：
-
-db.js: 處理 IndexedDB 邏輯。
-
-factory.js: 獨立 EditorFactory。
-
-app.js: 處理 DOM 操作與事件監聽。
-
-階段三：多表單與側欄管理 (Multiple Sheets)
-
-目前 IndexedDB 的 ID 寫死為 current_sheet。
-
-下一步應完善側邊欄 (Sidebar) 功能，允許使用者「新增專案」，產生新的 Sheet ID 並動態切換 loadFromDB(sheetId)。
-
-階段四：終極目標 - Google Sheets 同步 (Google API)
-
-通訊協定： 引入 Google Identity Services (OAuth 2.0) 與 Google Sheets API。
-
-權限級別： 強烈建議使用 https://www.googleapis.com/auth/drive.file 權限，結合 Google Picker API，確保 App 只能讀寫使用者指定的試算表，保障資安。
-
-同步策略 (Lazy Sync)： 維持 Local-First 架構。使用者操作時先寫入 IndexedDB 並更新 UI，背後建立一個 Sync Queue (同步佇列)，定時或在網路順暢時將 Queue 中的差異（Diff）推送到 Google Sheets。
-
-6. 給接手 AI 的協作指引 (Prompt Guidelines)
-
-嗨，接手的 AI 開發者：
-
-遵守現有架構： 請維持 Tailwind CSS + Vanilla JS 的無建置架構，除非使用者明確要求導入 React/Vue 等框架。
-
-編輯模式的鐵則： 任何新增的屬性類型，其編輯行為「必須」發生在 EditorFactory 生成的 Bottom Sheet / Modal 內，禁止使用原生的 prompt() 或覆蓋掉目前的二維表格視圖。
-
-資料正確性： 處理資料增刪改查時，請務必以 row.id 為主要 Key，忽略畫面上的 Index。
-
-CSS 注意事項： 本專案依賴 position: sticky 實現表格凍結，若修改 main 或 table 容器的 overflow 屬性時，請務必確認不會破壞凍結窗格的效果。
+階段 C（長期）
+- 新欄位型別：`calculator`、`auto_sum`、`image`。
+- 多人協作衝突解決（版本戳或 operation-log merge）。
+- 大資料量效能優化（虛擬捲動/分批渲染）。
