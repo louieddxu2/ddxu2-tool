@@ -74,27 +74,21 @@ async function getValues({ spreadsheetId, sheetTitle, accessToken }) {
 }
 
 function buildContext({ values, sheetTitle, sheetId }) {
-  if (!values.length || !values[0].length) {
-    throw toError("遠端試算表缺少 header，請先建立 header（至少要有 id 欄）", 400);
-  }
-
-  const header = values[0].map((cell) => normalizeHeaderKey(cell));
+  const header = values.length > 0 ? values[0].map((cell) => normalizeHeaderKey(cell)) : [];
   const headerMap = new Map();
   header.forEach((key, idx) => {
     if (key) headerMap.set(key, idx);
   });
 
-  if (!headerMap.has("id")) {
-    throw toError("遠端試算表 header 缺少 id 欄位，無法對齊列資料", 400);
-  }
-
-  const idCol = headerMap.get("id");
   const rowMap = new Map();
-  for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
-    const row = values[rowIndex] || [];
-    const rowId = String(row[idCol] || "").trim();
-    if (!rowId) continue;
-    rowMap.set(rowId, rowIndex + 1);
+  const idCol = headerMap.get("id");
+  if (idCol !== undefined) {
+    for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
+      const row = values[rowIndex] || [];
+      const rowId = String(row[idCol] || "").trim();
+      if (!rowId) continue;
+      rowMap.set(rowId, rowIndex + 1);
+    }
   }
 
   return {
@@ -158,6 +152,88 @@ async function deleteRowByNumber({ spreadsheetId, accessToken, sheetId, rowNumbe
   });
 }
 
+async function deleteColumnByIndex({ spreadsheetId, accessToken, sheetId, colIndex }) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`;
+  await googleFetch(url, accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: "COLUMNS",
+              startIndex: colIndex,
+              endIndex: colIndex + 1
+            }
+          }
+        }
+      ]
+    })
+  });
+}
+
+async function ensureHeaderKey(env, key) {
+  const normalized = normalizeHeaderKey(key);
+  if (!normalized) throw toError("invalid_header_key", 400);
+
+  if (env.context.headerMap.has(normalized)) {
+    return env.context.headerMap.get(normalized);
+  }
+
+  const nextIndex = env.context.header.length;
+  await updateSingleCell({
+    spreadsheetId: env.spreadsheetId,
+    accessToken: env.accessToken,
+    sheetTitle: env.context.sheetTitle,
+    rowNumber: 1,
+    colIndex: nextIndex,
+    value: normalized
+  });
+
+  env.context.header.push(normalized);
+  env.context.headerMap.set(normalized, nextIndex);
+  return nextIndex;
+}
+
+async function ensureHeaders(env, keys = []) {
+  for (const key of keys) {
+    await ensureHeaderKey(env, key);
+  }
+}
+
+function shiftHeaderMapAfterDelete(env, deletedIndex) {
+  const nextHeader = [];
+  for (let i = 0; i < env.context.header.length; i += 1) {
+    if (i !== deletedIndex) nextHeader.push(env.context.header[i]);
+  }
+  env.context.header = nextHeader;
+  env.context.headerMap.clear();
+  env.context.header.forEach((key, idx) => {
+    if (key) env.context.headerMap.set(key, idx);
+  });
+}
+
+async function appendSkeletonRow(env, rowId, payloadByKey = {}) {
+  await ensureHeaders(env, ["id", ...Object.keys(payloadByKey)]);
+  const out = env.context.header.map((key) => {
+    if (key === "id") return rowId;
+    return payloadByKey[key] ?? "";
+  });
+
+  const updatedRange = await appendRow({
+    spreadsheetId: env.spreadsheetId,
+    accessToken: env.accessToken,
+    sheetTitle: env.context.sheetTitle,
+    values: out
+  });
+
+  const rowNumber = parseUpdatedRangeRowNumber(updatedRange);
+  if (rowNumber) env.context.rowMap.set(rowId, rowNumber);
+  return rowNumber;
+}
+
 export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
   async function loadContext(spreadsheetId) {
     const accessToken = await getAccessToken();
@@ -169,7 +245,8 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
       : sheets[0];
     const values = await getValues({ spreadsheetId, sheetTitle: targetSheet.title, accessToken });
     const context = buildContext({ values, sheetTitle: targetSheet.title, sheetId: targetSheet.sheetId });
-    return { context, accessToken };
+
+    return { context, accessToken, spreadsheetId };
   }
 
   async function applyCellUpdate(op, env) {
@@ -177,12 +254,14 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     const key = String(op?.payload?.key || "").trim();
     if (!rowId || !key) throw toError("invalid_cell_update_payload", 400);
 
-    const rowNumber = env.context.rowMap.get(rowId);
-    if (!rowNumber) throw toError(`row_not_found:${rowId}`, 400);
+    await ensureHeaders(env, ["id", key]);
+    let rowNumber = env.context.rowMap.get(rowId);
+    if (!rowNumber) {
+      rowNumber = await appendSkeletonRow(env, rowId, { [key]: op.payload?.value ?? "" });
+      if (!rowNumber) return;
+    }
 
     const colIndex = env.context.headerMap.get(key);
-    if (colIndex === undefined) throw toError(`column_not_found:${key}`, 400);
-
     await updateSingleCell({
       spreadsheetId: env.spreadsheetId,
       accessToken: env.accessToken,
@@ -193,10 +272,35 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     });
   }
 
+  async function applyRowRename(op, env) {
+    const rowId = String(op?.payload?.rowId || "").trim();
+    if (!rowId) throw toError("invalid_row_rename_payload", 400);
+
+    await ensureHeaders(env, ["id", "name"]);
+
+    let rowNumber = env.context.rowMap.get(rowId);
+    if (!rowNumber) {
+      rowNumber = await appendSkeletonRow(env, rowId, { name: op.payload?.name ?? "" });
+      if (!rowNumber) return;
+    }
+
+    const nameIndex = env.context.headerMap.get("name");
+    await updateSingleCell({
+      spreadsheetId: env.spreadsheetId,
+      accessToken: env.accessToken,
+      sheetTitle: env.context.sheetTitle,
+      rowNumber,
+      colIndex: nameIndex,
+      value: op.payload?.name ?? ""
+    });
+  }
+
   async function applyRowAdd(op, env) {
     const row = op?.payload?.row || {};
     const rowId = String(row.id || "").trim();
     if (!rowId) throw toError("invalid_row_add_payload", 400);
+
+    await ensureHeaders(env, ["id", ...Object.keys(row)]);
 
     const out = env.context.header.map((key) => {
       if (!key) return "";
@@ -219,9 +323,7 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     if (!rowId) throw toError("invalid_row_delete_payload", 400);
 
     const rowNumber = env.context.rowMap.get(rowId);
-    if (!rowNumber) {
-      return;
-    }
+    if (!rowNumber) return;
 
     await deleteRowByNumber({
       spreadsheetId: env.spreadsheetId,
@@ -236,21 +338,70 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     }
   }
 
+  async function applyColumnAdd(op, env) {
+    const key = String(op?.payload?.key || "").trim();
+    if (!key) throw toError("invalid_column_add_payload", 400);
+    await ensureHeaders(env, ["id", key]);
+  }
+
+  async function applyColumnUpdate(op, env) {
+    const key = String(op?.payload?.key || "").trim();
+    if (!key) throw toError("invalid_column_update_payload", 400);
+    await ensureHeaders(env, ["id", key]);
+  }
+
+  async function applyColumnDelete(op, env) {
+    const key = String(op?.payload?.key || "").trim();
+    if (!key || key === "id") return;
+
+    const colIndex = env.context.headerMap.get(key);
+    if (colIndex === undefined) return;
+
+    await deleteColumnByIndex({
+      spreadsheetId: env.spreadsheetId,
+      accessToken: env.accessToken,
+      sheetId: env.context.sheetId,
+      colIndex
+    });
+
+    shiftHeaderMapAfterDelete(env, colIndex);
+  }
+
   async function applyOperations(operations, { spreadsheetId }) {
     try {
       const env = await loadContext(spreadsheetId);
-      env.spreadsheetId = spreadsheetId;
+      await ensureHeaders(env, ["id"]);
 
       for (const op of operations || []) {
         if (op.type === "cell_update") {
           await applyCellUpdate(op, env);
-        } else if (op.type === "row_add") {
-          await applyRowAdd(op, env);
-        } else if (op.type === "row_delete") {
-          await applyRowDelete(op, env);
-        } else {
-          return { ok: false, transient: false, reason: `unsupported_operation:${op.type}` };
+          continue;
         }
+        if (op.type === "row_rename") {
+          await applyRowRename(op, env);
+          continue;
+        }
+        if (op.type === "row_add") {
+          await applyRowAdd(op, env);
+          continue;
+        }
+        if (op.type === "row_delete") {
+          await applyRowDelete(op, env);
+          continue;
+        }
+        if (op.type === "column_add") {
+          await applyColumnAdd(op, env);
+          continue;
+        }
+        if (op.type === "column_update") {
+          await applyColumnUpdate(op, env);
+          continue;
+        }
+        if (op.type === "column_delete") {
+          await applyColumnDelete(op, env);
+          continue;
+        }
+        // Unknown ops are ignored to avoid blocking the queue.
       }
 
       return { ok: true };
