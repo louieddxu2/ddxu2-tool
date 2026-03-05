@@ -6,6 +6,7 @@
   <title>動態表單中心</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
     tailwind.config = { darkMode: "class" };
   </script>
@@ -84,7 +85,7 @@
     <div class="p-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
       <h2 class="font-bold text-slate-700 dark:text-slate-200">資料來源與同步</h2>
     </div>
-    <div class="flex-grow p-3 space-y-4">
+    <div class="flex-grow p-3 space-y-4 overflow-y-auto">
       <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
         <div class="flex items-center justify-between mb-2">
           <p class="text-xs text-slate-500">Drawer 目錄</p>
@@ -95,16 +96,28 @@
         </div>
         <div id="drawer-tree" class="max-h-44 overflow-y-auto pr-1"></div>
       </div>
-      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
-        <p class="text-xs text-slate-500 mb-1">目前資料源</p>
-        <p class="text-sm font-semibold">Google Sheets（待接線）</p>
-        <p class="text-xs text-slate-500 mt-1">目前使用本地編輯 + 同步佇列骨架</p>
+
+      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+        <p class="text-xs text-slate-500 mb-1">Google 帳戶</p>
+        <p id="google-auth-status" class="text-sm font-semibold text-amber-600">尚未連結 Google 帳戶</p>
+        <p id="google-auth-detail" class="text-xs text-slate-500">請先設定 Client ID，並完成帳戶授權</p>
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button id="btn-google-connect" class="px-2 py-2 text-xs bg-blue-600 text-white rounded-lg">連結帳戶</button>
+          <button id="btn-google-disconnect" class="px-2 py-2 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">中斷連線</button>
+          <button id="btn-google-find" class="px-2 py-2 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">尋找試算表</button>
+          <button id="btn-google-link-url" class="px-2 py-2 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">貼網址連結</button>
+        </div>
+        <button id="btn-google-config" class="w-full px-2 py-2 text-xs bg-white dark:bg-slate-900 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
+          設定 Google API（Client ID / API Key）
+        </button>
       </div>
+
       <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
         <p class="text-xs text-slate-500 mb-1">同步狀態</p>
         <p id="sync-status" class="text-sm font-semibold text-amber-600">未連線 adapter</p>
         <p id="pending-count" class="text-xs text-slate-500 mt-1">待同步 0 筆</p>
       </div>
+
       <button id="btn-sync-now" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-semibold transition-colors">
         立即同步
       </button>
