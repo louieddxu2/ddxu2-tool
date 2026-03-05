@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "http-server . -p 5500 -c-1",
     "dev:open": "http-server . -p 5500 -c-1 -o /",
-    "start": "http-server . -p 5500 -c-1"
+    "start": "http-server . -p 5500 -c-1",
+    "test:dynamic-sheet": "node --test dynamic-sheet/tests/**/*.test.mjs",
+    "test:dynamic-sheet:watch": "node --test --watch dynamic-sheet/tests/**/*.test.mjs",
+    "test": "npm run test:dynamic-sheet",
+    "verify": "npm run test:dynamic-sheet"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
     "http-server": "^14.1.1"
   }
 }
