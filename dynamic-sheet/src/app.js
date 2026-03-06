@@ -262,10 +262,42 @@ async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId 
   return resolved;
 }
 
+async function onPullNow() {
+  const activeNodeId = store.getState().activeNodeId;
+  const node = store.getState().nodes.find(n => n.id === activeNodeId);
+  if (!node || node.type !== "sheet") {
+    window.alert("請先在左側選擇一個試算表節點");
+    return;
+  }
+  
+  const pending = await store.getPendingCountSafe();
+  if (pending > 0) {
+    if (!window.confirm(`目前有 ${pending} 筆尚未上傳的修改。若直接從雲端下載，將會遺失這些本地修改。\n是否確定要下載並覆寫本地資料？`)) return;
+  } else {
+    if (!window.confirm("確定要從雲端下載並覆寫目前的表格內容嗎？")) return;
+  }
+  
+  if (window.dynamicSheetCloudAdapter?.pullData) {
+    if (ui) ui.setSyncStatus({ text: "正在下載雲端資料...", tone: "warn", pending });
+    const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId: node.spreadsheetId });
+    if (imported.ok) {
+       await store.overwriteSheetData(imported.schema, imported.rows);
+       if (ui) ui.setSyncStatus({ text: "下載覆蓋完成", tone: "ok", pending: await store.getPendingCountSafe() });
+       window.alert("下載完成！");
+    } else {
+       if (ui) ui.setSyncStatus({ text: `下載失敗: ${imported.reason}`, tone: "error", pending });
+       window.alert(`無法下載該試算表資料：${imported.reason}`);
+    }
+  } else {
+    window.alert("系統尚未正確設定 Google 連線。");
+  }
+}
+
 async function boot() {
   ui = createUI({
     store,
     onSyncNow,
+    onPullNow,
     onSyncRetryFailed,
     onSyncRetryAll,
     onResetData,

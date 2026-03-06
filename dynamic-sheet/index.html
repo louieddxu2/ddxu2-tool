@@ -130,10 +130,15 @@
         <p id="sync-last-error" class="text-[11px] text-rose-600 mt-1">最後錯誤：無</p>
       </div>
 
-      <button id="btn-sync-now" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-semibold transition-colors">立即同步</button>
-      <div class="grid grid-cols-2 gap-2">
-        <button id="btn-sync-retry-failed" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">重試失敗</button>
-        <button id="btn-sync-retry-all" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">重試全部</button>
+      <div class="flex flex-col gap-2">
+        <button id="btn-sync-now" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center gap-2">
+          <i data-lucide="upload-cloud" class="w-4 h-4"></i> 上傳修改
+        </button>
+        <button id="btn-pull-now" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center gap-2">
+          <i data-lucide="download-cloud" class="w-4 h-4"></i> 從雲端下載
+        </button>
+        <button id="btn-sync-retry-failed" class="bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 px-3 py-2 rounded-lg font-medium text-sm transition-colors">重試失敗</button>
+        <button id="btn-sync-retry-all" class="bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 px-3 py-2 rounded-lg font-medium text-sm transition-colors">重試全部</button>
       </div>
       <button id="btn-reset-data" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 py-2.5 rounded-xl font-semibold transition-colors">
         清除本地資料

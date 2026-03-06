@@ -24,6 +24,7 @@ function walkTree(nodes, parentId = ROOT_NODE_ID, depth = 0, out = []) {
 export function createUI({
   store,
   onSyncNow,
+  onPullNow,
   onSyncRetryFailed,
   onSyncRetryAll,
   onResetData,
@@ -210,7 +211,11 @@ export function createUI({
     if (!state.sheetContextId) {
       html += `<tr><td colspan="${Math.max(1, schemaKeys.length)}" class="p-10 text-center text-slate-400">請先在左側選擇一個 Sheet</td></tr>`;
     } else if (filteredRows.length === 0) {
-      html += `<tr><td colspan="${schemaKeys.length}" class="p-10 text-center text-slate-400">目前沒有符合搜尋結果</td></tr>`;
+      if (state.searchQuery) {
+        html += `<tr><td colspan="${schemaKeys.length}" class="p-10 text-center text-slate-400">目前沒有符合搜尋結果</td></tr>`;
+      } else {
+        html += `<tr><td colspan="${schemaKeys.length}" class="p-10 text-center text-slate-400">表格目前沒有任何資料</td></tr>`;
+      }
     } else {
       for (const row of filteredRows) {
         html += "<tr>";
@@ -404,8 +409,24 @@ export function createUI({
       const permission = document.getElementById("new-sheet-permission").value;
       const parentId = document.getElementById("new-sheet-parent").value;
       try {
+        const spreadsheetId = store.parseSpreadsheetId(url);
+        if (!spreadsheetId) {
+           throw new Error("請輸入有效的 Google Sheet 網址或 ID");
+        }
         await store.addSheetNode({ name, url, parentId, permission });
         closeEditor();
+
+        if (window.dynamicSheetCloudAdapter?.pullData) {
+          setSyncStatus({ text: "正在下載試算表資料...", tone: "warn", pending: 0 });
+          const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId });
+          if (imported.ok) {
+             await store.overwriteSheetData(imported.schema, imported.rows);
+             setSyncStatus({ text: "資料下載完成", tone: "ok", pending: 0 });
+          } else {
+             setSyncStatus({ text: `下載資料失敗: ${imported.reason}`, tone: "error", pending: 0 });
+             window.alert(`您已加入節點，但無法從雲端自動下載資料：${imported.reason}\n請先從左側選單連結 Google 帳戶並設定為「Editor/Viewer」，然後點擊上方的「從雲端下載」按鈕重試。`);
+          }
+        }
       } catch (error) {
         window.alert(error.message || "Google Sheet 網址無效");
       }
@@ -543,6 +564,8 @@ export function createUI({
     document.getElementById("btn-add-row").addEventListener("click", () => store.addRow());
     document.getElementById("btn-add-column").addEventListener("click", () => store.addColumn());
     document.getElementById("btn-sync-now").addEventListener("click", onSyncNow);
+    const pullIcon = document.getElementById("btn-pull-now");
+    if (pullIcon) pullIcon.addEventListener("click", onPullNow);
     document.getElementById("btn-sync-retry-failed").addEventListener("click", onSyncRetryFailed);
     document.getElementById("btn-sync-retry-all").addEventListener("click", onSyncRetryAll);
     document.getElementById("btn-reset-data").addEventListener("click", onResetData);
