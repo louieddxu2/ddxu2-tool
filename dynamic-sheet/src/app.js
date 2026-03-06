@@ -233,23 +233,23 @@ async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId 
     throw new Error("Picker 選取的試算表與你輸入的網址不一致，已取消連結");
   }
 
-  const resolved = await resolveSheetFromInput({
-    accessToken,
-    input: picked.id,
-    apiKey: googleConfig.apiKey
-  });
+  // We intentionally do NOT call resolveSheetFromInput here.
+  // With 'drive.file' scope, the API might return 404 if called immediately after Picker,
+  // or if the file was just selected. The Picker payload gives us all we need to construct the node.
+  const finalTitle = customName || picked.name || "Untitled Sheet";
+  const finalUrl = picked.url || `https://docs.google.com/spreadsheets/d/${picked.id}/edit`;
 
   const safePermission = permission === "editor" ? "editor" : "viewer";
   await store.addSheetNode({
-    name: customName || resolved.title,
-    url: resolved.url,
+    name: finalTitle,
+    url: finalUrl,
     parentId,
     permission: safePermission
   });
 
   if (window.dynamicSheetCloudAdapter?.pullData) {
     if (ui) ui.setSyncStatus({ text: "正在下載試算表資料...", tone: "warn", pending: 0 });
-    const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId: resolved.spreadsheetId });
+    const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId: picked.id });
     if (imported.ok) {
        await store.overwriteSheetData(imported.schema, imported.rows);
        if (ui) ui.setSyncStatus({ text: "資料下載完成", tone: "ok", pending: 0 });
