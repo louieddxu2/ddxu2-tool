@@ -234,7 +234,10 @@ export function createUI({
   }
 
   function openCellEditor(rowId, key) {
-    if (!store.canEditCurrentSheet()) return;
+    if (!store.canEditCurrentSheet()) {
+      window.alert("目前為唯讀模式 (Viewer)，無法編輯資料。");
+      return;
+    }
     const state = store.getState();
     const row = state.rows.find((item) => item.id === rowId);
     const config = state.schema[key];
@@ -276,7 +279,10 @@ export function createUI({
   }
 
   function openRowEditor(rowId) {
-    if (!store.canEditCurrentSheet()) return;
+    if (!store.canEditCurrentSheet()) {
+      window.alert("目前為唯讀模式 (Viewer)，無法編輯資料列。");
+      return;
+    }
     const state = store.getState();
     const row = state.rows.find((item) => item.id === rowId);
     if (!row) return;
@@ -307,7 +313,10 @@ export function createUI({
   }
 
   function openColumnEditor(key) {
-    if (!store.canEditCurrentSheet()) return;
+    if (!store.canEditCurrentSheet()) {
+      window.alert("目前為唯讀模式 (Viewer)，無法編輯欄位。");
+      return;
+    }
     const state = store.getState();
     const config = state.schema[key];
     if (!config) return;
@@ -377,8 +386,8 @@ export function createUI({
       <input id="new-sheet-url" type="text" placeholder="https://docs.google.com/spreadsheets/d/..." class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
       <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">權限</label>
       <select id="new-sheet-permission" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base">
-        <option value="viewer">Viewer (read only)</option>
         <option value="editor">Editor</option>
+        <option value="viewer">Viewer (read only)</option>
       </select>
       <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">放到哪個資料夾</label>
       <select id="new-sheet-parent" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base">${collectFolderOptions()}</select>
@@ -409,8 +418,8 @@ export function createUI({
       <input id="google-search-query" type="text" placeholder="輸入試算表名稱" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
       <div class="grid grid-cols-2 gap-2">
         <select id="google-search-permission" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm">
-          <option value="viewer">Viewer</option>
           <option value="editor">Editor</option>
+          <option value="viewer">Viewer</option>
         </select>
         <select id="google-search-parent" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm">${collectFolderOptions()}</select>
       </div>
@@ -477,14 +486,13 @@ export function createUI({
       <input id="google-link-name" type="text" placeholder="留空將使用試算表標題" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
       <div class="grid grid-cols-2 gap-2">
         <select id="google-link-permission" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm">
-          <option value="viewer">Viewer</option>
           <option value="editor">Editor</option>
+          <option value="viewer">Viewer</option>
         </select>
         <select id="google-link-parent" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-sm">${collectFolderOptions()}</select>
       </div>
       <button id="google-link-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">驗證並連結</button>
     `;
-
     showEditor("貼網址連結試算表", "會先驗證權限，再建立節點", html);
     const input = document.getElementById("google-link-input");
     setTimeout(() => input.focus(), 80);
