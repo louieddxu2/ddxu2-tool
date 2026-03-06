@@ -9,7 +9,6 @@ import { createSyncEngine } from "./sync.js";
 import { createUI } from "./ui.js";
 
 const GOOGLE_SCOPE = [
-  "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/userinfo.profile",
   "https://www.googleapis.com/auth/userinfo.email",
