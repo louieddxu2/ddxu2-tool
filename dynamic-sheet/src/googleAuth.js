@@ -80,7 +80,10 @@ export function createGoogleAuthManager({ getClientId, scope }) {
     expiresAt = Date.now() + expiresIn * 1000;
     try {
       profile = await fetchUserInfo(accessToken);
-    } catch {
+    } catch (e) {
+      console.warn("fetchUserInfo failed", e);
+      // 如果 401 代表授權不足，應該丟出錯誤讓使用者看到
+      if (e.message.includes("401")) throw e;
       profile = null;
     }
     return accessToken;
