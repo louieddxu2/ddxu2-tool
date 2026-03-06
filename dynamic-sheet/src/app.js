@@ -1,17 +1,14 @@
 import { GOOGLE_APP_CONFIG } from "./googleAppConfig.js";
 import { createGoogleAuthManager } from "./googleAuth.js";
-import { resolveSheetFromInput, searchUserSheets } from "./googleSheets.js";
+import { parseSpreadsheetId, resolveSheetFromInput, searchUserSheets } from "./googleSheets.js";
+import { pickSpreadsheet } from "./googlePicker.js";
 import { createGoogleSyncAdapter } from "./googleSyncAdapter.js";
 import { clearAllData, getMeta, resetOperationBackoff, setMeta } from "./storage.js";
 import { createStore } from "./state.js";
 import { createSyncEngine } from "./sync.js";
 import { createUI } from "./ui.js";
 
-const GOOGLE_SCOPE = [
-  "https://www.googleapis.com/auth/drive.readonly",
-  "https://www.googleapis.com/auth/spreadsheets",
-  "https://www.googleapis.com/auth/drive.file"
-].join(" ");
+const GOOGLE_SCOPE = ["https://www.googleapis.com/auth/drive.file"].join(" ");
 
 const META_SYNC_LAST_SUCCESS = "syncLastSuccessAt";
 const META_SYNC_LAST_ERROR = "syncLastError";
@@ -75,7 +72,7 @@ function getGoogleUiState(errorMessage = "") {
     return {
       tone: "warn",
       status: "尚未連結 Google 帳戶",
-      detail: errorMessage || "連線成功後可搜尋自己的試算表",
+      detail: errorMessage || "連線成功後可使用 Picker 確認要授權的試算表",
       connected: false,
       hasConfig,
       email,
@@ -85,7 +82,7 @@ function getGoogleUiState(errorMessage = "") {
 
   return {
     tone: "ok",
-    status: "Google 已連線",
+    status: "Google 已連線（嚴格模式）",
     detail: email || "已授權",
     connected: true,
     hasConfig,
@@ -203,10 +200,25 @@ async function onGoogleLinkSheetFromSearch({ spreadsheetId, name, webViewLink, p
 }
 
 async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId }) {
+  const inputSheetId = parseSpreadsheetId(input);
+  if (!inputSheetId) {
+    throw new Error("不是有效的 Google 試算表網址或 ID");
+  }
+
   const accessToken = await ensureGoogleToken();
+  const picked = await pickSpreadsheet({
+    accessToken,
+    apiKey: googleConfig.apiKey,
+    title: "請在 Picker 確認你要連結的試算表"
+  });
+
+  if (picked.id !== inputSheetId) {
+    throw new Error("Picker 選取的試算表與你輸入的網址不一致，已取消連結");
+  }
+
   const resolved = await resolveSheetFromInput({
     accessToken,
-    input,
+    input: picked.id,
     apiKey: googleConfig.apiKey
   });
 

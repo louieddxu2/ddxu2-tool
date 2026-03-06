@@ -1,4 +1,4 @@
-﻿const GIS_SRC = "https://accounts.google.com/gsi/client";
+const GIS_SRC = "https://accounts.google.com/gsi/client";
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -78,7 +78,11 @@ export function createGoogleAuthManager({ getClientId, scope }) {
     accessToken = tokenResponse.access_token || "";
     const expiresIn = Number(tokenResponse.expires_in || 3600);
     expiresAt = Date.now() + expiresIn * 1000;
-    profile = await fetchUserInfo(accessToken);
+    try {
+      profile = await fetchUserInfo(accessToken);
+    } catch {
+      profile = null;
+    }
     return accessToken;
   }
 
