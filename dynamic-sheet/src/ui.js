@@ -1,4 +1,4 @@
-﻿import { ROOT_NODE_ID } from "./constants.js";
+import { ROOT_NODE_ID } from "./constants.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -187,7 +187,7 @@ export function createUI({
       `;
     }
     drawerTree.innerHTML = html;
-    window.lucide.createIcons({ root: drawerTree });
+    safeCreateIcons({ root: drawerTree });
   }
 
   function renderGrid(state) {
@@ -583,16 +583,34 @@ export function createUI({
     });
   }
 
+  function safeCreateIcons(options = {}) {
+    try {
+      if (window.lucide) window.lucide.createIcons(options);
+      else if (typeof lucide !== "undefined") lucide.createIcons(options);
+    } catch (e) {
+      console.warn("Lucide icons failed to render", e);
+    }
+  }
+
   initTheme();
-  bindEvents();
-  window.lucide.createIcons();
+  try {
+    bindEvents();
+  } catch (e) {
+    window.alert("事件綁定失敗: " + e.message);
+    throw e;
+  }
+  safeCreateIcons();
 
   return {
     render(state) {
-      renderDrawer(state);
-      renderGrid(state);
-      setEditButtonsEnabled(store.canEditCurrentSheet());
-      window.lucide.createIcons();
+      try {
+        renderDrawer(state);
+        renderGrid(state);
+        setEditButtonsEnabled(store.canEditCurrentSheet());
+        safeCreateIcons();
+      } catch (e) {
+        console.error("Render error", e);
+      }
     },
     setSyncStatus,
     setSyncMeta,
