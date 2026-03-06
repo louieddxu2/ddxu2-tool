@@ -11,7 +11,7 @@
     // Developer config only: set values before shipping to end users.
     window.__DYNAMIC_SHEET_GOOGLE_CONFIG = window.__DYNAMIC_SHEET_GOOGLE_CONFIG || {
       clientId: "491672110542-fq921d7ide0gc0nivet1e6mr29gifc1h.apps.googleusercontent.com",
-      apiKey: "",
+      apiKey: String(window.__DYNAMIC_SHEET_GOOGLE_API_KEY || localStorage.getItem("DYNAMIC_SHEET_GOOGLE_API_KEY") || "").trim(),
       sheetTabName: ""
     };
   </script>
