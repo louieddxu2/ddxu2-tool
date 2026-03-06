@@ -24,6 +24,8 @@ function walkTree(nodes, parentId = ROOT_NODE_ID, depth = 0, out = []) {
 export function createUI({
   store,
   onSyncNow,
+  onSyncRetryFailed,
+  onSyncRetryAll,
   onResetData,
   onGoogleConnect,
   onGoogleDisconnect,
@@ -38,6 +40,8 @@ export function createUI({
   const sidebarOverlay = document.getElementById("sidebar-overlay");
   const syncStatus = document.getElementById("sync-status");
   const pendingCount = document.getElementById("pending-count");
+  const syncLastSuccess = document.getElementById("sync-last-success");
+  const syncLastError = document.getElementById("sync-last-error");
 
   const editorOverlay = document.getElementById("editor-overlay");
   const editorSheet = document.getElementById("editor-sheet");
@@ -78,6 +82,16 @@ export function createUI({
     if (tone === "warn") syncStatus.classList.add("text-amber-600");
     if (tone === "error") syncStatus.classList.add("text-rose-600");
     pendingCount.textContent = `待同步 ${pending} 筆`;
+  }
+
+  function setSyncMeta(meta = {}) {
+    const lastSuccessAt = Number(meta.lastSuccessAt || 0);
+    const lastError = String(meta.lastError || "").trim();
+    syncLastSuccess.textContent = lastSuccessAt
+      ? `上次成功：${new Date(lastSuccessAt).toLocaleString()}`
+      : "上次成功：尚無";
+    syncLastError.textContent = `最後錯誤：${lastError || "無"}`;
+    syncLastError.className = `text-[11px] mt-1 ${lastError ? "text-rose-600" : "text-slate-500"}`;
   }
 
   function setGoogleState(state) {
@@ -521,6 +535,8 @@ export function createUI({
     document.getElementById("btn-add-row").addEventListener("click", () => store.addRow());
     document.getElementById("btn-add-column").addEventListener("click", () => store.addColumn());
     document.getElementById("btn-sync-now").addEventListener("click", onSyncNow);
+    document.getElementById("btn-sync-retry-failed").addEventListener("click", onSyncRetryFailed);
+    document.getElementById("btn-sync-retry-all").addEventListener("click", onSyncRetryAll);
     document.getElementById("btn-reset-data").addEventListener("click", onResetData);
 
     btnNewFolder.addEventListener("click", openCreateFolderModal);
@@ -579,6 +595,7 @@ export function createUI({
       window.lucide.createIcons();
     },
     setSyncStatus,
+    setSyncMeta,
     setGoogleState
   };
 }

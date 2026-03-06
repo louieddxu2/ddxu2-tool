@@ -121,11 +121,15 @@
         <p class="text-xs text-slate-500 mb-1">同步狀態</p>
         <p id="sync-status" class="text-sm font-semibold text-amber-600">未連線 adapter</p>
         <p id="pending-count" class="text-xs text-slate-500 mt-1">待同步 0 筆</p>
+        <p id="sync-last-success" class="text-[11px] text-slate-500 mt-1">上次成功：尚無</p>
+        <p id="sync-last-error" class="text-[11px] text-rose-600 mt-1">最後錯誤：無</p>
       </div>
 
-      <button id="btn-sync-now" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-semibold transition-colors">
-        立即同步
-      </button>
+      <button id="btn-sync-now" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-semibold transition-colors">立即同步</button>
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btn-sync-retry-failed" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">重試失敗</button>
+        <button id="btn-sync-retry-all" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">重試全部</button>
+      </div>
       <button id="btn-reset-data" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 py-2.5 rounded-xl font-semibold transition-colors">
         清除本地資料
       </button>

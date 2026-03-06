@@ -1,4 +1,4 @@
-import {
+﻿import {
   APP_META_STORE,
   DB_NAME,
   DB_VERSION,
@@ -131,11 +131,13 @@ export async function enqueueOperation(sheetId, type, payload) {
   await waitForTx(tx);
 }
 
-export async function listPendingOperations(sheetId, limit = 100) {
+export async function listPendingOperations(sheetId, limit = 100, includeDeferred = false) {
   const readyDb = await initStorage();
   const tx = readyDb.transaction(OP_STORE, "readonly");
   const index = tx.objectStore(OP_STORE).index("by_sheet_next_retry");
-  const range = IDBKeyRange.bound([sheetId, 0], [sheetId, Date.now()]);
+  const upperRetryAt = includeDeferred ? Number.MAX_SAFE_INTEGER : Date.now();
+  const range = IDBKeyRange.bound([sheetId, 0], [sheetId, upperRetryAt]);
+
   const items = [];
   await new Promise((resolve, reject) => {
     const req = index.openCursor(range);
@@ -151,8 +153,28 @@ export async function listPendingOperations(sheetId, limit = 100) {
     };
     req.onerror = () => reject(req.error || new Error("Failed listing pending operations"));
   });
+
   await waitForTx(tx);
   return items;
+}
+
+export async function resetOperationBackoff(sheetId, onlyRetried = false) {
+  const readyDb = await initStorage();
+  const tx = readyDb.transaction(OP_STORE, "readwrite");
+  const store = tx.objectStore(OP_STORE);
+  const all = await promisifyRequest(store.getAll());
+  const now = Date.now();
+
+  all.forEach((item) => {
+    if (item.sheetId !== sheetId) return;
+    if (item.status !== "pending") return;
+    if (onlyRetried && Number(item.retries || 0) < 1) return;
+    item.nextRetryAt = 0;
+    item.updatedAt = now;
+    store.put(item);
+  });
+
+  await waitForTx(tx);
 }
 
 export async function deleteOperation(id) {
@@ -171,6 +193,7 @@ export async function deferOperation(id, retries) {
     await waitForTx(tx);
     return;
   }
+
   const delay = Math.min(60_000, 2 ** Math.min(retries, 10) * 1000);
   item.retries = retries;
   item.nextRetryAt = Date.now() + delay;
@@ -198,4 +221,3 @@ export async function clearAllData() {
   tx.objectStore(APP_META_STORE).clear();
   await waitForTx(tx);
 }
-

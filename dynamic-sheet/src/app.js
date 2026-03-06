@@ -2,7 +2,7 @@
 import { createGoogleAuthManager } from "./googleAuth.js";
 import { resolveSheetFromInput, searchUserSheets } from "./googleSheets.js";
 import { createGoogleSyncAdapter } from "./googleSyncAdapter.js";
-import { clearAllData } from "./storage.js";
+import { clearAllData, getMeta, resetOperationBackoff, setMeta } from "./storage.js";
 import { createStore } from "./state.js";
 import { createSyncEngine } from "./sync.js";
 import { createUI } from "./ui.js";
@@ -12,6 +12,9 @@ const GOOGLE_SCOPE = [
   "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/drive.file"
 ].join(" ");
+
+const META_SYNC_LAST_SUCCESS = "syncLastSuccessAt";
+const META_SYNC_LAST_ERROR = "syncLastError";
 
 const store = createStore();
 let ui = null;
@@ -26,6 +29,11 @@ const googleAuth = createGoogleAuthManager({
   getClientId: () => googleConfig.clientId,
   scope: GOOGLE_SCOPE
 });
+
+const syncMeta = {
+  lastSuccessAt: 0,
+  lastError: ""
+};
 
 async function ensureGoogleToken() {
   await googleAuth.init();
@@ -90,6 +98,20 @@ function refreshGoogleStatus(errorMessage = "") {
   ui.setGoogleState(getGoogleUiState(errorMessage));
 }
 
+function refreshSyncMetaUi() {
+  ui.setSyncMeta(syncMeta);
+}
+
+async function loadSyncMeta() {
+  syncMeta.lastSuccessAt = Number((await getMeta(META_SYNC_LAST_SUCCESS)) || 0);
+  syncMeta.lastError = String((await getMeta(META_SYNC_LAST_ERROR)) || "");
+}
+
+async function persistSyncMeta() {
+  await setMeta(META_SYNC_LAST_SUCCESS, Number(syncMeta.lastSuccessAt || 0));
+  await setMeta(META_SYNC_LAST_ERROR, String(syncMeta.lastError || ""));
+}
+
 async function refreshPendingStatus() {
   const pending = await store.getPendingCountSafe();
   const ctx = store.getState().sheetContextId;
@@ -109,11 +131,41 @@ async function refreshPendingStatus() {
   }
 }
 
-async function onSyncNow() {
+async function runSyncFlow(options = {}) {
   const pending = await store.getPendingCountSafe();
   ui.setSyncStatus({ text: "同步中...", tone: "warn", pending });
-  await syncEngine.syncNow();
+
+  const summary = await syncEngine.syncNow(options);
+  if (summary.attempted > 0) {
+    if (summary.failed === 0) {
+      syncMeta.lastSuccessAt = Date.now();
+      syncMeta.lastError = "";
+    } else {
+      syncMeta.lastError = summary.lastErrorReason || "sync_failed";
+    }
+    await persistSyncMeta();
+  }
+
+  refreshSyncMetaUi();
   await refreshPendingStatus();
+}
+
+async function onSyncNow() {
+  await runSyncFlow();
+}
+
+async function onSyncRetryFailed() {
+  const sheetId = store.getState().sheetContextId;
+  if (!sheetId) return;
+  await resetOperationBackoff(sheetId, true);
+  await runSyncFlow({ includeDeferred: true });
+}
+
+async function onSyncRetryAll() {
+  const sheetId = store.getState().sheetContextId;
+  if (!sheetId) return;
+  await resetOperationBackoff(sheetId, false);
+  await runSyncFlow({ includeDeferred: true });
 }
 
 async function onResetData() {
@@ -173,6 +225,8 @@ async function boot() {
   ui = createUI({
     store,
     onSyncNow,
+    onSyncRetryFailed,
+    onSyncRetryAll,
     onResetData,
     onGoogleConnect,
     onGoogleDisconnect,
@@ -188,6 +242,9 @@ async function boot() {
 
   await googleAuth.init();
   refreshGoogleStatus();
+
+  await loadSyncMeta();
+  refreshSyncMetaUi();
 
   await store.boot();
   await refreshPendingStatus();
