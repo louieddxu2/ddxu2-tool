@@ -1,4 +1,4 @@
-﻿import { GOOGLE_APP_CONFIG } from "./googleAppConfig.js";
+import { GOOGLE_APP_CONFIG } from "./googleAppConfig.js";
 import { createGoogleAuthManager } from "./googleAuth.js";
 import { resolveSheetFromInput, searchUserSheets } from "./googleSheets.js";
 import { createGoogleSyncAdapter } from "./googleSyncAdapter.js";
@@ -234,6 +234,13 @@ async function boot() {
     onGoogleLinkSheetFromSearch,
     onGoogleLinkSheetByUrl
   });
+
+  const transposeButton = document.getElementById("btn-transpose");
+  if (transposeButton) {
+    transposeButton.addEventListener("click", async () => {
+      await store.transposeSheet();
+    });
+  }
 
   store.subscribe((state) => {
     ui.render(state);

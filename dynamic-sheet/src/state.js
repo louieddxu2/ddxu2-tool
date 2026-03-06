@@ -261,6 +261,60 @@ export function createStore() {
     await persistCurrentSheet();
     notify();
   }
+  function createTransposeResult() {
+    const oldSchemaKeys = Object.keys(state.schema).filter((key) => key !== "name");
+    const oldRows = state.rows.map((row) => ({ ...row }));
+    const oldSchema = { ...state.schema };
+
+    const nameConfig = oldSchema.name || { label: "物件名稱", type: "text", options: [] };
+    const nextSchema = { name: { ...nameConfig, type: "text", options: [] } };
+    const ts = Date.now();
+    const generatedColumnKeys = oldRows.map((_, index) => `col_t_${ts}_${index + 1}`);
+    generatedColumnKeys.forEach((key, index) => {
+      const label = String(oldRows[index]?.name || `物件 ${index + 1}`);
+      nextSchema[key] = { label, type: "text", options: [] };
+    });
+
+    const nextRows = oldSchemaKeys.map((oldKey, rowIndex) => {
+      const sourceConfig = oldSchema[oldKey] || {};
+      const row = {
+        id: `row_t_${ts}_${rowIndex + 1}`,
+        name: String(sourceConfig.label || oldKey)
+      };
+      generatedColumnKeys.forEach((newKey, colIndex) => {
+        row[newKey] = oldRows[colIndex]?.[oldKey] ?? "";
+      });
+      return row;
+    });
+
+    return { nextSchema, nextRows, oldRows, oldSchemaKeys, generatedColumnKeys };
+  }
+
+  async function transposeSheet() {
+    if (!canEditCurrentSheet()) return;
+    if (!state.sheetContextId) return;
+
+    const { nextSchema, nextRows, oldRows, oldSchemaKeys, generatedColumnKeys } = createTransposeResult();
+
+    state.schema = nextSchema;
+    state.rows = nextRows;
+
+    for (const row of oldRows) {
+      await enqueueOperation(state.sheetContextId, "row_delete", { rowId: row.id });
+    }
+    for (const key of oldSchemaKeys) {
+      await enqueueOperation(state.sheetContextId, "column_delete", { key });
+    }
+    for (const key of generatedColumnKeys) {
+      await enqueueOperation(state.sheetContextId, "column_add", { key, config: state.schema[key] });
+    }
+    for (const row of nextRows) {
+      await enqueueOperation(state.sheetContextId, "row_add", { row });
+    }
+
+    await persistCurrentSheet();
+    notify();
+  }
 
   async function getPendingCountSafe() {
     if (!state.sheetContextId) return 0;
@@ -283,8 +337,11 @@ export function createStore() {
     deleteRow,
     updateColumn,
     deleteColumn,
+    transposeSheet,
     getPendingCountSafe,
     parseSpreadsheetId
   };
 }
+
+
 
