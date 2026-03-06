@@ -10,7 +10,8 @@
     "test:dynamic-sheet": "node --test dynamic-sheet/tests/**/*.test.mjs",
     "test:dynamic-sheet:watch": "node --test --watch dynamic-sheet/tests/**/*.test.mjs",
     "test": "npm run test:dynamic-sheet",
-    "verify": "npm run test:dynamic-sheet"
+    "verify": "npm run test:dynamic-sheet",
+    "build": "node scripts/inject-env.mjs"
   },
   "devDependencies": {
     "fake-indexeddb": "^6.2.5",

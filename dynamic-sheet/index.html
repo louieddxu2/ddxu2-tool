@@ -7,11 +7,13 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- 載入環境變數橋接檔 (Vercel Build 時產生) -->
+  <script src="../env-config.js"></script>
   <script>
-    // Developer config only: set values before shipping to end users.
+    const env = window.__ENV_CONFIG__ || {};
     window.__DYNAMIC_SHEET_GOOGLE_CONFIG = window.__DYNAMIC_SHEET_GOOGLE_CONFIG || {
-      clientId: "491672110542-fq921d7ide0gc0nivet1e6mr29gifc1h.apps.googleusercontent.com",
-      apiKey: String(window.__DYNAMIC_SHEET_GOOGLE_API_KEY || localStorage.getItem("DYNAMIC_SHEET_GOOGLE_API_KEY") || "").trim(),
+      clientId: env.clientId || "491672110542-fq921d7ide0gc0nivet1e6mr29gifc1h.apps.googleusercontent.com",
+      apiKey: env.apiKey || String(window.__DYNAMIC_SHEET_GOOGLE_API_KEY || localStorage.getItem("DYNAMIC_SHEET_GOOGLE_API_KEY") || "").trim(),
       sheetTabName: ""
     };
   </script>

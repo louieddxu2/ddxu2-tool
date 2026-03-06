@@ -1,4 +1,5 @@
-﻿const runtimeConfig = window.__DYNAMIC_SHEET_GOOGLE_CONFIG || {};
+const env = window.__ENV_CONFIG__ || {};
+const runtimeConfig = window.__DYNAMIC_SHEET_GOOGLE_CONFIG || {};
 
 function resolveRuntimeValue(primary, ...fallbacks) {
   const all = [primary, ...fallbacks];
