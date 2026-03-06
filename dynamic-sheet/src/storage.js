@@ -1,4 +1,4 @@
-﻿import {
+import {
   APP_META_STORE,
   DB_NAME,
   DB_VERSION,
@@ -28,8 +28,13 @@ export async function initStorage() {
   if (db) return db;
 
   db = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("IndexedDB 初始化逾時 (10s)，請檢查瀏覽器設定或清除快取。"));
+    }, 10000);
+
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (event) => {
+      clearTimeout(timer);
       const nextDb = event.target.result;
 
       if (!nextDb.objectStoreNames.contains(SHEET_STORE)) {
@@ -54,8 +59,14 @@ export async function initStorage() {
         nextDb.createObjectStore(APP_META_STORE, { keyPath: "key" });
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error || new Error("Failed to open IndexedDB"));
+    req.onsuccess = () => {
+      clearTimeout(timer);
+      resolve(req.result);
+    };
+    req.onerror = () => {
+      clearTimeout(timer);
+      reject(req.error || new Error("Failed to open IndexedDB"));
+    };
   });
 
   return db;
