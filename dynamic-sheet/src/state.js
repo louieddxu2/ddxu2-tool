@@ -321,6 +321,14 @@ export function createStore() {
     return getPendingCount(state.sheetContextId);
   }
 
+  async function overwriteSheetData(newSchema, newRows) {
+    if (!state.sheetContextId) return;
+    state.schema = newSchema;
+    state.rows = newRows;
+    await persistCurrentSheet();
+    notify();
+  }
+
   return {
     boot,
     subscribe,
@@ -339,7 +347,8 @@ export function createStore() {
     deleteColumn,
     transposeSheet,
     getPendingCountSafe,
-    parseSpreadsheetId
+    parseSpreadsheetId,
+    overwriteSheetData
   };
 }
 

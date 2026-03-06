@@ -1,4 +1,4 @@
-﻿function classifyError(error) {
+function classifyError(error) {
   const status = Number(error?.status || 0);
   if (!status) return { transient: true, reason: error?.message || "network_error" };
   if (status === 401 || status === 403) return { transient: false, reason: "auth_or_permission_denied" };
@@ -246,7 +246,7 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     const values = await getValues({ spreadsheetId, sheetTitle: targetSheet.title, accessToken });
     const context = buildContext({ values, sheetTitle: targetSheet.title, sheetId: targetSheet.sheetId });
 
-    return { context, accessToken, spreadsheetId };
+    return { context, accessToken, spreadsheetId, values, sheetTitle: targetSheet.title };
   }
 
   async function applyCellUpdate(op, env) {
@@ -411,7 +411,57 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     }
   }
 
+  async function pullData({ spreadsheetId }) {
+    try {
+      const { context, values } = await loadContext(spreadsheetId);
+      const schema = {
+        name: { label: "物件名稱", type: "text", options: [] }
+      };
+
+      const headerRawToKey = {};
+      context.header.forEach((raw) => {
+        if (!raw || raw === "id" || raw === "name") return;
+        const key = `col_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        schema[key] = { label: raw, type: "text", options: [] };
+        headerRawToKey[raw] = key;
+      });
+
+      const rows = [];
+      const idCol = context.headerMap.get("id");
+      const nameCol = context.headerMap.get("name");
+
+      if (values && values.length > 1) {
+        for (let i = 1; i < values.length; i++) {
+          const rowData = values[i];
+          if (!rowData || rowData.length === 0) continue;
+          
+          const rowObj = {};
+          let id = idCol !== undefined ? rowData[idCol] : undefined;
+          if (!id) id = `row_imported_${Date.now()}_${i}`;
+          
+          rowObj.id = String(id).trim();
+          rowObj.name = nameCol !== undefined && rowData[nameCol] ? String(rowData[nameCol]) : `Row ${i}`;
+
+          context.header.forEach((raw, idx) => {
+            if (!raw || raw === "id" || raw === "name") return;
+            const key = headerRawToKey[raw];
+            if (key && rowData[idx] !== undefined) {
+              rowObj[key] = String(rowData[idx]);
+            }
+          });
+          rows.push(rowObj);
+        }
+      }
+
+      return { ok: true, schema, rows };
+    } catch (error) {
+      const { transient, reason } = classifyError(error);
+      return { ok: false, transient, reason };
+    }
+  }
+
   return {
-    applyOperations
+    applyOperations,
+    pullData
   };
 }

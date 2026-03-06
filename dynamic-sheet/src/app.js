@@ -202,6 +202,18 @@ async function onGoogleLinkSheetFromSearch({ spreadsheetId, name, webViewLink, p
     parentId,
     permission: safePermission
   });
+
+  if (window.dynamicSheetCloudAdapter?.pullData) {
+    if (ui) ui.setSyncStatus({ text: "正在下載試算表資料...", tone: "warn", pending: 0 });
+    const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId });
+    if (imported.ok) {
+       await store.overwriteSheetData(imported.schema, imported.rows);
+       if (ui) ui.setSyncStatus({ text: "資料下載完成", tone: "ok", pending: 0 });
+    } else {
+       if (ui) ui.setSyncStatus({ text: `下載資料失敗: ${imported.reason}`, tone: "error", pending: 0 });
+       window.alert(`無法下載該試算表資料：${imported.reason}`);
+    }
+  }
 }
 
 async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId }) {
@@ -234,6 +246,18 @@ async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId 
     parentId,
     permission: safePermission
   });
+
+  if (window.dynamicSheetCloudAdapter?.pullData) {
+    if (ui) ui.setSyncStatus({ text: "正在下載試算表資料...", tone: "warn", pending: 0 });
+    const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId: resolved.spreadsheetId });
+    if (imported.ok) {
+       await store.overwriteSheetData(imported.schema, imported.rows);
+       if (ui) ui.setSyncStatus({ text: "資料下載完成", tone: "ok", pending: 0 });
+    } else {
+       if (ui) ui.setSyncStatus({ text: `下載資料失敗: ${imported.reason}`, tone: "error", pending: 0 });
+       window.alert(`無法下載該試算表資料：${imported.reason}`);
+    }
+  }
 
   return resolved;
 }
