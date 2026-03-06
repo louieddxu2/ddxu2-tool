@@ -259,7 +259,7 @@ async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId 
     }
   }
 
-  return resolved;
+  return { spreadsheetId: picked.id, title: finalTitle, url: finalUrl };
 }
 
 async function onPullNow() {
