@@ -173,13 +173,17 @@ export function createUI({
       return Object.values(row).some((value) => String(value ?? "").toLowerCase().includes(state.searchQuery));
     });
 
-    let html = '<table class="w-full text-sm whitespace-nowrap">';
+    let html = '<table class="w-full text-sm">';
     html += "<thead><tr>";
-    html += '<th class="sticky-corner bg-slate-100 dark:bg-slate-800 border-b border-r border-slate-300 dark:border-slate-700 p-3 text-left text-slate-500 dark:text-slate-400 font-bold min-w-[140px] shadow-sm">物件名稱</th>';
+    const firstDataKey = schemaKeys.find(k => k !== "name");
+    
+    html += '<th class="sticky-corner bg-slate-100 dark:bg-slate-800 border-b border-r border-slate-300 dark:border-slate-700 p-3 text-left text-slate-500 dark:text-slate-400 font-bold min-w-[200px] shadow-sm">物件名稱</th>';
     for (const key of schemaKeys) {
-      if (key === "name") continue;
-      html += `<th class="sticky-header clickable bg-slate-50 dark:bg-slate-800 border-b border-r border-slate-300 dark:border-slate-700 p-3 text-center text-slate-500 dark:text-slate-400 font-bold min-w-[110px] shadow-sm cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700" data-col-edit="${escapeHtml(key)}">${escapeHtml(state.schema[key].label)}</th>`;
+      if (key === "name" || key === firstDataKey) continue;
+      // Use max-width to let long text wrap naturally instead of infinitely expanding.
+      html += `<th class="sticky-header clickable bg-slate-50 dark:bg-slate-800 border-b border-r border-slate-300 dark:border-slate-700 p-3 text-center text-slate-500 dark:text-slate-400 font-bold min-w-[160px] max-w-[300px] shadow-sm cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-pre-wrap align-top" data-col-edit="${escapeHtml(key)}">${escapeHtml(state.schema[key].label)}</th>`;
     }
+    html += '<th class="sticky-header bg-slate-50 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 p-3 text-center text-slate-500 dark:text-slate-400 font-bold w-12 shadow-sm">操作</th>';
     html += "</tr></thead>";
 
     html += "<tbody>";
@@ -194,11 +198,14 @@ export function createUI({
     } else {
       for (const row of filteredRows) {
         html += "<tr>";
-        html += `<td class="sticky-col clickable bg-slate-100 dark:bg-slate-800/90 border-b border-r border-slate-300 dark:border-slate-700 p-3 font-bold text-slate-800 dark:text-slate-200 shadow-sm max-w-[170px] overflow-hidden text-ellipsis cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700" data-row-edit="${escapeHtml(row.id)}">${escapeHtml(row.name)}</td>`;
+        // Sticky column now displays the first valid schema key content, and triggers editing that key.
+        const rowDisplayName = firstDataKey ? (row[firstDataKey] || "") : (row.name || "未命名");
+        html += `<td class="sticky-col clickable bg-slate-100 dark:bg-slate-800/90 border-b border-r border-slate-300 dark:border-slate-700 p-3 font-bold text-slate-800 dark:text-slate-200 shadow-sm min-w-[200px] max-w-[300px] whitespace-pre-wrap align-top cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700" ${firstDataKey ? `data-cell-edit="${escapeHtml(row.id)}" data-cell-key="${escapeHtml(firstDataKey)}"` : `data-row-edit="${escapeHtml(row.id)}"`}>${escapeHtml(rowDisplayName)}</td>`;
         for (const key of schemaKeys) {
-          if (key === "name") continue;
-          html += `<td class="data-cell bg-white dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-700 p-3 text-center text-slate-700 dark:text-slate-300 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800" data-cell-edit="${escapeHtml(row.id)}" data-cell-key="${escapeHtml(key)}">${escapeHtml(row[key] || "")}</td>`;
+          if (key === "name" || key === firstDataKey) continue;
+          html += `<td class="data-cell bg-white dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-700 p-3 text-left text-slate-700 dark:text-slate-300 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 min-w-[160px] max-w-[300px] whitespace-pre-wrap align-top" data-cell-edit="${escapeHtml(row.id)}" data-cell-key="${escapeHtml(key)}">${escapeHtml(row[key] || "")}</td>`;
         }
+        html += `<td class="data-cell bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-3 text-center align-top"><button class="text-rose-500 hover:text-rose-700 p-1 rounded transition-colors" data-row-delete="${escapeHtml(row.id)}" title="刪除"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button></td>`;
         html += "</tr>";
       }
     }
@@ -244,12 +251,19 @@ export function createUI({
       return;
     }
 
-    const inputType = config.type === "number" ? "number" : "text";
-    const html = `
-      <input id="editor-input" type="${inputType}" value="${escapeHtml(row[key] || "")}" class="w-full p-4 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
-      <button id="editor-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">儲存</button>
-    `;
-    showEditor(config.label, row.name, html);
+    if (config.type === "number") {
+      const html = `
+        <input id="editor-input" type="number" value="${escapeHtml(row[key] || "")}" class="w-full p-4 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
+        <button id="editor-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">儲存</button>
+      `;
+      showEditor(config.label, row.name || "編輯欄位", html);
+    } else {
+      const html = `
+        <textarea id="editor-input" rows="4" class="w-full p-4 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white resize-y">${escapeHtml(row[key] || "")}</textarea>
+        <button id="editor-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">儲存</button>
+      `;
+      showEditor(config.label, row.name || "編輯欄位", html);
+    }
     const input = document.getElementById("editor-input");
     setTimeout(() => input.focus(), 80);
     document.getElementById("editor-save").addEventListener("click", async () => {
@@ -267,13 +281,13 @@ export function createUI({
     const row = state.rows.find((item) => item.id === rowId);
     if (!row) return;
 
+    // This is only called if there are literally zero custom schema keys (firstDataKey is undefined)
     const html = `
       <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">物件名稱</label>
       <input id="row-name-input" type="text" value="${escapeHtml(row.name)}" class="w-full p-4 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
       <button id="row-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">儲存</button>
-      <button id="row-delete" class="w-full bg-rose-50 dark:bg-rose-900/20 text-rose-600 border border-rose-200 dark:border-rose-800 py-3 rounded-xl font-semibold">刪除這列</button>
     `;
-    showEditor("編輯資料列", "可修改名稱或刪除", html);
+    showEditor("編輯資料列", "修改名稱", html);
 
     const input = document.getElementById("row-name-input");
     setTimeout(() => input.focus(), 80);
@@ -282,12 +296,6 @@ export function createUI({
       const val = input.value.trim();
       if (!val) return;
       await store.renameRow(rowId, val);
-      closeEditor();
-    });
-
-    document.getElementById("row-delete").addEventListener("click", async () => {
-      if (!window.confirm(`確定刪除資料列「${row.name}」嗎？`)) return;
-      await store.deleteRow(rowId);
       closeEditor();
     });
   }
@@ -573,7 +581,18 @@ export function createUI({
       await store.setActiveNode(btn.getAttribute("data-node-id"));
     });
 
-    mainContent.addEventListener("click", (event) => {
+    mainContent.addEventListener("click", async (event) => {
+      const deleteBtn = event.target.closest("[data-row-delete]");
+      if (deleteBtn) {
+        if (!store.canEditCurrentSheet()) {
+           window.alert("目前為唯讀模式 (Viewer)，無法刪除資料列。");
+           return;
+        }
+        if (!window.confirm("確定刪除此資料列嗎？")) return;
+        await store.deleteRow(deleteBtn.getAttribute("data-row-delete"));
+        return;
+      }
+    
       const cellEl = event.target.closest("[data-cell-edit]");
       if (cellEl) {
         openCellEditor(cellEl.getAttribute("data-cell-edit"), cellEl.getAttribute("data-cell-key"));
