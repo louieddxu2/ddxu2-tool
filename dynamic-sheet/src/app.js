@@ -10,7 +10,7 @@ import { createUI } from "./ui.js";
 
 const GOOGLE_SCOPE = [
   "https://www.googleapis.com/auth/drive.file",
-  "https://www.googleapis.com/auth/spreadsheets.readonly",
+  "https://www.googleapis.com/auth/spreadsheets",
   "https://www.googleapis.com/auth/userinfo.profile",
   "https://www.googleapis.com/auth/userinfo.email",
   "openid"
@@ -88,7 +88,7 @@ function getGoogleUiState(errorMessage = "") {
 
   return {
     tone: "ok",
-    status: "Google 已連線（嚴格模式）",
+    status: "Google 已連線（完整讀寫）",
     detail: email || "已授權",
     connected: true,
     hasConfig,
