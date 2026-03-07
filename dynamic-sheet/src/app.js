@@ -16,9 +16,6 @@ const GOOGLE_SCOPE = [
   "openid"
 ].join(" ");
 
-const META_SYNC_LAST_SUCCESS = "syncLastSuccessAt";
-const META_SYNC_LAST_ERROR = "syncLastError";
-
 const store = createStore();
 let ui = null;
 
@@ -33,10 +30,7 @@ const googleAuth = createGoogleAuthManager({
   scope: GOOGLE_SCOPE
 });
 
-const syncMeta = {
-  lastSuccessAt: 0,
-  lastError: ""
-};
+let autoSyncTimer = null;
 
 async function ensureGoogleToken() {
   await googleAuth.init();
@@ -52,6 +46,7 @@ if (googleConfig.clientId) {
 
 const syncEngine = createSyncEngine({
   getActiveSheetId: () => store.getState().sheetContextId,
+  getSchema: () => store.getState().schema,
   onStatus: (status) => {
     if (ui) ui.setSyncStatus(status);
   }
@@ -60,59 +55,20 @@ const syncEngine = createSyncEngine({
 function getGoogleUiState(errorMessage = "") {
   const auth = googleAuth.getState();
   const hasConfig = Boolean(googleConfig.clientId);
-  const email = auth.profile?.email || "";
-
-  if (!hasConfig) {
-    return {
-      tone: "warn",
-      status: "系統尚未設定 Google OAuth",
-      detail: "請由管理者在程式設定 clientId / apiKey",
-      connected: false,
-      hasConfig,
-      email,
-      errorMessage
-    };
-  }
-
-  if (!auth.connected) {
-    return {
-      tone: "warn",
-      status: "尚未連結 Google 帳戶",
-      detail: errorMessage || "連線成功後可使用 Picker 確認要授權的試算表",
-      connected: false,
-      hasConfig,
-      email,
-      errorMessage
-    };
-  }
+  
+  // Consider connected if we genuinely have a token, OR if we have the persistent flag 
+  // (which means a token will just auto-refresh/prompt silently on first use).
+  const connected = auth.connected || googleAuth.getPersistentState();
 
   return {
-    tone: "ok",
-    status: "Google 已連線（完整讀寫）",
-    detail: email || "已授權",
-    connected: true,
+    connected,
     hasConfig,
-    email,
     errorMessage
   };
 }
 
 function refreshGoogleStatus(errorMessage = "") {
   ui.setGoogleState(getGoogleUiState(errorMessage));
-}
-
-function refreshSyncMetaUi() {
-  ui.setSyncMeta(syncMeta);
-}
-
-async function loadSyncMeta() {
-  syncMeta.lastSuccessAt = Number((await getMeta(META_SYNC_LAST_SUCCESS)) || 0);
-  syncMeta.lastError = String((await getMeta(META_SYNC_LAST_ERROR)) || "");
-}
-
-async function persistSyncMeta() {
-  await setMeta(META_SYNC_LAST_SUCCESS, Number(syncMeta.lastSuccessAt || 0));
-  await setMeta(META_SYNC_LAST_ERROR, String(syncMeta.lastError || ""));
 }
 
 async function refreshPendingStatus() {
@@ -136,40 +92,23 @@ async function refreshPendingStatus() {
 
 async function runSyncFlow(options = {}) {
   const pending = await store.getPendingCountSafe();
-  ui.setSyncStatus({ text: "同步中...", tone: "warn", pending });
-
-  const summary = await syncEngine.syncNow(options);
-  if (summary.attempted > 0) {
-    if (summary.failed === 0) {
-      syncMeta.lastSuccessAt = Date.now();
-      syncMeta.lastError = "";
-    } else {
-      syncMeta.lastError = summary.lastErrorReason || "sync_failed";
-    }
-    await persistSyncMeta();
-  }
-
-  refreshSyncMetaUi();
+  // Silently run sync
+  if (pending === 0) return;
+  await syncEngine.syncNow(options);
   await refreshPendingStatus();
 }
 
-async function onSyncNow() {
-  await runSyncFlow();
+function scheduleAutoSync() {
+  if (autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(async () => {
+    const pending = await store.getPendingCountSafe();
+    if (pending > 0 && googleAuth.getPersistentState() && window.dynamicSheetCloudAdapter) {
+      await runSyncFlow();
+    }
+  }, 2000); // Debounce sync by 2 seconds
 }
 
-async function onSyncRetryFailed() {
-  const sheetId = store.getState().sheetContextId;
-  if (!sheetId) return;
-  await resetOperationBackoff(sheetId, true);
-  await runSyncFlow({ includeDeferred: true });
-}
 
-async function onSyncRetryAll() {
-  const sheetId = store.getState().sheetContextId;
-  if (!sheetId) return;
-  await resetOperationBackoff(sheetId, false);
-  await runSyncFlow({ includeDeferred: true });
-}
 
 async function onResetData() {
   const confirmed = window.confirm("確定要清除所有本地資料嗎？這會重置目前 Drawer 與資料內容。\n(不會刪除你的 Google 試算表)");
@@ -217,26 +156,14 @@ async function onGoogleLinkSheetFromSearch({ spreadsheetId, name, webViewLink, p
   }
 }
 
-async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId }) {
-  const inputSheetId = parseSpreadsheetId(input);
-  if (!inputSheetId) {
-    throw new Error("不是有效的 Google 試算表網址或 ID");
-  }
-
+async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId, fromPickerOnly }) {
   const accessToken = await ensureGoogleToken();
   const picked = await pickSpreadsheet({
     accessToken,
     apiKey: googleConfig.apiKey,
-    title: "請在 Picker 確認你要連結的試算表"
+    title: "請選擇試算表"
   });
 
-  if (picked.id !== inputSheetId) {
-    throw new Error("Picker 選取的試算表與你輸入的網址不一致，已取消連結");
-  }
-
-  // We intentionally do NOT call resolveSheetFromInput here.
-  // With 'drive.file' scope, the API might return 404 if called immediately after Picker,
-  // or if the file was just selected. The Picker payload gives us all we need to construct the node.
   const finalTitle = customName || picked.name || "Untitled Sheet";
   const finalUrl = picked.url || `https://docs.google.com/spreadsheets/d/${picked.id}/edit`;
 
@@ -249,13 +176,11 @@ async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId 
   });
 
   if (window.dynamicSheetCloudAdapter?.pullData) {
-    if (ui) ui.setSyncStatus({ text: "正在下載試算表資料...", tone: "warn", pending: 0 });
     const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId: picked.id });
     if (imported.ok) {
        await store.overwriteSheetData(imported.schema, imported.rows);
-       if (ui) ui.setSyncStatus({ text: "資料下載完成", tone: "ok", pending: 0 });
+       window.alert("匯入成功！");
     } else {
-       if (ui) ui.setSyncStatus({ text: `下載資料失敗: ${imported.reason}`, tone: "error", pending: 0 });
        window.alert(`無法下載該試算表資料：${imported.reason}`);
     }
   }
@@ -319,13 +244,11 @@ async function boot() {
   store.subscribe((state) => {
     ui.render(state);
     refreshPendingStatus();
+    scheduleAutoSync();
   });
 
   await googleAuth.init();
   refreshGoogleStatus();
-
-  await loadSyncMeta();
-  refreshSyncMetaUi();
 
   await store.boot();
   await refreshPendingStatus();

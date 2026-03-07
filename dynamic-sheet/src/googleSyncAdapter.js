@@ -13,6 +13,8 @@ function toError(message, status) {
   return error;
 }
 
+const SCHEMA_SHEET_TITLE = "_dynamic_sheet_schema";
+
 function buildA1Column(colIndex) {
   let index = colIndex + 1;
   let out = "";
@@ -103,7 +105,7 @@ function buildContext({ values, sheetTitle, sheetId }) {
 async function updateSingleCell({ spreadsheetId, accessToken, sheetTitle, rowNumber, colIndex, value }) {
   const col = buildA1Column(colIndex);
   const range = `${quoteSheetTitle(sheetTitle)}!${col}${rowNumber}`;
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}?valueInputOption=RAW`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
   await googleFetch(url, accessToken, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -111,10 +113,69 @@ async function updateSingleCell({ spreadsheetId, accessToken, sheetTitle, rowNum
   });
 }
 
+async function getOrInitSchemaSheet({ spreadsheetId, accessToken }) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=sheets(properties(sheetId,title))`;
+  const response = await googleFetch(url, accessToken);
+  const payload = await response.json();
+  const sheets = payload?.sheets || [];
+  const existing = sheets.find(s => s.properties?.title === SCHEMA_SHEET_TITLE);
+  if (existing) return existing.properties.sheetId;
+
+  // Create it hidden
+  const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`;
+  const createResponse = await googleFetch(updateUrl, accessToken, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requests: [
+        {
+          addSheet: {
+            properties: {
+              title: SCHEMA_SHEET_TITLE,
+              hidden: true
+            }
+          }
+        }
+      ]
+    })
+  });
+  const createPayload = await createResponse.json();
+  return createPayload.replies[0].addSheet.properties.sheetId;
+}
+
+async function saveSchemaToCloud({ spreadsheetId, accessToken, schema }) {
+  await getOrInitSchemaSheet({ spreadsheetId, accessToken });
+  const json = JSON.stringify(schema || {});
+  await updateSingleCell({
+    spreadsheetId,
+    accessToken,
+    sheetTitle: SCHEMA_SHEET_TITLE,
+    rowNumber: 1,
+    colIndex: 0,
+    value: json
+  });
+}
+
+async function loadSchemaFromCloud({ spreadsheetId, accessToken }) {
+  try {
+    const range = `${quoteSheetTitle(SCHEMA_SHEET_TITLE)}!A1`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}?majorDimension=ROWS`;
+    const response = await googleFetch(url, accessToken);
+    const payload = await response.json();
+    const raw = payload.values?.[0]?.[0];
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    // Ignore if sheet doesn't exist or JSON is invalid
+  }
+  return null;
+}
+
+
 async function appendRow({ spreadsheetId, accessToken, sheetTitle, values }) {
   const range = `${quoteSheetTitle(sheetTitle)}!A1`;
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   const response = await googleFetch(url, accessToken, {
+
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ range, values: [values] })
@@ -240,13 +301,20 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     if (!accessToken) throw toError("missing_access_token", 401);
 
     const sheets = await getSpreadsheetShape({ spreadsheetId, accessToken });
+    const dataSheets = sheets.filter(s => s.title !== SCHEMA_SHEET_TITLE);
+    if (!dataSheets.length && sheets.length) {
+       // All sheets are schema sheets? Should not happen normally.
+       // Fallback to absolute first if no choice.
+    }
     const targetSheet = sheetTabName
-      ? sheets.find((item) => item.title === sheetTabName) || sheets[0]
-      : sheets[0];
+      ? dataSheets.find((item) => item.title === sheetTabName) || dataSheets[0] || sheets[0]
+      : dataSheets[0] || sheets[0];
     const values = await getValues({ spreadsheetId, sheetTitle: targetSheet.title, accessToken });
+
+    const schema = await loadSchemaFromCloud({ spreadsheetId, accessToken });
     const context = buildContext({ values, sheetTitle: targetSheet.title, sheetId: targetSheet.sheetId });
 
-    return { context, accessToken, spreadsheetId, values, sheetTitle: targetSheet.title };
+    return { context, accessToken, spreadsheetId, values, sheetTitle: targetSheet.title, schema };
   }
 
   async function applyCellUpdate(op, env) {
@@ -254,14 +322,17 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     const key = String(op?.payload?.key || "").trim();
     if (!rowId || !key) throw toError("invalid_cell_update_payload", 400);
 
-    await ensureHeaders(env, ["id", key]);
+    // Map the internal key back to the label in Google Sheets
+    const label = env.schema?.[key]?.label || key;
+    await ensureHeaders(env, ["id", label]);
+
     let rowNumber = env.context.rowMap.get(rowId);
     if (!rowNumber) {
-      rowNumber = await appendSkeletonRow(env, rowId, { [key]: op.payload?.value ?? "" });
+      rowNumber = await appendSkeletonRow(env, rowId, { [label]: op.payload?.value ?? "" });
       if (!rowNumber) return;
     }
 
-    const colIndex = env.context.headerMap.get(key);
+    const colIndex = env.context.headerMap.get(label);
     await updateSingleCell({
       spreadsheetId: env.spreadsheetId,
       accessToken: env.accessToken,
@@ -300,12 +371,20 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     const rowId = String(row.id || "").trim();
     if (!rowId) throw toError("invalid_row_add_payload", 400);
 
-    await ensureHeaders(env, ["id", ...Object.keys(row)]);
+    // Map internal keys in the row payload to labels
+    const mappedRow = { id: rowId };
+    Object.keys(row).forEach(k => {
+      const label = env.schema?.[k]?.label || k;
+      mappedRow[label] = row[k];
+    });
+
+    await ensureHeaders(env, ["id", ...Object.keys(mappedRow)]);
 
     const out = env.context.header.map((key) => {
       if (!key) return "";
-      return row[key] ?? "";
+      return mappedRow[key] ?? "";
     });
+
 
     const updatedRange = await appendRow({
       spreadsheetId: env.spreadsheetId,
@@ -338,39 +417,13 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     }
   }
 
-  async function applyColumnAdd(op, env) {
-    const key = String(op?.payload?.key || "").trim();
-    if (!key) throw toError("invalid_column_add_payload", 400);
-    await ensureHeaders(env, ["id", key]);
-  }
-
-  async function applyColumnUpdate(op, env) {
-    const key = String(op?.payload?.key || "").trim();
-    if (!key) throw toError("invalid_column_update_payload", 400);
-    await ensureHeaders(env, ["id", key]);
-  }
-
-  async function applyColumnDelete(op, env) {
-    const key = String(op?.payload?.key || "").trim();
-    if (!key || key === "id") return;
-
-    const colIndex = env.context.headerMap.get(key);
-    if (colIndex === undefined) return;
-
-    await deleteColumnByIndex({
-      spreadsheetId: env.spreadsheetId,
-      accessToken: env.accessToken,
-      sheetId: env.context.sheetId,
-      colIndex
-    });
-
-    shiftHeaderMapAfterDelete(env, colIndex);
-  }
-
-  async function applyOperations(operations, { spreadsheetId }) {
+  async function applyOperations(operations, { spreadsheetId, schema }) {
     try {
       const env = await loadContext(spreadsheetId);
+      env.schema = schema || env.schema || {}; // Prefer passed schema or cloud schema
       await ensureHeaders(env, ["id"]);
+
+      let schemaChanged = false;
 
       for (const op of operations || []) {
         if (op.type === "cell_update") {
@@ -391,21 +444,32 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
         }
         if (op.type === "column_add") {
           await applyColumnAdd(op, env);
+          schemaChanged = true;
           continue;
         }
         if (op.type === "column_update") {
           await applyColumnUpdate(op, env);
+          schemaChanged = true;
           continue;
         }
         if (op.type === "column_delete") {
           await applyColumnDelete(op, env);
+          schemaChanged = true;
           continue;
         }
-        // Unknown ops are ignored to avoid blocking the queue.
+      }
+
+      if (schemaChanged) {
+        await saveSchemaToCloud({
+          spreadsheetId: env.spreadsheetId,
+          accessToken: env.accessToken,
+          schema: env.schema
+        });
       }
 
       return { ok: true };
     } catch (error) {
+
       const { transient, reason } = classifyError(error);
       return { ok: false, transient, reason };
     }
@@ -413,18 +477,37 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
 
   async function pullData({ spreadsheetId }) {
     try {
-      const { context, values } = await loadContext(spreadsheetId);
-      const schema = {
+      const { context, values, accessToken, schema: cloudSchema } = await loadContext(spreadsheetId);
+      const schema = cloudSchema || {
         name: { label: "物件名稱", type: "text", options: [] }
       };
 
+      // Reconcile headers with cloud schema
+      const labelToKey = {};
+      Object.entries(schema).forEach(([k, config]) => {
+        if (config.label) labelToKey[config.label] = k;
+      });
+
       const headerRawToKey = {};
+      let schemaModified = false;
+
       context.header.forEach((raw) => {
         if (!raw || raw === "id" || raw === "name") return;
-        const key = `col_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-        schema[key] = { label: raw, type: "text", options: [] };
-        headerRawToKey[raw] = key;
+        const existingKey = labelToKey[raw];
+        if (existingKey) {
+          headerRawToKey[raw] = existingKey;
+        } else {
+          // New column found in cloud not in schema
+          const key = `col_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          schema[key] = { label: raw, type: "text", options: [] };
+          headerRawToKey[raw] = key;
+          schemaModified = true;
+        }
       });
+
+      if (schemaModified) {
+        await saveSchemaToCloud({ spreadsheetId, accessToken, schema });
+      }
 
       const rows = [];
       const idCol = context.headerMap.get("id");
@@ -459,6 +542,7 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
       return { ok: false, transient, reason };
     }
   }
+
 
   return {
     applyOperations,

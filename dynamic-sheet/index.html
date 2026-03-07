@@ -97,52 +97,26 @@
   <aside id="sidebar" class="sidebar fixed top-0 left-0 bottom-0 w-72 bg-white dark:bg-slate-900 z-50 shadow-xl flex flex-col">
     <div class="p-4 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
       <h2 class="font-bold text-slate-700 dark:text-slate-200">資料來源與同步</h2>
-    </div>
-    <div class="flex-grow p-3 space-y-4 overflow-y-auto">
-      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
-        <div class="flex items-center justify-between mb-2">
+    <div class="flex-grow p-3 space-y-4 overflow-y-auto flex flex-col">
+      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 flex-grow overflow-y-auto flex flex-col">
+        <div class="flex items-center justify-between mb-2 flex-shrink-0">
           <p class="text-xs text-slate-500">Drawer 目錄</p>
           <div class="flex gap-1">
             <button id="btn-new-folder" class="px-2 py-1 text-[11px] bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">+ Folder</button>
             <button id="btn-new-sheet" class="px-2 py-1 text-[11px] bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">+ Sheet</button>
           </div>
         </div>
-        <div id="drawer-tree" class="max-h-44 overflow-y-auto pr-1"></div>
+        <div id="drawer-tree" class="overflow-y-auto pr-1 flex-grow"></div>
       </div>
 
-      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
-        <p class="text-xs text-slate-500 mb-1">Google 帳戶</p>
-        <p id="google-auth-status" class="text-sm font-semibold text-amber-600">尚未連結 Google 帳戶</p>
-        <p id="google-auth-detail" class="text-xs text-slate-500">連線成功後可搜尋自己的試算表或貼網址連結</p>
-        <div class="grid grid-cols-2 gap-2 pt-1">
-          <button id="btn-google-connect" class="px-2 py-2 text-xs bg-blue-600 text-white rounded-lg">連結帳戶</button>
-          <button id="btn-google-disconnect" class="px-2 py-2 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">中斷連線</button>
-          <button id="btn-google-find" class="px-2 py-2 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">尋找試算表</button>
-          <button id="btn-google-link-url" class="px-2 py-2 text-xs bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">貼網址連結</button>
-        </div>
-      </div>
-
-      <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
-        <p class="text-xs text-slate-500 mb-1">同步狀態</p>
-        <p id="sync-status" class="text-sm font-semibold text-amber-600">未連線 adapter</p>
-        <p id="pending-count" class="text-xs text-slate-500 mt-1">待同步 0 筆</p>
-        <p id="sync-last-success" class="text-[11px] text-slate-500 mt-1">上次成功：尚無</p>
-        <p id="sync-last-error" class="text-[11px] text-rose-600 mt-1">最後錯誤：無</p>
-      </div>
-
-      <div class="flex flex-col gap-2">
-        <button id="btn-sync-now" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center gap-2">
-          <i data-lucide="upload-cloud" class="w-4 h-4"></i> 上傳修改
+      <div class="flex flex-col gap-2 flex-shrink-0">
+        <button id="btn-simple-google" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center justify-center gap-2">
+          <i data-lucide="link" class="w-4 h-4"></i> <span>連結 Google</span>
         </button>
-        <button id="btn-pull-now" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center gap-2">
-          <i data-lucide="download-cloud" class="w-4 h-4"></i> 從雲端下載
+        <button id="btn-simple-picker" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-lg font-semibold text-sm transition-colors shadow-sm flex items-center justify-center gap-2">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> <span>選擇匯入的內容</span>
         </button>
-        <button id="btn-sync-retry-failed" class="bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 px-3 py-2 rounded-lg font-medium text-sm transition-colors">重試失敗</button>
-        <button id="btn-sync-retry-all" class="bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 px-3 py-2 rounded-lg font-medium text-sm transition-colors">重試全部</button>
       </div>
-      <button id="btn-reset-data" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 py-2.5 rounded-xl font-semibold transition-colors">
-        清除本地資料
-      </button>
     </div>
   </aside>
 

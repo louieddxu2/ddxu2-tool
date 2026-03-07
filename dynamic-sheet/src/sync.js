@@ -1,4 +1,4 @@
-﻿import { deferOperation, deleteOperation, listPendingOperations } from "./storage.js";
+import { deferOperation, deleteOperation, listPendingOperations } from "./storage.js";
 
 class NoopCloudAdapter {
   async applyOperations() {
@@ -10,7 +10,7 @@ function resolveAdapter() {
   return window.dynamicSheetCloudAdapter || new NoopCloudAdapter();
 }
 
-export function createSyncEngine({ getActiveSheetId, onStatus }) {
+export function createSyncEngine({ getActiveSheetId, getSchema, onStatus }) {
   let syncing = false;
 
   async function syncNow(options = {}) {
@@ -39,8 +39,13 @@ export function createSyncEngine({ getActiveSheetId, onStatus }) {
       for (const op of pending) {
         summary.attempted += 1;
         try {
-          const result = await adapter.applyOperations([op], { spreadsheetId: activeSheetId });
+          const schema = typeof getSchema === "function" ? getSchema() : null;
+          const result = await adapter.applyOperations([op], { 
+            spreadsheetId: activeSheetId,
+            schema 
+          });
           if (result?.ok) {
+
             await deleteOperation(op.id);
             summary.success += 1;
             continue;

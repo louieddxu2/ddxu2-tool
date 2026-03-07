@@ -39,10 +39,6 @@ export function createUI({
   const inputSearch = document.getElementById("input-search");
   const sidebar = document.getElementById("sidebar");
   const sidebarOverlay = document.getElementById("sidebar-overlay");
-  const syncStatus = document.getElementById("sync-status");
-  const pendingCount = document.getElementById("pending-count");
-  const syncLastSuccess = document.getElementById("sync-last-success");
-  const syncLastError = document.getElementById("sync-last-error");
 
   const editorOverlay = document.getElementById("editor-overlay");
   const editorSheet = document.getElementById("editor-sheet");
@@ -54,12 +50,8 @@ export function createUI({
   const btnNewFolder = document.getElementById("btn-new-folder");
   const btnNewSheet = document.getElementById("btn-new-sheet");
 
-  const googleAuthStatus = document.getElementById("google-auth-status");
-  const googleAuthDetail = document.getElementById("google-auth-detail");
-  const btnGoogleConnect = document.getElementById("btn-google-connect");
-  const btnGoogleDisconnect = document.getElementById("btn-google-disconnect");
-  const btnGoogleFind = document.getElementById("btn-google-find");
-  const btnGoogleLinkUrl = document.getElementById("btn-google-link-url");
+  const btnSimpleGoogle = document.getElementById("btn-simple-google");
+  const btnSimplePicker = document.getElementById("btn-simple-picker");
 
   let googleState = {
     connected: false,
@@ -77,47 +69,35 @@ export function createUI({
   }
 
   function setSyncStatus({ text, tone, pending }) {
-    syncStatus.textContent = text;
-    syncStatus.className = "text-sm font-semibold";
-    if (tone === "ok") syncStatus.classList.add("text-emerald-600");
-    if (tone === "warn") syncStatus.classList.add("text-amber-600");
-    if (tone === "error") syncStatus.classList.add("text-rose-600");
-    pendingCount.textContent = `待同步 ${pending} 筆`;
+    // Left empty since we removed the explicit UI elements
   }
 
   function setSyncMeta(meta = {}) {
-    const lastSuccessAt = Number(meta.lastSuccessAt || 0);
-    const lastError = String(meta.lastError || "").trim();
-    syncLastSuccess.textContent = lastSuccessAt
-      ? `上次成功：${new Date(lastSuccessAt).toLocaleString()}`
-      : "上次成功：尚無";
-    syncLastError.textContent = `最後錯誤：${lastError || "無"}`;
-    syncLastError.className = `text-[11px] mt-1 ${lastError ? "text-rose-600" : "text-slate-500"}`;
+    // Left empty as well
   }
 
   function setGoogleState(state) {
     googleState = { ...googleState, ...state };
 
-    googleAuthStatus.textContent = googleState.status || "尚未連線";
-    googleAuthStatus.className = "text-sm font-semibold";
-    if (googleState.tone === "ok") googleAuthStatus.classList.add("text-emerald-600");
-    if (googleState.tone === "warn") googleAuthStatus.classList.add("text-amber-600");
-    if (googleState.tone === "error") googleAuthStatus.classList.add("text-rose-600");
+    if (!googleState.hasConfig) {
+      btnSimpleGoogle.disabled = true;
+      btnSimpleGoogle.classList.add("opacity-50", "cursor-not-allowed");
+      btnSimpleGoogle.innerHTML = `<i data-lucide="link" class="w-4 h-4"></i> <span>未設定金鑰</span>`;
+      return;
+    }
 
-    googleAuthDetail.textContent = googleState.detail || "";
+    btnSimpleGoogle.disabled = false;
+    btnSimpleGoogle.classList.remove("opacity-50", "cursor-not-allowed");
 
-    btnGoogleConnect.disabled = !googleState.hasConfig;
-    btnGoogleConnect.classList.toggle("opacity-50", !googleState.hasConfig);
-
-    btnGoogleDisconnect.disabled = !googleState.connected;
-    btnGoogleDisconnect.classList.toggle("opacity-50", !googleState.connected);
-
-    const canUseGoogleActions = googleState.connected;
-    btnGoogleFind.disabled = !canUseGoogleActions;
-    btnGoogleFind.classList.toggle("opacity-50", !canUseGoogleActions);
-
-    btnGoogleLinkUrl.disabled = !canUseGoogleActions;
-    btnGoogleLinkUrl.classList.toggle("opacity-50", !canUseGoogleActions);
+    if (googleState.connected) {
+      btnSimpleGoogle.innerHTML = `<i data-lucide="link-2-off" class="w-4 h-4 text-emerald-300"></i> <span class="text-emerald-50">中斷連結</span>`;
+      btnSimpleGoogle.classList.replace("bg-blue-600", "bg-slate-600");
+      btnSimpleGoogle.classList.replace("hover:bg-blue-700", "hover:bg-slate-700");
+    } else {
+      btnSimpleGoogle.innerHTML = `<i data-lucide="link" class="w-4 h-4"></i> <span>連結 Google</span>`;
+      btnSimpleGoogle.classList.replace("bg-slate-600", "bg-blue-600");
+      btnSimpleGoogle.classList.replace("hover:bg-slate-700", "hover:bg-blue-700");
+    }
   }
 
   function toggleSidebar() {
@@ -563,34 +543,34 @@ export function createUI({
 
     document.getElementById("btn-add-row").addEventListener("click", () => store.addRow());
     document.getElementById("btn-add-column").addEventListener("click", () => store.addColumn());
-    document.getElementById("btn-sync-now").addEventListener("click", onSyncNow);
-    const pullIcon = document.getElementById("btn-pull-now");
-    if (pullIcon) pullIcon.addEventListener("click", onPullNow);
-    document.getElementById("btn-sync-retry-failed").addEventListener("click", onSyncRetryFailed);
-    document.getElementById("btn-sync-retry-all").addEventListener("click", onSyncRetryAll);
-    document.getElementById("btn-reset-data").addEventListener("click", onResetData);
 
     btnNewFolder.addEventListener("click", openCreateFolderModal);
     btnNewSheet.addEventListener("click", openCreateSheetModal);
 
-    btnGoogleConnect.addEventListener("click", async () => {
+    btnSimpleGoogle.addEventListener("click", async () => {
       try {
-        await onGoogleConnect();
+        if (googleState.connected) {
+          await onGoogleDisconnect();
+        } else {
+          await onGoogleConnect();
+        }
       } catch (error) {
-        setGoogleState({ tone: "error", status: "Google 連線失敗", detail: error.message || "請稍後再試" });
+        window.alert(error.message || "Google 連線操作失敗，請稍後再試");
       }
     });
 
-    btnGoogleDisconnect.addEventListener("click", async () => {
+    btnSimplePicker.addEventListener("click", async () => {
       try {
-        await onGoogleDisconnect();
+        const result = await onGoogleLinkSheetByUrl({ input: "picker", customName: "", permission: "editor", parentId: ROOT_NODE_ID, fromPickerOnly: true });
+        if (result) {
+           // We do nothing more here as the state is handled in app.js
+        }
       } catch (error) {
-        setGoogleState({ tone: "error", status: "中斷連線失敗", detail: error.message || "請稍後再試" });
+         if (error.message && !error.message.includes("cancelled")) {
+            window.alert(error.message || "開啟選擇器失敗");
+         }
       }
     });
-
-    btnGoogleFind.addEventListener("click", openGoogleSearchModal);
-    btnGoogleLinkUrl.addEventListener("click", openGoogleUrlLinkModal);
 
     drawerTree.addEventListener("click", async (event) => {
       const btn = event.target.closest("[data-node-id]");

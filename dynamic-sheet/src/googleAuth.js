@@ -89,6 +89,9 @@ export function createGoogleAuthManager({ getClientId, scope }) {
 
   async function connect() {
     await requestToken("consent");
+    if (accessToken) {
+      localStorage.setItem('DYNAMIC_SHEET_GOOGLE_CONNECTED', '1');
+    }
     return getState();
   }
 
@@ -105,6 +108,7 @@ export function createGoogleAuthManager({ getClientId, scope }) {
       });
     }
     clearAuth();
+    localStorage.removeItem('DYNAMIC_SHEET_GOOGLE_CONNECTED');
     return getState();
   }
 
@@ -117,11 +121,16 @@ export function createGoogleAuthManager({ getClientId, scope }) {
     };
   }
 
+  function getPersistentState() {
+    return localStorage.getItem('DYNAMIC_SHEET_GOOGLE_CONNECTED') === '1';
+  }
+
   return {
     init,
     connect,
     ensureToken,
     disconnect,
-    getState
+    getState,
+    getPersistentState
   };
 }
