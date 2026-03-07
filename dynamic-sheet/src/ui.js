@@ -183,7 +183,6 @@ export function createUI({
       // Use max-width to let long text wrap naturally instead of infinitely expanding.
       html += `<th class="sticky-header clickable bg-slate-50 dark:bg-slate-800 border-b border-r border-slate-300 dark:border-slate-700 p-3 text-center text-slate-500 dark:text-slate-400 font-bold min-w-[160px] max-w-[300px] shadow-sm cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-pre-wrap align-top" data-col-edit="${escapeHtml(key)}">${escapeHtml(state.schema[key].label)}</th>`;
     }
-    html += '<th class="sticky-header bg-slate-50 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 p-3 text-center text-slate-500 dark:text-slate-400 font-bold w-12 shadow-sm">操作</th>';
     html += "</tr></thead>";
 
     html += "<tbody>";
@@ -205,7 +204,6 @@ export function createUI({
           if (key === "name" || key === firstDataKey) continue;
           html += `<td class="data-cell bg-white dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-700 p-3 text-left text-slate-700 dark:text-slate-300 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 min-w-[160px] max-w-[300px] whitespace-pre-wrap align-top" data-cell-edit="${escapeHtml(row.id)}" data-cell-key="${escapeHtml(key)}">${escapeHtml(row[key] || "")}</td>`;
         }
-        html += `<td class="data-cell bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-3 text-center align-top"><button class="text-rose-500 hover:text-rose-700 p-1 rounded transition-colors" data-row-delete="${escapeHtml(row.id)}" title="刪除"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button></td>`;
         html += "</tr>";
       }
     }
@@ -253,16 +251,28 @@ export function createUI({
 
     if (config.type === "number") {
       const html = `
-        <input id="editor-input" type="number" value="${escapeHtml(row[key] || "")}" class="w-full p-4 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
-        <button id="editor-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">儲存</button>
+        <input id="editor-input" type="number" value="${escapeHtml(row[key] || "")}" class="w-full p-4 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white mb-4">
+        <button id="editor-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold mb-2">儲存</button>
       `;
       showEditor(config.label, row.name || "編輯欄位", html);
     } else {
+      const firstDataKey = Object.keys(state.schema).find(k => k !== "name");
+      const isFirstCol = key === firstDataKey;
+      
       const html = `
-        <textarea id="editor-input" rows="4" class="w-full p-4 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white resize-y">${escapeHtml(row[key] || "")}</textarea>
-        <button id="editor-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">儲存</button>
+        <textarea id="editor-input" rows="4" class="w-full p-4 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white resize-y mb-4">${escapeHtml(row[key] || "")}</textarea>
+        <button id="editor-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold mb-2">儲存</button>
+        ${isFirstCol ? `<button id="editor-delete-row" class="w-full bg-rose-50 dark:bg-rose-900/10 text-rose-500 border border-rose-100 dark:border-rose-900/30 py-3 rounded-xl font-medium mt-2">刪除目前資料列</button>` : ""}
       `;
       showEditor(config.label, row.name || "編輯欄位", html);
+      
+      if (isFirstCol) {
+        document.getElementById("editor-delete-row")?.addEventListener("click", async () => {
+          if (!window.confirm("確定要刪除此筆資料列嗎？")) return;
+          await store.deleteRow(rowId);
+          closeEditor();
+        });
+      }
     }
     const input = document.getElementById("editor-input");
     setTimeout(() => input.focus(), 80);
@@ -582,17 +592,6 @@ export function createUI({
     });
 
     mainContent.addEventListener("click", async (event) => {
-      const deleteBtn = event.target.closest("[data-row-delete]");
-      if (deleteBtn) {
-        if (!store.canEditCurrentSheet()) {
-           window.alert("目前為唯讀模式 (Viewer)，無法刪除資料列。");
-           return;
-        }
-        if (!window.confirm("確定刪除此資料列嗎？")) return;
-        await store.deleteRow(deleteBtn.getAttribute("data-row-delete"));
-        return;
-      }
-    
       const cellEl = event.target.closest("[data-cell-edit]");
       if (cellEl) {
         openCellEditor(cellEl.getAttribute("data-cell-edit"), cellEl.getAttribute("data-cell-key"));
