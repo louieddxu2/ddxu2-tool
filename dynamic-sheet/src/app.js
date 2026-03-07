@@ -222,11 +222,6 @@ async function onPullNow() {
 async function boot() {
   ui = createUI({
     store,
-    onSyncNow,
-    onPullNow,
-    onSyncRetryFailed,
-    onSyncRetryAll,
-    onResetData,
     onGoogleConnect,
     onGoogleDisconnect,
     onGoogleSearchSheets,

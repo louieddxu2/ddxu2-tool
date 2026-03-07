@@ -23,11 +23,6 @@ function walkTree(nodes, parentId = ROOT_NODE_ID, depth = 0, out = []) {
 
 export function createUI({
   store,
-  onSyncNow,
-  onPullNow,
-  onSyncRetryFailed,
-  onSyncRetryAll,
-  onResetData,
   onGoogleConnect,
   onGoogleDisconnect,
   onGoogleSearchSheets,
