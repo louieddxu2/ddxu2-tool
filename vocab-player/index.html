@@ -190,6 +190,9 @@
                         <button id="btn-open-paste-import" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-colors">
                             <span id="btn-paste-import-text">貼上表格匯入</span>
                         </button>
+                        <button id="btn-open-export" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-colors">
+                            <span id="btn-export-text">匯出</span>
+                        </button>
                         <p id="paste-import-hint" class="text-[11px] text-slate-500 leading-tight">可直接貼上 Excel/試算表兩欄內容</p>
                     </div>
                 </div>
@@ -261,7 +264,23 @@
             </div>
         </div>
     </div>
-
+        
+    <!-- 匯出詞彙彈窗 -->
+    <div id="export-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[120] flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div id="export-modal-content" class="bg-white rounded-2xl p-5 w-11/12 max-w-md shadow-2xl transform scale-95 transition-transform duration-200 mx-auto">
+            <h3 class="text-lg font-bold text-slate-800 mb-2 flex items-center">
+                <i data-lucide="download" class="w-5 h-5 text-emerald-500 mr-2"></i> <span id="export-modal-title">匯出詞彙</span>
+            </h3>
+            <p id="export-modal-desc" class="text-xs text-slate-500 mb-3">可複製表格或下載 CSV 檔。</p>
+            <textarea id="export-textarea" rows="8" readonly class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg outline-none text-sm"></textarea>
+            <p id="export-preview" class="text-xs text-slate-500 mt-2">尚無可匯出的資料</p>
+            <div class="flex justify-end gap-2 mt-4">
+                <button id="btn-cancel-export" class="px-4 py-2 text-slate-600 bg-slate-100 rounded-xl font-medium hover:bg-slate-200 transition-colors">取消</button>
+                <button id="btn-copy-export" class="px-4 py-2 text-slate-700 bg-emerald-50 border border-emerald-200 rounded-xl font-medium hover:bg-emerald-100 transition-colors">複製表格</button>
+                <button id="btn-download-export" class="px-4 py-2 text-white bg-emerald-600 rounded-xl font-medium hover:bg-emerald-700 transition-colors">下載 CSV</button>
+            </div>
+        </div>
+    </div>
     <script>
         lucide.createIcons();
 
@@ -304,6 +323,7 @@
                 deckBindPrefix: '新增將綁定為：',
                 addWordButton: '新增至當前牌組',
                 pasteImportButton: '貼上表格匯入',
+                exportButton: '匯出',
                 pasteImportHint: '可直接貼上 Excel/試算表兩欄內容',
                 pasteModalTitle: '貼上表格匯入',
                 pasteModalDesc: '請貼上兩欄資料（A 欄=語言A，B 欄=語言B）。',
@@ -312,6 +332,15 @@
                 pasteImportConfirm: '匯入',
                 pasteNeedData: '請先貼上可辨識的兩欄資料',
                 pasteImportResult: (added, skipped) => `已匯入 ${added} 筆，略過 ${skipped} 筆`,
+                exportModalTitle: '匯出詞彙',
+                exportModalDesc: '可複製表格或下載 CSV 檔。',
+                exportPreviewEmpty: '尚無可匯出的資料',
+                exportPreviewReady: (rows) => `已準備 ${rows} 筆匯出資料`,
+                exportCopy: '複製表格',
+                exportDownload: '下載 CSV',
+                exportCopied: '已複製到剪貼簿',
+                exportFailed: '匯出失敗',
+                exportNoData: '目前沒有可匯出的詞彙',
                 listLimitPrefix: '僅顯示最新 100 筆資料 (共 ',
                 listLimitSuffix: ' 筆)',
                 emptyState: '目前語言組合沒有詞彙<br>請在上方新增',
@@ -375,6 +404,7 @@
                 deckBindPrefix: 'New card will be saved to:',
                 addWordButton: 'Add To Current Deck',
                 pasteImportButton: 'Paste Table Import',
+                exportButton: 'Export',
                 pasteImportHint: 'Paste two columns from Excel/Sheets',
                 pasteModalTitle: 'Paste Table Import',
                 pasteModalDesc: 'Paste two columns (A = Language A, B = Language B).',
@@ -383,6 +413,15 @@
                 pasteImportConfirm: 'Import',
                 pasteNeedData: 'Paste valid two-column data first',
                 pasteImportResult: (added, skipped) => `${added} imported, ${skipped} skipped`,
+                exportModalTitle: 'Export Cards',
+                exportModalDesc: 'Copy table format or download CSV.',
+                exportPreviewEmpty: 'No data to export',
+                exportPreviewReady: (rows) => `Prepared ${rows} rows`,
+                exportCopy: 'Copy Table',
+                exportDownload: 'Download CSV',
+                exportCopied: 'Copied to clipboard',
+                exportFailed: 'Export failed',
+                exportNoData: 'No cards to export',
                 listLimitPrefix: 'Showing latest 100 items (total ',
                 listLimitSuffix: ')',
                 emptyState: 'No cards for this language pair yet.<br>Add one above.',
@@ -534,6 +573,7 @@
             document.getElementById('deck-bind-prefix').textContent = t('deckBindPrefix');
             document.getElementById('btn-add-word-text').textContent = t('addWordButton');
             document.getElementById('btn-paste-import-text').textContent = t('pasteImportButton');
+            document.getElementById('btn-export-text').textContent = t('exportButton');
             document.getElementById('paste-import-hint').textContent = t('pasteImportHint');
             document.getElementById('list-limit-prefix').textContent = t('listLimitPrefix');
             document.getElementById('list-limit-suffix').textContent = t('listLimitSuffix');
@@ -547,6 +587,11 @@
             document.getElementById('paste-modal-desc').textContent = t('pasteModalDesc');
             document.getElementById('btn-cancel-paste').textContent = t('promptCancel');
             document.getElementById('btn-confirm-paste').textContent = t('pasteImportConfirm');
+            document.getElementById('export-modal-title').textContent = t('exportModalTitle');
+            document.getElementById('export-modal-desc').textContent = t('exportModalDesc');
+            document.getElementById('btn-cancel-export').textContent = t('promptCancel');
+            document.getElementById('btn-copy-export').textContent = t('exportCopy');
+            document.getElementById('btn-download-export').textContent = t('exportDownload');
             document.getElementById('modal-btn-cancel').textContent = t('modalCancel');
             document.getElementById('modal-btn-confirm').textContent = t('modalOk');
             document.getElementById('text-play-stop').textContent = isPlaying ? t('playStop') : t('playStart');
@@ -973,6 +1018,150 @@
         document.getElementById('btn-confirm-paste').addEventListener('click', importFromPastedText);
         pasteTextarea.addEventListener('input', updatePastePreview);
 
+
+        // ==========================================
+        // 匯出 (TSV 複製 / CSV 下載)
+        // ==========================================
+        const exportModal = document.getElementById('export-modal');
+        const exportModalContent = document.getElementById('export-modal-content');
+        const exportTextarea = document.getElementById('export-textarea');
+        const exportPreview = document.getElementById('export-preview');
+        const btnCopyExport = document.getElementById('btn-copy-export');
+        const btnDownloadExport = document.getElementById('btn-download-export');
+
+        let exportState = { rows: 0, tsv: '', csv: '', fileName: '' };
+
+        function setExportActionsEnabled(enabled) {
+            btnCopyExport.disabled = !enabled;
+            btnDownloadExport.disabled = !enabled;
+            [btnCopyExport, btnDownloadExport].forEach(btn => {
+                btn.classList.toggle('opacity-50', !enabled);
+                btn.classList.toggle('cursor-not-allowed', !enabled);
+            });
+        }
+
+        function escapeCsvCell(value) {
+            const raw = String(value ?? '');
+            const needsQuote = /[",\r\n]/.test(raw);
+            const escaped = raw.replace(/"/g, '""');
+            return needsQuote ? `"${escaped}"` : escaped;
+        }
+
+        function buildTsvText(rows) {
+            return rows.map(cols => cols.join('\t')).join('\n');
+        }
+
+        function buildCsvText(rows) {
+            return rows.map(cols => cols.map(escapeCsvCell).join(',')).join('\r\n');
+        }
+
+        function buildExportFileName(langs) {
+            const d = new Date();
+            const pad2 = (n) => String(n).padStart(2, '0');
+            const ymd = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+            const safe = (v) => String(v || '').replace(/[^a-zA-Z0-9._-]+/g, '_');
+            return `vocab_${safe(langs.A)}_${safe(langs.B)}_${ymd}.csv`;
+        }
+
+        async function prepareExport() {
+            const langs = getCurrentLangs();
+            const displayA = langNamesMap[langs.A] || langs.A;
+            const displayB = langNamesMap[langs.B] || langs.B;
+            const header = [`${displayA} (${langs.A})`, `${displayB} (${langs.B})`];
+
+            const words = await db.words.filter(w => w.langA === langs.A && w.langB === langs.B).toArray();
+            words.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+            const dataRows = words
+                .map(w => [normalizeText(w.textA || ''), normalizeText(w.textB || '')])
+                .filter(([a, b]) => a && b);
+
+            const rows = [header, ...dataRows];
+            exportState = {
+                rows: dataRows.length,
+                tsv: buildTsvText(rows),
+                csv: buildCsvText(rows),
+                fileName: buildExportFileName(langs)
+            };
+        }
+
+        function openExportModal() {
+            exportState = { rows: 0, tsv: '', csv: '', fileName: '' };
+            exportTextarea.value = '';
+            exportPreview.textContent = t('exportPreviewEmpty');
+            setExportActionsEnabled(false);
+
+            exportModal.classList.remove('hidden');
+            setTimeout(() => {
+                exportModal.classList.remove('opacity-0');
+                exportModalContent.classList.remove('scale-95');
+                exportModalContent.classList.add('scale-100');
+                exportTextarea.focus();
+            }, 10);
+
+            (async () => {
+                try {
+                    await prepareExport();
+                    if (exportState.rows === 0) {
+                        showToast(t('exportNoData'));
+                        exportPreview.textContent = t('exportPreviewEmpty');
+                        return;
+                    }
+                    exportTextarea.value = exportState.tsv;
+                    exportPreview.textContent = t('exportPreviewReady', exportState.rows);
+                    setExportActionsEnabled(true);
+                } catch (error) {
+                    showToast(t('exportFailed'));
+                    exportPreview.textContent = t('exportPreviewEmpty');
+                    setExportActionsEnabled(false);
+                }
+            })();
+        }
+
+        function closeExportModal() {
+            exportModal.classList.add('opacity-0');
+            exportModalContent.classList.remove('scale-100');
+            exportModalContent.classList.add('scale-95');
+            setTimeout(() => exportModal.classList.add('hidden'), 200);
+        }
+
+        async function copyExportTable() {
+            if (!exportState.tsv) return showToast(t('exportNoData'));
+            try {
+                await navigator.clipboard.writeText(exportState.tsv);
+                showToast(t('exportCopied'));
+            } catch (error) {
+                try {
+                    exportTextarea.focus();
+                    exportTextarea.select();
+                    const ok = document.execCommand('copy');
+                    exportTextarea.setSelectionRange(0, 0);
+                    if (ok) showToast(t('exportCopied'));
+                    else showToast(t('exportFailed'));
+                } catch (e) {
+                    showToast(t('exportFailed'));
+                }
+            }
+        }
+
+        function downloadExportCsv() {
+            if (!exportState.csv) return showToast(t('exportNoData'));
+            const csvWithBom = `\uFEFF${exportState.csv}`;
+            const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = exportState.fileName || 'vocab.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        document.getElementById('btn-open-export').addEventListener('click', openExportModal);
+        document.getElementById('btn-cancel-export').addEventListener('click', closeExportModal);
+        btnCopyExport.addEventListener('click', copyExportTable);
+        btnDownloadExport.addEventListener('click', downloadExportCsv);
         // ==========================================
         // 語音引擎與播放 (支援熟練刪除 Skip)
         // ==========================================
