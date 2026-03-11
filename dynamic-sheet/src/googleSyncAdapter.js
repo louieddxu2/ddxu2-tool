@@ -310,11 +310,9 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
       ? dataSheets.find((item) => item.title === sheetTabName) || dataSheets[0] || sheets[0]
       : dataSheets[0] || sheets[0];
     const values = await getValues({ spreadsheetId, sheetTitle: targetSheet.title, accessToken });
-
-    const schema = await loadSchemaFromCloud({ spreadsheetId, accessToken });
     const context = buildContext({ values, sheetTitle: targetSheet.title, sheetId: targetSheet.sheetId });
 
-    return { context, accessToken, spreadsheetId, values, sheetTitle: targetSheet.title, schema };
+    return { context, accessToken, spreadsheetId, values, sheetTitle: targetSheet.title };
   }
 
   async function applyCellUpdate(op, env) {
@@ -417,10 +415,89 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
     }
   }
 
+async function applyColumnAdd(op, env, hasSchema) {
+    const key = String(op?.payload?.key || '').trim();
+    if (!key) throw toError('invalid_column_add_payload', 400);
+
+    const config = op?.payload?.config || {};
+    const label = String((hasSchema ? (config.label || env.schema?.[key]?.label) : undefined) || key).trim();
+    if (!label) throw toError('invalid_column_add_label', 400);
+
+    await ensureHeaderKey(env, label);
+
+    if (hasSchema) {
+      const next = { ...(env.schema?.[key] || {}), ...(config || {}) };
+      if (!next.label) next.label = label;
+      env.schema[key] = next;
+    }
+  }
+
+  async function applyColumnUpdate(op, env, hasSchema) {
+    const key = String(op?.payload?.key || '').trim();
+    if (!key) throw toError('invalid_column_update_payload', 400);
+
+    const config = op?.payload?.config || {};
+    const prevLabel = String(env.schema?.[key]?.label || key).trim();
+    const nextLabel = String(config.label || prevLabel).trim();
+    if (!prevLabel || !nextLabel) throw toError('invalid_column_update_label', 400);
+
+    await ensureHeaderKey(env, prevLabel);
+
+    const colIndex = env.context.headerMap.get(prevLabel);
+    if (colIndex === undefined) return;
+
+    if (prevLabel !== nextLabel) {
+      await updateSingleCell({
+        spreadsheetId: env.spreadsheetId,
+        accessToken: env.accessToken,
+        sheetTitle: env.context.sheetTitle,
+        rowNumber: 1,
+        colIndex,
+        value: nextLabel
+      });
+
+      env.context.header[colIndex] = nextLabel;
+      env.context.headerMap.delete(prevLabel);
+      env.context.headerMap.set(nextLabel, colIndex);
+    }
+
+    if (hasSchema) {
+      const next = { ...(env.schema?.[key] || {}), ...(config || {}) };
+      next.label = nextLabel;
+      env.schema[key] = next;
+    }
+  }
+
+  async function applyColumnDelete(op, env, hasSchema) {
+    const key = String(op?.payload?.key || '').trim();
+    if (!key) throw toError('invalid_column_delete_payload', 400);
+
+    const label = String(env.schema?.[key]?.label || key).trim();
+    if (!label) throw toError('invalid_column_delete_label', 400);
+    if (label === 'id') throw toError('cannot_delete_id_column', 400);
+
+    const colIndex = env.context.headerMap.get(label);
+    if (colIndex === undefined) return;
+
+    await deleteColumnByIndex({
+      spreadsheetId: env.spreadsheetId,
+      accessToken: env.accessToken,
+      sheetId: env.context.sheetId,
+      colIndex
+    });
+
+    shiftHeaderMapAfterDelete(env, colIndex);
+
+    if (hasSchema) {
+      delete env.schema[key];
+    }
+  }
+
   async function applyOperations(operations, { spreadsheetId, schema }) {
     try {
       const env = await loadContext(spreadsheetId);
-      env.schema = schema || env.schema || {}; // Prefer passed schema or cloud schema
+      const hasSchema = schema !== undefined && schema !== null;
+      env.schema = hasSchema ? (schema || {}) : {};
       await ensureHeaders(env, ["id"]);
 
       let schemaChanged = false;
@@ -443,18 +520,18 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
           continue;
         }
         if (op.type === "column_add") {
-          await applyColumnAdd(op, env);
-          schemaChanged = true;
+          await applyColumnAdd(op, env, hasSchema);
+          if (hasSchema) schemaChanged = true;
           continue;
         }
         if (op.type === "column_update") {
-          await applyColumnUpdate(op, env);
-          schemaChanged = true;
+          await applyColumnUpdate(op, env, hasSchema);
+          if (hasSchema) schemaChanged = true;
           continue;
         }
         if (op.type === "column_delete") {
-          await applyColumnDelete(op, env);
-          schemaChanged = true;
+          await applyColumnDelete(op, env, hasSchema);
+          if (hasSchema) schemaChanged = true;
           continue;
         }
       }
@@ -477,7 +554,8 @@ export function createGoogleSyncAdapter({ getAccessToken, sheetTabName = "" }) {
 
   async function pullData({ spreadsheetId }) {
     try {
-      const { context, values, accessToken, schema: cloudSchema } = await loadContext(spreadsheetId);
+      const { context, values, accessToken } = await loadContext(spreadsheetId);
+      const cloudSchema = await loadSchemaFromCloud({ spreadsheetId, accessToken });
       const schema = cloudSchema || {
         name: { label: "物件名稱", type: "text", options: [] }
       };
