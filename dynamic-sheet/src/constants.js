@@ -9,9 +9,9 @@ export const ROOT_NODE_ID = "root";
 export const DEFAULT_ACTIVE_NODE_ID = "sample_sheet";
 
 export const DEFAULT_SCHEMA = {
-  name: { label: "物件名稱", type: "text", options: [] },
-  price: { label: "購入價格", type: "number", options: [] },
-  status: { label: "持有狀態", type: "select", options: ["未發貨", "已持有", "已售出", "願望清單"] }
+  name: { label: "物件名稱", type: "text", options: [], align: "left" },
+  price: { label: "購入價格", type: "number", options: [], align: "right" },
+  status: { label: "持有狀態", type: "select", options: ["未發貨", "已持有", "已售出", "願望清單"], align: "center" }
 };
 
 export const DEFAULT_ROWS = [

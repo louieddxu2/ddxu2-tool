@@ -207,7 +207,7 @@ export function createStore() {
     if (!canEditCurrentSheet()) return;
     const key = `col_${Date.now()}`;
     const index = Object.keys(state.schema).length;
-    state.schema[key] = { label: `屬性 ${index}`, type: "text", options: [] };
+    state.schema[key] = { label: `屬性 ${index}`, type: "text", options: [], align: "left" };
     await enqueueOperation(state.sheetContextId, "column_add", { key, config: state.schema[key] });
     await persistCurrentSheet();
     notify();
@@ -266,13 +266,13 @@ export function createStore() {
     const oldRows = state.rows.map((row) => ({ ...row }));
     const oldSchema = { ...state.schema };
 
-    const nameConfig = oldSchema.name || { label: "物件名稱", type: "text", options: [] };
-    const nextSchema = { name: { ...nameConfig, type: "text", options: [] } };
+    const nameConfig = oldSchema.name || { label: "物件名稱", type: "text", options: [], align: "left" };
+    const nextSchema = { name: { ...nameConfig, type: "text", options: [], align: nameConfig.align || "left" } };
     const ts = Date.now();
     const generatedColumnKeys = oldRows.map((_, index) => `col_t_${ts}_${index + 1}`);
     generatedColumnKeys.forEach((key, index) => {
       const label = String(oldRows[index]?.name || `物件 ${index + 1}`);
-      nextSchema[key] = { label, type: "text", options: [] };
+      nextSchema[key] = { label, type: "text", options: [], align: "left" };
     });
 
     const nextRows = oldSchemaKeys.map((oldKey, rowIndex) => {

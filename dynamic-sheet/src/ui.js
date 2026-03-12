@@ -9,6 +9,34 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function normalizeAlign(value) {
+  const v = String(value || '').toLowerCase();
+  if (v === 'center' || v === 'right' || v === 'left') return v;
+  return 'left';
+}
+
+function getTextAlignClass(config) {
+  const align = normalizeAlign(config?.align);
+  if (align === 'center') return 'text-center';
+  if (align === 'right') return 'text-right';
+  return 'text-left';
+}
+
+function nextAlign(value) {
+  const align = normalizeAlign(value);
+  if (align === 'left') return 'center';
+  if (align === 'center') return 'right';
+  return 'left';
+}
+
+function getAlignLabel(value) {
+  const align = normalizeAlign(value);
+  if (align === 'center') return '置中';
+  if (align === 'right') return '置右';
+  return '置左';
+}
+
+
 function walkTree(nodes, parentId = ROOT_NODE_ID, depth = 0, out = []) {
   const children = nodes
     .filter((node) => node.parentId === parentId)
@@ -119,6 +147,7 @@ export function createUI({
     editorTitle.textContent = title;
     editorSubtitle.textContent = subtitle;
     editorBody.innerHTML = html;
+    safeCreateIcons({ root: editorBody });
     editorOverlay.classList.remove("hidden");
     setTimeout(() => {
       editorSheet.classList.remove("scale-95", "opacity-0");
@@ -181,7 +210,7 @@ export function createUI({
     for (const key of schemaKeys) {
       if (key === "name" || key === firstDataKey) continue;
       // Use max-width to let long text wrap naturally instead of infinitely expanding.
-      html += `<th class="sticky-header clickable bg-slate-50 dark:bg-slate-800 border-b border-r border-slate-300 dark:border-slate-700 p-3 text-center text-slate-500 dark:text-slate-400 font-bold min-w-[160px] max-w-[300px] shadow-sm cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-pre-wrap align-top" data-col-edit="${escapeHtml(key)}">${escapeHtml(state.schema[key].label)}</th>`;
+      html += `<th class="sticky-header clickable bg-slate-50 dark:bg-slate-800 border-b border-r border-slate-300 dark:border-slate-700 p-3 ${getTextAlignClass(state.schema[key])} text-slate-500 dark:text-slate-400 font-bold min-w-[160px] max-w-[300px] shadow-sm cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 whitespace-pre-wrap align-top" data-col-edit="${escapeHtml(key)}">${escapeHtml(state.schema[key].label)}</th>`;
     }
     html += "</tr></thead>";
 
@@ -202,7 +231,7 @@ export function createUI({
         html += `<td class="sticky-col clickable bg-slate-100 dark:bg-slate-800/90 border-b border-r border-slate-300 dark:border-slate-700 p-3 font-bold text-slate-800 dark:text-slate-200 shadow-sm min-w-[200px] max-w-[300px] whitespace-pre-wrap align-top cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700" ${firstDataKey ? `data-cell-edit="${escapeHtml(row.id)}" data-cell-key="${escapeHtml(firstDataKey)}"` : `data-row-edit="${escapeHtml(row.id)}"`}>${escapeHtml(rowDisplayName)}</td>`;
         for (const key of schemaKeys) {
           if (key === "name" || key === firstDataKey) continue;
-          html += `<td class="data-cell bg-white dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-700 p-3 text-left text-slate-700 dark:text-slate-300 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 min-w-[160px] max-w-[300px] whitespace-pre-wrap align-top" data-cell-edit="${escapeHtml(row.id)}" data-cell-key="${escapeHtml(key)}">${escapeHtml(row[key] || "")}</td>`;
+          html += `<td class="data-cell bg-white dark:bg-slate-900 border-b border-r border-slate-200 dark:border-slate-700 p-3 ${getTextAlignClass(state.schema[key])} text-slate-700 dark:text-slate-300 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 min-w-[160px] max-w-[300px] whitespace-pre-wrap align-top" data-cell-edit="${escapeHtml(row.id)}" data-cell-key="${escapeHtml(key)}">${escapeHtml(row[key] || "")}</td>`;
         }
         html += "</tr>";
       }
@@ -330,17 +359,33 @@ export function createUI({
       </select>
       <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">選單項目（逗號分隔）</label>
       <input id="col-options-input" type="text" value="${escapeHtml((config.options || []).join(","))}" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
+      <label class="text-sm font-semibold text-slate-600 dark:text-slate-300">對齊</label>
+      <button id="col-align-toggle" type="button" class="w-full p-3 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-xl text-base outline-none hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center">
+        <span id="col-align-text"></span>
+      </button>
       <button id="col-save" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold">儲存欄位設定</button>
       ${key === "name" ? "" : '<button id="col-delete" class="w-full bg-rose-50 dark:bg-rose-900/20 text-rose-600 border border-rose-200 dark:border-rose-800 py-3 rounded-xl font-semibold">刪除欄位</button>'}
     `;
     showEditor("欄位設定", config.label, html);
+
+    const alignBtn = document.getElementById("col-align-toggle");
+
+    const alignText = document.getElementById("col-align-text");
+    let align = normalizeAlign(config.align);
+    if (alignText) alignText.textContent = "對齊：" + getAlignLabel(align);
+    if (alignBtn && alignText) {
+      alignBtn.addEventListener("click", () => {
+        align = nextAlign(align);
+        alignText.textContent = "對齊：" + getAlignLabel(align);
+      });
+    }
 
     document.getElementById("col-save").addEventListener("click", async () => {
       const label = document.getElementById("col-label-input").value.trim();
       const type = document.getElementById("col-type-input").value;
       const options = document.getElementById("col-options-input").value.split(",").map((v) => v.trim()).filter(Boolean);
       if (!label) return;
-      await store.updateColumn(key, { label, type, options });
+      await store.updateColumn(key, { label, type, options, align });
       closeEditor();
     });
 

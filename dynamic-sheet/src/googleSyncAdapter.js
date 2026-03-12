@@ -113,6 +113,22 @@ async function updateSingleCell({ spreadsheetId, accessToken, sheetTitle, rowNum
   });
 }
 
+async function updateValuesRange({ spreadsheetId, accessToken, sheetTitle, startCell, values }) {
+  const range = quoteSheetTitle(sheetTitle) + "!" + String(startCell || "A1");
+  const url =
+    "https://sheets.googleapis.com/v4/spreadsheets/" +
+    encodeURIComponent(spreadsheetId) +
+    "/values/" +
+    encodeURIComponent(range) +
+    "?valueInputOption=RAW";
+  await googleFetch(url, accessToken, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ range, majorDimension: "ROWS", values: values || [] })
+  });
+}
+
+
 async function getOrInitSchemaSheet({ spreadsheetId, accessToken }) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=sheets(properties(sheetId,title))`;
   const response = await googleFetch(url, accessToken);
@@ -154,6 +170,28 @@ async function saveSchemaToCloud({ spreadsheetId, accessToken, schema }) {
     colIndex: 0,
     value: json
   });
+
+  // Schema table for humans (starts at A3)
+  try {
+    const entries = Object.entries(schema || {});
+    const header = ["key", "label", "type", "options", "align"];
+    const rows = entries.map(([key, cfg]) => {
+      const label = cfg?.label ?? "";
+      const type = cfg?.type ?? "";
+      const options = Array.isArray(cfg?.options) ? cfg.options.join("|") : "";
+      const align = cfg?.align ?? "";
+      return [key, label, type, options, align];
+    });
+    await updateValuesRange({
+      spreadsheetId,
+      accessToken,
+      sheetTitle: SCHEMA_SHEET_TITLE,
+      startCell: "A3:E",
+      values: [header, ...rows]
+    });
+  } catch (e) {
+    // ignore human-readable table failures
+  }
 }
 
 async function loadSchemaFromCloud({ spreadsheetId, accessToken }) {
