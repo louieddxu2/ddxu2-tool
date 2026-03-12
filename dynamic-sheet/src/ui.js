@@ -92,13 +92,24 @@ export function createUI({
   }
 
   function setSyncStatus({ text, tone, pending }) {
-    // Left empty since we removed the explicit UI elements
+    const el = document.getElementById("sync-status");
+    if (!el) return;
+
+    const msg = String(text || "");
+    el.textContent = msg;
+    el.classList.remove("text-white/90", "text-amber-200", "text-rose-200", "text-emerald-200");
+
+    if (tone === "error") el.classList.add("text-rose-200");
+    else if (tone === "warn") el.classList.add("text-amber-200");
+    else if (tone === "ok") el.classList.add("text-emerald-200");
+    else el.classList.add("text-white/90");
+
+    el.title = pending !== undefined ? `pending: ${pending}` : "";
   }
 
   function setSyncMeta(meta = {}) {
-    // Left empty as well
+    // reserved for future (last sync time, etc.)
   }
-
   function setGoogleState(state) {
     googleState = { ...googleState, ...state };
 

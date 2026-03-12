@@ -69,7 +69,11 @@
       </button>
       <h1 class="text-base font-bold tracking-tight">動態表單中心</h1>
     </div>
-    <div class="flex gap-1">
+    <div class="flex items-center gap-1">
+      <span id="sync-status" class="hidden sm:inline text-[11px] text-white/90 mr-1"></span>
+      <button id="btn-sync-now" class="p-2 hover:bg-white/20 rounded-full transition-colors" title="同步">
+        <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+      </button>
       <button id="btn-search" class="p-2 hover:bg-white/20 rounded-full transition-colors" title="查詢">
         <i data-lucide="search" class="w-5 h-5"></i>
       </button>

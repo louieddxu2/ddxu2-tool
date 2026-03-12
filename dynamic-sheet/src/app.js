@@ -102,7 +102,7 @@ function scheduleAutoSync() {
   if (autoSyncTimer) clearTimeout(autoSyncTimer);
   autoSyncTimer = setTimeout(async () => {
     const pending = await store.getPendingCountSafe();
-    if (pending > 0 && googleAuth.getPersistentState() && window.dynamicSheetCloudAdapter) {
+    if (pending > 0 && (googleAuth.getState().connected || googleAuth.getPersistentState()) && window.dynamicSheetCloudAdapter) {
       await runSyncFlow();
     }
   }, 2000); // Debounce sync by 2 seconds
@@ -244,6 +244,22 @@ async function boot() {
 
   await googleAuth.init();
   refreshGoogleStatus();
+
+  const btnSyncNow = document.getElementById("btn-sync-now");
+  if (btnSyncNow) {
+    btnSyncNow.addEventListener("click", async () => {
+      const ctx = store.getState().sheetContextId;
+      if (!ctx) {
+        window.alert("請先選擇一個 Sheet");
+        return;
+      }
+      // allow retrying deferred ops on manual click
+      await resetOperationBackoff(ctx);
+      if (ui) ui.setSyncStatus({ text: "同步中...", tone: "warn", pending: await store.getPendingCountSafe() });
+      await syncEngine.syncNow({ includeDeferred: true });
+      await refreshPendingStatus();
+    });
+  }
 
   await store.boot();
   await refreshPendingStatus();
