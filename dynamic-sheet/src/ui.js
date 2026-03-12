@@ -462,20 +462,8 @@ export function createUI({
         if (!spreadsheetId) {
            throw new Error("請輸入有效的 Google Sheet 網址或 ID");
         }
-        await store.addSheetNode({ name, url, parentId, permission });
+        await onGoogleLinkSheetByUrl({ input: url, customName: name, permission, parentId, fromPickerOnly: false });
         closeEditor();
-
-        if (window.dynamicSheetCloudAdapter?.pullData) {
-          setSyncStatus({ text: "正在下載試算表資料...", tone: "warn", pending: 0 });
-          const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId });
-          if (imported.ok) {
-             await store.overwriteSheetData(imported.schema, imported.rows);
-             setSyncStatus({ text: "資料下載完成", tone: "ok", pending: 0 });
-          } else {
-             setSyncStatus({ text: `下載資料失敗: ${imported.reason}`, tone: "error", pending: 0 });
-             window.alert(`您已加入節點，但無法從雲端自動下載資料：${imported.reason}\n請先從左側選單連結 Google 帳戶並設定為「Editor/Viewer」，然後點擊上方的「從雲端下載」按鈕重試。`);
-          }
-        }
       } catch (error) {
         window.alert(error.message || "Google Sheet 網址無效");
       }

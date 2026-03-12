@@ -223,6 +223,56 @@ export async function getPendingCount(sheetId = null) {
   return all.filter((item) => item.sheetId === sheetId).length;
 }
 
+export async function getDueOperationCount(sheetId) {
+  const readyDb = await initStorage();
+  const tx = readyDb.transaction(OP_STORE, "readonly");
+  const index = tx.objectStore(OP_STORE).index("by_sheet_next_retry");
+  const range = IDBKeyRange.bound([sheetId, 0], [sheetId, Date.now()]);
+
+  let count = 0;
+  await new Promise((resolve, reject) => {
+    const req = index.openCursor(range);
+    req.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      const value = cursor.value;
+      if (value && value.status === "pending") count += 1;
+      cursor.continue();
+    };
+    req.onerror = () => reject(req.error || new Error("Failed counting due operations"));
+  });
+
+  await waitForTx(tx);
+  return count;
+}
+
+export async function clearOperationsForSheet(sheetId) {
+  const readyDb = await initStorage();
+  const tx = readyDb.transaction(OP_STORE, "readwrite");
+  const store = tx.objectStore(OP_STORE);
+  const index = store.index("by_sheet_next_retry");
+  const range = IDBKeyRange.bound([sheetId, 0], [sheetId, Number.MAX_SAFE_INTEGER]);
+
+  await new Promise((resolve, reject) => {
+    const req = index.openCursor(range);
+    req.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      store.delete(cursor.primaryKey);
+      cursor.continue();
+    };
+    req.onerror = () => reject(req.error || new Error("Failed clearing operations"));
+  });
+
+  await waitForTx(tx);
+}
+
 export async function clearAllData() {
   const readyDb = await initStorage();
   const tx = readyDb.transaction([SHEET_STORE, OP_STORE, NODE_STORE, APP_META_STORE], "readwrite");

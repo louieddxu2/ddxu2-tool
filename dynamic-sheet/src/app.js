@@ -3,7 +3,7 @@ import { createGoogleAuthManager } from "./googleAuth.js";
 import { parseSpreadsheetId, resolveSheetFromInput, searchUserSheets } from "./googleSheets.js";
 import { pickSpreadsheet } from "./googlePicker.js";
 import { createGoogleSyncAdapter } from "./googleSyncAdapter.js";
-import { clearAllData, getMeta, resetOperationBackoff, setMeta } from "./storage.js";
+import { clearAllData, clearOperationsForSheet, getDueOperationCount, getMeta, resetOperationBackoff, setMeta } from "./storage.js";
 import { createStore } from "./state.js";
 import { createSyncEngine } from "./sync.js";
 import { createUI } from "./ui.js";
@@ -45,12 +45,22 @@ if (googleConfig.clientId) {
 }
 
 const syncEngine = createSyncEngine({
-  getActiveSheetId: () => store.getState().sheetContextId,
+  getActiveSheetId: () => getActiveCloudSpreadsheetId(),
   getSchema: () => store.getState().schema,
   onStatus: (status) => {
     if (ui) ui.setSyncStatus(status);
   }
 });
+
+
+function getActiveCloudSpreadsheetId() {
+  const state = store.getState();
+  const node = (state.nodes || []).find((n) => n.id === state.activeNodeId);
+  if (!node || node.type !== "sheet") return "";
+  // local sample sheet should not be synced to Google
+  if (!node.url || !node.spreadsheetId || node.spreadsheetId === "local-sample") return "";
+  return node.spreadsheetId;
+}
 
 function getGoogleUiState(errorMessage = "") {
   const auth = googleAuth.getState();
@@ -73,15 +83,25 @@ function refreshGoogleStatus(errorMessage = "") {
 
 async function refreshPendingStatus() {
   const pending = await store.getPendingCountSafe();
-  const ctx = store.getState().sheetContextId;
+  const ctx = getActiveCloudSpreadsheetId();
+  const due = ctx ? await getDueOperationCount(ctx) : 0;
   if (!ctx) {
-    ui.setSyncStatus({ text: "請先選擇一個 Sheet", tone: "warn", pending: 0 });
+    // Either no sheet selected, or a local-only sheet
+    const state = store.getState();
+    const node = (state.nodes || []).find((n) => n.id === state.activeNodeId);
+    if (!node || node.type !== "sheet") {
+      ui.setSyncStatus({ text: "請先選擇一個 Sheet", tone: "warn", pending: 0 });
+    } else if (!node.url || node.spreadsheetId === "local-sample") {
+      ui.setSyncStatus({ text: "本地 Sheet（未啟用雲端同步）", tone: "warn", pending: 0 });
+    } else {
+      ui.setSyncStatus({ text: "未啟用雲端同步", tone: "warn", pending: 0 });
+    }
     return;
   }
 
   if (window.dynamicSheetCloudAdapter) {
     ui.setSyncStatus({
-      text: pending > 0 ? `待同步 ${pending} 筆` : "同步佇列為空",
+      text: pending > 0 ? (due > 0 ? `待同步 ${due}/${pending} 筆` : `待同步 ${pending} 筆（等待重試）`) : "同步佇列為空",
       tone: pending > 0 ? "warn" : "ok",
       pending
     });
@@ -148,6 +168,7 @@ async function onGoogleLinkSheetFromSearch({ spreadsheetId, name, webViewLink, p
     const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId });
     if (imported.ok) {
        await store.overwriteSheetData(imported.schema, imported.rows);
+       await clearOperationsForSheet(spreadsheetId);
        if (ui) ui.setSyncStatus({ text: "資料下載完成", tone: "ok", pending: 0 });
     } else {
        if (ui) ui.setSyncStatus({ text: `下載資料失敗: ${imported.reason}`, tone: "error", pending: 0 });
@@ -158,11 +179,13 @@ async function onGoogleLinkSheetFromSearch({ spreadsheetId, name, webViewLink, p
 
 async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId, fromPickerOnly }) {
   const accessToken = await ensureGoogleToken();
-  const picked = await pickSpreadsheet({
-    accessToken,
-    apiKey: googleConfig.apiKey,
-    title: "請選擇試算表"
-  });
+  const picked = fromPickerOnly
+    ? await pickSpreadsheet({
+      accessToken,
+      apiKey: googleConfig.apiKey,
+      title: "選擇 Google 試算表"
+    })
+    : await resolveSheetFromInput({ accessToken, input, apiKey: googleConfig.apiKey });
 
   const finalTitle = customName || picked.name || "Untitled Sheet";
   const finalUrl = picked.url || `https://docs.google.com/spreadsheets/d/${picked.id}/edit`;
@@ -179,6 +202,7 @@ async function onGoogleLinkSheetByUrl({ input, customName, permission, parentId,
     const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId: picked.id });
     if (imported.ok) {
        await store.overwriteSheetData(imported.schema, imported.rows);
+       await clearOperationsForSheet(picked.id);
        window.alert("匯入成功！");
     } else {
        window.alert(`無法下載該試算表資料：${imported.reason}`);
@@ -208,6 +232,7 @@ async function onPullNow() {
     const imported = await window.dynamicSheetCloudAdapter.pullData({ spreadsheetId: node.spreadsheetId });
     if (imported.ok) {
        await store.overwriteSheetData(imported.schema, imported.rows);
+       await clearOperationsForSheet(node.spreadsheetId);
        if (ui) ui.setSyncStatus({ text: "下載覆蓋完成", tone: "ok", pending: await store.getPendingCountSafe() });
        window.alert("下載完成！");
     } else {
@@ -248,7 +273,7 @@ async function boot() {
   const btnSyncNow = document.getElementById("btn-sync-now");
   if (btnSyncNow) {
     btnSyncNow.addEventListener("click", async () => {
-      const ctx = store.getState().sheetContextId;
+      const ctx = getActiveCloudSpreadsheetId();
       if (!ctx) {
         window.alert("請先選擇一個 Sheet");
         return;
