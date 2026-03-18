@@ -37,9 +37,53 @@
 
       // 讓工具內「返回首頁」在本機、Vercel、GitHub Pages 都指向正確路徑
       const launcherPath = appPath.replace(/[^/]+\/$/, '');
-      document.querySelectorAll('[data-home-link]').forEach(el => {
-        el.setAttribute('href', launcherPath || '/');
-      });
+      const normalizedLauncherPath = launcherPath || '/';
+
+      function configureHomeLinkAndProbe() {
+        const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
+        const spacer = document.getElementById('header-spacer');
+
+        homeLinks.forEach(el => {
+          el.setAttribute('href', normalizedLauncherPath);
+        });
+
+        // 本機直接開啟 (file://) 時，無法可靠探測首頁是否存在；保持隱藏，當作單頁模式。
+        if (window.location.protocol === 'file:') return;
+
+        const probeUrl = normalizedLauncherPath.endsWith('/')
+          ? `${normalizedLauncherPath}index.html`
+          : `${normalizedLauncherPath}/index.html`;
+
+        const revealHome = () => {
+          homeLinks.forEach(el => {
+            el.classList.remove('invisible', 'pointer-events-none');
+          });
+          if (spacer) spacer.classList.remove('hidden');
+        };
+
+        fetch(probeUrl, { method: 'HEAD' })
+          .then(res => {
+            if (res.ok) {
+              revealHome();
+              return;
+            }
+            // 某些靜態主機可能不支援 HEAD，改用 GET 當備援（只要成功就顯示）。
+            if (res.status === 405) {
+              return fetch(probeUrl, { method: 'GET' }).then(r => {
+                if (r.ok) revealHome();
+              });
+            }
+          })
+          .catch(() => {
+            // 網路錯誤 / 404 / CORS 等情況：保持隱藏 => 單頁模式
+          });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
+      } else {
+        configureHomeLinkAndProbe();
+      }
 
       const appMeta = {
         id: 'your-tool-id',
@@ -70,7 +114,7 @@
 
   <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-20">
     <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors invisible pointer-events-none">
         <i data-lucide="home" class="w-5 h-5"></i>
       </a>
       <h1 class="text-lg font-bold tracking-tight">你的工具名稱</h1>
