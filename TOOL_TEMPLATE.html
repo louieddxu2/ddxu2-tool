@@ -35,6 +35,12 @@
       if (!appPath.endsWith('/')) appPath += '/';
       if (appPath === '/') return;
 
+      // 給首頁大廳記住「使用者最後一次在哪個工具」
+      try {
+        localStorage.setItem('myAppLauncherLastPath', appPath);
+        localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
+      } catch {}
+
       // 讓工具內「返回首頁」在本機、Vercel、GitHub Pages 都指向正確路徑
       const launcherPath = appPath.replace(/[^/]+\/$/, '');
       const normalizedLauncherPath = launcherPath || '/';
@@ -42,9 +48,12 @@
       function configureHomeLinkAndProbe() {
         const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
         const spacer = document.getElementById('header-spacer');
+        const homeHref = normalizedLauncherPath.includes('?')
+          ? `${normalizedLauncherPath}&home=1`
+          : `${normalizedLauncherPath}?home=1`;
 
         homeLinks.forEach(el => {
-          el.setAttribute('href', normalizedLauncherPath);
+          el.setAttribute('href', homeHref);
         });
 
         // 本機直接開啟 (file://) 時，無法可靠探測首頁是否存在；保持隱藏，當作單頁模式。

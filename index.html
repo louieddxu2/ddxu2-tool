@@ -6,6 +6,7 @@
     <title>小工具 by ddxu2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@0.542.0"></script>
+    <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3C/svg%3E">
     <meta name="theme-color" content="#3b82f6">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -32,6 +33,11 @@
         <!-- 編輯模式切換按鈕 -->
         <button id="btn-toggle-edit" class="absolute top-5 right-4 p-2 bg-blue-700 hover:bg-blue-800 rounded-full text-blue-200 hover:text-white transition-colors z-20 focus:outline-none">
             <i data-lucide="settings-2" class="w-5 h-5"></i>
+        </button>
+
+        <!-- Android/Chrome：可安裝時才會顯示 -->
+        <button id="btn-install" class="absolute top-5 left-4 p-2 bg-blue-700 hover:bg-blue-800 rounded-full text-blue-200 hover:text-white transition-colors z-20 focus:outline-none hidden" aria-label="安裝到主畫面">
+            <i data-lucide="download" class="w-5 h-5"></i>
         </button>
     </header>
 
@@ -80,6 +86,52 @@
     <script>
         // 初始化 Icons
         lucide.createIcons();
+
+        // ==========================================
+        // PWA（只讓目錄頁可安裝）：SW 註冊 + 安裝按鈕
+        // ==========================================
+        if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+
+        let deferredInstallPrompt = null;
+        const installBtn = document.getElementById('btn-install');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Android Chrome：攔下預設迷你資訊列，改由我們的按鈕觸發
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            if (installBtn) installBtn.classList.remove('hidden');
+        });
+
+        if (installBtn) {
+            installBtn.addEventListener('click', async () => {
+                if (!deferredInstallPrompt) return;
+                installBtn.classList.add('hidden');
+                deferredInstallPrompt.prompt();
+                try { await deferredInstallPrompt.userChoice; } catch {}
+                deferredInstallPrompt = null;
+            });
+        }
+
+        // ==========================================
+        // 已安裝的目錄頁：自動回到上次使用的工具
+        // - 進目錄頁但想停留：網址加 ?home=1
+        // ==========================================
+        (function autoOpenLastTool() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('home')) return;
+
+            const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                || (window.navigator && window.navigator.standalone === true);
+            if (!isStandalone) return;
+
+            const lastPath = localStorage.getItem('myAppLauncherLastPath');
+            if (!lastPath || typeof lastPath !== 'string') return;
+            if (!lastPath.startsWith('/') || lastPath === '/' || lastPath === window.location.pathname) return;
+
+            window.location.replace(lastPath);
+        })();
 
         // ==========================================
         // 大廳核心邏輯：從 LocalStorage 讀取所有註冊的 App
