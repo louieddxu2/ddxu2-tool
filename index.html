@@ -218,7 +218,7 @@
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
 
-                        <a href="${linkHref}" class="app-card block bg-white border border-slate-200 hover:border-blue-400 rounded-3xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center text-center ${shakeClass} relative overflow-hidden transition-all h-full min-h-[140px]">
+                        <a href="${linkHref}" data-app-path="${app.path}" class="app-card block bg-white border border-slate-200 hover:border-blue-400 rounded-3xl p-5 shadow-sm hover:shadow-md flex flex-col items-center justify-center text-center ${shakeClass} relative overflow-hidden transition-all h-full min-h-[140px]">
                             <div class="w-14 h-14 ${theme.bg} rounded-full flex items-center justify-center mb-4 transition-colors">
                                 <i data-lucide="${app.icon || 'box'}" class="w-7 h-7 ${theme.text}"></i>
                             </div>
@@ -249,6 +249,25 @@
             toast.classList.remove('opacity-0'); toast.classList.add('opacity-100');
             setTimeout(() => { toast.classList.remove('opacity-100'); toast.classList.add('opacity-0'); }, 2500);
         }
+
+        // 讓「舊版工具」也能支援回到上次使用：在目錄頁點擊工具時就寫入 lastPath
+        grid.addEventListener('click', (e) => {
+            const link = e.target.closest('a[data-app-path]');
+            if (!link) return;
+
+            const path = link.getAttribute('data-app-path');
+            if (!path) return;
+
+            if (isEditMode) {
+                e.preventDefault();
+                return;
+            }
+
+            try {
+                localStorage.setItem('myAppLauncherLastPath', path);
+                localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
+            } catch {}
+        });
 
         // 切換編輯模式
         document.getElementById('btn-toggle-edit').addEventListener('click', () => {
