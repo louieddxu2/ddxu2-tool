@@ -773,6 +773,10 @@
         // ==========================================
         const db = new Dexie("PolyglotVocabDB");
         db.version(1).stores({ words: '++id, textA, textB, langA, langB, createdAt' });
+        // 相容性修補：曾經短暫上線過 v2（加入 audio store）。
+        // 若用戶端 DB 已升到 v2，而程式只宣告 v1，IndexedDB 會拒絕以較低版本開啟，導致看起來像資料消失。
+        // 這裡保留 v2 schema 以確保可正常讀回 words 資料。
+        db.version(2).stores({ words: '++id, textA, textB, langA, langB, createdAt', audio: '&key, blob, mime, updatedAt' });
         let translationPreview = null;
         let isTranslatingPreview = false;
         let previewRequestId = 0;
