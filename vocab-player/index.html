@@ -128,6 +128,28 @@
                     <input id="pause-scale" type="range" min="50" max="200" step="10" value="100" class="w-full accent-blue-600">
                     <p id="pause-preview" class="text-xs text-slate-500 mt-1">詞內停頓: 600/800ms，詞間停頓: 1000ms</p>
                 </div>
+
+                <div class="mt-3 bg-white p-3 rounded-lg shadow-sm">
+                    <div class="flex items-center justify-between text-sm mb-2 gap-3">
+                        <span id="audio-settings-title" class="text-slate-700 font-medium">音檔播放 (實驗)</span>
+                        <label class="flex items-center gap-2 text-xs text-slate-700 font-medium whitespace-nowrap">
+                            <input id="opt-audio-mode" type="checkbox" class="w-4 h-4 accent-blue-600">
+                            <span id="label-audio-mode">使用音檔</span>
+                        </label>
+                    </div>
+                    <p id="audio-settings-hint" class="text-xs text-slate-500 mt-1 leading-relaxed">
+                        檔名格式：<span class="font-mono">語言代碼__文字</span>（例：<span class="font-mono">en-US__apple.mp3</span>、<span class="font-mono">zh-TW__蘋果.m4a</span>）
+                    </p>
+                    <input id="audio-file-input" type="file" accept="audio/*" multiple
+                        class="mt-2 block w-full text-xs text-slate-600
+                               file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0
+                               file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700
+                               hover:file:bg-slate-200" />
+                    <button id="btn-clear-audio" type="button"
+                        class="mt-2 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg py-2 text-xs font-bold transition-colors active:scale-[0.99]">
+                        清除已匯入音檔
+                    </button>
+                </div>
             </div>
 
             <!-- 播放狀態顯示 -->
@@ -316,6 +338,14 @@
                 tabLibrary: '詞彙',
                 repeatSettingsTitle: '朗讀次數設定',
                 pauseSettingsTitle: '停頓時間',
+                audioSettingsTitle: '音檔播放 (實驗)',
+                audioModeLabel: '使用音檔',
+                audioHint: '檔名格式：語言代碼__文字（例：en-US__apple.mp3、zh-TW__蘋果.m4a）',
+                audioClear: '清除已匯入音檔',
+                audioImportResult: (added, skipped) => `已匯入 ${added} 個音檔，略過 ${skipped} 個`,
+                audioImportBadName: (name) => `檔名格式不符，已略過：${name}`,
+                audioCleared: '已清除所有匯入音檔',
+                audioPlayBlocked: '音檔播放被瀏覽器阻擋，請再點一次播放鍵',
                 idleHint: '點擊下方按鈕開始隨機播放',
                 continuousPlay: '持續播放',
                 limitPlay: '指定次數',
@@ -397,6 +427,14 @@
                 tabLibrary: 'Cards',
                 repeatSettingsTitle: 'Repeat Settings',
                 pauseSettingsTitle: 'Pause Timing',
+                audioSettingsTitle: 'Audio Playback (Experimental)',
+                audioModeLabel: 'Use audio files',
+                audioHint: 'Filename format: langCode__text (e.g. en-US__apple.mp3, zh-TW__蘋果.m4a)',
+                audioClear: 'Clear imported audio',
+                audioImportResult: (added, skipped) => `${added} audio files imported, ${skipped} skipped`,
+                audioImportBadName: (name) => `Skipped (bad filename): ${name}`,
+                audioCleared: 'Cleared all imported audio',
+                audioPlayBlocked: 'Audio playback was blocked. Tap Play again.',
                 idleHint: 'Tap the button below to start random playback',
                 continuousPlay: 'Continuous',
                 limitPlay: 'Play count',
@@ -566,6 +604,10 @@
             document.getElementById('tab-library-text').textContent = t('tabLibrary');
             document.getElementById('repeat-settings-title').textContent = t('repeatSettingsTitle');
             document.getElementById('pause-settings-title').textContent = t('pauseSettingsTitle');
+            document.getElementById('audio-settings-title').textContent = t('audioSettingsTitle');
+            document.getElementById('label-audio-mode').textContent = t('audioModeLabel');
+            document.getElementById('audio-settings-hint').textContent = t('audioHint');
+            document.getElementById('btn-clear-audio').textContent = t('audioClear');
             document.getElementById('idle-hint').textContent = t('idleHint');
             document.getElementById('label-continuous-play').textContent = t('continuousPlay');
             document.getElementById('label-limit-play').textContent = t('limitPlay');
@@ -773,6 +815,7 @@
         // ==========================================
         const db = new Dexie("PolyglotVocabDB");
         db.version(1).stores({ words: '++id, textA, textB, langA, langB, createdAt' });
+        db.version(2).stores({ words: '++id, textA, textB, langA, langB, createdAt', audio: '&key, blob, mime, updatedAt' });
         let translationPreview = null;
         let isTranslatingPreview = false;
         let previewRequestId = 0;
@@ -1165,13 +1208,48 @@
         // ==========================================
         // 語音引擎與播放 (支援熟練刪除 Skip)
         // ==========================================
+        const AUDIO_MODE_STORAGE_KEY = 'vocabAudioModeEnabled';
         let shouldStop = false;
         let skipCurrentWord = false; 
         let currentPlayingWordId = null; 
         const synth = window.speechSynthesis;
 
-        if (!('speechSynthesis' in window)) {
+        function isAudioModeEnabled() {
+            const el = document.getElementById('opt-audio-mode');
+            return !!(el && el.checked);
+        }
+
+        if (!('speechSynthesis' in window) && localStorage.getItem(AUDIO_MODE_STORAGE_KEY) !== '1') {
             setTimeout(() => { showModal({ title: t('unsupportedSpeechTitle'), message: t('unsupportedSpeechMessage'), type: 'alert', confirmText: t('unsupportedSpeechConfirm'), icon: 'alert-circle' }); }, 500);
+        }
+
+        let sharedAudioEl = null;
+        let audioPendingResolve = null;
+        let audioPendingCleanup = null;
+        function getSharedAudioElement() {
+            if (sharedAudioEl) return sharedAudioEl;
+            sharedAudioEl = new Audio();
+            sharedAudioEl.preload = 'auto';
+            return sharedAudioEl;
+        }
+        function stopAudioPlayback() {
+            if (sharedAudioEl) {
+                try { sharedAudioEl.onended = null; sharedAudioEl.onerror = null; } catch {}
+                try { sharedAudioEl.pause(); } catch {}
+                try { sharedAudioEl.src = ''; sharedAudioEl.load(); } catch {}
+            }
+            if (audioPendingCleanup) {
+                try { audioPendingCleanup(); } catch {}
+                audioPendingCleanup = null;
+            }
+            if (audioPendingResolve) {
+                const r = audioPendingResolve;
+                audioPendingResolve = null;
+                r();
+            }
+        }
+        function makeAudioKey(text, langCode) {
+            return `${langCode}::${normalizeText(text)}`;
         }
         function getVoiceForLang(langCode) {
             const voices = synth.getVoices();
@@ -1182,22 +1260,71 @@
 
         function speakText(text, langCode) {
             return new Promise((resolve) => {
-                if (shouldStop || skipCurrentWord || !text) return resolve();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = langCode;
-                const voice = getVoiceForLang(langCode);
-                if (voice) utterance.voice = voice;
-                
-                if(langCode.includes('vi')) utterance.rate = 0.85; 
-                else if(langCode.includes('en')) utterance.rate = 0.9;
-                else utterance.rate = 1.0;
+                (async () => {
+                    if (shouldStop || skipCurrentWord || !text) return resolve();
 
-                utterance.onend = resolve;
-                utterance.onerror = (e) => {
-                    if (e.error === 'not-allowed') showToast(t('speechBlocked'));
-                    resolve(); 
-                };
-                synth.speak(utterance);
+                    if (isAudioModeEnabled()) {
+                        const key = makeAudioKey(text, langCode);
+                        try {
+                            const entry = await db.audio.get(key);
+                            if (entry && entry.blob) {
+                                const audio = getSharedAudioElement();
+                                stopAudioPlayback();
+
+                                const objectUrl = URL.createObjectURL(entry.blob);
+                                audioPendingResolve = resolve;
+                                audioPendingCleanup = () => URL.revokeObjectURL(objectUrl);
+
+                                const finalize = () => {
+                                    if (audioPendingResolve === resolve) audioPendingResolve = null;
+                                    if (audioPendingCleanup) { try { audioPendingCleanup(); } catch {} audioPendingCleanup = null; }
+                                    try { audio.onended = null; audio.onerror = null; } catch {}
+                                    resolve();
+                                };
+
+                                const poll = setInterval(() => {
+                                    if (shouldStop || skipCurrentWord) {
+                                        clearInterval(poll);
+                                        stopAudioPlayback();
+                                    }
+                                }, 50);
+
+                                audio.onended = () => { clearInterval(poll); finalize(); };
+                                audio.onerror = () => { clearInterval(poll); finalize(); };
+                                audio.src = objectUrl;
+                                const p = audio.play();
+                                if (p && typeof p.catch === 'function') {
+                                    p.catch(() => {
+                                        clearInterval(poll);
+                                        showToast(t('audioPlayBlocked'));
+                                        finalize();
+                                    });
+                                }
+                                return;
+                            }
+                        } catch {
+                            // ignore and fall back to speech
+                        }
+                    }
+
+                    if (!('speechSynthesis' in window)) return resolve();
+
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = langCode;
+                    const voice = getVoiceForLang(langCode);
+                    if (voice) utterance.voice = voice;
+
+                    if (langCode.includes('vi')) utterance.rate = 0.85;
+                    else if (langCode.includes('en')) utterance.rate = 0.9;
+                    else utterance.rate = 1.0;
+
+                    utterance.onend = resolve;
+                    utterance.onerror = (e) => {
+                        if (e.error === 'not-allowed') showToast(t('speechBlocked'));
+                        resolve();
+                    };
+                    synth.speak(utterance);
+                })();
             });
         }
 
@@ -1221,12 +1348,12 @@
             if (currentPlayingWordId) {
                 await db.words.delete(currentPlayingWordId);
                 showToast(t('masteredRemoved'));
-                skipCurrentWord = true; synth.cancel(); loadWordList();
+                skipCurrentWord = true; synth.cancel(); stopAudioPlayback(); loadWordList();
             }
         });
 
         async function validatePlaybackStart() {
-            if (!('speechSynthesis' in window)) {
+            if (!isAudioModeEnabled() && !('speechSynthesis' in window)) {
                 return { title: t('playbackBlockedTitle'), message: t('unsupportedSpeechMessage') };
             }
 
@@ -1337,6 +1464,9 @@
             document.getElementById('select-langA'),
             document.getElementById('select-langB'),
             document.getElementById('pause-scale'),
+            document.getElementById('opt-audio-mode'),
+            document.getElementById('audio-file-input'),
+            document.getElementById('btn-clear-audio'),
             document.getElementById('opt-continuous'),
             document.getElementById('opt-limit-enabled'),
             document.getElementById('opt-limit-count'),
@@ -1375,7 +1505,7 @@
 
         async function togglePlayState(forceStop = false) {
             if (isPlaying || forceStop) {
-                isPlaying = false; shouldStop = true; synth.cancel();
+                isPlaying = false; shouldStop = true; synth.cancel(); stopAudioPlayback();
                 setPlayingControlsDisabled(false);
                 optLimitCount.disabled = !optLimitEnabled.checked;
                 btnPlayStop.className = "flex-1 bg-blue-600 text-white rounded-2xl py-4 text-xl font-bold shadow-lg shadow-blue-200 transition-all transform active:scale-95 flex items-center justify-center";
@@ -1391,7 +1521,11 @@
 
                 isPlaying = true; shouldStop = false;
                 setPlayingControlsDisabled(true);
-                const unlockUtterance = new SpeechSynthesisUtterance(' '); unlockUtterance.volume = 0.01; synth.speak(unlockUtterance);
+                if (!isAudioModeEnabled() && ('speechSynthesis' in window)) {
+                    const unlockUtterance = new SpeechSynthesisUtterance(' ');
+                    unlockUtterance.volume = 0.01;
+                    synth.speak(unlockUtterance);
+                }
                 btnPlayStop.className = "flex-1 bg-red-500 text-white rounded-2xl py-4 text-xl font-bold shadow-lg shadow-red-200 transition-all transform active:scale-95 flex items-center justify-center";
                 document.getElementById('icon-play').classList.add('hidden'); document.getElementById('icon-stop').classList.remove('hidden');
                 document.getElementById('text-play-stop').textContent = t('playStop');
@@ -1400,6 +1534,60 @@
             }
         }
         btnPlayStop.addEventListener('click', async () => { await togglePlayState(); });
+
+        const audioModeCheckbox = document.getElementById('opt-audio-mode');
+        const audioFileInput = document.getElementById('audio-file-input');
+        const btnClearAudio = document.getElementById('btn-clear-audio');
+        if (audioModeCheckbox) {
+            audioModeCheckbox.checked = localStorage.getItem(AUDIO_MODE_STORAGE_KEY) === '1';
+            audioModeCheckbox.addEventListener('change', () => {
+                localStorage.setItem(AUDIO_MODE_STORAGE_KEY, audioModeCheckbox.checked ? '1' : '0');
+            });
+        }
+        function parseAudioFilename(fileName) {
+            const dot = fileName.lastIndexOf('.');
+            const base = dot >= 0 ? fileName.slice(0, dot) : fileName;
+            const idx = base.indexOf('__');
+            if (idx <= 0) return null;
+            const langCode = base.slice(0, idx).trim();
+            const text = base.slice(idx + 2);
+            if (!langCode || !text) return null;
+            return { langCode, text: normalizeText(text) };
+        }
+        if (audioFileInput) {
+            audioFileInput.addEventListener('change', async () => {
+                const files = Array.from(audioFileInput.files || []);
+                if (files.length === 0) return;
+
+                let added = 0;
+                let skipped = 0;
+                for (const file of files) {
+                    const parsed = parseAudioFilename(file.name);
+                    if (!parsed) {
+                        skipped += 1;
+                        showToast(t('audioImportBadName', file.name));
+                        continue;
+                    }
+                    const key = `${parsed.langCode}::${parsed.text}`;
+                    try {
+                        await db.audio.put({ key, blob: file, mime: file.type || 'audio/*', updatedAt: Date.now() });
+                        added += 1;
+                    } catch {
+                        skipped += 1;
+                    }
+                }
+                showToast(t('audioImportResult', added, skipped));
+                audioFileInput.value = '';
+            });
+        }
+        if (btnClearAudio) {
+            btnClearAudio.addEventListener('click', async () => {
+                try {
+                    await db.audio.clear();
+                    showToast(t('audioCleared'));
+                } catch {}
+            });
+        }
 
         function updateLabels() {
             const langs = getCurrentLangs();
