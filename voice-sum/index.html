@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>èªéŸ³? ç¸½</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@0.542.0"></script>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <style>
+    ::-webkit-scrollbar { width: 0; background: transparent; }
+    body { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+  <script>
+    (function autoRegister() {
+      let appPath = window.location.pathname;
+      if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
+      if (!appPath.endsWith('/')) appPath += '/';
+      if (appPath === '/') return;
+
+      try {
+        localStorage.setItem('myAppLauncherLastPath', appPath);
+        localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
+      } catch {}
+
+      const launcherPath = appPath.replace(/[^/]+\/$/, '');
+      const normalizedLauncherPath = launcherPath || '/';
+
+      function configureHomeLinkAndProbe() {
+        const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
+        const spacer = document.getElementById('header-spacer');
+        const homeHref = normalizedLauncherPath.includes('?')
+          ? `${normalizedLauncherPath}&home=1`
+          : `${normalizedLauncherPath}?home=1`;
+
+        homeLinks.forEach(el => el.setAttribute('href', homeHref));
+
+        if (window.location.protocol === 'file:') return;
+
+        const probeUrl = normalizedLauncherPath.endsWith('/')
+          ? `${normalizedLauncherPath}index.html`
+          : `${normalizedLauncherPath}/index.html`;
+
+        const revealHome = () => {
+          homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
+          if (spacer) spacer.classList.remove('hidden');
+        };
+
+        fetch(probeUrl, { method: 'HEAD' })
+          .then(res => {
+            if (res.ok) {
+              revealHome();
+              return;
+            }
+            if (res.status === 405) {
+              return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); });
+            }
+          })
+          .catch(() => {});
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
+      } else {
+        configureHomeLinkAndProbe();
+      }
+
+      const appMeta = {
+        id: 'voice-sum',
+        name: 'èªéŸ³? ç¸½',
+        nameZh: 'èªéŸ³? ç¸½',
+        nameEn: 'Voice Sum',
+        path: appPath,
+        icon: 'mic',
+        color: 'blue' // blue|emerald|amber|rose|purple
+      };
+
+      const storageKey = 'myAppLauncherStorage';
+      const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
+      if (existingIndex === -1) launcherData.push(appMeta);
+      else launcherData[existingIndex] = { ...launcherData[existingIndex], ...appMeta };
+      localStorage.setItem(storageKey, JSON.stringify(launcherData));
+    })();
+  </script>
+
+  <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-20">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors invisible pointer-events-none" aria-label="?åˆ°å¤§å»³">
+        <i data-lucide="home" class="w-5 h-5"></i>
+      </a>
+      <div class="flex items-center gap-2">
+        <span id="status-dot" class="inline-block w-2.5 h-2.5 rounded-full bg-white/40"></span>
+        <h1 class="text-lg font-bold tracking-tight">èªéŸ³? ç¸½</h1>
+      </div>
+      <div class="w-9"></div>
+    </div>
+  </header>
+
+  <main class="flex-grow w-full max-w-md mx-auto p-4 space-y-4">
+    <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider mb-1">?€??/h2>
+          <p id="status-text" class="text-slate-600 text-sm leading-relaxed">å°šæœª?‹å?</p>
+          <p id="support-text" class="text-slate-400 text-xs mt-1"></p>
+        </div>
+        <div class="text-right">
+          <div class="text-xs text-slate-400">?æ?ä¸‹ä???/div>
+          <div id="next-expected" class="text-2xl font-extrabold tabular-nums text-slate-700">1</div>
+        </div>
+      </div>
+
+      <div class="mt-4 grid grid-cols-2 gap-3">
+        <button id="btn-start" class="bg-blue-600 text-white py-3 rounded-xl font-semibold active:scale-95 transition-transform flex items-center justify-center gap-2">
+          <i data-lucide="mic" class="w-5 h-5"></i><span>?‹å?</span>
+        </button>
+        <button id="btn-stop" class="bg-slate-100 text-slate-600 py-3 rounded-xl font-semibold active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100" disabled>
+          <i data-lucide="square" class="w-5 h-5"></i><span>?œæ­¢</span>
+        </button>
+      </div>
+
+      <div class="mt-3 flex items-center justify-between gap-3">
+        <label class="flex items-center gap-2 text-xs text-slate-500 select-none">
+          <input id="toggle-autofill" type="checkbox" class="accent-blue-600" checked>
+          <span>?ªå?è£œç¼ºï¼ˆåªè£œã€Œä?ä¸€?‹ã€æ??‰ç?ä¸€æ¬¡ï?</span>
+        </label>
+        <label class="flex items-center gap-2 text-xs text-slate-500 select-none">
+          <input id="toggle-debug" type="checkbox" class="accent-blue-600">
+          <span>Debug</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+      <div class="flex items-baseline justify-between gap-3">
+        <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">?³æ?? ç¸½</h2>
+        <div class="text-xs text-slate-400">ç­†æ•¸ï¼?span id="count" class="tabular-nums">0</span></div>
+      </div>
+      <div class="mt-2 flex items-end justify-between">
+        <div class="text-5xl font-extrabold tabular-nums text-slate-800" id="sum">0</div>
+        <div class="text-right">
+          <div class="text-xs text-slate-400">?€å¾Œå???/div>
+          <div id="last-added" class="text-lg font-bold tabular-nums text-slate-700">??/div>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <div class="flex items-center justify-between">
+          <div class="text-xs text-slate-400">å·²è¾¨è­?/div>
+          <div class="flex items-center gap-2">
+            <button id="btn-undo" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 active:scale-95 transition-transform disabled:opacity-50 disabled:active:scale-100" disabled>å¾©å?</button>
+            <button id="btn-clear" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-600 active:scale-95 transition-transform">æ¸…ç©º</button>
+          </div>
+        </div>
+        <div id="numbers-box" class="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 font-mono leading-relaxed break-words min-h-[3.25rem]"></div>
+        <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">
+          å»ºè­°æ¸¬è©¦?¹å?ï¼šç”¨ä¸­æ?å¾ã€Œä??å¿µ?°ã€Œä??ã€ï?æ¯å€‹æ•¸å­—é??œé?ç´?0.5 ç§’ã€?        </p>
+      </div>
+    </section>
+
+    <section id="debug-panel" class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hidden">
+      <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">Debug</h2>
+      <div class="mt-2 space-y-2 text-xs">
+        <div class="text-slate-500">Interimï¼?span id="dbg-interim" class="font-mono text-slate-700"></span></div>
+        <div class="text-slate-500">Finalï¼?span id="dbg-final" class="font-mono text-slate-700"></span></div>
+        <div class="text-slate-500">?€è¿‘ä?ä»¶ï?</div>
+        <ul id="dbg-events" class="space-y-1 text-slate-600 font-mono"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    const STORAGE_KEY = 'voice-sum:v1';
+    const MAX_EVENTS = 14;
+
+    function clampInt(n, min, max) {
+      const v = Number.parseInt(String(n), 10);
+      if (!Number.isFinite(v)) return null;
+      if (v < min || v > max) return null;
+      return v;
+    }
+
+    function toHalfWidthDigits(input) {
+      return String(input).replace(/[ï¼?ï¼™]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30));
+    }
+
+    function normalizeTranscript(input) {
+      let s = toHalfWidthDigits(input);
+      s = s.replace(/\s+/g, '');
+      s = s.replace(/[ï¼??‚ï?.??ï¼?ï¼??ï¼ï?'"?œâ€?)ï¼ˆï?\[\]?ã€‘{}]/g, '');
+      s = s.replace(/??g, 'äº?).replace(/ä¿?g, 'äº?).replace(/??g, 'äº?);
+      s = s.replace(/å¹?g, 'ä¸€');
+      s = s.replace(/å»?g, 'äºŒå?').replace(/??g, 'äºŒå?');
+      s = s.replace(/??g, 'ä¸‰å?');
+      s = s.replace(/ä¸€??g, '??);
+      s = s.replace(/ç¬?g, '').replace(/??g, '').replace(/ä¸?g, '').replace(/??g, '');
+      return s;
+    }
+
+    function parseChineseNumberAt(s, idx) {
+      const digit = { 'ä¸€': 1, 'äº?: 2, 'ä¸?: 3, '??: 4, 'äº?: 5, '??: 6, 'ä¸?: 7, '??: 8, 'ä¹?: 9 };
+
+      const c1 = s[idx];
+      const c2 = s[idx + 1];
+      const c3 = s[idx + 2];
+
+      if (c1 === '??) {
+        const tail = digit[c2];
+        if (tail) return { value: 10 + tail, nextIdx: idx + 2 };
+        return { value: 10, nextIdx: idx + 1 };
+      }
+
+      const head = digit[c1];
+      if (!head) return null;
+
+      if (c2 === '??) {
+        const tail = digit[c3];
+        const v = head * 10 + (tail || 0);
+        if (v >= 1 && v <= 30) return { value: v, nextIdx: idx + (tail ? 3 : 2) };
+        return null;
+      }
+
+      return { value: head, nextIdx: idx + 1 };
+    }
+
+    function parseNumbersInOrder(rawTranscript) {
+      const s = normalizeTranscript(rawTranscript);
+      const out = [];
+      let i = 0;
+
+      while (i < s.length) {
+        const ch = s[i];
+        if (ch >= '0' && ch <= '9') {
+          let j = i + 1;
+          while (j < s.length && s[j] >= '0' && s[j] <= '9') j++;
+          const v = clampInt(s.slice(i, j), 1, 30);
+          if (v !== null) out.push(v);
+          i = j;
+          continue;
+        }
+
+        const parsed = parseChineseNumberAt(s, i);
+        if (parsed) {
+          out.push(parsed.value);
+          i = parsed.nextIdx;
+          continue;
+        }
+
+        i += 1;
+      }
+
+      return out;
+    }
+
+    const CONFUSABLE_SINGLE_CHAR = new Map([
+      ['è¥?, 7],
+      ['??, 7],
+      ['??, 7],
+      ['??, 7],
+      ['æ­?, 4],
+      ['??, 10],
+      ['??, 10],
+      ['äº?, 10],
+      ['??, 8],
+      ['??, 8],
+      ['??, 6],
+    ]);
+
+    function maybeGuessFromConfusable(rawTranscript, expectedNext) {
+      if (!expectedNext || expectedNext < 1 || expectedNext > 30) return null;
+      const s = normalizeTranscript(rawTranscript);
+      if (s.length !== 1) return null;
+      const guessed = CONFUSABLE_SINGLE_CHAR.get(s);
+      if (!guessed) return null;
+      if (guessed === expectedNext) return guessed;
+      return null;
+    }
+
+    function fmtNow() {
+      const d = new Date();
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      const ss = String(d.getSeconds()).padStart(2, '0');
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function createLruSet(limit) {
+      const map = new Map();
+      return {
+        has(key) { return map.has(key); },
+        add(key) {
+          map.set(key, 1);
+          if (map.size > limit) {
+            const first = map.keys().next().value;
+            map.delete(first);
+          }
+        }
+      };
+    }
+
+    const ui = {
+      statusDot: document.getElementById('status-dot'),
+      statusText: document.getElementById('status-text'),
+      supportText: document.getElementById('support-text'),
+      btnStart: document.getElementById('btn-start'),
+      btnStop: document.getElementById('btn-stop'),
+      btnUndo: document.getElementById('btn-undo'),
+      btnClear: document.getElementById('btn-clear'),
+      sum: document.getElementById('sum'),
+      count: document.getElementById('count'),
+      lastAdded: document.getElementById('last-added'),
+      numbersBox: document.getElementById('numbers-box'),
+      nextExpected: document.getElementById('next-expected'),
+      toggleAutofill: document.getElementById('toggle-autofill'),
+      toggleDebug: document.getElementById('toggle-debug'),
+      debugPanel: document.getElementById('debug-panel'),
+      dbgInterim: document.getElementById('dbg-interim'),
+      dbgFinal: document.getElementById('dbg-final'),
+      dbgEvents: document.getElementById('dbg-events'),
+    };
+
+    const state = {
+      items: [], // { value:number, inferred:boolean, at:number, src:string }
+      listening: false,
+      shouldListen: false,
+      lastAcceptedAt: 0,
+      session: 0,
+      recognition: null,
+      seenFinal: createLruSet(80),
+      lastFinalIgnoredCandidate: null, // { expected, candidate, at }
+    };
+
+    function computeSum() {
+      return state.items.reduce((acc, it) => acc + it.value, 0);
+    }
+
+    function expectedNextValue() {
+      const last = state.items.length ? state.items[state.items.length - 1].value : 0;
+      const next = last + 1;
+      if (next < 1) return 1;
+      if (next > 30) return 31;
+      return next;
+    }
+
+    function persist() {
+      try {
+        const payload = {
+          v: 1,
+          items: state.items.map(it => ({ value: it.value, inferred: !!it.inferred, at: it.at })),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch {}
+    }
+
+    function restore() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (!data || data.v !== 1 || !Array.isArray(data.items)) return;
+        state.items = data.items
+          .map(it => ({ value: clampInt(it.value, 1, 30), inferred: !!it.inferred, at: Number(it.at) || Date.now(), src: '' }))
+          .filter(it => it.value !== null);
+      } catch {}
+    }
+
+    function pushEvent(msg) {
+      if (ui.dbgEvents.children.length >= MAX_EVENTS) ui.dbgEvents.removeChild(ui.dbgEvents.lastChild);
+      const li = document.createElement('li');
+      li.textContent = `[${fmtNow()}] ${msg}`;
+      ui.dbgEvents.insertBefore(li, ui.dbgEvents.firstChild);
+    }
+
+    function setStatus(kind, text) {
+      ui.statusText.textContent = text;
+      const cls = {
+        idle: 'bg-white/40',
+        listening: 'bg-emerald-300',
+        error: 'bg-rose-300'
+      }[kind] || 'bg-white/40';
+
+      ui.statusDot.className = `inline-block w-2.5 h-2.5 rounded-full ${cls}`;
+    }
+
+    function render() {
+      const sum = computeSum();
+      ui.sum.textContent = String(sum);
+      ui.count.textContent = String(state.items.length);
+
+      const last = state.items.length ? state.items[state.items.length - 1] : null;
+      ui.lastAdded.textContent = last ? (last.inferred ? `${last.value}*` : String(last.value)) : '??;
+
+      const nums = state.items.map(it => it.inferred ? `${it.value}*` : String(it.value));
+      ui.numbersBox.textContent = nums.length ? nums.join(', ') : 'ï¼ˆå??¡ï?';
+
+      const next = expectedNextValue();
+      ui.nextExpected.textContent = next <= 30 ? String(next) : '??;
+
+      ui.btnUndo.disabled = state.items.length === 0;
+      persist();
+    }
+
+    function addNumber(value, { inferred = false, src = '' } = {}) {
+      const v = clampInt(value, 1, 30);
+      if (v === null) return false;
+      const expected = expectedNextValue();
+      if (expected > 30) return false;
+      if (expected <= 30 && v !== expected) return false;
+
+      state.items.push({ value: v, inferred: !!inferred, at: Date.now(), src });
+      state.lastAcceptedAt = Date.now();
+      render();
+      return true;
+    }
+
+    function undoLast() {
+      state.items.pop();
+      render();
+    }
+
+    function clearAll() {
+      state.items = [];
+      render();
+    }
+
+    function updateSupportText() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const isSupported = !!SR;
+      if (!isSupported) {
+        ui.supportText.textContent = 'æ­¤ç€è¦½?¨ä??¯æ´ Web Speech APIï¼ˆå»ºè­°ç”¨ Chrome/Edgeï¼‰ã€?;
+        return;
+      }
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        ui.supportText.textContent = '?é?ï¼šè??³è¾¨è­˜é€šå¸¸?€è¦?HTTPSï¼ˆæ? localhostï¼‰ã€?;
+        return;
+      }
+      ui.supportText.textContent = '?¯æ´ Web Speech API?‚å»ºè­°ä½¿??Chrome/Edge??;
+    }
+
+    function buildGrammar() {
+      const cn = [
+        'ä¸€','äº?,'ä¸?,'??,'äº?,'??,'ä¸?,'??,'ä¹?,
+        '??,'?ä?','?ä?','?ä?','?å?','?ä?','?å…­','?ä?','?å…«','?ä?',
+        'äºŒå?','äºŒå?ä¸€','äºŒå?äº?,'äºŒå?ä¸?,'äºŒå???,'äºŒå?äº?,'äºŒå???,'äºŒå?ä¸?,'äºŒå???,'äºŒå?ä¹?,
+        'ä¸‰å?'
+      ];
+      const ar = Array.from({ length: 30 }, (_, i) => String(i + 1));
+      const words = cn.concat(ar).join(' | ');
+      return `#JSGF V1.0; grammar numbers; public <number> = ${words} ;`;
+    }
+
+    function createRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return null;
+
+      const recognition = new SR();
+      recognition.lang = 'zh-TW';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 3;
+
+      const SGL = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+      if (SGL) {
+        try {
+          const list = new SGL();
+          list.addFromString(buildGrammar(), 1);
+          recognition.grammars = list;
+        } catch {}
+      }
+
+      return recognition;
+    }
+
+    function acceptFromCandidates(candidates, rawTranscript) {
+      let expected = expectedNextValue();
+      if (expected > 30) return;
+
+      const accepted = [];
+      for (const c of candidates) {
+        if (expected > 30) break;
+        if (c === expected) {
+          if (addNumber(c, { inferred: false, src: rawTranscript })) accepted.push(c);
+          expected += 1;
+          continue;
+        }
+        if (c === expected - 1) continue;
+      }
+
+      if (accepted.length) return;
+
+      // Confusable single-char fallback
+      const guessed = maybeGuessFromConfusable(rawTranscript, expectedNextValue());
+      if (guessed !== null) {
+        if (addNumber(guessed, { inferred: false, src: rawTranscript })) {
+          pushEvent(`guess: "${rawTranscript}" => ${guessed}`);
+          return;
+        }
+      }
+
+      // Autofill: only when we keep getting expected+1 while expected was missed
+      if (!ui.toggleAutofill.checked) return;
+      if (!candidates.length) return;
+
+      const best = candidates.find(n => n >= 1 && n <= 30) ?? null;
+      const expectedNow = expectedNextValue();
+      if (best === null) return;
+      if (best !== expectedNow + 1) return;
+
+      const now = Date.now();
+      const last = state.lastFinalIgnoredCandidate;
+      const isRepeated = last && (now - last.at < 2200) && last.expected === expectedNow && last.candidate === best;
+      state.lastFinalIgnoredCandidate = { expected: expectedNow, candidate: best, at: now };
+
+      if (!isRepeated) return;
+
+      const ok1 = addNumber(expectedNow, { inferred: true, src: rawTranscript });
+      const ok2 = addNumber(best, { inferred: false, src: rawTranscript });
+      if (ok1 && ok2) pushEvent(`autofill: +${expectedNow}* +${best}`);
+    }
+
+    function setListeningUi(on) {
+      ui.btnStart.disabled = on;
+      ui.btnStop.disabled = !on;
+      setStatus(on ? 'listening' : 'idle', on ? 'æ­?œ¨?†è½?¦ï?è«‹ç”¨ä¸­æ?å¿µæ•¸å­—ï?' : 'å°šæœª?‹å?');
+    }
+
+    function safeStopRecognition() {
+      state.shouldListen = false;
+      state.listening = false;
+      if (state.recognition) {
+        try { state.recognition.onresult = null; } catch {}
+        try { state.recognition.onerror = null; } catch {}
+        try { state.recognition.onend = null; } catch {}
+        try { state.recognition.stop(); } catch {}
+      }
+      state.recognition = null;
+      setListeningUi(false);
+    }
+
+    function startListening() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+
+      state.session += 1;
+      state.seenFinal = createLruSet(80);
+      state.lastFinalIgnoredCandidate = null;
+
+      const recognition = createRecognition();
+      if (!recognition) return;
+      state.recognition = recognition;
+      state.shouldListen = true;
+      state.listening = true;
+      setListeningUi(true);
+      pushEvent('start');
+
+      recognition.onresult = (event) => {
+        const lastIdx = event.results.length - 1;
+        if (lastIdx >= 0) {
+          const last = event.results[lastIdx];
+          if (last && !last.isFinal) {
+            const interim = last[0]?.transcript || '';
+            ui.dbgInterim.textContent = interim.trim();
+          }
+        }
+
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const res = event.results[i];
+          if (!res || !res.isFinal) continue;
+          const transcript = String(res[0]?.transcript || '').trim();
+          const key = `${state.session}:${i}:${transcript}`;
+          if (!transcript) continue;
+          if (state.seenFinal.has(key)) continue;
+          state.seenFinal.add(key);
+
+          ui.dbgFinal.textContent = transcript;
+          const candidates = parseNumbersInOrder(transcript);
+          pushEvent(`final: "${transcript}" => [${candidates.join(',')}]`);
+          acceptFromCandidates(candidates, transcript);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        const err = event?.error || 'unknown';
+        pushEvent(`error: ${err}`);
+        setStatus('error', `èªéŸ³è¾¨è??¯èª¤ï¼?{err}`);
+        // Not all errors should stop; but most indicate we should halt and require user action.
+        safeStopRecognition();
+      };
+
+      recognition.onend = () => {
+        pushEvent('end');
+        if (!state.shouldListen) return;
+        // Auto-restart for engines that stop after a pause.
+        setTimeout(() => {
+          if (!state.shouldListen) return;
+          try {
+            recognition.start();
+            pushEvent('restart');
+          } catch (e) {
+            pushEvent('restart-failed');
+            safeStopRecognition();
+          }
+        }, 200);
+      };
+
+      try {
+        recognition.start();
+      } catch (e) {
+        pushEvent('start-failed');
+        safeStopRecognition();
+      }
+    }
+
+    ui.btnStart.addEventListener('click', () => startListening());
+    ui.btnStop.addEventListener('click', () => safeStopRecognition());
+    ui.btnUndo.addEventListener('click', () => undoLast());
+    ui.btnClear.addEventListener('click', () => clearAll());
+    ui.toggleDebug.addEventListener('change', () => {
+      ui.debugPanel.classList.toggle('hidden', !ui.toggleDebug.checked);
+    });
+
+    restore();
+    updateSupportText();
+    render();
+    setStatus('idle', 'å°šæœª?‹å?');
+  </script>
+</body>
+</html>
