@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
@@ -106,20 +106,20 @@
   </header>
 
   <main class="flex-grow w-full max-w-md mx-auto p-4 space-y-4">
-    <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+    <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
       <div class="flex items-start justify-between gap-3">
-        <div>
+        <div class="min-w-0">
           <h2 id="h-status" class="text-sm font-bold text-slate-600 uppercase tracking-wider mb-1">Status</h2>
           <p id="status-text" class="text-slate-600 text-sm leading-relaxed">Idle</p>
-          <p id="support-text" class="text-slate-400 text-xs mt-1"></p>
+          <p id="support-text" class="text-slate-400 text-xs mt-1 leading-relaxed"></p>
         </div>
-        <div class="text-right">
-          <div id="lbl-next" class="text-xs text-slate-400">Next</div>
-          <div id="next-expected" class="text-2xl font-extrabold tabular-nums text-slate-700">1</div>
+        <div class="text-right shrink-0">
+          <div id="lbl-mic" class="text-xs text-slate-400">Mic</div>
+          <div id="mic-state" class="text-sm font-bold tabular-nums text-slate-700">-</div>
         </div>
       </div>
 
-      <div class="mt-4 grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-2 gap-3">
         <button id="btn-start" class="bg-blue-600 text-white py-3 rounded-xl font-semibold active:scale-95 transition-transform flex items-center justify-center gap-2">
           <i data-lucide="mic" class="w-5 h-5"></i><span id="btn-start-text">Start</span>
         </button>
@@ -128,20 +128,38 @@
         </button>
       </div>
 
-      <div class="mt-3 space-y-2">
-        <label class="flex items-center gap-2 text-xs text-slate-500 select-none">
-          <input id="toggle-seq" type="checkbox" class="accent-blue-600" checked>
-          <span id="lbl-seq">Sequence mode (accept next only)</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs text-slate-500 select-none">
-          <input id="toggle-autofill" type="checkbox" class="accent-blue-600" checked>
-          <span id="lbl-autofill">Autofill missing next (once)</span>
-        </label>
-        <label class="flex items-center gap-2 text-xs text-slate-500 select-none">
-          <input id="toggle-debug" type="checkbox" class="accent-blue-600">
-          <span>Debug</span>
-        </label>
+      <div>
+        <div class="flex items-center justify-between">
+          <div id="lbl-level" class="text-xs text-slate-400">Mic level</div>
+          <div id="lvl-num" class="text-xs font-mono text-slate-500">0%</div>
+        </div>
+        <div class="mt-1 w-full h-3 rounded-full bg-slate-100 overflow-hidden border border-slate-200">
+          <div id="lvl-bar" class="h-full bg-emerald-400 w-0"></div>
+        </div>
       </div>
+
+      <div class="grid grid-cols-1 gap-2">
+        <div>
+          <div class="text-xs text-slate-400">Interim</div>
+          <div id="interim" class="mt-1 p-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 font-mono min-h-[2.25rem]"></div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400">Final</div>
+          <div id="final" class="mt-1 p-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 font-mono min-h-[2.25rem]"></div>
+        </div>
+        <div>
+          <div class="flex items-center justify-between">
+            <div class="text-xs text-slate-400">Final history</div>
+            <button id="btn-clear-history" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 active:scale-95 transition-transform">Clear</button>
+          </div>
+          <ul id="final-history" class="mt-2 space-y-1 text-xs text-slate-600 font-mono"></ul>
+        </div>
+      </div>
+
+      <label class="flex items-center gap-2 text-xs text-slate-500 select-none">
+        <input id="toggle-debug" type="checkbox" class="accent-blue-600">
+        <span>Debug events</span>
+      </label>
     </section>
 
     <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
@@ -171,13 +189,8 @@
     </section>
 
     <section id="debug-panel" class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hidden">
-      <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">Debug</h2>
-      <div class="mt-2 space-y-2 text-xs">
-        <div class="text-slate-500">Interim: <span id="dbg-interim" class="font-mono text-slate-700"></span></div>
-        <div class="text-slate-500">Final: <span id="dbg-final" class="font-mono text-slate-700"></span></div>
-        <div class="text-slate-500">Events:</div>
-        <ul id="dbg-events" class="space-y-1 text-slate-600 font-mono"></ul>
-      </div>
+      <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">Events</h2>
+      <ul id="dbg-events" class="mt-2 space-y-1 text-xs text-slate-600 font-mono"></ul>
     </section>
   </main>
 
@@ -189,43 +202,75 @@
       hStatus: '\u72C0\u614B',
       hSum: '\u5373\u6642\u52A0\u7E3D',
       idle: '\u5C1A\u672A\u958B\u59CB',
-      listening: '\u6B63\u5728\u807D\u53D6\u2026\uFF08\u8ACB\u8AAA\u6578\u5B57\uFF09',
-      next: '\u9810\u671F\u4E0B\u4E00\u500B',
+      listening: '\u6B63\u5728\u807D\u53D6\u2026',
+      start: '\u958B\u59CB',
+      stop: '\u505C\u6B62',
       count: '\u7B46\u6578',
       last: '\u6700\u5F8C\u52A0\u5165',
       recognized: '\u5DF2\u8FA8\u8B58',
-      start: '\u958B\u59CB',
-      stop: '\u505C\u6B62',
-      undo: '\u5FA9\u539F',
-      clear: '\u6E05\u7A7A',
-      seq: '\u9023\u7E8C\u6A21\u5F0F\uFF08\u53EA\u6536\u4E0B\u4E00\u500B\u6578\uFF0C\u9810\u8A2D\u5F9E 1 \u958B\u59CB\uFF09',
-      autofill: '\u81EA\u52D5\u88DC\u7F3A\uFF08\u50C5\u88DC\u6F0F\u6389\u7684\u300C\u4E0B\u4E00\u500B\u300D\u4E00\u6B21\uFF09',
-      hintSeq: '\u5EFA\u8B70\u6E2C\u8A66\uFF1A\u7528\u4E2D\u6587\u5F9E\u300C\u4E00\u300D\u5FF5\u5230\u300C\u4E09\u5341\u300D\uFF0C\u6BCF\u500B\u6578\u5B57\u9593\u505C\u9813\u7D04 0.5 \u79D2\u3002',
-      hintFree: '\u81EA\u7531\u6A21\u5F0F\uFF1A\u652F\u63F4\u963F\u62C9\u4F2F\u6578\u5B57\u8207\u4E2D\u6587\u6578\u5B57\uFF08\u542B\u5341\u3001\u767E\u3001\u5343\u3001\u842C\u3001\u5104\uFF09\u3002',
-      unsupported: '\u6B64\u700F\u89BD\u5668\u4E0D\u652F\u63F4 Web Speech API\uFF08\u5EFA\u8B70 Chrome/Edge\uFF09\u3002',
-      insecure: '\u8A9E\u97F3\u8FA8\u8B58\u901A\u5E38\u9700\u8981 HTTPS\uFF08\u6216 localhost\uFF09\u3002',
-      micDenied: '\u7121\u6CD5\u4F7F\u7528\u9EA5\u514B\u98A8\uFF1A\u8ACB\u5141\u8A31\u700F\u89BD\u5668\u9EA5\u514B\u98A8\u6B0A\u9650\u3002',
+      hint: '\u5EFA\u8B70\u6E2C\u8A66\uFF1A\u7528\u4E2D\u6587\u5F9E\u300C\u4E00\u300D\u5FF5\u5230\u300C\u4E09\u5341\u300D\uFF0C\u6BCF\u500B\u6578\u5B57\u9593\u505C\u9813\u7D04 0.5 \u79D2\u3002\uFF08\u652F\u63F4\u6DF7\u5408\u8FA8\u8B58\u932F\u8AA4\uFF0C\u6703\u76E1\u91CF\u62FF\u51FA\u6B63\u78BA\u7684\u6578\u5B57\uFF09',
+      srUnsupported: '\u9019\u500B\u700F\u89BD\u5668\u4E0D\u652F\u63F4 SpeechRecognition\uFF08\u5EFA\u8B70\u7528 Chrome/Edge\uFF09\u3002',
+      micNeedHttp: '\u63D0\u793A\uFF1A\u7528 file:// \u958B\u555F\u6642\uFF0C\u9EA5\u514B\u98A8\u53EF\u80FD\u88AB\u963B\u64CB\u3002\u8ACB\u7528 `npm run dev` \u5F8C\u958B\u555F http://localhost:5500/voice-sum/ \u6E2C\u8A66\u3002',
+      micDenied: '\u9EA5\u514B\u98A8\u6B0A\u9650\u88AB\u62D2\u7D55\uFF0C\u8ACB\u5728\u700F\u89BD\u5668\u4F4D\u7F6E\u5217\u5141\u8A31\u9EA5\u514B\u98A8\u3002',
       micFail: '\u9EA5\u514B\u98A8\u7121\u6CD5\u4F7F\u7528\uFF1A',
       srError: '\u8A9E\u97F3\u8FA8\u8B58\u932F\u8AA4\uFF1A',
+      mic: '\u9EA5\u514B\u98A8',
+      undo: '\u5FA9\u539F',
+      clear: '\u6E05\u7A7A',
     };
 
-    document.getElementById('title').textContent = STR.title;
-    document.title = STR.title;
-    document.getElementById('h-status').textContent = STR.hStatus;
-    document.getElementById('h-sum').textContent = STR.hSum;
-    document.getElementById('lbl-next').textContent = STR.next;
-    document.getElementById('lbl-count').textContent = STR.count;
-    document.getElementById('lbl-last').textContent = STR.last;
-    document.getElementById('lbl-recognized').textContent = STR.recognized;
-    document.getElementById('btn-start-text').textContent = STR.start;
-    document.getElementById('btn-stop-text').textContent = STR.stop;
-    document.getElementById('btn-undo').textContent = STR.undo;
-    document.getElementById('btn-clear').textContent = STR.clear;
-    document.getElementById('lbl-seq').textContent = STR.seq;
-    document.getElementById('lbl-autofill').textContent = STR.autofill;
+    const STORAGE_KEY = 'voice-sum:v3';
+    const MAX_FINAL_HISTORY = 12;
+    const MAX_EVENTS = 16;
+    const ACCEPT_MAX = 30; // keep small for reliability; change here if needed
 
-    const STORAGE_KEY = 'voice-sum:v2';
-    const MAX_EVENTS = 14;
+    const ui = {
+      title: document.getElementById('title'),
+      hStatus: document.getElementById('h-status'),
+      hSum: document.getElementById('h-sum'),
+      statusDot: document.getElementById('status-dot'),
+      statusText: document.getElementById('status-text'),
+      supportText: document.getElementById('support-text'),
+      micState: document.getElementById('mic-state'),
+      btnStart: document.getElementById('btn-start'),
+      btnStop: document.getElementById('btn-stop'),
+      btnStartText: document.getElementById('btn-start-text'),
+      btnStopText: document.getElementById('btn-stop-text'),
+      lvlBar: document.getElementById('lvl-bar'),
+      lvlNum: document.getElementById('lvl-num'),
+      interim: document.getElementById('interim'),
+      final: document.getElementById('final'),
+      finalHistory: document.getElementById('final-history'),
+      btnClearHistory: document.getElementById('btn-clear-history'),
+      toggleDebug: document.getElementById('toggle-debug'),
+      debugPanel: document.getElementById('debug-panel'),
+      dbgEvents: document.getElementById('dbg-events'),
+      sum: document.getElementById('sum'),
+      count: document.getElementById('count'),
+      lastAdded: document.getElementById('last-added'),
+      numbersBox: document.getElementById('numbers-box'),
+      hint: document.getElementById('hint'),
+      btnUndo: document.getElementById('btn-undo'),
+      btnClear: document.getElementById('btn-clear'),
+      lblCount: document.getElementById('lbl-count'),
+      lblLast: document.getElementById('lbl-last'),
+      lblRecognized: document.getElementById('lbl-recognized'),
+      lblMic: document.getElementById('lbl-mic'),
+    };
+
+    ui.title.textContent = STR.title;
+    document.title = STR.title;
+    ui.hStatus.textContent = STR.hStatus;
+    ui.hSum.textContent = STR.hSum;
+    ui.btnStartText.textContent = STR.start;
+    ui.btnStopText.textContent = STR.stop;
+    ui.btnUndo.textContent = STR.undo;
+    ui.btnClear.textContent = STR.clear;
+    ui.lblCount.textContent = STR.count;
+    ui.lblLast.textContent = STR.last;
+    ui.lblRecognized.textContent = STR.recognized;
+    ui.lblMic.textContent = STR.mic;
+    ui.hint.textContent = STR.hint;
 
     function fmtNow() {
       const d = new Date();
@@ -235,18 +280,37 @@
       return `${hh}:${mm}:${ss}`;
     }
 
-    function createLruSet(limit) {
-      const map = new Map();
-      return {
-        has(key) { return map.has(key); },
-        add(key) {
-          map.set(key, 1);
-          if (map.size > limit) {
-            const first = map.keys().next().value;
-            map.delete(first);
-          }
-        }
-      };
+    function setStatus(kind, text) {
+      ui.statusText.textContent = text;
+      const cls = {
+        idle: 'bg-white/40',
+        listening: 'bg-emerald-300',
+        error: 'bg-rose-300'
+      }[kind] || 'bg-white/40';
+      ui.statusDot.className = `inline-block w-2.5 h-2.5 rounded-full ${cls}`;
+    }
+
+    function pushEvent(msg) {
+      if (!ui.toggleDebug.checked) return;
+      while (ui.dbgEvents.children.length >= MAX_EVENTS) ui.dbgEvents.removeChild(ui.dbgEvents.lastChild);
+      const li = document.createElement('li');
+      li.textContent = `[${fmtNow()}] ${msg}`;
+      ui.dbgEvents.insertBefore(li, ui.dbgEvents.firstChild);
+    }
+
+    function pushFinalHistory(text) {
+      const li = document.createElement('li');
+      li.textContent = `[${fmtNow()}] ${text}`;
+      ui.finalHistory.insertBefore(li, ui.finalHistory.firstChild);
+      while (ui.finalHistory.children.length > MAX_FINAL_HISTORY) ui.finalHistory.removeChild(ui.finalHistory.lastChild);
+    }
+
+    function clampSafePosInt(n) {
+      const v = Number(n);
+      if (!Number.isFinite(v)) return null;
+      if (!Number.isSafeInteger(v)) return null;
+      if (v <= 0) return null;
+      return v;
     }
 
     function toHalfWidthDigits(input) {
@@ -266,15 +330,7 @@
       return s;
     }
 
-    function clampSafeInt(n) {
-      const v = Number(n);
-      if (!Number.isFinite(v)) return null;
-      if (!Number.isSafeInteger(v)) return null;
-      return v;
-    }
-
     function parseSectionUnder10000(section) {
-      // supports: [0-9][\u5341\u767E\u5343] with optional \u96F6
       const digit = {
         '\u96F6': 0,
         '\u4E00': 1,
@@ -319,8 +375,6 @@
     function parseChineseNumeral(str) {
       if (!str) return null;
       let s = String(str);
-      s = s.replace(/兩/g, '\u4E8C');
-
       const allowed = /^[\u96F6\u4E00\u4E8C\u4E09\u56DB\u4E94\u516D\u4E03\u516B\u4E5D\u5341\u767E\u5343\u842C\u5104]+$/;
       if (!allowed.test(s)) return null;
 
@@ -353,13 +407,12 @@
       if (tail === null) return null;
       total += tail;
 
-      return clampSafeInt(total);
+      return clampSafePosInt(total);
     }
 
     function parseNumbersInOrder(rawTranscript) {
       const s = normalizeTranscript(rawTranscript);
       const out = [];
-
       const chineseChars = /[\u96F6\u4E00\u4E8C\u4E09\u56DB\u4E94\u516D\u4E03\u516B\u4E5D\u5341\u767E\u5343\u842C\u5104]/;
 
       let i = 0;
@@ -369,19 +422,17 @@
         if (ch >= '0' && ch <= '9') {
           let j = i + 1;
           while (j < s.length && s[j] >= '0' && s[j] <= '9') j++;
-          const v = clampSafeInt(Number(s.slice(i, j)));
+          const v = clampSafePosInt(Number(s.slice(i, j)));
           if (v !== null) out.push(v);
           i = j;
           continue;
         }
 
         if (chineseChars.test(ch)) {
-          // take maximal run of chinese numeral chars
           let j = i + 1;
           while (j < s.length && chineseChars.test(s[j])) j++;
           const run = s.slice(i, j);
 
-          // If run has no units, treat as digit-by-digit (e.g. \u4E00\u4E8C\u4E09 => 1,2,3)
           if (!/[\u5341\u767E\u5343\u842C\u5104]/.test(run)) {
             const map = {
               '\u96F6': 0,
@@ -396,21 +447,22 @@
               '\u4E5D': 9,
             };
             for (const c of run) {
-              if (c in map) out.push(map[c]);
+              if (c in map) {
+                const v = map[c];
+                if (v > 0) out.push(v);
+              }
             }
             i = j;
             continue;
           }
 
-          // Try parse the whole run first; if fails, fall back to incremental.
-          const parsedWhole = parseChineseNumeral(run);
-          if (parsedWhole !== null) {
-            out.push(parsedWhole);
+          const whole = parseChineseNumeral(run);
+          if (whole !== null) {
+            out.push(whole);
             i = j;
             continue;
           }
 
-          // fallback: parse progressively from longest to shortest
           let advanced = false;
           for (let len = Math.min(12, run.length); len >= 1; len -= 1) {
             const part = run.slice(0, len);
@@ -431,57 +483,30 @@
       return out;
     }
 
-    const ui = {
-      statusDot: document.getElementById('status-dot'),
-      statusText: document.getElementById('status-text'),
-      supportText: document.getElementById('support-text'),
-      btnStart: document.getElementById('btn-start'),
-      btnStop: document.getElementById('btn-stop'),
-      btnUndo: document.getElementById('btn-undo'),
-      btnClear: document.getElementById('btn-clear'),
-      sum: document.getElementById('sum'),
-      count: document.getElementById('count'),
-      lastAdded: document.getElementById('last-added'),
-      numbersBox: document.getElementById('numbers-box'),
-      nextExpected: document.getElementById('next-expected'),
-      toggleSeq: document.getElementById('toggle-seq'),
-      toggleAutofill: document.getElementById('toggle-autofill'),
-      toggleDebug: document.getElementById('toggle-debug'),
-      debugPanel: document.getElementById('debug-panel'),
-      dbgInterim: document.getElementById('dbg-interim'),
-      dbgFinal: document.getElementById('dbg-final'),
-      dbgEvents: document.getElementById('dbg-events'),
-      hint: document.getElementById('hint'),
-    };
-
     const state = {
-      items: [], // { value:number, inferred:boolean, at:number, src:string }
-      listening: false,
+      items: [], // { value, at }
+      recognition: null,
       shouldListen: false,
       session: 0,
-      recognition: null,
-      seenFinal: createLruSet(120),
-      lastFinalIgnoredCandidate: null, // { expected, candidate, at }
-      lastFreeAccepted: null, // { value, at }
+      seenFinal: new Set(),
+      lastAcceptedByValue: new Map(),
+      audio: {
+        stream: null,
+        ctx: null,
+        analyser: null,
+        raf: 0,
+      },
     };
 
     function computeSum() {
       return state.items.reduce((acc, it) => acc + it.value, 0);
     }
 
-    function expectedNextValue() {
-      const lastSeq = state.items.filter(it => it.seq).slice(-1)[0];
-      const last = lastSeq ? lastSeq.value : 0;
-      return last + 1;
-    }
-
     function persist() {
       try {
         const payload = {
-          v: 2,
-          items: state.items.map(it => ({ value: it.value, inferred: !!it.inferred, at: it.at, seq: !!it.seq })),
-          seqOn: !!ui.toggleSeq.checked,
-          autofillOn: !!ui.toggleAutofill.checked,
+          v: 3,
+          items: state.items.map(it => ({ value: it.value, at: it.at })),
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       } catch {}
@@ -492,134 +517,63 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return;
         const data = JSON.parse(raw);
-        if (!data || data.v !== 2 || !Array.isArray(data.items)) return;
+        if (!data || data.v !== 3 || !Array.isArray(data.items)) return;
         state.items = data.items
-          .map(it => ({ value: clampSafeInt(it.value), inferred: !!it.inferred, at: Number(it.at) || Date.now(), seq: !!it.seq, src: '' }))
+          .map(it => ({ value: clampSafePosInt(it.value), at: Number(it.at) || Date.now() }))
           .filter(it => it.value !== null);
-        if (typeof data.seqOn === 'boolean') ui.toggleSeq.checked = data.seqOn;
-        if (typeof data.autofillOn === 'boolean') ui.toggleAutofill.checked = data.autofillOn;
       } catch {}
     }
 
-    function pushEvent(msg) {
-      if (ui.dbgEvents.children.length >= MAX_EVENTS) ui.dbgEvents.removeChild(ui.dbgEvents.lastChild);
-      const li = document.createElement('li');
-      li.textContent = `[${fmtNow()}] ${msg}`;
-      ui.dbgEvents.insertBefore(li, ui.dbgEvents.firstChild);
-    }
-
-    function setStatus(kind, text) {
-      ui.statusText.textContent = text;
-      const cls = {
-        idle: 'bg-white/40',
-        listening: 'bg-emerald-300',
-        error: 'bg-rose-300'
-      }[kind] || 'bg-white/40';
-
-      ui.statusDot.className = `inline-block w-2.5 h-2.5 rounded-full ${cls}`;
-    }
-
     function render() {
-      const sum = computeSum();
-      ui.sum.textContent = String(sum);
+      ui.sum.textContent = String(computeSum());
       ui.count.textContent = String(state.items.length);
-
-      const last = state.items.length ? state.items[state.items.length - 1] : null;
-      ui.lastAdded.textContent = last ? (last.inferred ? `${last.value}*` : String(last.value)) : '-';
-
-      const nums = state.items.map(it => it.inferred ? `${it.value}*` : String(it.value));
-      ui.numbersBox.textContent = nums.length ? nums.join(', ') : '(empty)';
-
-      if (ui.toggleSeq.checked) {
-        ui.nextExpected.textContent = String(expectedNextValue());
-        ui.hint.textContent = STR.hintSeq;
-      } else {
-        ui.nextExpected.textContent = '-';
-        ui.hint.textContent = STR.hintFree;
-      }
-
+      const last = state.items.length ? state.items[state.items.length - 1].value : null;
+      ui.lastAdded.textContent = last === null ? '-' : String(last);
       ui.btnUndo.disabled = state.items.length === 0;
+      ui.numbersBox.textContent = state.items.length ? state.items.map(it => String(it.value)).join(', ') : '\uFF08\u5C1A\u7121\uFF09';
       persist();
     }
 
-    function addItem(value, { inferred = false, src = '', seq = false } = {}) {
-      const v = clampSafeInt(value);
-      if (v === null) return false;
+    function addValue(value) {
+      const v0 = clampSafePosInt(value);
+      if (v0 === null) return false;
+      if (v0 > ACCEPT_MAX) return false;
 
-      state.items.push({ value: v, inferred: !!inferred, at: Date.now(), src, seq: !!seq });
+      const now = Date.now();
+      const lastAt = state.lastAcceptedByValue.get(v0) || 0;
+      if (now - lastAt < 900) return false;
+
+      state.lastAcceptedByValue.set(v0, now);
+      state.items.push({ value: v0, at: now });
       render();
       return true;
     }
 
-    function addFromCandidates(candidates, rawTranscript) {
+    function applyTranscript(transcript) {
+      const candidates = parseNumbersInOrder(transcript)
+        .map(n => clampSafePosInt(n))
+        .filter(n => n !== null && n <= ACCEPT_MAX);
+
       if (!candidates.length) return;
 
-      if (!ui.toggleSeq.checked) {
-        for (const v of candidates) {
-          const now = Date.now();
-          const last = state.lastFreeAccepted;
-          if (last && last.value === v && (now - last.at) < 900) continue;
-          if (addItem(v, { inferred: false, src: rawTranscript, seq: false })) {
-            state.lastFreeAccepted = { value: v, at: now };
+      // Heuristic: if candidates contains the next expected (based on last value), accept in that order first.
+      const last = state.items.length ? state.items[state.items.length - 1].value : 0;
+      const expected = last + 1;
+      const ordered = [];
+      const remaining = candidates.slice();
+
+      if (expected >= 1 && expected <= ACCEPT_MAX) {
+        for (let i = 0; i < remaining.length; i += 1) {
+          if (remaining[i] === expected) {
+            ordered.push(expected);
+            remaining.splice(i, 1);
+            break;
           }
         }
-        return;
       }
+      for (const c of remaining) ordered.push(c);
 
-      let expected = expectedNextValue();
-      const accepted = [];
-      for (const c of candidates) {
-        if (c === expected) {
-          if (addItem(c, { inferred: false, src: rawTranscript, seq: true })) accepted.push(c);
-          expected += 1;
-          continue;
-        }
-        if (c === expected - 1) continue;
-      }
-
-      if (accepted.length) return;
-
-      if (!ui.toggleAutofill.checked) return;
-
-      // Autofill rule: if we repeatedly see expected+1, insert expected* then expected+1
-      const best = candidates[0];
-      const expectedNow = expectedNextValue();
-      if (best !== expectedNow + 1) return;
-
-      const now = Date.now();
-      const last = state.lastFinalIgnoredCandidate;
-      const isRepeated = last && (now - last.at < 2200) && last.expected === expectedNow && last.candidate === best;
-      state.lastFinalIgnoredCandidate = { expected: expectedNow, candidate: best, at: now };
-      if (!isRepeated) return;
-
-      const ok1 = addItem(expectedNow, { inferred: true, src: rawTranscript, seq: true });
-      const ok2 = addItem(best, { inferred: false, src: rawTranscript, seq: true });
-      if (ok1 && ok2) pushEvent(`autofill: +${expectedNow}* +${best}`);
-    }
-
-    function undoLast() {
-      state.items.pop();
-      render();
-    }
-
-    function clearAll() {
-      state.items = [];
-      state.lastFinalIgnoredCandidate = null;
-      state.lastFreeAccepted = null;
-      render();
-    }
-
-    function updateSupportText() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) {
-        ui.supportText.textContent = STR.unsupported;
-        return;
-      }
-      if (!window.isSecureContext && window.location.hostname !== 'localhost') {
-        ui.supportText.textContent = STR.insecure;
-        return;
-      }
-      ui.supportText.textContent = 'OK';
+      for (const n of ordered) addValue(n);
     }
 
     function setListeningUi(on) {
@@ -628,9 +582,79 @@
       setStatus(on ? 'listening' : 'idle', on ? STR.listening : STR.idle);
     }
 
+    function stopAudioMeter() {
+      if (state.audio.raf) {
+        cancelAnimationFrame(state.audio.raf);
+        state.audio.raf = 0;
+      }
+      if (state.audio.stream) {
+        for (const t of state.audio.stream.getTracks()) t.stop();
+      }
+      state.audio.stream = null;
+      if (state.audio.ctx) {
+        try { state.audio.ctx.close(); } catch {}
+      }
+      state.audio.ctx = null;
+      state.audio.analyser = null;
+      ui.lvlBar.style.width = '0%';
+      ui.lvlNum.textContent = '0%';
+      ui.micState.textContent = '-';
+    }
+
+    async function startAudioMeter() {
+      const md = navigator.mediaDevices;
+      if (!md || !md.getUserMedia) throw new Error('getUserMedia unsupported');
+
+      const stream = await md.getUserMedia({ audio: true });
+      state.audio.stream = stream;
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) throw new Error('AudioContext unsupported');
+      const ctx = new AudioCtx();
+      state.audio.ctx = ctx;
+      try { await ctx.resume(); } catch {}
+
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      state.audio.analyser = analyser;
+
+      const src = ctx.createMediaStreamSource(stream);
+      src.connect(analyser);
+
+      const buf = new Uint8Array(analyser.fftSize);
+
+      const tick = () => {
+        if (!state.audio.analyser) return;
+        state.audio.analyser.getByteTimeDomainData(buf);
+        let sumSq = 0;
+        for (let i = 0; i < buf.length; i += 1) {
+          const x = (buf[i] - 128) / 128;
+          sumSq += x * x;
+        }
+        const rms = Math.sqrt(sumSq / buf.length);
+        const pct = Math.max(0, Math.min(100, Math.round(rms * 240)));
+        ui.lvlBar.style.width = `${pct}%`;
+        ui.lvlNum.textContent = `${pct}%`;
+        state.audio.raf = requestAnimationFrame(tick);
+      };
+
+      ui.micState.textContent = 'OK';
+      tick();
+    }
+
+    function createRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return null;
+      const r = new SR();
+      r.lang = 'zh-TW';
+      r.continuous = true;
+      r.interimResults = true;
+      r.maxAlternatives = 3;
+      return r;
+    }
+
     function safeStopRecognition() {
       state.shouldListen = false;
-      state.listening = false;
       if (state.recognition) {
         try { state.recognition.onresult = null; } catch {}
         try { state.recognition.onerror = null; } catch {}
@@ -638,56 +662,55 @@
         try { state.recognition.stop(); } catch {}
       }
       state.recognition = null;
+      stopAudioMeter();
       setListeningUi(false);
-    }
-
-    function createRecognition() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) return null;
-      const recognition = new SR();
-      recognition.lang = 'zh-TW';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 3;
-      return recognition;
-    }
-
-    async function ensureMicPermission() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      for (const t of stream.getTracks()) t.stop();
+      pushEvent('stop');
     }
 
     async function startListening() {
+      ui.interim.textContent = '';
+      ui.final.textContent = '';
+
+      if (window.location.protocol === 'file:') {
+        ui.supportText.textContent = STR.micNeedHttp;
+      } else {
+        ui.supportText.textContent = '';
+      }
+
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) {
-        setStatus('error', STR.unsupported);
-        return;
-      }
-      if (!window.isSecureContext && window.location.hostname !== 'localhost') {
-        setStatus('error', STR.insecure);
+        setStatus('error', STR.srUnsupported);
         return;
       }
 
       try {
-        await ensureMicPermission();
+        await startAudioMeter();
       } catch (e) {
         const name = String(e && (e.name || e.message) || '');
+        ui.micState.textContent = 'ERR';
         setStatus('error', name.includes('NotAllowed') ? STR.micDenied : (STR.micFail + name));
         return;
       }
 
       state.session += 1;
-      state.seenFinal = createLruSet(120);
-      state.lastFinalIgnoredCandidate = null;
+      state.seenFinal = new Set();
 
       const recognition = createRecognition();
-      if (!recognition) return;
+      if (!recognition) {
+        setStatus('error', STR.srUnsupported);
+        return;
+      }
+
       state.recognition = recognition;
       state.shouldListen = true;
-      state.listening = true;
       setListeningUi(true);
-      pushEvent('start');
+
+      recognition.onstart = () => pushEvent('sr:start');
+      recognition.onaudiostart = () => pushEvent('sr:audio-start');
+      recognition.onspeechstart = () => pushEvent('sr:speech-start');
+      recognition.onspeechend = () => pushEvent('sr:speech-end');
+      recognition.onaudioend = () => pushEvent('sr:audio-end');
+      recognition.onnomatch = () => pushEvent('sr:nomatch');
 
       recognition.onresult = (event) => {
         const lastIdx = event.results.length - 1;
@@ -695,7 +718,7 @@
           const last = event.results[lastIdx];
           if (last && !last.isFinal) {
             const interim = last[0] && last[0].transcript || '';
-            ui.dbgInterim.textContent = interim.trim();
+            ui.interim.textContent = interim.trim();
           }
         }
 
@@ -709,30 +732,30 @@
           if (state.seenFinal.has(key)) continue;
           state.seenFinal.add(key);
 
-          ui.dbgFinal.textContent = transcript;
-          const candidates = parseNumbersInOrder(transcript);
-          pushEvent(`final: "${transcript}" => [${candidates.join(',')}]`);
-          addFromCandidates(candidates, transcript);
+          ui.final.textContent = transcript;
+          pushFinalHistory(transcript);
+          pushEvent(`sr:final "${transcript}"`);
+          applyTranscript(transcript);
         }
       };
 
       recognition.onerror = (event) => {
         const err = event && event.error || 'unknown';
-        pushEvent(`error: ${err}`);
+        pushEvent(`sr:error ${err}`);
         setStatus('error', STR.srError + err);
         safeStopRecognition();
       };
 
       recognition.onend = () => {
-        pushEvent('end');
+        pushEvent('sr:end');
         if (!state.shouldListen) return;
         setTimeout(() => {
           if (!state.shouldListen) return;
           try {
             recognition.start();
-            pushEvent('restart');
-          } catch (e) {
-            pushEvent('restart-failed');
+            pushEvent('sr:restart');
+          } catch {
+            pushEvent('sr:restart-failed');
             safeStopRecognition();
           }
         }, 200);
@@ -741,21 +764,41 @@
       try {
         recognition.start();
       } catch (e) {
-        pushEvent('start-failed');
+        pushEvent('sr:start-failed');
         safeStopRecognition();
       }
     }
 
+    function updateSupportText() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const supported = !!SR;
+      const proto = window.location.protocol;
+      const host = window.location.hostname;
+      const secure = window.isSecureContext;
+      const base = `SpeechRecognition=${supported ? 'yes' : 'no'}, protocol=${proto}, host=${host || '-'}, secureContext=${secure ? 'yes' : 'no'}`;
+      ui.supportText.textContent = base;
+      if (proto === 'file:') ui.supportText.textContent = base + `\n` + STR.micNeedHttp;
+    }
+
     ui.btnStart.addEventListener('click', () => { startListening(); });
     ui.btnStop.addEventListener('click', () => { safeStopRecognition(); });
-    ui.btnUndo.addEventListener('click', () => { undoLast(); });
-    ui.btnClear.addEventListener('click', () => { clearAll(); });
+    ui.btnUndo.addEventListener('click', () => {
+      state.items.pop();
+      render();
+    });
+    ui.btnClear.addEventListener('click', () => {
+      state.items = [];
+      state.lastAcceptedByValue = new Map();
+      render();
+    });
+    ui.btnClearHistory.addEventListener('click', () => {
+      ui.finalHistory.innerHTML = '';
+      ui.final.textContent = '';
+      ui.interim.textContent = '';
+    });
+
     ui.toggleDebug.addEventListener('change', () => {
       ui.debugPanel.classList.toggle('hidden', !ui.toggleDebug.checked);
-    });
-    ui.toggleSeq.addEventListener('change', () => {
-      state.lastFinalIgnoredCandidate = null;
-      render();
     });
 
     restore();
