@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+Ôªø<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ë™ûÈü≥?†Á∏Ω</title>
+  <title>Voice Sum</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
@@ -75,12 +75,12 @@
 
       const appMeta = {
         id: 'voice-sum',
-        name: 'Ë™ûÈü≥?†Á∏Ω',
-        nameZh: 'Ë™ûÈü≥?†Á∏Ω',
+        name: '\u8A9E\u97F3\u52A0\u7E3D',
+        nameZh: '\u8A9E\u97F3\u52A0\u7E3D',
         nameEn: 'Voice Sum',
         path: appPath,
         icon: 'mic',
-        color: 'blue' // blue|emerald|amber|rose|purple
+        color: 'blue'
       };
 
       const storageKey = 'myAppLauncherStorage';
@@ -94,12 +94,12 @@
 
   <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-20">
     <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors invisible pointer-events-none" aria-label="?ûÂà∞Â§ßÂª≥">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors invisible pointer-events-none" aria-label="Home">
         <i data-lucide="home" class="w-5 h-5"></i>
       </a>
       <div class="flex items-center gap-2">
         <span id="status-dot" class="inline-block w-2.5 h-2.5 rounded-full bg-white/40"></span>
-        <h1 class="text-lg font-bold tracking-tight">Ë™ûÈü≥?†Á∏Ω</h1>
+        <h1 id="title" class="text-lg font-bold tracking-tight">Voice Sum</h1>
       </div>
       <div class="w-9"></div>
     </div>
@@ -109,29 +109,33 @@
     <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
       <div class="flex items-start justify-between gap-3">
         <div>
-          <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider mb-1">?Ä??/h2>
-          <p id="status-text" class="text-slate-600 text-sm leading-relaxed">Â∞öÊú™?ãÂ?</p>
+          <h2 id="h-status" class="text-sm font-bold text-slate-600 uppercase tracking-wider mb-1">Status</h2>
+          <p id="status-text" class="text-slate-600 text-sm leading-relaxed">Idle</p>
           <p id="support-text" class="text-slate-400 text-xs mt-1"></p>
         </div>
         <div class="text-right">
-          <div class="text-xs text-slate-400">?êÊ?‰∏ã‰???/div>
+          <div id="lbl-next" class="text-xs text-slate-400">Next</div>
           <div id="next-expected" class="text-2xl font-extrabold tabular-nums text-slate-700">1</div>
         </div>
       </div>
 
       <div class="mt-4 grid grid-cols-2 gap-3">
         <button id="btn-start" class="bg-blue-600 text-white py-3 rounded-xl font-semibold active:scale-95 transition-transform flex items-center justify-center gap-2">
-          <i data-lucide="mic" class="w-5 h-5"></i><span>?ãÂ?</span>
+          <i data-lucide="mic" class="w-5 h-5"></i><span id="btn-start-text">Start</span>
         </button>
         <button id="btn-stop" class="bg-slate-100 text-slate-600 py-3 rounded-xl font-semibold active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100" disabled>
-          <i data-lucide="square" class="w-5 h-5"></i><span>?úÊ≠¢</span>
+          <i data-lucide="square" class="w-5 h-5"></i><span id="btn-stop-text">Stop</span>
         </button>
       </div>
 
-      <div class="mt-3 flex items-center justify-between gap-3">
+      <div class="mt-3 space-y-2">
+        <label class="flex items-center gap-2 text-xs text-slate-500 select-none">
+          <input id="toggle-seq" type="checkbox" class="accent-blue-600" checked>
+          <span id="lbl-seq">Sequence mode (accept next only)</span>
+        </label>
         <label class="flex items-center gap-2 text-xs text-slate-500 select-none">
           <input id="toggle-autofill" type="checkbox" class="accent-blue-600" checked>
-          <span>?™Â?Ë£úÁº∫ÔºàÂè™Ë£ú„Äå‰?‰∏Ä?ã„ÄçÊ??âÁ?‰∏ÄÊ¨°Ô?</span>
+          <span id="lbl-autofill">Autofill missing next (once)</span>
         </label>
         <label class="flex items-center gap-2 text-xs text-slate-500 select-none">
           <input id="toggle-debug" type="checkbox" class="accent-blue-600">
@@ -142,37 +146,36 @@
 
     <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
       <div class="flex items-baseline justify-between gap-3">
-        <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">?≥Ê??†Á∏Ω</h2>
-        <div class="text-xs text-slate-400">Á≠ÜÊï∏Ôº?span id="count" class="tabular-nums">0</span></div>
+        <h2 id="h-sum" class="text-sm font-bold text-slate-600 uppercase tracking-wider">Sum</h2>
+        <div class="text-xs text-slate-400"><span id="lbl-count">Count</span>: <span id="count" class="tabular-nums">0</span></div>
       </div>
       <div class="mt-2 flex items-end justify-between">
         <div class="text-5xl font-extrabold tabular-nums text-slate-800" id="sum">0</div>
         <div class="text-right">
-          <div class="text-xs text-slate-400">?ÄÂæåÂ???/div>
-          <div id="last-added" class="text-lg font-bold tabular-nums text-slate-700">??/div>
+          <div id="lbl-last" class="text-xs text-slate-400">Last</div>
+          <div id="last-added" class="text-lg font-bold tabular-nums text-slate-700">-</div>
         </div>
       </div>
 
       <div class="mt-4">
         <div class="flex items-center justify-between">
-          <div class="text-xs text-slate-400">Â∑≤Ëæ®Ë≠?/div>
+          <div id="lbl-recognized" class="text-xs text-slate-400">Recognized</div>
           <div class="flex items-center gap-2">
-            <button id="btn-undo" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 active:scale-95 transition-transform disabled:opacity-50 disabled:active:scale-100" disabled>Âæ©Â?</button>
-            <button id="btn-clear" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-600 active:scale-95 transition-transform">Ê∏ÖÁ©∫</button>
+            <button id="btn-undo" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 active:scale-95 transition-transform disabled:opacity-50 disabled:active:scale-100" disabled>Undo</button>
+            <button id="btn-clear" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-600 active:scale-95 transition-transform">Clear</button>
           </div>
         </div>
         <div id="numbers-box" class="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 font-mono leading-relaxed break-words min-h-[3.25rem]"></div>
-        <p class="text-[11px] text-slate-400 mt-2 leading-relaxed">
-          Âª∫Ë≠∞Ê∏¨Ë©¶?πÂ?ÔºöÁî®‰∏≠Ê?Âæû„Äå‰??çÂøµ?∞„Äå‰??Å„ÄçÔ?ÊØèÂÄãÊï∏Â≠óÈ??úÈ?Á¥?0.5 Áßí„Ä?        </p>
+        <p id="hint" class="text-[11px] text-slate-400 mt-2 leading-relaxed"></p>
       </div>
     </section>
 
     <section id="debug-panel" class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm hidden">
       <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">Debug</h2>
       <div class="mt-2 space-y-2 text-xs">
-        <div class="text-slate-500">InterimÔº?span id="dbg-interim" class="font-mono text-slate-700"></span></div>
-        <div class="text-slate-500">FinalÔº?span id="dbg-final" class="font-mono text-slate-700"></span></div>
-        <div class="text-slate-500">?ÄËøë‰?‰ª∂Ô?</div>
+        <div class="text-slate-500">Interim: <span id="dbg-interim" class="font-mono text-slate-700"></span></div>
+        <div class="text-slate-500">Final: <span id="dbg-final" class="font-mono text-slate-700"></span></div>
+        <div class="text-slate-500">Events:</div>
         <ul id="dbg-events" class="space-y-1 text-slate-600 font-mono"></ul>
       </div>
     </section>
@@ -181,111 +184,48 @@
   <script>
     lucide.createIcons();
 
-    const STORAGE_KEY = 'voice-sum:v1';
+    const STR = {
+      title: '\u8A9E\u97F3\u52A0\u7E3D',
+      hStatus: '\u72C0\u614B',
+      hSum: '\u5373\u6642\u52A0\u7E3D',
+      idle: '\u5C1A\u672A\u958B\u59CB',
+      listening: '\u6B63\u5728\u807D\u53D6\u2026\uFF08\u8ACB\u8AAA\u6578\u5B57\uFF09',
+      next: '\u9810\u671F\u4E0B\u4E00\u500B',
+      count: '\u7B46\u6578',
+      last: '\u6700\u5F8C\u52A0\u5165',
+      recognized: '\u5DF2\u8FA8\u8B58',
+      start: '\u958B\u59CB',
+      stop: '\u505C\u6B62',
+      undo: '\u5FA9\u539F',
+      clear: '\u6E05\u7A7A',
+      seq: '\u9023\u7E8C\u6A21\u5F0F\uFF08\u53EA\u6536\u4E0B\u4E00\u500B\u6578\uFF0C\u9810\u8A2D\u5F9E 1 \u958B\u59CB\uFF09',
+      autofill: '\u81EA\u52D5\u88DC\u7F3A\uFF08\u50C5\u88DC\u6F0F\u6389\u7684\u300C\u4E0B\u4E00\u500B\u300D\u4E00\u6B21\uFF09',
+      hintSeq: '\u5EFA\u8B70\u6E2C\u8A66\uFF1A\u7528\u4E2D\u6587\u5F9E\u300C\u4E00\u300D\u5FF5\u5230\u300C\u4E09\u5341\u300D\uFF0C\u6BCF\u500B\u6578\u5B57\u9593\u505C\u9813\u7D04 0.5 \u79D2\u3002',
+      hintFree: '\u81EA\u7531\u6A21\u5F0F\uFF1A\u652F\u63F4\u963F\u62C9\u4F2F\u6578\u5B57\u8207\u4E2D\u6587\u6578\u5B57\uFF08\u542B\u5341\u3001\u767E\u3001\u5343\u3001\u842C\u3001\u5104\uFF09\u3002',
+      unsupported: '\u6B64\u700F\u89BD\u5668\u4E0D\u652F\u63F4 Web Speech API\uFF08\u5EFA\u8B70 Chrome/Edge\uFF09\u3002',
+      insecure: '\u8A9E\u97F3\u8FA8\u8B58\u901A\u5E38\u9700\u8981 HTTPS\uFF08\u6216 localhost\uFF09\u3002',
+      micDenied: '\u7121\u6CD5\u4F7F\u7528\u9EA5\u514B\u98A8\uFF1A\u8ACB\u5141\u8A31\u700F\u89BD\u5668\u9EA5\u514B\u98A8\u6B0A\u9650\u3002',
+      micFail: '\u9EA5\u514B\u98A8\u7121\u6CD5\u4F7F\u7528\uFF1A',
+      srError: '\u8A9E\u97F3\u8FA8\u8B58\u932F\u8AA4\uFF1A',
+    };
+
+    document.getElementById('title').textContent = STR.title;
+    document.title = STR.title;
+    document.getElementById('h-status').textContent = STR.hStatus;
+    document.getElementById('h-sum').textContent = STR.hSum;
+    document.getElementById('lbl-next').textContent = STR.next;
+    document.getElementById('lbl-count').textContent = STR.count;
+    document.getElementById('lbl-last').textContent = STR.last;
+    document.getElementById('lbl-recognized').textContent = STR.recognized;
+    document.getElementById('btn-start-text').textContent = STR.start;
+    document.getElementById('btn-stop-text').textContent = STR.stop;
+    document.getElementById('btn-undo').textContent = STR.undo;
+    document.getElementById('btn-clear').textContent = STR.clear;
+    document.getElementById('lbl-seq').textContent = STR.seq;
+    document.getElementById('lbl-autofill').textContent = STR.autofill;
+
+    const STORAGE_KEY = 'voice-sum:v2';
     const MAX_EVENTS = 14;
-
-    function clampInt(n, min, max) {
-      const v = Number.parseInt(String(n), 10);
-      if (!Number.isFinite(v)) return null;
-      if (v < min || v > max) return null;
-      return v;
-    }
-
-    function toHalfWidthDigits(input) {
-      return String(input).replace(/[Ôº?Ôºô]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30));
-    }
-
-    function normalizeTranscript(input) {
-      let s = toHalfWidthDigits(input);
-      s = s.replace(/\s+/g, '');
-      s = s.replace(/[Ôº??ÇÔ?.??Ôº?Ôº??ÔºÅÔ?'"?ú‚Ä?)ÔºàÔ?\[\]?ê„Äë{}]/g, '');
-      s = s.replace(/??g, '‰∫?).replace(/‰ø?g, '‰∫?).replace(/??g, '‰∫?);
-      s = s.replace(/Âπ?g, '‰∏Ä');
-      s = s.replace(/Âª?g, '‰∫åÂ?').replace(/??g, '‰∫åÂ?');
-      s = s.replace(/??g, '‰∏âÂ?');
-      s = s.replace(/‰∏Ä??g, '??);
-      s = s.replace(/Á¨?g, '').replace(/??g, '').replace(/‰∏?g, '').replace(/??g, '');
-      return s;
-    }
-
-    function parseChineseNumberAt(s, idx) {
-      const digit = { '‰∏Ä': 1, '‰∫?: 2, '‰∏?: 3, '??: 4, '‰∫?: 5, '??: 6, '‰∏?: 7, '??: 8, '‰π?: 9 };
-
-      const c1 = s[idx];
-      const c2 = s[idx + 1];
-      const c3 = s[idx + 2];
-
-      if (c1 === '??) {
-        const tail = digit[c2];
-        if (tail) return { value: 10 + tail, nextIdx: idx + 2 };
-        return { value: 10, nextIdx: idx + 1 };
-      }
-
-      const head = digit[c1];
-      if (!head) return null;
-
-      if (c2 === '??) {
-        const tail = digit[c3];
-        const v = head * 10 + (tail || 0);
-        if (v >= 1 && v <= 30) return { value: v, nextIdx: idx + (tail ? 3 : 2) };
-        return null;
-      }
-
-      return { value: head, nextIdx: idx + 1 };
-    }
-
-    function parseNumbersInOrder(rawTranscript) {
-      const s = normalizeTranscript(rawTranscript);
-      const out = [];
-      let i = 0;
-
-      while (i < s.length) {
-        const ch = s[i];
-        if (ch >= '0' && ch <= '9') {
-          let j = i + 1;
-          while (j < s.length && s[j] >= '0' && s[j] <= '9') j++;
-          const v = clampInt(s.slice(i, j), 1, 30);
-          if (v !== null) out.push(v);
-          i = j;
-          continue;
-        }
-
-        const parsed = parseChineseNumberAt(s, i);
-        if (parsed) {
-          out.push(parsed.value);
-          i = parsed.nextIdx;
-          continue;
-        }
-
-        i += 1;
-      }
-
-      return out;
-    }
-
-    const CONFUSABLE_SINGLE_CHAR = new Map([
-      ['Ë•?, 7],
-      ['??, 7],
-      ['??, 7],
-      ['??, 7],
-      ['Ê≠?, 4],
-      ['??, 10],
-      ['??, 10],
-      ['‰∫?, 10],
-      ['??, 8],
-      ['??, 8],
-      ['??, 6],
-    ]);
-
-    function maybeGuessFromConfusable(rawTranscript, expectedNext) {
-      if (!expectedNext || expectedNext < 1 || expectedNext > 30) return null;
-      const s = normalizeTranscript(rawTranscript);
-      if (s.length !== 1) return null;
-      const guessed = CONFUSABLE_SINGLE_CHAR.get(s);
-      if (!guessed) return null;
-      if (guessed === expectedNext) return guessed;
-      return null;
-    }
 
     function fmtNow() {
       const d = new Date();
@@ -309,6 +249,188 @@
       };
     }
 
+    function toHalfWidthDigits(input) {
+      return String(input).replace(/[\uFF10-\uFF19]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFF10 + 0x30));
+    }
+
+    function normalizeTranscript(input) {
+      let s = toHalfWidthDigits(input);
+      s = s.replace(/\s+/g, '');
+      s = s.replace(/[Ôºå,„ÄÇÔºé.„ÄÅ;Ôºõ:Ôºö!?ÔºÅÔºü\"‚Äú‚Äù'()ÔºàÔºâ\[\]„Äê„Äë{}]/g, '');
+      s = s.replace(/ÂÖ©/g, '‰∫å').replace(/‰ø©/g, '‰∫å').replace(/ÂÄÜ/g, '‰∫å');
+      s = s.replace(/Âπ∫/g, '‰∏Ä');
+      s = s.replace(/Âªø/g, '‰∫åÂçÅ').replace(/ÂçÑ/g, '‰∫åÂçÅ');
+      s = s.replace(/ÂçÖ/g, '‰∏âÂçÅ');
+      s = s.replace(/‰∏ÄÂçÅ/g, 'ÂçÅ');
+      s = s.replace(/Á¨¨/g, '').replace(/Ëôü/g, '').replace(/‰∏™/g, '').replace(/ÂÄã/g, '');
+      return s;
+    }
+
+    function clampSafeInt(n) {
+      const v = Number(n);
+      if (!Number.isFinite(v)) return null;
+      if (!Number.isSafeInteger(v)) return null;
+      return v;
+    }
+
+    function parseSectionUnder10000(section) {
+      // supports: [0-9][\u5341\u767E\u5343] with optional \u96F6
+      const digit = {
+        '\u96F6': 0,
+        '\u4E00': 1,
+        '\u4E8C': 2,
+        '\u4E09': 3,
+        '\u56DB': 4,
+        '\u4E94': 5,
+        '\u516D': 6,
+        '\u4E03': 7,
+        '\u516B': 8,
+        '\u4E5D': 9,
+      };
+      const unit = {
+        '\u5341': 10,
+        '\u767E': 100,
+        '\u5343': 1000,
+      };
+
+      let total = 0;
+      let currentDigit = null;
+
+      for (let i = 0; i < section.length; i += 1) {
+        const ch = section[i];
+        if (ch in digit) {
+          currentDigit = digit[ch];
+          continue;
+        }
+        if (ch in unit) {
+          const u = unit[ch];
+          const d = (currentDigit === null) ? 1 : currentDigit;
+          total += d * u;
+          currentDigit = null;
+          continue;
+        }
+        return null;
+      }
+
+      if (currentDigit !== null) total += currentDigit;
+      return total;
+    }
+
+    function parseChineseNumeral(str) {
+      if (!str) return null;
+      let s = String(str);
+      s = s.replace(/ÂÖ©/g, '\u4E8C');
+
+      const allowed = /^[\u96F6\u4E00\u4E8C\u4E09\u56DB\u4E94\u516D\u4E03\u516B\u4E5D\u5341\u767E\u5343\u842C\u5104]+$/;
+      if (!allowed.test(s)) return null;
+
+      const splitBy = (input, ch) => {
+        const idx = input.indexOf(ch);
+        if (idx === -1) return null;
+        return { left: input.slice(0, idx), right: input.slice(idx + 1) };
+      };
+
+      let total = 0;
+      let rest = s;
+
+      const yi = splitBy(rest, '\u5104');
+      if (yi) {
+        const left = yi.left ? parseChineseNumeral(yi.left) : 1;
+        if (left === null) return null;
+        total += left * 100000000;
+        rest = yi.right;
+      }
+
+      const wan = splitBy(rest, '\u842C');
+      if (wan) {
+        const left = wan.left ? parseSectionUnder10000(wan.left) : 1;
+        if (left === null) return null;
+        total += left * 10000;
+        rest = wan.right;
+      }
+
+      const tail = rest ? parseSectionUnder10000(rest) : 0;
+      if (tail === null) return null;
+      total += tail;
+
+      return clampSafeInt(total);
+    }
+
+    function parseNumbersInOrder(rawTranscript) {
+      const s = normalizeTranscript(rawTranscript);
+      const out = [];
+
+      const chineseChars = /[\u96F6\u4E00\u4E8C\u4E09\u56DB\u4E94\u516D\u4E03\u516B\u4E5D\u5341\u767E\u5343\u842C\u5104]/;
+
+      let i = 0;
+      while (i < s.length) {
+        const ch = s[i];
+
+        if (ch >= '0' && ch <= '9') {
+          let j = i + 1;
+          while (j < s.length && s[j] >= '0' && s[j] <= '9') j++;
+          const v = clampSafeInt(Number(s.slice(i, j)));
+          if (v !== null) out.push(v);
+          i = j;
+          continue;
+        }
+
+        if (chineseChars.test(ch)) {
+          // take maximal run of chinese numeral chars
+          let j = i + 1;
+          while (j < s.length && chineseChars.test(s[j])) j++;
+          const run = s.slice(i, j);
+
+          // If run has no units, treat as digit-by-digit (e.g. \u4E00\u4E8C\u4E09 => 1,2,3)
+          if (!/[\u5341\u767E\u5343\u842C\u5104]/.test(run)) {
+            const map = {
+              '\u96F6': 0,
+              '\u4E00': 1,
+              '\u4E8C': 2,
+              '\u4E09': 3,
+              '\u56DB': 4,
+              '\u4E94': 5,
+              '\u516D': 6,
+              '\u4E03': 7,
+              '\u516B': 8,
+              '\u4E5D': 9,
+            };
+            for (const c of run) {
+              if (c in map) out.push(map[c]);
+            }
+            i = j;
+            continue;
+          }
+
+          // Try parse the whole run first; if fails, fall back to incremental.
+          const parsedWhole = parseChineseNumeral(run);
+          if (parsedWhole !== null) {
+            out.push(parsedWhole);
+            i = j;
+            continue;
+          }
+
+          // fallback: parse progressively from longest to shortest
+          let advanced = false;
+          for (let len = Math.min(12, run.length); len >= 1; len -= 1) {
+            const part = run.slice(0, len);
+            const v = parseChineseNumeral(part);
+            if (v !== null) {
+              out.push(v);
+              i += len;
+              advanced = true;
+              break;
+            }
+          }
+          if (advanced) continue;
+        }
+
+        i += 1;
+      }
+
+      return out;
+    }
+
     const ui = {
       statusDot: document.getElementById('status-dot'),
       statusText: document.getElementById('status-text'),
@@ -322,23 +444,25 @@
       lastAdded: document.getElementById('last-added'),
       numbersBox: document.getElementById('numbers-box'),
       nextExpected: document.getElementById('next-expected'),
+      toggleSeq: document.getElementById('toggle-seq'),
       toggleAutofill: document.getElementById('toggle-autofill'),
       toggleDebug: document.getElementById('toggle-debug'),
       debugPanel: document.getElementById('debug-panel'),
       dbgInterim: document.getElementById('dbg-interim'),
       dbgFinal: document.getElementById('dbg-final'),
       dbgEvents: document.getElementById('dbg-events'),
+      hint: document.getElementById('hint'),
     };
 
     const state = {
       items: [], // { value:number, inferred:boolean, at:number, src:string }
       listening: false,
       shouldListen: false,
-      lastAcceptedAt: 0,
       session: 0,
       recognition: null,
-      seenFinal: createLruSet(80),
+      seenFinal: createLruSet(120),
       lastFinalIgnoredCandidate: null, // { expected, candidate, at }
+      lastFreeAccepted: null, // { value, at }
     };
 
     function computeSum() {
@@ -346,18 +470,18 @@
     }
 
     function expectedNextValue() {
-      const last = state.items.length ? state.items[state.items.length - 1].value : 0;
-      const next = last + 1;
-      if (next < 1) return 1;
-      if (next > 30) return 31;
-      return next;
+      const lastSeq = state.items.filter(it => it.seq).slice(-1)[0];
+      const last = lastSeq ? lastSeq.value : 0;
+      return last + 1;
     }
 
     function persist() {
       try {
         const payload = {
-          v: 1,
-          items: state.items.map(it => ({ value: it.value, inferred: !!it.inferred, at: it.at })),
+          v: 2,
+          items: state.items.map(it => ({ value: it.value, inferred: !!it.inferred, at: it.at, seq: !!it.seq })),
+          seqOn: !!ui.toggleSeq.checked,
+          autofillOn: !!ui.toggleAutofill.checked,
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
       } catch {}
@@ -368,10 +492,12 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return;
         const data = JSON.parse(raw);
-        if (!data || data.v !== 1 || !Array.isArray(data.items)) return;
+        if (!data || data.v !== 2 || !Array.isArray(data.items)) return;
         state.items = data.items
-          .map(it => ({ value: clampInt(it.value, 1, 30), inferred: !!it.inferred, at: Number(it.at) || Date.now(), src: '' }))
+          .map(it => ({ value: clampSafeInt(it.value), inferred: !!it.inferred, at: Number(it.at) || Date.now(), seq: !!it.seq, src: '' }))
           .filter(it => it.value !== null);
+        if (typeof data.seqOn === 'boolean') ui.toggleSeq.checked = data.seqOn;
+        if (typeof data.autofillOn === 'boolean') ui.toggleAutofill.checked = data.autofillOn;
       } catch {}
     }
 
@@ -399,29 +525,76 @@
       ui.count.textContent = String(state.items.length);
 
       const last = state.items.length ? state.items[state.items.length - 1] : null;
-      ui.lastAdded.textContent = last ? (last.inferred ? `${last.value}*` : String(last.value)) : '??;
+      ui.lastAdded.textContent = last ? (last.inferred ? `${last.value}*` : String(last.value)) : '-';
 
       const nums = state.items.map(it => it.inferred ? `${it.value}*` : String(it.value));
-      ui.numbersBox.textContent = nums.length ? nums.join(', ') : 'ÔºàÂ??°Ô?';
+      ui.numbersBox.textContent = nums.length ? nums.join(', ') : '(empty)';
 
-      const next = expectedNextValue();
-      ui.nextExpected.textContent = next <= 30 ? String(next) : '??;
+      if (ui.toggleSeq.checked) {
+        ui.nextExpected.textContent = String(expectedNextValue());
+        ui.hint.textContent = STR.hintSeq;
+      } else {
+        ui.nextExpected.textContent = '-';
+        ui.hint.textContent = STR.hintFree;
+      }
 
       ui.btnUndo.disabled = state.items.length === 0;
       persist();
     }
 
-    function addNumber(value, { inferred = false, src = '' } = {}) {
-      const v = clampInt(value, 1, 30);
+    function addItem(value, { inferred = false, src = '', seq = false } = {}) {
+      const v = clampSafeInt(value);
       if (v === null) return false;
-      const expected = expectedNextValue();
-      if (expected > 30) return false;
-      if (expected <= 30 && v !== expected) return false;
 
-      state.items.push({ value: v, inferred: !!inferred, at: Date.now(), src });
-      state.lastAcceptedAt = Date.now();
+      state.items.push({ value: v, inferred: !!inferred, at: Date.now(), src, seq: !!seq });
       render();
       return true;
+    }
+
+    function addFromCandidates(candidates, rawTranscript) {
+      if (!candidates.length) return;
+
+      if (!ui.toggleSeq.checked) {
+        for (const v of candidates) {
+          const now = Date.now();
+          const last = state.lastFreeAccepted;
+          if (last && last.value === v && (now - last.at) < 900) continue;
+          if (addItem(v, { inferred: false, src: rawTranscript, seq: false })) {
+            state.lastFreeAccepted = { value: v, at: now };
+          }
+        }
+        return;
+      }
+
+      let expected = expectedNextValue();
+      const accepted = [];
+      for (const c of candidates) {
+        if (c === expected) {
+          if (addItem(c, { inferred: false, src: rawTranscript, seq: true })) accepted.push(c);
+          expected += 1;
+          continue;
+        }
+        if (c === expected - 1) continue;
+      }
+
+      if (accepted.length) return;
+
+      if (!ui.toggleAutofill.checked) return;
+
+      // Autofill rule: if we repeatedly see expected+1, insert expected* then expected+1
+      const best = candidates[0];
+      const expectedNow = expectedNextValue();
+      if (best !== expectedNow + 1) return;
+
+      const now = Date.now();
+      const last = state.lastFinalIgnoredCandidate;
+      const isRepeated = last && (now - last.at < 2200) && last.expected === expectedNow && last.candidate === best;
+      state.lastFinalIgnoredCandidate = { expected: expectedNow, candidate: best, at: now };
+      if (!isRepeated) return;
+
+      const ok1 = addItem(expectedNow, { inferred: true, src: rawTranscript, seq: true });
+      const ok2 = addItem(best, { inferred: false, src: rawTranscript, seq: true });
+      if (ok1 && ok2) pushEvent(`autofill: +${expectedNow}* +${best}`);
     }
 
     function undoLast() {
@@ -431,108 +604,28 @@
 
     function clearAll() {
       state.items = [];
+      state.lastFinalIgnoredCandidate = null;
+      state.lastFreeAccepted = null;
       render();
     }
 
     function updateSupportText() {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const isSupported = !!SR;
-      if (!isSupported) {
-        ui.supportText.textContent = 'Ê≠§ÁÄèË¶Ω?®‰??ØÊè¥ Web Speech APIÔºàÂª∫Ë≠∞Áî® Chrome/EdgeÔºâ„Ä?;
+      if (!SR) {
+        ui.supportText.textContent = STR.unsupported;
         return;
       }
-      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-        ui.supportText.textContent = '?êÈ?ÔºöË??≥Ëæ®Ë≠òÈÄöÂ∏∏?ÄË¶?HTTPSÔºàÊ? localhostÔºâ„Ä?;
+      if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+        ui.supportText.textContent = STR.insecure;
         return;
       }
-      ui.supportText.textContent = '?ØÊè¥ Web Speech API?ÇÂª∫Ë≠∞‰Ωø??Chrome/Edge??;
-    }
-
-    function buildGrammar() {
-      const cn = [
-        '‰∏Ä','‰∫?,'‰∏?,'??,'‰∫?,'??,'‰∏?,'??,'‰π?,
-        '??,'?Å‰?','?Å‰?','?Å‰?','?ÅÂ?','?Å‰?','?ÅÂÖ≠','?Å‰?','?ÅÂÖ´','?Å‰?',
-        '‰∫åÂ?','‰∫åÂ?‰∏Ä','‰∫åÂ?‰∫?,'‰∫åÂ?‰∏?,'‰∫åÂ???,'‰∫åÂ?‰∫?,'‰∫åÂ???,'‰∫åÂ?‰∏?,'‰∫åÂ???,'‰∫åÂ?‰π?,
-        '‰∏âÂ?'
-      ];
-      const ar = Array.from({ length: 30 }, (_, i) => String(i + 1));
-      const words = cn.concat(ar).join(' | ');
-      return `#JSGF V1.0; grammar numbers; public <number> = ${words} ;`;
-    }
-
-    function createRecognition() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) return null;
-
-      const recognition = new SR();
-      recognition.lang = 'zh-TW';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 3;
-
-      const SGL = window.SpeechGrammarList || window.webkitSpeechGrammarList;
-      if (SGL) {
-        try {
-          const list = new SGL();
-          list.addFromString(buildGrammar(), 1);
-          recognition.grammars = list;
-        } catch {}
-      }
-
-      return recognition;
-    }
-
-    function acceptFromCandidates(candidates, rawTranscript) {
-      let expected = expectedNextValue();
-      if (expected > 30) return;
-
-      const accepted = [];
-      for (const c of candidates) {
-        if (expected > 30) break;
-        if (c === expected) {
-          if (addNumber(c, { inferred: false, src: rawTranscript })) accepted.push(c);
-          expected += 1;
-          continue;
-        }
-        if (c === expected - 1) continue;
-      }
-
-      if (accepted.length) return;
-
-      // Confusable single-char fallback
-      const guessed = maybeGuessFromConfusable(rawTranscript, expectedNextValue());
-      if (guessed !== null) {
-        if (addNumber(guessed, { inferred: false, src: rawTranscript })) {
-          pushEvent(`guess: "${rawTranscript}" => ${guessed}`);
-          return;
-        }
-      }
-
-      // Autofill: only when we keep getting expected+1 while expected was missed
-      if (!ui.toggleAutofill.checked) return;
-      if (!candidates.length) return;
-
-      const best = candidates.find(n => n >= 1 && n <= 30) ?? null;
-      const expectedNow = expectedNextValue();
-      if (best === null) return;
-      if (best !== expectedNow + 1) return;
-
-      const now = Date.now();
-      const last = state.lastFinalIgnoredCandidate;
-      const isRepeated = last && (now - last.at < 2200) && last.expected === expectedNow && last.candidate === best;
-      state.lastFinalIgnoredCandidate = { expected: expectedNow, candidate: best, at: now };
-
-      if (!isRepeated) return;
-
-      const ok1 = addNumber(expectedNow, { inferred: true, src: rawTranscript });
-      const ok2 = addNumber(best, { inferred: false, src: rawTranscript });
-      if (ok1 && ok2) pushEvent(`autofill: +${expectedNow}* +${best}`);
+      ui.supportText.textContent = 'OK';
     }
 
     function setListeningUi(on) {
       ui.btnStart.disabled = on;
       ui.btnStop.disabled = !on;
-      setStatus(on ? 'listening' : 'idle', on ? 'Ê≠?ú®?ÜËÅΩ?¶Ô?Ë´ãÁî®‰∏≠Ê?ÂøµÊï∏Â≠óÔ?' : 'Â∞öÊú™?ãÂ?');
+      setStatus(on ? 'listening' : 'idle', on ? STR.listening : STR.idle);
     }
 
     function safeStopRecognition() {
@@ -548,12 +641,44 @@
       setListeningUi(false);
     }
 
-    function startListening() {
+    function createRecognition() {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) return;
+      if (!SR) return null;
+      const recognition = new SR();
+      recognition.lang = 'zh-TW';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 3;
+      return recognition;
+    }
+
+    async function ensureMicPermission() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      for (const t of stream.getTracks()) t.stop();
+    }
+
+    async function startListening() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        setStatus('error', STR.unsupported);
+        return;
+      }
+      if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+        setStatus('error', STR.insecure);
+        return;
+      }
+
+      try {
+        await ensureMicPermission();
+      } catch (e) {
+        const name = String(e && (e.name || e.message) || '');
+        setStatus('error', name.includes('NotAllowed') ? STR.micDenied : (STR.micFail + name));
+        return;
+      }
 
       state.session += 1;
-      state.seenFinal = createLruSet(80);
+      state.seenFinal = createLruSet(120);
       state.lastFinalIgnoredCandidate = null;
 
       const recognition = createRecognition();
@@ -569,7 +694,7 @@
         if (lastIdx >= 0) {
           const last = event.results[lastIdx];
           if (last && !last.isFinal) {
-            const interim = last[0]?.transcript || '';
+            const interim = last[0] && last[0].transcript || '';
             ui.dbgInterim.textContent = interim.trim();
           }
         }
@@ -577,31 +702,30 @@
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
           const res = event.results[i];
           if (!res || !res.isFinal) continue;
-          const transcript = String(res[0]?.transcript || '').trim();
-          const key = `${state.session}:${i}:${transcript}`;
+          const transcript = String(res[0] && res[0].transcript || '').trim();
           if (!transcript) continue;
+
+          const key = `${state.session}:${i}:${transcript}`;
           if (state.seenFinal.has(key)) continue;
           state.seenFinal.add(key);
 
           ui.dbgFinal.textContent = transcript;
           const candidates = parseNumbersInOrder(transcript);
           pushEvent(`final: "${transcript}" => [${candidates.join(',')}]`);
-          acceptFromCandidates(candidates, transcript);
+          addFromCandidates(candidates, transcript);
         }
       };
 
       recognition.onerror = (event) => {
-        const err = event?.error || 'unknown';
+        const err = event && event.error || 'unknown';
         pushEvent(`error: ${err}`);
-        setStatus('error', `Ë™ûÈü≥Ëæ®Ë??ØË™§Ôº?{err}`);
-        // Not all errors should stop; but most indicate we should halt and require user action.
+        setStatus('error', STR.srError + err);
         safeStopRecognition();
       };
 
       recognition.onend = () => {
         pushEvent('end');
         if (!state.shouldListen) return;
-        // Auto-restart for engines that stop after a pause.
         setTimeout(() => {
           if (!state.shouldListen) return;
           try {
@@ -622,18 +746,22 @@
       }
     }
 
-    ui.btnStart.addEventListener('click', () => startListening());
-    ui.btnStop.addEventListener('click', () => safeStopRecognition());
-    ui.btnUndo.addEventListener('click', () => undoLast());
-    ui.btnClear.addEventListener('click', () => clearAll());
+    ui.btnStart.addEventListener('click', () => { startListening(); });
+    ui.btnStop.addEventListener('click', () => { safeStopRecognition(); });
+    ui.btnUndo.addEventListener('click', () => { undoLast(); });
+    ui.btnClear.addEventListener('click', () => { clearAll(); });
     ui.toggleDebug.addEventListener('change', () => {
       ui.debugPanel.classList.toggle('hidden', !ui.toggleDebug.checked);
+    });
+    ui.toggleSeq.addEventListener('change', () => {
+      state.lastFinalIgnoredCandidate = null;
+      render();
     });
 
     restore();
     updateSupportText();
     render();
-    setStatus('idle', 'Â∞öÊú™?ãÂ?');
+    setStatus('idle', STR.idle);
   </script>
 </body>
 </html>
