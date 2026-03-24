@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "description": "Static launcher + tools for Vercel",
   "scripts": {
-    "dev": "http-server . -p 5500 -c-1",
-    "dev:open": "http-server . -p 5500 -c-1 -o /",
-    "start": "http-server . -p 5500 -c-1",
+    "dev": "powershell -NoProfile -Command \"$ErrorActionPreference='Stop'; Set-Location -LiteralPath $env:npm_config_local_prefix; node .\\\\node_modules\\\\http-server\\\\bin\\\\http-server . -p 5500 -c-1\"",
+    "dev:open": "powershell -NoProfile -Command \"$ErrorActionPreference='Stop'; Set-Location -LiteralPath $env:npm_config_local_prefix; node .\\\\node_modules\\\\http-server\\\\bin\\\\http-server . -p 5500 -c-1 -o /\"",
+    "start": "powershell -NoProfile -Command \"$ErrorActionPreference='Stop'; Set-Location -LiteralPath $env:npm_config_local_prefix; node .\\\\node_modules\\\\http-server\\\\bin\\\\http-server . -p 5500 -c-1\"",
     "test:dynamic-sheet": "node --test dynamic-sheet/tests/**/*.test.mjs",
     "test:dynamic-sheet:watch": "node --test --watch dynamic-sheet/tests/**/*.test.mjs",
     "test": "npm run test:dynamic-sheet",
