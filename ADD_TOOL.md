@@ -5,6 +5,7 @@
 - 該資料夾至少有 `index.html`。
 - 工具頁維持單檔，不依賴額外 bootstrap 檔案。
 - 建議直接複製 `TOOL_TEMPLATE.html` 作為起始模板。
+- 檔案請一律用 UTF-8 儲存（避免在不同環境顯示成亂碼）。
 
 ## 目錄結構
 
@@ -33,3 +34,7 @@
 - 資料保存使用 `localStorage` 或 `IndexedDB`。
 - 不要引入建置流程與後端 API 依賴。
 - 第三方 CDN 請鎖定版本，不要使用 `@latest`。
+
+## 終端顯示穩定性（可選）
+- 若在 PowerShell 輸出看到中文變成亂碼，通常是終端編碼設定問題，不代表檔案真的壞。
+- 可在該次 shell 先跑一次：`.\scripts\ps-utf8.ps1`
