@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>點擊速度測試</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@0.542.0"></script>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <style>
+    ::-webkit-scrollbar { width: 0; background: transparent; }
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .click-anim { transform: scale(0.85); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+  <script>
+    /*
+      自動向大廳註冊本資料夾路徑（讓根目錄 launcher 可自動列出此工具）。
+    */
+    (function autoRegister() {
+      let appPath = window.location.pathname;
+      if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
+      if (!appPath.endsWith('/')) appPath += '/';
+      if (appPath === '/') return;
+
+      try {
+        localStorage.setItem('myAppLauncherLastPath', appPath);
+        localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
+      } catch {}
+
+      const launcherPath = appPath.replace(/[^/]+\/$/, '');
+      const normalizedLauncherPath = launcherPath || '/';
+
+      function configureHomeLinkAndProbe() {
+        const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
+        const homeHref = normalizedLauncherPath.includes('?')
+          ? `${normalizedLauncherPath}&home=1`
+          : `${normalizedLauncherPath}?home=1`;
+
+        homeLinks.forEach(el => el.setAttribute('href', homeHref));
+
+        if (window.location.protocol === 'file:') return;
+
+        const probeUrl = normalizedLauncherPath.endsWith('/')
+          ? `${normalizedLauncherPath}index.html`
+          : `${normalizedLauncherPath}/index.html`;
+
+        const revealHome = () => {
+          homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
+        };
+
+        fetch(probeUrl, { method: 'HEAD' })
+          .then(res => {
+            if (res.ok) { revealHome(); return; }
+            if (res.status === 405) {
+              return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); });
+            }
+          })
+          .catch(() => {});
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
+      } else {
+        configureHomeLinkAndProbe();
+      }
+
+      const appMeta = {
+        id: 'click-speed-test',
+        name: '點擊速度測試',
+        nameZh: '點擊速度測試',
+        nameEn: 'Click Speed Test',
+        path: appPath,
+        icon: 'mouse-pointer-click',
+        color: 'blue'
+      };
+
+      const storageKey = 'myAppLauncherStorage';
+      const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
+      if (existingIndex === -1) launcherData.push(appMeta);
+      else launcherData[existingIndex] = { ...launcherData[existingIndex], ...appMeta };
+      localStorage.setItem(storageKey, JSON.stringify(launcherData));
+    })();
+  </script>
+
+  <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-20">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors invisible pointer-events-none" aria-label="返回大廳">
+        <i data-lucide="home" class="w-5 h-5"></i>
+      </a>
+      <div class="flex items-center gap-2">
+        <i data-lucide="mouse-pointer-click" class="w-5 h-5"></i>
+        <h1 class="text-lg font-bold tracking-tight">點擊速度測試</h1>
+      </div>
+      <div class="w-9"></div>
+    </div>
+  </header>
+
+  <main class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4">
+    <section class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex justify-between items-center">
+      <div class="text-center flex-1 border-r border-slate-100">
+        <p class="text-slate-500 text-xs font-semibold mb-1">剩餘時間</p>
+        <p id="time-display" class="text-3xl font-bold text-slate-800 tabular-nums">
+          10.0<span class="text-sm font-normal text-slate-500 ml-1">s</span>
+        </p>
+      </div>
+      <div class="text-center flex-1">
+        <p class="text-slate-500 text-xs font-semibold mb-1">點擊次數</p>
+        <p id="clicks-display" class="text-3xl font-bold text-blue-600 tabular-nums">0</p>
+      </div>
+    </section>
+
+    <div class="flex justify-between items-center px-2 text-sm">
+      <span class="text-slate-500 flex items-center gap-1">
+        <i data-lucide="trophy" class="w-4 h-4 text-amber-500"></i>
+        最高紀錄 (CPS)
+      </span>
+      <span id="best-cps-display" class="font-bold text-slate-700 tabular-nums">0.0</span>
+    </div>
+
+    <button id="click-area" class="w-full h-64 mt-2 bg-blue-500 hover:bg-blue-600 text-white rounded-3xl shadow-lg flex flex-col items-center justify-center transition-transform active:scale-95 touch-manipulation">
+      <i data-lucide="mouse-pointer-click" id="click-icon" class="w-16 h-16 mb-4 opacity-80 transition-transform"></i>
+      <h2 id="click-text" class="text-2xl font-bold tracking-wide">點一下開始</h2>
+      <p id="click-subtext" class="text-blue-100 mt-2 text-sm">10 秒內點越多越好</p>
+    </button>
+
+    <section id="result-section" class="hidden flex-col gap-3 mt-4 animate-[fadeIn_0.3s_ease-out]">
+      <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100 text-center">
+        <p class="text-blue-800 font-medium mb-1">你的成績</p>
+        <p class="text-4xl font-black text-blue-600 mt-2 mb-1 tabular-nums">
+          <span id="final-cps">0.0</span> <span class="text-lg font-bold text-blue-500">CPS</span>
+        </p>
+        <p id="final-detail" class="text-sm text-blue-600/80"></p>
+      </div>
+      <button id="btn-restart" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg active:scale-95 transition-transform flex justify-center items-center gap-2">
+        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+        再試一次
+      </button>
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    const GAME_DURATION_S = 10;
+    const SCORE_KEY = 'click-speed-test.bestCps';
+
+    const timeDisplay = document.getElementById('time-display');
+    const clicksDisplay = document.getElementById('clicks-display');
+    const bestCpsDisplay = document.getElementById('best-cps-display');
+    const clickArea = document.getElementById('click-area');
+    const clickText = document.getElementById('click-text');
+    const clickSubtext = document.getElementById('click-subtext');
+    const clickIcon = document.getElementById('click-icon');
+    const resultSection = document.getElementById('result-section');
+    const finalCpsDisplay = document.getElementById('final-cps');
+    const finalDetail = document.getElementById('final-detail');
+    const btnRestart = document.getElementById('btn-restart');
+
+    let bestCps = parseFloat(localStorage.getItem(SCORE_KEY) || '0') || 0;
+    bestCpsDisplay.innerText = bestCps.toFixed(1);
+
+    let isRunning = false;
+    let isFinished = false;
+    let clicks = 0;
+    let startPerf = 0;
+    let rafId = 0;
+
+    function formatTime(seconds) {
+      return Math.max(0, seconds).toFixed(1);
+    }
+
+    function setTimeLeft(seconds) {
+      timeDisplay.innerHTML = `${formatTime(seconds)}<span class="text-sm font-normal text-slate-500 ml-1">s</span>`;
+    }
+
+    function stopTimer() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+
+    function endGame() {
+      isRunning = false;
+      isFinished = true;
+      stopTimer();
+      setTimeLeft(0);
+
+      const cps = clicks / GAME_DURATION_S;
+      finalCpsDisplay.innerText = cps.toFixed(1);
+      finalDetail.textContent = `總點擊：${clicks} 次`;
+
+      if (cps > bestCps) {
+        bestCps = cps;
+        localStorage.setItem(SCORE_KEY, String(bestCps));
+        bestCpsDisplay.innerText = bestCps.toFixed(1);
+        bestCpsDisplay.classList.add('text-rose-500', 'scale-110', 'transition-all');
+        setTimeout(() => bestCpsDisplay.classList.remove('text-rose-500', 'scale-110'), 1000);
+      }
+
+      clickArea.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'active:scale-95');
+      clickArea.classList.add('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+      clickText.innerText = '時間到！';
+      clickSubtext.innerText = `總點擊：${clicks} 次`;
+      clickIcon.classList.add('hidden');
+
+      resultSection.classList.remove('hidden');
+      resultSection.classList.add('flex');
+    }
+
+    function tick() {
+      if (!isRunning) return;
+      const elapsed = (performance.now() - startPerf) / 1000;
+      const timeLeft = GAME_DURATION_S - elapsed;
+
+      if (timeLeft <= 0) {
+        endGame();
+        return;
+      }
+
+      setTimeLeft(timeLeft);
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function handleTap(e) {
+      if (e.cancelable) e.preventDefault();
+      if (isFinished) return;
+
+      clickIcon.classList.remove('click-anim');
+      void clickIcon.offsetWidth;
+      clickIcon.classList.add('click-anim');
+
+      if (!isRunning) {
+        isRunning = true;
+        startPerf = performance.now();
+        clickText.innerText = '快點點！';
+        clickSubtext.innerText = '加油加油...';
+        stopTimer();
+        rafId = requestAnimationFrame(tick);
+      }
+
+      clicks += 1;
+      clicksDisplay.innerText = String(clicks);
+
+      clicksDisplay.style.transform = 'scale(1.2)';
+      setTimeout(() => { clicksDisplay.style.transform = 'scale(1)'; }, 50);
+    }
+
+    function reset() {
+      stopTimer();
+      isRunning = false;
+      isFinished = false;
+      clicks = 0;
+      startPerf = 0;
+
+      clicksDisplay.innerText = '0';
+      setTimeLeft(GAME_DURATION_S);
+
+      clickArea.classList.remove('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+      clickArea.classList.add('bg-blue-500', 'hover:bg-blue-600', 'active:scale-95');
+      clickText.innerText = '點一下開始';
+      clickSubtext.innerText = '10 秒內點越多越好';
+      clickIcon.classList.remove('hidden');
+
+      resultSection.classList.add('hidden');
+      resultSection.classList.remove('flex');
+      finalCpsDisplay.innerText = '0.0';
+      finalDetail.textContent = '';
+    }
+
+    clickArea.addEventListener('pointerdown', handleTap);
+    btnRestart.addEventListener('click', reset);
+
+    reset();
+  </script>
+</body>
+</html>
