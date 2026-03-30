@@ -32,75 +32,46 @@
     body { -webkit-tap-highlight-color: transparent; }
     .tab-active { color: #d70f64; font-weight: bold; }
     .tab-inactive { color: #94a3b8; }
-    /* 隱藏原生數字輸入框的上下箭頭 */
     input[type="number"]::-webkit-inner-spin-button,
     input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    /* 加入安全區 padding 避免 iPhone 底部橫條擋住按鈕 */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
 
   <script>
-    /*
-      自動註冊規則（保留首頁探測邏輯）
-    */
+    // 自動註冊邏輯 (保留不變)
     (function autoRegister() {
       let appPath = window.location.pathname;
       if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
       if (!appPath.endsWith('/')) appPath += '/';
       if (appPath === '/') return;
-
       try {
         localStorage.setItem('myAppLauncherLastPath', appPath);
         localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
       } catch {}
-
       const launcherPath = appPath.replace(/[^/]+\/$/, '');
       const normalizedLauncherPath = launcherPath || '/';
-
       function configureHomeLinkAndProbe() {
         const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
-        const homeHref = normalizedLauncherPath.includes('?')
-          ? `${normalizedLauncherPath}&home=1`
-          : `${normalizedLauncherPath}?home=1`;
-
+        const homeHref = normalizedLauncherPath.includes('?') ? `${normalizedLauncherPath}&home=1` : `${normalizedLauncherPath}?home=1`;
         homeLinks.forEach(el => el.setAttribute('href', homeHref));
-
         if (window.location.protocol === 'file:') return;
-
-        const probeUrl = normalizedLauncherPath.endsWith('/')
-          ? `${normalizedLauncherPath}index.html`
-          : `${normalizedLauncherPath}/index.html`;
-
-        const revealHome = () => {
-          homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
-        };
-
+        const probeUrl = normalizedLauncherPath.endsWith('/') ? `${normalizedLauncherPath}index.html` : `${normalizedLauncherPath}/index.html`;
+        const revealHome = () => { homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none')); };
         fetch(probeUrl, { method: 'HEAD' })
           .then(res => {
             if (res.ok) { revealHome(); return; }
-            if (res.status === 405) {
-              return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); });
-            }
-          })
-          .catch(() => {});
+            if (res.status === 405) { return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); }); }
+          }).catch(() => {});
       }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
-      } else {
-        configureHomeLinkAndProbe();
-      }
-
+      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true }); } 
+      else { configureHomeLinkAndProbe(); }
       const appMeta = {
-        id: 'delivery-wizard',
-        name: '跑單紀錄神器',
-        nameZh: '跑單紀錄神器',
-        nameEn: 'Delivery Wizard',
-        path: appPath,
-        icon: 'bike',
-        color: 'rose'
+        id: 'delivery-wizard', name: '跑單紀錄神器', nameZh: '跑單紀錄神器', nameEn: 'Delivery Wizard',
+        path: appPath, icon: 'bike', color: 'rose'
       };
-
       const storageKey = 'myAppLauncherStorage';
       const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
@@ -112,25 +83,22 @@
 
   <header class="bg-panda text-white p-4 shadow-md sticky top-0 z-20">
     <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-pink-700 rounded-full transition-colors invisible pointer-events-none" aria-label="返回目錄">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-pink-700 rounded-full transition-colors invisible pointer-events-none">
         <i data-lucide="home" class="w-5 h-5"></i>
       </a>
       <h1 class="text-lg font-bold tracking-tight">跑單紀錄神器</h1>
-      <button onclick="requestNotification()" class="p-2 -mr-2 hover:bg-pink-700 rounded-full" aria-label="設定提醒">
+      <button type="button" onclick="requestNotification()" class="p-2 -mr-2 hover:bg-pink-700 rounded-full">
         <i data-lucide="bell" class="w-5 h-5"></i>
       </button>
     </div>
   </header>
 
-  <main class="flex-grow w-full max-w-md mx-auto p-4 pb-24 overflow-y-auto" id="main-content">
+  <main class="flex-grow w-full max-w-md mx-auto p-4 pb-28 overflow-y-auto" id="main-content">
     
     <div id="view-home" class="view-section block">
-      <div class="bg-pink-100 text-panda px-3 py-1.5 rounded-lg inline-block text-sm font-bold mb-4" id="display-date">
-        </div>
-
+      <div class="bg-pink-100 text-panda px-3 py-1.5 rounded-lg inline-block text-sm font-bold mb-4" id="display-date">讀取中...</div>
       <h2 class="text-lg font-bold text-slate-800 mb-3 flex items-center justify-between">
-        今日統計
-        <span class="bg-panda text-white text-xs px-2 py-1 rounded-full shadow-sm">綜合</span>
+        今日統計<span class="bg-panda text-white text-xs px-2 py-1 rounded-full shadow-sm">綜合</span>
       </h2>
       <div class="grid grid-cols-2 gap-3 mb-6">
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
@@ -147,7 +115,7 @@
         </div>
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
           <div class="text-slate-500 text-xs flex items-center gap-1 mb-1"><i data-lucide="timer" class="w-3 h-3 text-purple-500"></i>今日工時</div>
-          <div class="text-xl font-bold text-purple-500" id="home-hours">0.0 數</div>
+          <div class="text-xl font-bold text-purple-500" id="home-hours">0.0 小時</div>
         </div>
       </div>
 
@@ -167,11 +135,11 @@
 
       <h2 class="text-lg font-bold text-slate-800 mb-3">快速操作</h2>
       <div class="grid grid-cols-2 gap-3">
-        <button onclick="openModal()" class="bg-pink-50 text-panda border border-pink-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
+        <button type="button" onclick="openModal()" class="bg-pink-50 text-panda border border-pink-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform z-10 relative">
           <div class="bg-panda text-white rounded-full p-1"><i data-lucide="plus" class="w-5 h-5"></i></div>
           <span class="font-bold text-sm">新增紀錄</span>
         </button>
-        <button onclick="switchTab('stats')" class="bg-blue-50 text-blue-600 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
+        <button type="button" onclick="switchTab('stats')" class="bg-blue-50 text-blue-600 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform z-10 relative">
           <div class="bg-blue-500 text-white rounded-full p-1"><i data-lucide="bar-chart-2" class="w-5 h-5"></i></div>
           <span class="font-bold text-sm">查看統計</span>
         </button>
@@ -180,8 +148,7 @@
 
     <div id="view-records" class="view-section hidden">
       <h2 class="text-xl font-bold text-slate-800 mb-4">歷史紀錄</h2>
-      <div id="records-list" class="space-y-3">
-        </div>
+      <div id="records-list" class="space-y-3"></div>
       <div id="empty-records" class="hidden text-center py-10 text-slate-400">
         <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
         <p>目前還沒有任何紀錄喔！</p>
@@ -193,12 +160,10 @@
         <h2 class="text-xl font-bold text-slate-800">趨勢與統計</h2>
         <input type="date" id="stat-date-picker" class="bg-slate-100 px-2 py-1 rounded text-sm text-slate-600 outline-none">
       </div>
-      
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6">
         <h3 class="text-sm font-bold text-slate-500 mb-3">近10筆收入趨勢</h3>
         <canvas id="incomeChart" height="200"></canvas>
       </div>
-
       <h2 class="text-lg font-bold text-slate-800 mb-3">平台分析</h2>
       <div class="space-y-3 mb-6">
         <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-l-panda border-y-slate-100 border-r-slate-100 flex justify-between items-center">
@@ -227,14 +192,14 @@
     <div id="view-settings" class="view-section hidden">
       <h2 class="text-xl font-bold text-slate-800 mb-4">資料管理</h2>
       <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div class="p-4 border-b border-slate-50 flex justify-between items-center active:bg-slate-50 transition-colors" onclick="exportCSV()">
+        <div class="p-4 border-b border-slate-50 flex justify-between items-center active:bg-slate-50 cursor-pointer" onclick="exportCSV()">
           <div class="flex items-center gap-3">
             <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i data-lucide="download" class="w-5 h-5"></i></div>
             <span class="font-medium text-slate-700">匯出 CSV 檔案</span>
           </div>
           <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
         </div>
-        <div class="p-4 flex justify-between items-center active:bg-slate-50 transition-colors" onclick="clearAllData()">
+        <div class="p-4 flex justify-between items-center active:bg-slate-50 cursor-pointer" onclick="clearAllData()">
           <div class="flex items-center gap-3">
             <div class="bg-red-100 text-red-600 p-2 rounded-lg"><i data-lucide="trash-2" class="w-5 h-5"></i></div>
             <span class="font-medium text-slate-700">清空所有資料</span>
@@ -242,65 +207,59 @@
           <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
         </div>
       </div>
-      <p class="text-xs text-slate-400 mt-4 text-center">所有資料皆安全儲存於您的設備本機</p>
     </div>
   </main>
 
-  <button id="fab-add" onclick="openModal()" class="hidden fixed bottom-24 right-6 bg-panda text-white p-4 rounded-full shadow-lg active:scale-95 transition-transform z-30">
+  <button type="button" id="fab-add" onclick="openModal()" class="hidden fixed bottom-24 right-6 bg-panda text-white p-4 rounded-full shadow-lg active:scale-95 transition-transform z-30">
     <i data-lucide="plus" class="w-6 h-6"></i>
   </button>
 
-  <nav class="bg-white border-t border-slate-200 fixed bottom-0 w-full max-w-md mx-auto z-20 pb-safe">
-    <div class="flex justify-around items-center p-2">
-      <button onclick="switchTab('home')" class="nav-btn tab-active flex flex-col items-center p-2 w-16" data-target="home">
-        <i data-lucide="home" class="w-6 h-6 mb-1"></i>
-        <span class="text-[10px]">首頁</span>
+  <nav class="bg-white border-t border-slate-200 fixed bottom-0 w-full z-40 pb-safe">
+    <div class="max-w-md mx-auto flex justify-around items-center p-2">
+      <button type="button" onclick="switchTab('home')" class="nav-btn tab-active flex flex-col items-center p-2 w-16" data-target="home">
+        <i data-lucide="home" class="w-6 h-6 mb-1 pointer-events-none"></i>
+        <span class="text-[10px] pointer-events-none">首頁</span>
       </button>
-      <button onclick="switchTab('records')" class="nav-btn tab-inactive flex flex-col items-center p-2 w-16" data-target="records">
-        <i data-lucide="list" class="w-6 h-6 mb-1"></i>
-        <span class="text-[10px]">紀錄</span>
+      <button type="button" onclick="switchTab('records')" class="nav-btn tab-inactive flex flex-col items-center p-2 w-16" data-target="records">
+        <i data-lucide="list" class="w-6 h-6 mb-1 pointer-events-none"></i>
+        <span class="text-[10px] pointer-events-none">紀錄</span>
       </button>
-      <button onclick="switchTab('stats')" class="nav-btn tab-inactive flex flex-col items-center p-2 w-16" data-target="stats">
-        <i data-lucide="bar-chart-2" class="w-6 h-6 mb-1"></i>
-        <span class="text-[10px]">統計</span>
+      <button type="button" onclick="switchTab('stats')" class="nav-btn tab-inactive flex flex-col items-center p-2 w-16" data-target="stats">
+        <i data-lucide="bar-chart-2" class="w-6 h-6 mb-1 pointer-events-none"></i>
+        <span class="text-[10px] pointer-events-none">統計</span>
       </button>
-      <button onclick="switchTab('settings')" class="nav-btn tab-inactive flex flex-col items-center p-2 w-16" data-target="settings">
-        <i data-lucide="wallet" class="w-6 h-6 mb-1"></i>
-        <span class="text-[10px]">薪資</span>
+      <button type="button" onclick="switchTab('settings')" class="nav-btn tab-inactive flex flex-col items-center p-2 w-16" data-target="settings">
+        <i data-lucide="wallet" class="w-6 h-6 mb-1 pointer-events-none"></i>
+        <span class="text-[10px] pointer-events-none">薪資</span>
       </button>
     </div>
   </nav>
 
-  <div id="add-modal" class="fixed inset-0 bg-slate-900/50 z-50 hidden flex flex-col justify-end transition-opacity opacity-0">
-    <div class="bg-white rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform duration-300" id="add-modal-content">
+  <div id="add-modal" class="fixed inset-0 z-[100] hidden flex-col justify-end transition-opacity opacity-0">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeModal()"></div>
+    
+    <div class="bg-white rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform duration-300 relative z-10" id="add-modal-content">
       <div class="flex justify-between items-center mb-5">
         <h3 class="text-xl font-bold text-slate-800">新增跑單紀錄</h3>
-        <button onclick="closeModal()" class="p-1 bg-slate-100 rounded-full text-slate-500"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button type="button" onclick="closeModal()" class="p-1 bg-slate-100 rounded-full text-slate-500 relative z-20"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       
-      <form id="record-form" onsubmit="handleFormSubmit(event)">
+      <form id="record-form" onsubmit="handleFormSubmit(event)" class="relative z-20">
         <input type="hidden" id="edit-id" value="">
-        
         <div class="flex gap-3 mb-5">
           <label class="flex-1 cursor-pointer">
             <input type="radio" name="platform" value="foodpanda" class="peer hidden" checked>
-            <div class="py-3 text-center rounded-xl border-2 border-slate-100 peer-checked:border-panda peer-checked:bg-pink-50 peer-checked:text-panda font-bold transition-colors">
-              Foodpanda
-            </div>
+            <div class="py-3 text-center rounded-xl border-2 border-slate-100 peer-checked:border-panda peer-checked:bg-pink-50 peer-checked:text-panda font-bold transition-colors">Foodpanda</div>
           </label>
           <label class="flex-1 cursor-pointer">
             <input type="radio" name="platform" value="ubereats" class="peer hidden">
-            <div class="py-3 text-center rounded-xl border-2 border-slate-100 peer-checked:border-uber peer-checked:bg-green-50 peer-checked:text-uber font-bold transition-colors">
-              UberEats
-            </div>
+            <div class="py-3 text-center rounded-xl border-2 border-slate-100 peer-checked:border-uber peer-checked:bg-green-50 peer-checked:text-uber font-bold transition-colors">UberEats</div>
           </label>
         </div>
-
         <div class="mb-4">
           <label class="block text-sm font-bold text-slate-600 mb-1">日期</label>
           <input type="date" id="form-date" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-400 text-slate-700">
         </div>
-
         <div class="grid grid-cols-2 gap-4 mb-6">
           <div>
             <label class="block text-sm font-bold text-slate-600 mb-1">單數</label>
@@ -315,72 +274,78 @@
             <input type="number" id="form-hours" step="0.1" min="0.1" required placeholder="0.0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-blue-400 text-slate-700 text-lg font-bold">
           </div>
         </div>
-
-        <button type="submit" class="w-full bg-panda text-white py-4 rounded-xl font-bold text-lg active:scale-95 transition-transform shadow-md">
-          儲存紀錄
-        </button>
+        <button type="submit" class="w-full bg-panda text-white py-4 rounded-xl font-bold text-lg active:scale-95 transition-transform shadow-md">儲存紀錄</button>
       </form>
     </div>
   </div>
 
   <script>
-    // 初始化圖標
     lucide.createIcons();
 
-    // === IndexedDB 封裝邏輯 ===
     const DB_NAME = 'DeliveryWizardDB';
     const STORE_NAME = 'records';
     let dbInstance = null;
+    let currentData = [];
+    let chartInstance = null;
 
+    // 加入 Try-Catch 防止無痕模式的資料庫錯誤卡死畫面
     async function initDB() {
       if (dbInstance) return dbInstance;
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = (e) => {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains(STORE_NAME)) {
-            const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-            store.createIndex('date', 'date', { unique: false });
-          }
-        };
-        request.onsuccess = (e) => {
-          dbInstance = e.target.result;
-          resolve(dbInstance);
-        };
-        request.onerror = (e) => reject(e.target.error);
+        try {
+          const request = indexedDB.open(DB_NAME, 1);
+          request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+              const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+              store.createIndex('date', 'date', { unique: false });
+            }
+          };
+          request.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
+          request.onerror = (e) => reject(e.target.error);
+        } catch (err) {
+          reject(err);
+        }
       });
     }
 
     async function getAllRecords() {
-      const db = await initDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.getAll();
-        req.onsuccess = () => resolve(req.result.sort((a,b) => b.timestamp - a.timestamp));
-        req.onerror = () => reject(req.error);
-      });
+      try {
+        const db = await initDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const req = store.getAll();
+          req.onsuccess = () => resolve(req.result.sort((a,b) => b.timestamp - a.timestamp));
+          req.onerror = () => reject(req.error);
+        });
+      } catch (err) {
+        console.warn("資料庫讀取失敗", err);
+        return [];
+      }
     }
 
     async function saveRecord(record) {
-      const db = await initDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.put(record);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      });
+      try {
+        const db = await initDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          const req = store.put(record);
+          req.onsuccess = () => resolve();
+          req.onerror = () => reject(req.error);
+        });
+      } catch (err) {
+        alert("儲存失敗，可能處於無痕模式不支援本地資料庫。");
+      }
     }
 
     async function deleteRecordDB(id) {
       const db = await initDB();
       return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.delete(id);
+        const req = tx.objectStore(STORE_NAME).delete(id);
         req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
       });
     }
 
@@ -388,25 +353,17 @@
       const db = await initDB();
       return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.clear();
+        const req = tx.objectStore(STORE_NAME).clear();
         req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
       });
     }
-
-    // === 核心狀態與邏輯 ===
-    let currentData = [];
-    let chartInstance = null;
 
     function getTodayString() {
       const now = new Date();
       return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     }
 
-    function formatCurrency(num) {
-      return `NT$${num.toLocaleString()}`;
-    }
+    function formatCurrency(num) { return `NT$${num.toLocaleString()}`; }
 
     async function loadAndUpdateUI() {
       currentData = await getAllRecords();
@@ -415,21 +372,13 @@
       updateStats(document.getElementById('stat-date-picker').value);
     }
 
-    // === UI 更新邏輯 ===
     function updateHome() {
       const today = getTodayString();
       const todayData = currentData.filter(d => d.date === today);
-      
       let tOrders = 0, tIncome = 0, tHours = 0;
-      todayData.forEach(d => {
-        tOrders += d.orders;
-        tIncome += d.income;
-        tHours += d.hours;
-      });
-
+      todayData.forEach(d => { tOrders += d.orders; tIncome += d.income; tHours += d.hours; });
       const tWage = tHours > 0 ? Math.round(tIncome / tHours) : 0;
 
       document.getElementById('home-orders').innerText = `${tOrders} 單`;
       document.getElementById('home-income').innerText = formatCurrency(tIncome);
-      document.getElementById('home-hours').innerText = `${tHours.toFixed(1)} 小時`;
-      document.getElementById('home-wage').innerText = `${forma
+      document.getElem
