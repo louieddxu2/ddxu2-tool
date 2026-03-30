@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>外送夥伴記帳精靈</title>
+  <title>跑單紀錄神器</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
@@ -34,44 +34,58 @@
     .tab-inactive { color: #94a3b8; }
     input[type="number"]::-webkit-inner-spin-button,
     input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-    /* 加入安全區 padding 避免 iPhone 底部橫條擋住按鈕 */
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
 
   <script>
-    // 自動註冊邏輯 (保留不變)
+    /* 自動註冊規則與首頁探測邏輯 */
     (function autoRegister() {
       let appPath = window.location.pathname;
       if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
       if (!appPath.endsWith('/')) appPath += '/';
       if (appPath === '/') return;
+
       try {
         localStorage.setItem('myAppLauncherLastPath', appPath);
         localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
       } catch {}
+
       const launcherPath = appPath.replace(/[^/]+\/$/, '');
       const normalizedLauncherPath = launcherPath || '/';
+
       function configureHomeLinkAndProbe() {
         const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
         const homeHref = normalizedLauncherPath.includes('?') ? `${normalizedLauncherPath}&home=1` : `${normalizedLauncherPath}?home=1`;
         homeLinks.forEach(el => el.setAttribute('href', homeHref));
+
         if (window.location.protocol === 'file:') return;
+
         const probeUrl = normalizedLauncherPath.endsWith('/') ? `${normalizedLauncherPath}index.html` : `${normalizedLauncherPath}/index.html`;
         const revealHome = () => { homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none')); };
+
         fetch(probeUrl, { method: 'HEAD' })
           .then(res => {
             if (res.ok) { revealHome(); return; }
             if (res.status === 405) { return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); }); }
-          }).catch(() => {});
+          })
+          .catch(() => {});
       }
+
       if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true }); } 
       else { configureHomeLinkAndProbe(); }
+
       const appMeta = {
-        id: 'delivery-wizard', name: '跑單紀錄神器', nameZh: '跑單紀錄神器', nameEn: 'Delivery Wizard',
-        path: appPath, icon: 'bike', color: 'rose'
+        id: 'delivery-wizard',
+        name: '跑單紀錄神器',
+        nameZh: '跑單紀錄神器',
+        nameEn: 'Delivery Wizard',
+        path: appPath,
+        icon: 'bike',
+        color: 'rose'
       };
+
       const storageKey = 'myAppLauncherStorage';
       const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
@@ -83,11 +97,11 @@
 
   <header class="bg-panda text-white p-4 shadow-md sticky top-0 z-20">
     <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-pink-700 rounded-full transition-colors invisible pointer-events-none">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-pink-700 rounded-full transition-colors invisible pointer-events-none" aria-label="返回目錄">
         <i data-lucide="home" class="w-5 h-5"></i>
       </a>
       <h1 class="text-lg font-bold tracking-tight">跑單紀錄神器</h1>
-      <button type="button" onclick="requestNotification()" class="p-2 -mr-2 hover:bg-pink-700 rounded-full">
+      <button type="button" onclick="requestNotification()" class="p-2 -mr-2 hover:bg-pink-700 rounded-full" aria-label="設定提醒">
         <i data-lucide="bell" class="w-5 h-5"></i>
       </button>
     </div>
@@ -96,9 +110,13 @@
   <main class="flex-grow w-full max-w-md mx-auto p-4 pb-28 overflow-y-auto" id="main-content">
     
     <div id="view-home" class="view-section block">
-      <div class="bg-pink-100 text-panda px-3 py-1.5 rounded-lg inline-block text-sm font-bold mb-4" id="display-date">讀取中...</div>
+      <div class="bg-pink-100 text-panda px-3 py-1.5 rounded-lg inline-block text-sm font-bold mb-4" id="display-date">
+        讀取中...
+      </div>
+
       <h2 class="text-lg font-bold text-slate-800 mb-3 flex items-center justify-between">
-        今日統計<span class="bg-panda text-white text-xs px-2 py-1 rounded-full shadow-sm">綜合</span>
+        今日統計
+        <span class="bg-panda text-white text-xs px-2 py-1 rounded-full shadow-sm">綜合</span>
       </h2>
       <div class="grid grid-cols-2 gap-3 mb-6">
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
@@ -135,11 +153,11 @@
 
       <h2 class="text-lg font-bold text-slate-800 mb-3">快速操作</h2>
       <div class="grid grid-cols-2 gap-3">
-        <button type="button" onclick="openModal()" class="bg-pink-50 text-panda border border-pink-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform z-10 relative">
+        <button type="button" onclick="openModal()" class="bg-pink-50 text-panda border border-pink-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
           <div class="bg-panda text-white rounded-full p-1"><i data-lucide="plus" class="w-5 h-5"></i></div>
           <span class="font-bold text-sm">新增紀錄</span>
         </button>
-        <button type="button" onclick="switchTab('stats')" class="bg-blue-50 text-blue-600 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform z-10 relative">
+        <button type="button" onclick="switchTab('stats')" class="bg-blue-50 text-blue-600 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform">
           <div class="bg-blue-500 text-white rounded-full p-1"><i data-lucide="bar-chart-2" class="w-5 h-5"></i></div>
           <span class="font-bold text-sm">查看統計</span>
         </button>
@@ -160,10 +178,12 @@
         <h2 class="text-xl font-bold text-slate-800">趨勢與統計</h2>
         <input type="date" id="stat-date-picker" class="bg-slate-100 px-2 py-1 rounded text-sm text-slate-600 outline-none">
       </div>
+      
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6">
         <h3 class="text-sm font-bold text-slate-500 mb-3">近10筆收入趨勢</h3>
         <canvas id="incomeChart" height="200"></canvas>
       </div>
+
       <h2 class="text-lg font-bold text-slate-800 mb-3">平台分析</h2>
       <div class="space-y-3 mb-6">
         <div class="bg-white p-4 rounded-2xl shadow-sm border-l-4 border-l-panda border-y-slate-100 border-r-slate-100 flex justify-between items-center">
@@ -192,20 +212,20 @@
     <div id="view-settings" class="view-section hidden">
       <h2 class="text-xl font-bold text-slate-800 mb-4">資料管理</h2>
       <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div class="p-4 border-b border-slate-50 flex justify-between items-center active:bg-slate-50 cursor-pointer" onclick="exportCSV()">
+        <button type="button" class="w-full p-4 border-b border-slate-50 flex justify-between items-center active:bg-slate-50 transition-colors" onclick="exportCSV()">
           <div class="flex items-center gap-3">
             <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i data-lucide="download" class="w-5 h-5"></i></div>
             <span class="font-medium text-slate-700">匯出 CSV 檔案</span>
           </div>
           <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-        </div>
-        <div class="p-4 flex justify-between items-center active:bg-slate-50 cursor-pointer" onclick="clearAllData()">
+        </button>
+        <button type="button" class="w-full p-4 flex justify-between items-center active:bg-slate-50 transition-colors" onclick="clearAllData()">
           <div class="flex items-center gap-3">
             <div class="bg-red-100 text-red-600 p-2 rounded-lg"><i data-lucide="trash-2" class="w-5 h-5"></i></div>
             <span class="font-medium text-slate-700">清空所有資料</span>
           </div>
           <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-        </div>
+        </button>
       </div>
     </div>
   </main>
@@ -235,16 +255,16 @@
     </div>
   </nav>
 
-  <div id="add-modal" class="fixed inset-0 z-[100] hidden flex-col justify-end transition-opacity opacity-0">
+  <div id="add-modal" class="fixed inset-0 z-[100] hidden flex-col justify-end transition-opacity duration-300 opacity-0">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeModal()"></div>
     
     <div class="bg-white rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform duration-300 relative z-10" id="add-modal-content">
       <div class="flex justify-between items-center mb-5">
         <h3 class="text-xl font-bold text-slate-800">新增跑單紀錄</h3>
-        <button type="button" onclick="closeModal()" class="p-1 bg-slate-100 rounded-full text-slate-500 relative z-20"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button type="button" onclick="closeModal()" class="p-1 bg-slate-100 rounded-full text-slate-500"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       
-      <form id="record-form" onsubmit="handleFormSubmit(event)" class="relative z-20">
+      <form id="record-form" onsubmit="handleFormSubmit(event)">
         <input type="hidden" id="edit-id" value="">
         <div class="flex gap-3 mb-5">
           <label class="flex-1 cursor-pointer">
@@ -288,56 +308,42 @@
     let currentData = [];
     let chartInstance = null;
 
-    // 加入 Try-Catch 防止無痕模式的資料庫錯誤卡死畫面
     async function initDB() {
       if (dbInstance) return dbInstance;
       return new Promise((resolve, reject) => {
-        try {
-          const request = indexedDB.open(DB_NAME, 1);
-          request.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-              const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-              store.createIndex('date', 'date', { unique: false });
-            }
-          };
-          request.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
-          request.onerror = (e) => reject(e.target.error);
-        } catch (err) {
-          reject(err);
-        }
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+            store.createIndex('date', 'date', { unique: false });
+          }
+        };
+        request.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
+        request.onerror = (e) => reject(e.target.error);
       });
     }
 
     async function getAllRecords() {
-      try {
-        const db = await initDB();
-        return new Promise((resolve, reject) => {
-          const tx = db.transaction(STORE_NAME, 'readonly');
-          const store = tx.objectStore(STORE_NAME);
-          const req = store.getAll();
-          req.onsuccess = () => resolve(req.result.sort((a,b) => b.timestamp - a.timestamp));
-          req.onerror = () => reject(req.error);
-        });
-      } catch (err) {
-        console.warn("資料庫讀取失敗", err);
-        return [];
-      }
+      const db = await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result.sort((a,b) => b.timestamp - a.timestamp));
+        req.onerror = () => reject(req.error);
+      });
     }
 
     async function saveRecord(record) {
-      try {
-        const db = await initDB();
-        return new Promise((resolve, reject) => {
-          const tx = db.transaction(STORE_NAME, 'readwrite');
-          const store = tx.objectStore(STORE_NAME);
-          const req = store.put(record);
-          req.onsuccess = () => resolve();
-          req.onerror = () => reject(req.error);
-        });
-      } catch (err) {
-        alert("儲存失敗，可能處於無痕模式不支援本地資料庫。");
-      }
+      const db = await initDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const req = store.put(record);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
     }
 
     async function deleteRecordDB(id) {
@@ -381,4 +387,8 @@
 
       document.getElementById('home-orders').innerText = `${tOrders} 單`;
       document.getElementById('home-income').innerText = formatCurrency(tIncome);
-      document.getElem
+      document.getElementById('home-hours').innerText = `${tHours.toFixed(1)} 小時`;
+      document.getElementById('home-wage').innerText = `${formatCurrency(tWage)}/時`;
+
+      const fpData = currentData.filter(d => d.platform === 'foodpanda');
+      const fpTotalOrder
