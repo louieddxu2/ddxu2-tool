@@ -247,6 +247,7 @@ async function renderHome() {
   const todayStr = now.toISOString().split('T')[0];
   const todayNum = now.getDay();
   
+  // 1. 計算今日數據
   const todayData = currentData.filter(d => d.date === todayStr);
   const sums = todayData.reduce((acc, d) => ({ o: acc.o+d.orders, i: acc.i+d.income, h: acc.h+d.hours }), {o:0,i:0,h:0});
   document.getElementById('home-orders').innerText = `${sums.o} 單`; 
@@ -254,32 +255,57 @@ async function renderHome() {
   document.getElementById('home-hours').innerText = `${sums.h.toFixed(1)} h`; 
   document.getElementById('home-wage').innerText = `NT$${sums.h ? Math.round(sums.i/sums.h) : 0}/時`;
 
-  const activeRule = currentRules.find(r => r.activeDays.includes(todayNum));
-  const pCard = document.getElementById('fp-progress-card');
+  // 2. 抓取今日適用的「所有」規則 (使用 filter)
+  const activeRules = currentRules.filter(r => r.activeDays.includes(todayNum));
+  const container = document.getElementById('progress-cards-container');
   const noCard = document.getElementById('no-rule-card');
   
-  if (!activeRule) { pCard.classList.add('hidden'); noCard.classList.remove('hidden'); return; }
-  pCard.classList.remove('hidden'); noCard.classList.add('hidden');
+  if (!container) return; // 防呆機制
 
-  const isFp = activeRule.platform === 'foodpanda';
-  document.getElementById('progress-platform-tag').innerText = isFp ? 'Foodpanda' : 'UberEats';
-  document.getElementById('progress-platform-tag').className = `absolute top-0 right-0 text-white text-xs px-3 py-1 rounded-bl-lg font-bold ${isFp ? 'bg-panda' : 'bg-uber'}`;
-  document.getElementById('progress-rule-name').innerText = activeRule.name;
+  // 3. 若無規則，清空容器並顯示提示
+  if (activeRules.length === 0) { 
+    container.innerHTML = '';
+    noCard.classList.remove('hidden'); 
+    return; 
+  }
+  
+  noCard.classList.add('hidden');
 
-  const cycleOrders = currentData.filter(r => {
-    const rDate = new Date(r.date);
-    return r.platform === activeRule.platform && activeRule.activeDays.includes(rDate.getDay()) && getWeekNumber(rDate) === getWeekNumber(now);
-  }).reduce((sum, r) => sum + r.orders, 0);
+  // 4. 動態生成所有適用的進度卡片
+  container.innerHTML = activeRules.map(rule => {
+    const isFp = rule.platform === 'foodpanda';
+    const tagColor = isFp ? 'bg-panda' : 'bg-uber';
+    const bgColor = isFp ? 'bg-pink-50 text-panda' : 'bg-green-50 text-uber';
+    const platformName = isFp ? 'Foodpanda' : 'UberEats';
 
-  const nextTier = activeRule.tiers.find(t => t.t > cycleOrders) || activeRule.tiers[activeRule.tiers.length-1];
-  const isMax = cycleOrders >= nextTier.t;
-  const progress = Math.min((cycleOrders / nextTier.t) * 100, 100);
+    // 計算該條規則週期內的累積單數
+    const cycleOrders = currentData.filter(r => {
+      const rDate = new Date(r.date);
+      return r.platform === rule.platform && 
+             rule.activeDays.includes(rDate.getDay()) && 
+             getWeekNumber(rDate) === getWeekNumber(now);
+    }).reduce((sum, r) => sum + r.orders, 0);
 
-  document.getElementById('home-fp-total').innerText = `週期累計 ${cycleOrders} 單`;
-  document.getElementById('home-fp-distance').innerText = isMax ? `已達成最高級距！` : `距離下一級距還差 ${nextTier.t - cycleOrders} 單`;
-  document.getElementById('home-fp-bar').style.width = `${progress}%`;
-  document.getElementById('home-fp-bar').className = `h-2 rounded-full transition-all ${isFp ? 'bg-panda' : 'bg-uber'}`;
+    const nextTier = rule.tiers.find(t => t.t > cycleOrders) || rule.tiers[rule.tiers.length-1];
+    const isMax = cycleOrders >= nextTier.t;
+    const progress = Math.min((cycleOrders / nextTier.t) * 100, 100);
+
+    return `
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden">
+        <div class="absolute top-0 right-0 text-white text-xs px-3 py-1 rounded-bl-lg font-bold ${tagColor}">${platformName}</div>
+        <div class="flex justify-between items-end mb-2 mt-2">
+          <span class="text-slate-500 text-sm font-bold">${rule.name}</span>
+          <span class="${bgColor} px-2 py-1 rounded text-xs font-bold">累計 ${cycleOrders} 單</span>
+        </div>
+        <div class="font-bold text-slate-700 mb-2 text-sm">${isMax ? '🎉 已達成最高級距！' : `距離下一級距還差 ${nextTier.t - cycleOrders} 單`}</div>
+        <div class="w-full bg-slate-100 rounded-full h-2">
+          <div class="h-2 rounded-full transition-all ${tagColor}" style="width: ${progress}%"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
+
 
 function renderRecords() {
   const listEl = document.getElementById('records-list');
