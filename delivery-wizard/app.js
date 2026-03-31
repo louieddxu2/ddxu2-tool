@@ -83,8 +83,16 @@ function switchAccount(id, name) {
 async function handleDeleteAccount(id) { if (confirm('確定刪除此帳號標籤嗎？')) { await db.deleteAccount(id); initApp(); } }
 
 /* 🌟 規則清單與編輯邏輯 🌟 */
-function openRuleModal() { renderRuleList(); toggleModal('rule-modal', true); }
-function closeRuleModal() { toggleModal('rule-modal', false); loadAndRender(); }
+function openRuleModal() { 
+  try {
+    renderRuleList(); 
+    toggleModal('rule-modal', true); 
+  } catch (err) {
+    console.error("彈窗開啟失敗：", err);
+    alert("開啟失敗，請重試或重新整理網頁");
+  }
+}
+
 
 function renderRuleList() {
   const container = document.getElementById('rule-list');
