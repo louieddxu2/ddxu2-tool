@@ -115,13 +115,24 @@ const db = {
     await this.init();
     let templates = [];
     if (platform === 'foodpanda') {
+      const now = new Date();
+      const pad2 = (n) => String(n).padStart(2, '0');
+      const todayStr = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
       templates = [
-        { id: `fp_13_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓(一~三)', activeDays: [1,2,3], tiers: [{t:30, b:100}, {t:50, b:250}] },
-        { id: `fp_46_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓(四~六)', activeDays: [4,5,6], tiers: [{t:30, b:100}, {t:50, b:250}] },
-        { id: `fp_0_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓週日', activeDays: [0], tiers: [{t:15, b:75}, {t:24, b:150}, {t:35, b:350}, {t:45, b:500}] }
+        { id: `fp_13_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓(一~三)', ruleType: 'weekly_days', activeDays: [1,2,3], dayBoundaryTime: '00:00', tiers: [{t:30, b:100}, {t:50, b:250}] },
+        { id: `fp_46_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓(四~六)', ruleType: 'weekly_days', activeDays: [4,5,6], dayBoundaryTime: '00:00', tiers: [{t:30, b:100}, {t:50, b:250}] },
+        { id: `fp_0_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓週日', ruleType: 'weekly_days', activeDays: [0], dayBoundaryTime: '00:00', tiers: [{t:15, b:75}, {t:24, b:150}, {t:35, b:350}, {t:45, b:500}] },
+        // 依官方活動頁常見型態：特定日期 + 明確時段（範例，會用「今天」當日期方便立即看效果）
+        { id: `fp_event_lunch_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓 限定達標(範例-午餐)', ruleType: 'date_range', startDate: todayStr, endDate: todayStr, dateStartTime: '10:00', dateEndTime: '13:59', tiers: [{t:16, b:320}] }
       ];
     } else {
-      templates = [{ id: `ue_week_${accountId}`, accountId, platform: 'ubereats', name: 'UE每週任務', activeDays: [1,2,3,4,5,6,0], tiers: [{t:20, b:150}, {t:40, b:400}] }];
+      templates = [
+        // Uber 常見週期/跨日切換點：04:00（範例任務）
+        { id: `ue_week_${accountId}`, accountId, platform: 'ubereats', name: 'UE 每週任務(範例)', ruleType: 'weekly_days', activeDays: [1,2,3,4,5,6,0], dayBoundaryTime: '04:00', tiers: [{t:20, b:150}, {t:40, b:400}] },
+        // Uber 官方說明常見 24h 區域額外趟次挑戰的週期區間（範例）
+        { id: `ue_24h_tue_fri_${accountId}`, accountId, platform: 'ubereats', name: 'UE 24h 區額外趟次(二04:00~五04:00)', ruleType: 'weekly_range', rangeStartDow: 2, rangeStartTime: '04:00', rangeEndDow: 5, rangeEndTime: '04:00', tiers: [{t:20, b:150}, {t:40, b:400}] },
+        { id: `ue_24h_fri_tue_${accountId}`, accountId, platform: 'ubereats', name: 'UE 24h 區額外趟次(五04:00~二04:00)', ruleType: 'weekly_range', rangeStartDow: 5, rangeStartTime: '04:00', rangeEndDow: 2, rangeEndTime: '04:00', tiers: [{t:20, b:150}, {t:40, b:400}] }
+      ];
     }
     // 依序寫入，確保每一條都成功
     for (const rule of templates) {
