@@ -254,14 +254,12 @@ function ensureRuleEditorUI() {
             <span class="text-xs font-bold">特定活動</span>
           </label>
         </div>
-        <div class="text-xs text-slate-500 mt-2 leading-relaxed">「每週」適合常態任務；「特定活動」適合公告型加碼（有明確日期/時段）。</div>
       </div>
 
       <div id="edit-rule-section-weekly-days" class="space-y-3">
         <div>
           <label class="text-sm font-bold block mb-2">適用星期 (可複選)</label>
           <div class="flex gap-2 flex-wrap" id="edit-rule-days"></div>
-          <div class="text-xs text-slate-500 mt-2">顯示順序採「一 → 日」。</div>
         </div>
         <div>
           <label class="text-sm font-bold block mb-2">每日有效時段 (選填)</label>
@@ -275,20 +273,17 @@ function ensureRuleEditorUI() {
               <input type="time" id="edit-rule-end-time" class="w-full bg-slate-50 border rounded-xl px-4 py-3 font-bold">
             </div>
           </div>
-          <div class="text-xs text-slate-500 mt-2">只影響「首頁何時跳出任務卡」，不會自動結算入帳。</div>
         </div>
         <details class="bg-slate-50 border rounded-xl p-3">
           <summary class="text-sm font-bold cursor-pointer select-none">進階：日界線 (跨日歸屬)</summary>
           <div class="mt-3">
             <label class="text-sm font-bold block mb-2">日界線時間</label>
             <input type="time" id="edit-rule-day-boundary" class="w-full bg-white border rounded-xl px-4 py-3 font-bold">
-            <div class="text-xs text-slate-500 mt-2">例如 Uber 常見以 04:00 作為週期/跨日切換點。</div>
           </div>
         </details>
       </div>
 
       <div id="edit-rule-section-weekly-range" class="space-y-3 hidden">
-        <div class="text-xs text-slate-500 leading-relaxed">適合「週二 04:00 ～ 週五 04:00」這種跨多天連續區間。</div>
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="text-sm font-bold block mb-1">開始星期</label>
@@ -324,7 +319,6 @@ function ensureRuleEditorUI() {
               <input type="date" id="edit-rule-end-date" class="w-full bg-slate-50 border rounded-xl px-4 py-3 font-bold">
             </div>
           </div>
-          <div class="text-xs text-slate-500 mt-2">只做一天活動：結束日期可留空（系統會自動視為同一天）。</div>
         </div>
         <div>
           <label class="text-sm font-bold block mb-2">活動時段 (選填)</label>
@@ -368,6 +362,36 @@ function handleRuleTypeChange() {
   secDays.classList.toggle('hidden', type !== RULE_TYPE_WEEKLY_DAYS);
   secRange.classList.toggle('hidden', type !== RULE_TYPE_WEEKLY_RANGE);
   secDate.classList.toggle('hidden', type !== RULE_TYPE_DATE_RANGE);
+
+  // 補齊預設值（使用者可自行覆寫）
+  const platform = document.getElementById('edit-rule-platform')?.value || 'foodpanda';
+  if (type === RULE_TYPE_WEEKLY_DAYS) {
+    const st = document.getElementById('edit-rule-start-time');
+    const et = document.getElementById('edit-rule-end-time');
+    const bt = document.getElementById('edit-rule-day-boundary');
+    if (st && !st.value) st.value = '00:00';
+    if (et && !et.value) et.value = '23:59';
+    if (bt && !bt.value) bt.value = getPlatformDefaultDayBoundary(platform);
+  } else if (type === RULE_TYPE_WEEKLY_RANGE) {
+    const rsDow = document.getElementById('edit-rule-range-start-dow');
+    const reDow = document.getElementById('edit-rule-range-end-dow');
+    const rsTime = document.getElementById('edit-rule-range-start-time');
+    const reTime = document.getElementById('edit-rule-range-end-time');
+    if (rsTime && !rsTime.value) rsTime.value = '04:00';
+    if (reTime && !reTime.value) reTime.value = '04:00';
+    if (rsDow && !rsDow.value) rsDow.value = '2'; // 二
+    if (reDow && !reDow.value) reDow.value = '5'; // 五
+  } else if (type === RULE_TYPE_DATE_RANGE) {
+    const sd = document.getElementById('edit-rule-start-date');
+    const ed = document.getElementById('edit-rule-end-date');
+    const dst = document.getElementById('edit-rule-date-start-time');
+    const det = document.getElementById('edit-rule-date-end-time');
+    const today = toLocalDateStr(new Date());
+    if (sd && !sd.value) sd.value = today;
+    if (ed && !ed.value) ed.value = sd?.value || today;
+    if (dst && !dst.value) dst.value = '00:00';
+    if (det && !det.value) det.value = '23:59';
+  }
 }
 
 async function initApp() {
@@ -530,7 +554,25 @@ function openEditRuleModal(ruleId) {
   document.getElementById('edit-rule-title').innerText = isNew ? '新增自訂規則' : '編輯規則';
   document.getElementById('edit-rule-id').value = ruleId || '';
 
-  let rule = normalizeRule({ platform: 'foodpanda', name: '', ruleType: RULE_TYPE_WEEKLY_DAYS, activeDays: [], tiers: [{ t: 15, b: 75 }] });
+  const today = toLocalDateStr(new Date());
+  let rule = normalizeRule({
+    platform: 'foodpanda',
+    name: '',
+    ruleType: RULE_TYPE_WEEKLY_DAYS,
+    activeDays: [],
+    startTime: '00:00',
+    endTime: '23:59',
+    dayBoundaryTime: '00:00',
+    rangeStartDow: 2,
+    rangeStartTime: '04:00',
+    rangeEndDow: 5,
+    rangeEndTime: '04:00',
+    startDate: today,
+    endDate: today,
+    dateStartTime: '00:00',
+    dateEndTime: '23:59',
+    tiers: [{ t: 15, b: 75 }]
+  });
   if (!isNew) rule = normalizeRule(currentRules.find(r => r.id === ruleId) || rule);
 
   document.getElementById('edit-rule-platform').value = rule.platform;
@@ -555,8 +597,8 @@ function openEditRuleModal(ruleId) {
   }
 
   // 每週(選星期)：時段 + 日界線
-  document.getElementById('edit-rule-start-time').value = rule.startTime || '';
-  document.getElementById('edit-rule-end-time').value = rule.endTime || '';
+  document.getElementById('edit-rule-start-time').value = rule.startTime || '00:00';
+  document.getElementById('edit-rule-end-time').value = rule.endTime || '23:59';
   document.getElementById('edit-rule-day-boundary').value = rule.dayBoundaryTime || getPlatformDefaultDayBoundary(rule.platform);
 
   // 每週(區間)：選單 + 時間
@@ -569,14 +611,17 @@ function openEditRuleModal(ruleId) {
   document.getElementById('edit-rule-range-end-time').value = rule.rangeEndTime || '04:00';
 
   // 特定活動：日期 + 時段
-  document.getElementById('edit-rule-start-date').value = rule.startDate || '';
-  document.getElementById('edit-rule-end-date').value = rule.endDate || '';
-  document.getElementById('edit-rule-date-start-time').value = rule.dateStartTime || '';
-  document.getElementById('edit-rule-date-end-time').value = rule.dateEndTime || '';
+  document.getElementById('edit-rule-start-date').value = rule.startDate || today;
+  document.getElementById('edit-rule-end-date').value = rule.endDate || (rule.startDate || today);
+  document.getElementById('edit-rule-date-start-time').value = rule.dateStartTime || '00:00';
+  document.getElementById('edit-rule-date-end-time').value = rule.dateEndTime || '23:59';
 
   // 階梯
   document.getElementById('edit-rule-tiers').innerHTML = '';
   rule.tiers.forEach(t => addTierRow(t.t, t.b));
+
+  // 依目前類型補上預設值
+  handleRuleTypeChange();
 
   toggleModal('edit-rule-modal', true);
   lucide.createIcons();
