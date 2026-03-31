@@ -111,19 +111,54 @@ const db = {
       tx.oncomplete = () => resolve();
     });
   },
+  async cleanupLegacyTemplates(accountId) {
+    await this.init();
+    const rules = await this.getRules(accountId);
+    const legacyPrefixes = ['ue_24h_', 'fp_event_'];
+    const ids = rules
+      .filter(r => legacyPrefixes.some(p => typeof r.id === 'string' && r.id.startsWith(p)))
+      .map(r => r.id);
+    if (ids.length === 0) return 0;
+    return new Promise((resolve, reject) => {
+      const tx = dbInstance.transaction(STORE_RULES, 'readwrite');
+      const store = tx.objectStore(STORE_RULES);
+      ids.forEach(id => store.delete(id));
+      tx.oncomplete = () => resolve(ids.length);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
   async syncTemplate(accountId, platform) {
     await this.init();
+    // 同步範本時，先清理「舊範本規則」避免越同步越多（但不動使用者自訂規則）。
+    const existing = await this.getRules(accountId);
+    const templateIdPrefixes = platform === 'foodpanda'
+      ? ['fp_13_', 'fp_46_', 'fp_0_', 'fp_event_']
+      : ['ue_week_', 'ue_24h_'];
+    const toDelete = existing
+      .filter(r => r.platform === platform)
+      .filter(r => (r.isTemplate === true) || templateIdPrefixes.some(p => typeof r.id === 'string' && r.id.startsWith(p)))
+      .map(r => r.id);
+    if (toDelete.length) {
+      const tx = dbInstance.transaction(STORE_RULES, 'readwrite');
+      const store = tx.objectStore(STORE_RULES);
+      for (const id of toDelete) store.delete(id);
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
     let templates = [];
     if (platform === 'foodpanda') {
       templates = [
-        { id: `fp_13_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓(一~三)', ruleType: 'weekly_days', activeDays: [1,2,3], startTime: '00:00', endTime: '23:59', dayBoundaryTime: '00:00', tiers: [{t:30, b:100}, {t:50, b:250}] },
-        { id: `fp_46_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓(四~六)', ruleType: 'weekly_days', activeDays: [4,5,6], startTime: '00:00', endTime: '23:59', dayBoundaryTime: '00:00', tiers: [{t:30, b:100}, {t:50, b:250}] },
-        { id: `fp_0_${accountId}`, accountId, platform: 'foodpanda', name: '熊貓週日', ruleType: 'weekly_days', activeDays: [0], startTime: '00:00', endTime: '23:59', dayBoundaryTime: '00:00', tiers: [{t:15, b:75}, {t:24, b:150}, {t:35, b:350}, {t:45, b:500}] }
+        { id: `fp_13_${accountId}`, accountId, platform: 'foodpanda', isTemplate: true, name: '熊貓(一~三)', ruleType: 'weekly_days', activeDays: [1,2,3], startTime: '00:00', endTime: '23:59', dayBoundaryTime: '00:00', tiers: [{t:30, b:100}, {t:50, b:250}] },
+        { id: `fp_46_${accountId}`, accountId, platform: 'foodpanda', isTemplate: true, name: '熊貓(四~六)', ruleType: 'weekly_days', activeDays: [4,5,6], startTime: '00:00', endTime: '23:59', dayBoundaryTime: '00:00', tiers: [{t:30, b:100}, {t:50, b:250}] },
+        { id: `fp_0_${accountId}`, accountId, platform: 'foodpanda', isTemplate: true, name: '熊貓週日', ruleType: 'weekly_days', activeDays: [0], startTime: '00:00', endTime: '23:59', dayBoundaryTime: '00:00', tiers: [{t:15, b:75}, {t:24, b:150}, {t:35, b:350}, {t:45, b:500}] }
       ];
     } else {
       templates = [
         // Uber 常見週期/跨日切換點：04:00（以每週任務模板提供，供使用者自行調整）
-        { id: `ue_week_${accountId}`, accountId, platform: 'ubereats', name: 'UE每週任務', ruleType: 'weekly_days', activeDays: [1,2,3,4,5,6,0], startTime: '00:00', endTime: '23:59', dayBoundaryTime: '04:00', tiers: [{t:20, b:150}, {t:40, b:400}] }
+        { id: `ue_week_${accountId}`, accountId, platform: 'ubereats', isTemplate: true, name: 'UE每週任務', ruleType: 'weekly_days', activeDays: [1,2,3,4,5,6,0], startTime: '00:00', endTime: '23:59', dayBoundaryTime: '04:00', tiers: [{t:20, b:150}, {t:40, b:400}] }
       ];
     }
     // 依序寫入，確保每一條都成功

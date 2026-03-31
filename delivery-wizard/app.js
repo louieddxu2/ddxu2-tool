@@ -416,6 +416,7 @@ async function initApp() {
   ensureRuleEditorUI();
   updateGlobalDate();
   
+  await db.cleanupLegacyTemplates(currentAccountId);
   await loadAndRender();
 
   // 若帳號內無規則(防呆機制)，只補上熊貓範本
