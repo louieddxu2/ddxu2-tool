@@ -1,5 +1,6 @@
+/* db.js */
 const DB_NAME = 'DeliveryWizardDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4; // 強制升級版本以確保規則資料表建立
 const STORE_RECORDS = 'records';
 const STORE_ACCOUNTS = 'accounts';
 const STORE_RULES = 'rules';
@@ -13,20 +14,23 @@ const db = {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
+        // 建立紀錄表
         if (!db.objectStoreNames.contains(STORE_RECORDS)) {
           const store = db.createObjectStore(STORE_RECORDS, { keyPath: 'id' });
           store.createIndex('accountId', 'accountId', { unique: false });
         }
+        // 建立帳號表
         if (!db.objectStoreNames.contains(STORE_ACCOUNTS)) {
           db.createObjectStore(STORE_ACCOUNTS, { keyPath: 'id' });
         }
+        // 建立規則表 (核心修復)
         if (!db.objectStoreNames.contains(STORE_RULES)) {
           const store = db.createObjectStore(STORE_RULES, { keyPath: 'id' });
           store.createIndex('accountId', 'accountId', { unique: false });
         }
       };
       request.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
-      request.onerror = (e) => reject(e.target.error);
+      request.onerror = (e) => { console.error("DB Error:", e.target.error); reject(e.target.error); };
     });
   },
 
@@ -38,11 +42,13 @@ const db = {
     });
   },
   async addAccount(name) {
+    await this.init();
     const account = { id: 'acc_' + Date.now(), name, createdAt: Date.now() };
     await dbInstance.transaction(STORE_ACCOUNTS, 'readwrite').objectStore(STORE_ACCOUNTS).put(account);
     return account;
   },
   async deleteAccount(id) {
+    await this.init();
     await dbInstance.transaction(STORE_ACCOUNTS, 'readwrite').objectStore(STORE_ACCOUNTS).delete(id);
   },
 
@@ -55,9 +61,11 @@ const db = {
     });
   },
   async saveRecord(record) {
+    await this.init();
     await dbInstance.transaction(STORE_RECORDS, 'readwrite').objectStore(STORE_RECORDS).put(record);
   },
   async deleteRecord(id) {
+    await this.init();
     await dbInstance.transaction(STORE_RECORDS, 'readwrite').objectStore(STORE_RECORDS).delete(id);
   },
 
@@ -70,12 +78,21 @@ const db = {
     });
   },
   async saveRule(rule) {
-    await dbInstance.transaction(STORE_RULES, 'readwrite').objectStore(STORE_RULES).put(rule);
+    await this.init(); // 修復：儲存前必須初始化
+    return new Promise((resolve, reject) => {
+      const tx = dbInstance.transaction(STORE_RULES, 'readwrite');
+      const store = tx.objectStore(STORE_RULES);
+      const req = store.put(rule);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
   },
   async deleteRule(id) {
+    await this.init();
     await dbInstance.transaction(STORE_RULES, 'readwrite').objectStore(STORE_RULES).delete(id);
   },
   async syncTemplate(accountId, platform) {
+    await this.init(); // 修復：同步前必須初始化
     let templates = [];
     if (platform === 'foodpanda') {
       templates = [
@@ -89,6 +106,7 @@ const db = {
     for (const rule of templates) await this.saveRule(rule);
   },
   async clearAllData() {
+    await this.init();
     await dbInstance.transaction(STORE_RECORDS, 'readwrite').objectStore(STORE_RECORDS).clear();
     await dbInstance.transaction(STORE_RULES, 'readwrite').objectStore(STORE_RULES).clear();
     await dbInstance.transaction(STORE_ACCOUNTS, 'readwrite').objectStore(STORE_ACCOUNTS).clear();
