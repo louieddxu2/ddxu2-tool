@@ -4,75 +4,56 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>跑單紀錄神器</title>
-  
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-  
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%23d70f64'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#d70f64">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
   <script>
     tailwind.config = { theme: { extend: { colors: { 'panda': '#d70f64', 'uber': '#06C167' } } } }
   </script>
-  
   <style>
     ::-webkit-scrollbar { width: 0; background: transparent; }
     body { -webkit-tap-highlight-color: transparent; }
     .tab-active { color: #d70f64; font-weight: bold; }
     .tab-inactive { color: #94a3b8; }
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-    input[type="number"]::-webkit-inner-spin-button,
-    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
 
   <script>
     (function autoRegister() {
-      let appPath = window.location.pathname;
-      if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
+      let appPath = window.location.pathname.replace('index.html', '');
       if (!appPath.endsWith('/')) appPath += '/';
       if (appPath === '/') return;
-      try {
-        localStorage.setItem('myAppLauncherLastPath', appPath);
-        localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
-      } catch {}
+      try { localStorage.setItem('myAppLauncherLastPath', appPath); localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now())); } catch {}
       const launcherPath = appPath.replace(/[^/]+\/$/, '') || '/';
-      function configureHomeLinkAndProbe() {
-        const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
+      function probe() {
+        const homeLinks = document.querySelectorAll('[data-home-link]');
         homeLinks.forEach(el => el.setAttribute('href', launcherPath.includes('?') ? `${launcherPath}&home=1` : `${launcherPath}?home=1`));
         if (window.location.protocol === 'file:') return;
-        const probeUrl = launcherPath.endsWith('/') ? `${launcherPath}index.html` : `${launcherPath}/index.html`;
-        const revealHome = () => homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
-        fetch(probeUrl, { method: 'HEAD' }).then(res => {
-          if (res.ok) { revealHome(); return; }
-          if (res.status === 405) fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); });
-        }).catch(() => {});
+        const pUrl = launcherPath.endsWith('/') ? `${launcherPath}index.html` : `${launcherPath}/index.html`;
+        const reveal = () => homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
+        fetch(pUrl, { method: 'HEAD' }).then(r => { if (r.ok) reveal(); else if (r.status===405) fetch(pUrl, {method:'GET'}).then(r2=>{if(r2.ok)reveal()}); }).catch(()=>{});
       }
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
-      else configureHomeLinkAndProbe();
-      const appMeta = { id: 'delivery-wizard', name: '跑單紀錄神器', nameZh: '跑單紀錄神器', nameEn: 'Delivery Wizard', path: appPath, icon: 'bike', color: 'rose' };
-      const storageKey = 'myAppLauncherStorage';
-      const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
-      if (existingIndex === -1) launcherData.push(appMeta);
-      else launcherData[existingIndex] = { ...launcherData[existingIndex], ...appMeta };
-      localStorage.setItem(storageKey, JSON.stringify(launcherData));
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', probe, { once: true }); else probe();
+      const meta = { id: 'delivery-wizard', name: '跑單紀錄神器', path: appPath, icon: 'bike', color: 'rose' };
+      const data = JSON.parse(localStorage.getItem('myAppLauncherStorage') || '[]');
+      const idx = data.findIndex(a => a.path === meta.path);
+      if (idx === -1) data.push(meta); else data[idx] = { ...data[idx], ...meta };
+      localStorage.setItem('myAppLauncherStorage', JSON.stringify(data));
     })();
   </script>
 
   <header class="bg-panda text-white p-4 shadow-md sticky top-0 z-20">
     <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-pink-700 rounded-full transition-colors invisible pointer-events-none">
-        <i data-lucide="home" class="w-5 h-5"></i>
-      </a>
-      <h1 class="text-lg font-bold tracking-tight">跑單紀錄神器</h1>
-      <button type="button" onclick="requestNotification()" class="p-2 -mr-2 hover:bg-pink-700 rounded-full">
-        <i data-lucide="bell" class="w-5 h-5"></i>
-      </button>
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-pink-700 rounded-full invisible pointer-events-none"><i data-lucide="home" class="w-5 h-5"></i></a>
+      <h1 class="text-lg font-bold">跑單紀錄神器</h1>
+      <button onclick="requestNotification()" class="p-2 -mr-2 hover:bg-pink-700 rounded-full"><i data-lucide="bell" class="w-5 h-5"></i></button>
     </div>
   </header>
 
@@ -81,10 +62,8 @@
     <div id="view-home" class="view-section block">
       <div class="flex justify-between items-center mb-4">
         <div class="bg-pink-100 text-panda px-3 py-1.5 rounded-lg text-sm font-bold" id="display-date">讀取中...</div>
-        <button onclick="openAccountModal()" class="flex items-center gap-1.5 bg-white border border-pink-200 text-panda px-3 py-1.5 rounded-full shadow-sm active:scale-95 transition-transform">
-          <i data-lucide="user" class="w-4 h-4"></i>
-          <span id="current-account-name" class="text-sm font-bold truncate max-w-[80px]">讀取中...</span>
-          <i data-lucide="chevron-down" class="w-3 h-3"></i>
+        <button onclick="openAccountModal()" class="flex items-center gap-1.5 bg-white border border-pink-200 text-panda px-3 py-1.5 rounded-full shadow-sm active:scale-95">
+          <i data-lucide="user" class="w-4 h-4"></i><span id="current-account-name" class="text-sm font-bold truncate max-w-[80px]">讀取中...</span><i data-lucide="chevron-down" class="w-3 h-3"></i>
         </button>
       </div>
 
@@ -95,7 +74,13 @@
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col"><div class="text-slate-500 text-xs flex items-center gap-1 mb-1"><i data-lucide="timer" class="w-3 h-3 text-purple-500"></i>今日工時</div><div class="text-xl font-bold text-purple-500" id="home-hours">0.0 h</div></div>
       </div>
 
-      <h2 class="text-lg font-bold text-slate-800 mb-3">平台週期進度</h2>
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-lg font-bold text-slate-800">平台週期進度</h2>
+        <button onclick="openRuleModal()" class="text-slate-500 hover:text-panda flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm text-xs font-bold active:scale-95">
+          <i data-lucide="settings-2" class="w-4 h-4"></i> 管理規則
+        </button>
+      </div>
+
       <div id="fp-progress-card" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 relative overflow-hidden hidden">
         <div id="progress-platform-tag" class="absolute top-0 right-0 bg-panda text-white text-xs px-3 py-1 rounded-bl-lg font-bold">Foodpanda</div>
         <div class="flex justify-between items-end mb-2 mt-2">
@@ -106,49 +91,21 @@
         <div class="w-full bg-slate-100 rounded-full h-2"><div class="h-2 rounded-full transition-all" id="home-fp-bar" style="width: 0%"></div></div>
       </div>
       <div id="no-rule-card" class="bg-slate-100 p-4 rounded-2xl text-center text-slate-500 text-sm mb-6 border border-slate-200 border-dashed">
-        今日無啟用的獎金規則<br>請至「薪資」頁面設定
+        今日無啟用的獎金規則<br>點擊上方「管理規則」進行設定
       </div>
 
       <div class="grid grid-cols-2 gap-3">
-        <button onclick="openModal()" class="bg-pink-50 text-panda border border-pink-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"><div class="bg-panda text-white rounded-full p-1"><i data-lucide="plus" class="w-5 h-5"></i></div><span class="font-bold text-sm">新增紀錄</span></button>
-        <button onclick="switchTab('stats')" class="bg-blue-50 text-blue-600 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"><div class="bg-blue-500 text-white rounded-full p-1"><i data-lucide="bar-chart-2" class="w-5 h-5"></i></div><span class="font-bold text-sm">查看統計</span></button>
+        <button onclick="openModal()" class="bg-pink-50 text-panda border border-pink-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95"><div class="bg-panda text-white rounded-full p-1"><i data-lucide="plus" class="w-5 h-5"></i></div><span class="font-bold text-sm">新增紀錄</span></button>
+        <button onclick="switchTab('stats')" class="bg-blue-50 text-blue-600 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95"><div class="bg-blue-500 text-white rounded-full p-1"><i data-lucide="bar-chart-2" class="w-5 h-5"></i></div><span class="font-bold text-sm">查看統計</span></button>
       </div>
     </div>
 
-    <div id="view-records" class="view-section hidden">
-      <h2 class="text-xl font-bold mb-4">歷史紀錄</h2>
-      <div id="records-list" class="space-y-3"></div>
-      <div id="empty-records" class="hidden text-center py-10 text-slate-400"><i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 opacity-50"></i><p>目前無紀錄</p></div>
-    </div>
-
-    <div id="view-stats" class="view-section hidden">
-      <h2 class="text-xl font-bold mb-4">趨勢與統計</h2>
-      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6">
-        <h3 class="text-sm font-bold text-slate-500 mb-3">近10筆收入趨勢</h3>
-        <div style="position: relative; height: 200px; width: 100%;"><canvas id="incomeChart"></canvas></div>
-      </div>
-      <h2 class="text-lg font-bold text-slate-800 mb-3">平台分析 (全部累積)</h2>
-      <div id="platform-analysis" class="space-y-3">
-        </div>
-    </div>
-
-    <div id="view-settings" class="view-section hidden">
-      <h2 class="text-xl font-bold mb-4">資料與規則管理</h2>
-      <div class="bg-white rounded-2xl shadow-sm border overflow-hidden mb-4">
-        <button onclick="openRuleModal()" class="w-full p-4 border-b flex justify-between items-center active:bg-slate-50 transition-colors">
-          <div class="flex items-center gap-3"><div class="bg-amber-100 text-amber-600 p-2 rounded-lg"><i data-lucide="settings-2" class="w-5 h-5"></i></div><span class="font-medium text-slate-700">平台獎金規則管理</span></div><i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-        </button>
-        <button onclick="exportCSV()" class="w-full p-4 border-b flex justify-between items-center active:bg-slate-50 transition-colors">
-          <div class="flex items-center gap-3"><div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i data-lucide="download" class="w-5 h-5"></i></div><span class="font-medium text-slate-700">匯出 CSV 檔案</span></div><i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-        </button>
-        <button onclick="clearAllData()" class="w-full p-4 text-red-500 flex justify-between items-center active:bg-slate-50 transition-colors">
-          <div class="flex items-center gap-3"><div class="bg-red-100 text-red-600 p-2 rounded-lg"><i data-lucide="trash-2" class="w-5 h-5"></i></div><span class="font-medium text-slate-700">清空所有資料</span></div><i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
-        </button>
-      </div>
-    </div>
+    <div id="view-records" class="view-section hidden"><h2 class="text-xl font-bold mb-4">歷史紀錄</h2><div id="records-list" class="space-y-3"></div><div id="empty-records" class="hidden text-center py-10 text-slate-400">目前無紀錄</div></div>
+    <div id="view-stats" class="view-section hidden"><h2 class="text-xl font-bold mb-4">趨勢與統計</h2><div class="bg-white p-4 rounded-2xl shadow-sm border mb-6"><h3 class="text-sm font-bold text-slate-500 mb-3">近10筆收入趨勢</h3><div style="position: relative; height: 200px;"><canvas id="incomeChart"></canvas></div></div><h2 class="text-lg font-bold mb-3">平台分析</h2><div id="platform-analysis" class="space-y-3"></div></div>
+    <div id="view-settings" class="view-section hidden"><h2 class="text-xl font-bold mb-4">資料管理</h2><div class="bg-white rounded-2xl shadow-sm border overflow-hidden mb-4"><button onclick="exportCSV()" class="w-full p-4 border-b flex justify-between items-center active:bg-slate-50"><div class="flex items-center gap-3"><div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i data-lucide="download" class="w-5 h-5"></i></div><span class="font-medium">匯出 CSV</span></div><i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i></button><button onclick="clearAllData()" class="w-full p-4 text-red-500 flex justify-between items-center active:bg-slate-50"><div class="flex items-center gap-3"><div class="bg-red-100 text-red-600 p-2 rounded-lg"><i data-lucide="trash-2" class="w-5 h-5"></i></div><span class="font-medium">清空所有資料</span></div><i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i></button></div></div>
   </main>
 
-  <button id="fab-add" onclick="openModal()" class="hidden fixed bottom-24 right-6 bg-panda text-white p-4 rounded-full shadow-lg active:scale-95 transition-transform z-30"><i data-lucide="plus" class="w-6 h-6"></i></button>
+  <button id="fab-add" onclick="openModal()" class="hidden fixed bottom-24 right-6 bg-panda text-white p-4 rounded-full shadow-lg z-30"><i data-lucide="plus" class="w-6 h-6"></i></button>
 
   <nav class="bg-white border-t fixed bottom-0 w-full z-40 pb-safe">
     <div class="max-w-md mx-auto flex justify-around p-2">
@@ -159,50 +116,47 @@
     </div>
   </nav>
 
-  <div id="add-modal" class="fixed inset-0 z-[100] hidden flex-col justify-end transition-opacity duration-300 opacity-0">
-    <div class="absolute inset-0 bg-slate-900/50" onclick="closeModal()"></div>
-    <div class="bg-white rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform duration-300 relative z-10" id="add-modal-content">
-      <div class="flex justify-between items-center mb-5"><h3 class="text-xl font-bold">新增跑單紀錄</h3><button onclick="closeModal()" class="p-1 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button></div>
-      <form id="record-form" onsubmit="handleFormSubmit(event)">
-        <div class="flex gap-3 mb-5">
-          <label class="flex-1 cursor-pointer"><input type="radio" name="platform" value="foodpanda" class="peer hidden" checked><div class="py-3 text-center rounded-xl border-2 peer-checked:border-panda peer-checked:bg-pink-50 peer-checked:text-panda font-bold">Foodpanda</div></label>
-          <label class="flex-1 cursor-pointer"><input type="radio" name="platform" value="ubereats" class="peer hidden"><div class="py-3 text-center rounded-xl border-2 peer-checked:border-uber peer-checked:bg-green-50 peer-checked:text-uber font-bold">UberEats</div></label>
-        </div>
-        <div class="grid grid-cols-2 gap-4 mb-6">
-          <div class="col-span-2"><label class="text-sm font-bold block mb-1">日期</label><input type="date" id="form-date" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div>
-          <div><label class="text-sm font-bold block mb-1">單數</label><input type="number" id="form-orders" min="1" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div>
-          <div><label class="text-sm font-bold block mb-1">收入 (NT$)</label><input type="number" id="form-income" min="0" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div>
-          <div class="col-span-2"><label class="text-sm font-bold block mb-1">工時 (h)</label><input type="number" id="form-hours" step="0.1" min="0.1" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div>
-        </div>
-        <button type="submit" class="w-full bg-panda text-white py-4 rounded-xl font-bold text-lg">儲存紀錄</button>
-      </form>
-    </div>
-  </div>
+  <div id="add-modal" class="fixed inset-0 z-[100] hidden flex-col justify-end opacity-0 transition-opacity"><div class="absolute inset-0 bg-slate-900/50" onclick="closeModal()"></div><div class="bg-white rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform relative z-10" id="add-modal-content"><div class="flex justify-between mb-5"><h3 class="text-xl font-bold">新增紀錄</h3><button onclick="closeModal()" class="p-1 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button></div><form onsubmit="handleFormSubmit(event)"><div class="flex gap-3 mb-5"><label class="flex-1 cursor-pointer"><input type="radio" name="platform" value="foodpanda" class="peer hidden" checked><div class="py-3 text-center rounded-xl border-2 peer-checked:border-panda peer-checked:bg-pink-50 peer-checked:text-panda font-bold">Foodpanda</div></label><label class="flex-1 cursor-pointer"><input type="radio" name="platform" value="ubereats" class="peer hidden"><div class="py-3 text-center rounded-xl border-2 peer-checked:border-uber peer-checked:bg-green-50 peer-checked:text-uber font-bold">UberEats</div></label></div><div class="grid grid-cols-2 gap-4 mb-6"><div class="col-span-2"><label class="text-sm font-bold mb-1 block">日期</label><input type="date" id="form-date" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div><div><label class="text-sm font-bold mb-1 block">單數</label><input type="number" id="form-orders" min="1" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div><div><label class="text-sm font-bold mb-1 block">收入</label><input type="number" id="form-income" min="0" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div><div class="col-span-2"><label class="text-sm font-bold mb-1 block">工時</label><input type="number" id="form-hours" step="0.1" min="0.1" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div></div><button type="submit" class="w-full bg-panda text-white py-4 rounded-xl font-bold text-lg">儲存紀錄</button></form></div></div>
+  
+  <div id="account-modal" class="fixed inset-0 z-[110] hidden flex-col justify-end opacity-0 transition-opacity"><div class="absolute inset-0 bg-slate-900/50" onclick="closeAccountModal()"></div><div class="bg-white rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform relative z-10" id="account-modal-content"><div class="flex justify-between mb-5"><h3 class="text-xl font-bold">切換帳號</h3><button onclick="closeAccountModal()" class="p-1 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button></div><div id="account-list" class="space-y-2 mb-6 max-h-60 overflow-y-auto"></div><div class="border-t pt-4"><label class="text-xs font-bold text-slate-400 mb-2 block">新增帳號</label><div class="flex gap-2"><input type="text" id="new-account-name" placeholder="輸入姓名" class="flex-grow bg-slate-50 border rounded-xl px-4 py-3"><button onclick="handleAddAccount()" class="bg-panda text-white px-6 rounded-xl font-bold">新增</button></div></div></div></div>
 
-  <div id="account-modal" class="fixed inset-0 z-[110] hidden flex-col justify-end transition-opacity duration-300 opacity-0">
-    <div class="absolute inset-0 bg-slate-900/50" onclick="closeAccountModal()"></div>
-    <div class="bg-white rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform duration-300 relative z-10">
-      <div class="flex justify-between items-center mb-5"><h3 class="text-xl font-bold">切換外送帳號</h3><button onclick="closeAccountModal()" class="p-1 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button></div>
-      <div id="account-list" class="space-y-2 mb-6 max-h-60 overflow-y-auto"></div>
-      <div class="border-t pt-4">
-        <label class="text-xs font-bold text-slate-400 uppercase mb-2 block">新增帳號</label>
-        <div class="flex gap-2">
-          <input type="text" id="new-account-name" placeholder="輸入姓名或標籤" class="flex-grow bg-slate-50 border rounded-xl px-4 py-3 outline-none focus:border-panda">
-          <button onclick="handleAddAccount()" class="bg-panda text-white px-6 rounded-xl font-bold">新增</button>
+  <div id="rule-modal" class="fixed inset-0 z-[120] hidden flex-col justify-end opacity-0 transition-opacity"><div class="absolute inset-0 bg-slate-900/50" onclick="closeRuleModal()"></div><div class="bg-slate-50 rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform relative z-10 h-[85vh] flex flex-col" id="rule-modal-content"><div class="flex justify-between mb-4"><h3 class="text-xl font-bold">獎金規則清單</h3><button onclick="closeRuleModal()" class="p-1 bg-white rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button></div><div class="flex gap-2 mb-4"><button onclick="syncRuleTemplate('foodpanda')" class="flex-1 bg-pink-50 text-panda border border-pink-200 py-2 rounded-xl text-xs font-bold">同步熊貓範本</button><button onclick="syncRuleTemplate('ubereats')" class="flex-1 bg-green-50 text-uber border border-green-200 py-2 rounded-xl text-xs font-bold">同步UE範本</button></div><div id="rule-list" class="flex-grow overflow-y-auto space-y-3 pb-4"></div><button onclick="openEditRuleModal(null)" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold mt-2">新增自訂規則</button></div></div>
+
+  <div id="edit-rule-modal" class="fixed inset-0 z-[130] hidden flex-col justify-end opacity-0 transition-opacity">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeEditRuleModal()"></div>
+    <div class="bg-white rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform relative z-10 h-[90vh] flex flex-col" id="edit-rule-modal-content">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold" id="edit-rule-title">編輯規則</h3>
+        <button onclick="closeEditRuleModal()" class="p-1 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="overflow-y-auto flex-grow space-y-4 pb-4">
+        <input type="hidden" id="edit-rule-id">
+        <div>
+          <label class="text-sm font-bold block mb-1">平台</label>
+          <select id="edit-rule-platform" class="w-full bg-slate-50 border rounded-xl px-4 py-3 font-bold">
+            <option value="foodpanda">Foodpanda</option>
+            <option value="ubereats">UberEats</option>
+          </select>
+        </div>
+        <div>
+           <label class="text-sm font-bold block mb-1">規則名稱</label>
+           <input type="text" id="edit-rule-name" class="w-full bg-slate-50 border rounded-xl px-4 py-3" placeholder="例如：熊貓週一至週三">
+        </div>
+        <div>
+           <label class="text-sm font-bold block mb-2">適用星期 (可複選)</label>
+           <div class="flex gap-2 flex-wrap" id="edit-rule-days">
+              </div>
+        </div>
+        <div>
+           <div class="flex justify-between items-center mb-2">
+             <label class="text-sm font-bold">獎金級距 (階梯)</label>
+             <button onclick="addTierRow()" class="text-blue-600 bg-blue-50 px-3 py-1 rounded text-xs font-bold flex items-center gap-1"><i data-lucide="plus" class="w-3 h-3"></i> 加一階</button>
+           </div>
+           <div id="edit-rule-tiers" class="space-y-2">
+              </div>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div id="rule-modal" class="fixed inset-0 z-[120] hidden flex-col justify-end transition-opacity duration-300 opacity-0">
-    <div class="absolute inset-0 bg-slate-900/50" onclick="closeRuleModal()"></div>
-    <div class="bg-slate-50 rounded-t-3xl p-5 w-full max-w-md mx-auto transform translate-y-full transition-transform duration-300 relative z-10 h-[90vh] flex flex-col">
-      <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">獎金規則管理</h3><button onclick="closeRuleModal()" class="p-1 bg-white rounded-full shadow-sm"><i data-lucide="x" class="w-5 h-5"></i></button></div>
-      <div class="flex gap-2 mb-4">
-        <button onclick="syncRuleTemplate('foodpanda')" class="flex-1 bg-pink-50 text-panda border border-pink-200 py-2 rounded-xl text-xs font-bold">同步熊貓範本</button>
-        <button onclick="syncRuleTemplate('ubereats')" class="flex-1 bg-green-50 text-uber border border-green-200 py-2 rounded-xl text-xs font-bold">同步UE範本</button>
-      </div>
-      <div id="rule-list" class="flex-grow overflow-y-auto space-y-4 pb-10"></div>
+      <button onclick="saveRuleForm()" class="w-full bg-panda text-white py-4 rounded-xl font-bold text-lg mt-2 shadow-md">儲存規則</button>
     </div>
   </div>
 
