@@ -1,6 +1,5 @@
-/* db.js */
 const DB_NAME = 'DeliveryWizardDB';
-const DB_VERSION = 4; // 強制升級版本以確保規則資料表建立
+const DB_VERSION = 5; // 升級版本，打破舊有錯誤架構
 const STORE_RECORDS = 'records';
 const STORE_ACCOUNTS = 'accounts';
 const STORE_RULES = 'rules';
@@ -14,85 +13,106 @@ const db = {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
-        // 建立紀錄表
         if (!db.objectStoreNames.contains(STORE_RECORDS)) {
           const store = db.createObjectStore(STORE_RECORDS, { keyPath: 'id' });
           store.createIndex('accountId', 'accountId', { unique: false });
         }
-        // 建立帳號表
         if (!db.objectStoreNames.contains(STORE_ACCOUNTS)) {
           db.createObjectStore(STORE_ACCOUNTS, { keyPath: 'id' });
         }
-        // 建立規則表 (核心修復)
         if (!db.objectStoreNames.contains(STORE_RULES)) {
           const store = db.createObjectStore(STORE_RULES, { keyPath: 'id' });
           store.createIndex('accountId', 'accountId', { unique: false });
         }
       };
       request.onsuccess = (e) => { dbInstance = e.target.result; resolve(dbInstance); };
-      request.onerror = (e) => { console.error("DB Error:", e.target.error); reject(e.target.error); };
+      request.onerror = (e) => reject(e.target.error);
     });
   },
 
+  // 帳號操作
   async getAccounts() {
     await this.init();
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       const req = dbInstance.transaction(STORE_ACCOUNTS, 'readonly').objectStore(STORE_ACCOUNTS).getAll();
       req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
     });
   },
   async addAccount(name) {
     await this.init();
-    const account = { id: 'acc_' + Date.now(), name, createdAt: Date.now() };
-    await dbInstance.transaction(STORE_ACCOUNTS, 'readwrite').objectStore(STORE_ACCOUNTS).put(account);
-    return account;
+    return new Promise((resolve, reject) => {
+      const account = { id: 'acc_' + Date.now(), name, createdAt: Date.now() };
+      const tx = dbInstance.transaction(STORE_ACCOUNTS, 'readwrite');
+      tx.objectStore(STORE_ACCOUNTS).put(account);
+      tx.oncomplete = () => resolve(account);
+      tx.onerror = () => reject(tx.error);
+    });
   },
   async deleteAccount(id) {
     await this.init();
-    await dbInstance.transaction(STORE_ACCOUNTS, 'readwrite').objectStore(STORE_ACCOUNTS).delete(id);
+    return new Promise((resolve) => {
+      const tx = dbInstance.transaction(STORE_ACCOUNTS, 'readwrite');
+      tx.objectStore(STORE_ACCOUNTS).delete(id);
+      tx.oncomplete = () => resolve();
+    });
   },
 
+  // 紀錄操作
   async getRecords(accountId) {
     await this.init();
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const index = dbInstance.transaction(STORE_RECORDS, 'readonly').objectStore(STORE_RECORDS).index('accountId');
       const req = index.getAll(accountId);
-      req.onsuccess = () => resolve(req.result.sort((a,b) => b.timestamp - a.timestamp));
+      req.onsuccess = () => resolve(req.result.sort((a, b) => b.timestamp - a.timestamp));
     });
   },
   async saveRecord(record) {
     await this.init();
-    await dbInstance.transaction(STORE_RECORDS, 'readwrite').objectStore(STORE_RECORDS).put(record);
+    return new Promise((resolve, reject) => {
+      const tx = dbInstance.transaction(STORE_RECORDS, 'readwrite');
+      tx.objectStore(STORE_RECORDS).put(record);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
   },
   async deleteRecord(id) {
     await this.init();
-    await dbInstance.transaction(STORE_RECORDS, 'readwrite').objectStore(STORE_RECORDS).delete(id);
+    return new Promise((resolve) => {
+      const tx = dbInstance.transaction(STORE_RECORDS, 'readwrite');
+      tx.objectStore(STORE_RECORDS).delete(id);
+      tx.oncomplete = () => resolve();
+    });
   },
 
+  // 規則操作 (完全防呆寫法)
   async getRules(accountId) {
     await this.init();
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const index = dbInstance.transaction(STORE_RULES, 'readonly').objectStore(STORE_RULES).index('accountId');
       const req = index.getAll(accountId);
       req.onsuccess = () => resolve(req.result);
     });
   },
   async saveRule(rule) {
-    await this.init(); // 修復：儲存前必須初始化
+    await this.init();
     return new Promise((resolve, reject) => {
       const tx = dbInstance.transaction(STORE_RULES, 'readwrite');
-      const store = tx.objectStore(STORE_RULES);
-      const req = store.put(rule);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
+      tx.objectStore(STORE_RULES).put(rule);
+      tx.oncomplete = () => resolve(); // 確保資料寫進硬碟才放行
+      tx.onerror = () => reject(tx.error);
     });
   },
   async deleteRule(id) {
     await this.init();
-    await dbInstance.transaction(STORE_RULES, 'readwrite').objectStore(STORE_RULES).delete(id);
+    return new Promise((resolve) => {
+      const tx = dbInstance.transaction(STORE_RULES, 'readwrite');
+      tx.objectStore(STORE_RULES).delete(id);
+      tx.oncomplete = () => resolve();
+    });
   },
   async syncTemplate(accountId, platform) {
-    await this.init(); // 修復：同步前必須初始化
+    await this.init();
     let templates = [];
     if (platform === 'foodpanda') {
       templates = [
@@ -103,12 +123,19 @@ const db = {
     } else {
       templates = [{ id: `ue_week_${accountId}`, accountId, platform: 'ubereats', name: 'UE每週任務', activeDays: [1,2,3,4,5,6,0], tiers: [{t:20, b:150}, {t:40, b:400}] }];
     }
-    for (const rule of templates) await this.saveRule(rule);
+    // 依序寫入，確保每一條都成功
+    for (const rule of templates) {
+      await this.saveRule(rule);
+    }
   },
   async clearAllData() {
     await this.init();
-    await dbInstance.transaction(STORE_RECORDS, 'readwrite').objectStore(STORE_RECORDS).clear();
-    await dbInstance.transaction(STORE_RULES, 'readwrite').objectStore(STORE_RULES).clear();
-    await dbInstance.transaction(STORE_ACCOUNTS, 'readwrite').objectStore(STORE_ACCOUNTS).clear();
+    return new Promise((resolve) => {
+      const tx = dbInstance.transaction([STORE_RECORDS, STORE_RULES, STORE_ACCOUNTS], 'readwrite');
+      tx.objectStore(STORE_RECORDS).clear();
+      tx.objectStore(STORE_RULES).clear();
+      tx.objectStore(STORE_ACCOUNTS).clear();
+      tx.oncomplete = () => resolve();
+    });
   }
 };
