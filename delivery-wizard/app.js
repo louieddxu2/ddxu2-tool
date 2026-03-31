@@ -7,17 +7,34 @@ let currentRules = [];
 async function initApp() {
   lucide.createIcons();
   const accounts = await db.getAccounts();
+  
+  // 1. 處理帳號
   if (accounts.length === 0) {
     const defAcc = await db.addAccount('我的帳號');
-    currentAccountId = defAcc.id; currentAccountName = defAcc.name;
+    currentAccountId = defAcc.id; 
+    currentAccountName = defAcc.name;
+    // 【新增】建立新帳號時，自動把熊貓跟 UE 規則寫進去！
+    await db.syncTemplate(currentAccountId, 'foodpanda');
+    await db.syncTemplate(currentAccountId, 'ubereats');
   } else {
     const active = accounts.find(a => a.id === currentAccountId) || accounts[0];
-    currentAccountId = active.id; currentAccountName = active.name;
+    currentAccountId = active.id; 
+    currentAccountName = active.name;
   }
+  
   localStorage.setItem('activeAccountId', currentAccountId);
   document.getElementById('current-account-name').innerText = currentAccountName;
   updateGlobalDate();
+  
+  // 2. 載入資料
   await loadAndRender();
+
+  // 【新增防呆】如果舊帳號完全沒有規則，也自動幫他補上熊貓範本
+  if (currentRules.length === 0) {
+    await db.syncTemplate(currentAccountId, 'foodpanda');
+    currentRules = await db.getRules(currentAccountId);
+    renderHome(); // 重新畫出首頁進度條
+  }
 }
 
 function updateGlobalDate() {
