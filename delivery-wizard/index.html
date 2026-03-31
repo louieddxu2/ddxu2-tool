@@ -74,12 +74,14 @@
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col"><div class="text-slate-500 text-xs flex items-center gap-1 mb-1"><i data-lucide="timer" class="w-3 h-3 text-purple-500"></i>今日工時</div><div class="text-xl font-bold text-purple-500" id="home-hours">0.0 h</div></div>
       </div>
 
-      <div class="flex justify-between items-center mb-3">
-        <h2 class="text-lg font-bold text-slate-800">平台週期進度</h2>
-        <button onclick="openRuleModal()" class="text-slate-500 hover:text-panda flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 shadow-sm text-xs font-bold active:scale-95">
-          <i data-lucide="settings-2" class="w-4 h-4"></i> 管理規則
+          <div class="flex justify-between items-center mb-3 relative z-20">
+        <h2 class="text-lg font-bold text-slate-800 pointer-events-none">平台週期進度</h2>
+        <button type="button" onclick="openRuleModal()" class="text-slate-500 hover:text-panda flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm text-xs font-bold active:scale-95 cursor-pointer">
+          <i data-lucide="settings-2" class="w-4 h-4 pointer-events-none"></i> 
+          <span class="pointer-events-none">管理規則</span>
         </button>
       </div>
+
 
       <div id="fp-progress-card" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-6 relative overflow-hidden hidden">
         <div id="progress-platform-tag" class="absolute top-0 right-0 bg-panda text-white text-xs px-3 py-1 rounded-bl-lg font-bold">Foodpanda</div>
