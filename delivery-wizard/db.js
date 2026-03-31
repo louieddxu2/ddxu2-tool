@@ -128,14 +128,33 @@ const db = {
       await this.saveRule(rule);
     }
   },
-  async clearAllData() {
-    await this.init();
-    return new Promise((resolve) => {
-      const tx = dbInstance.transaction([STORE_RECORDS, STORE_RULES, STORE_ACCOUNTS], 'readwrite');
-      tx.objectStore(STORE_RECORDS).clear();
-      tx.objectStore(STORE_RULES).clear();
-      tx.objectStore(STORE_ACCOUNTS).clear();
-      tx.oncomplete = () => resolve();
+    async clearAllData() {
+    // 1. 先關閉現有的資料庫連線，避免推土機被擋住
+    if (dbInstance) {
+      dbInstance.close();
+      dbInstance = null;
+    }
+    
+    // 2. 呼叫底層 API 直接物理核爆整個資料庫
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(DB_NAME);
+      
+      request.onsuccess = () => {
+        console.log("推土機執行完畢，資料庫已徹底抹除");
+        resolve();
+      };
+      
+      request.onerror = (e) => {
+        console.error("刪除失敗", e);
+        reject(e.target.error);
+      };
+      
+      // 萬一有其他分頁卡住，強制放行
+      request.onblocked = () => {
+        console.warn("刪除被阻擋，但我們不管它");
+        resolve(); 
+      };
     });
   }
+
 };
