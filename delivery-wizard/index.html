@@ -11,7 +11,8 @@
 <meta name="theme-color" content="#d4006e">
 <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;跑單神器&quot;,&quot;short_name&quot;:&quot;跑單神器&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23f7f3f8&quot;,&quot;theme_color&quot;:&quot;%23d4006e&quot;}">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<!-- IndexedDB: use native API (offline-stable, no Dexie CDN dependency) -->
+<!-- Dexie (local vendor; offline-stable) -->
+<script src="./vendor/dexie-3.2.4.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
@@ -684,7 +685,7 @@ async function savePersonsToDB() {
 // =============================================================
 
 // =============================================================
-// OFFLINE-STABLE OVERRIDE (native IndexedDB, no Dexie dependency)
+/* OFFLINE-STABLE OVERRIDE (native IndexedDB, no Dexie dependency)
 // This overrides the Dexie-based functions above.
 // =============================================================
 
@@ -863,6 +864,12 @@ async function savePersonsToDB() {
     await saveAll();
   }
 }
+*/
+
+// =============================================================
+// validation.js — Input validation
+// =============================================================
+
 const VALID_PLATFORMS = ['Foodpanda', 'UberEats', 'Grab'];
 
 function validateRecord(data) {
@@ -1691,6 +1698,9 @@ async function exportExcel(){
 // =============================================================
 // BOOT
 // =============================================================
+if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 init();
 </script>
 </body>
