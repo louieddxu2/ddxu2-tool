@@ -11,8 +11,7 @@
 <meta name="theme-color" content="#d4006e">
 <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;跑單神器&quot;,&quot;short_name&quot;:&quot;跑單神器&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23f7f3f8&quot;,&quot;theme_color&quot;:&quot;%23d4006e&quot;}">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<!-- Dexie.js for IndexedDB -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.4/dexie.min.js"></script>
+<!-- IndexedDB: use native API (offline-stable, no Dexie CDN dependency) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
@@ -684,6 +683,186 @@ async function savePersonsToDB() {
 // validation.js — Input validation
 // =============================================================
 
+// =============================================================
+// OFFLINE-STABLE OVERRIDE (native IndexedDB, no Dexie dependency)
+// This overrides the Dexie-based functions above.
+// =============================================================
+
+function __idbReq(req){
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function __idbTxDone(tx){
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('tx aborted'));
+  });
+}
+function __openIDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('persons')) db.createObjectStore('persons', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('records')) {
+        const store = db.createObjectStore('records', { keyPath: 'id' });
+        store.createIndex('personId', 'personId', { unique: false });
+        store.createIndex('platform', 'platform', { unique: false });
+        store.createIndex('date', 'date', { unique: false });
+        store.createIndex('personId_platform_date', ['personId','platform','date'], { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function initStorage() {
+  try {
+    _db = await __openIDB();
+    _useIDB = true;
+    const badge = document.getElementById('db-badge');
+    if (badge) { badge.textContent = 'IndexedDB'; badge.className = 'db-badge idb'; badge.style.display = ''; }
+    await migrateFromLocalStorage();
+  } catch(e) {
+    console.warn('IndexedDB not available, using localStorage:', e);
+    _useIDB = false;
+    const badge = document.getElementById('db-badge');
+    if (badge) { badge.textContent = 'localStorage'; badge.className = 'db-badge ls'; badge.style.display = ''; }
+  }
+}
+
+async function migrateFromLocalStorage() {
+  if (!_useIDB || !_db) return;
+  try {
+    const lsVer = parseInt(localStorage.getItem('dr_schema_ver') || '0');
+    if (lsVer === 0) return;
+    const lsPersons = JSON.parse(localStorage.getItem('dr_persons') || '[]');
+    const lsRecords = JSON.parse(localStorage.getItem('dr_records') || '[]');
+    const lsCurrent = localStorage.getItem('dr_currentPerson') || '';
+    if (!lsPersons.length) return;
+
+    const tx = _db.transaction(['persons','records','meta'], 'readwrite');
+    const personsStore = tx.objectStore('persons');
+    const recordsStore = tx.objectStore('records');
+    const metaStore = tx.objectStore('meta');
+    lsPersons.forEach(p => personsStore.put(p));
+    lsRecords.forEach(r => recordsStore.put(r));
+    metaStore.put({ key: 'currentPerson', value: lsCurrent });
+    metaStore.put({ key: 'schemaVer', value: SCHEMA_VER });
+    await __idbTxDone(tx);
+
+    localStorage.removeItem('dr_persons');
+    localStorage.removeItem('dr_records');
+    localStorage.removeItem('dr_currentPerson');
+    localStorage.removeItem('dr_schema_ver');
+    console.log('Migrated', lsRecords.length, 'records from localStorage to IndexedDB');
+  } catch(e) {
+    console.warn('Migration from localStorage failed:', e);
+  }
+}
+
+async function loadAllData() {
+  if (_useIDB) {
+    const tx = _db.transaction(['persons','records','meta'], 'readonly');
+    const persons = await __idbReq(tx.objectStore('persons').getAll());
+    const records = await __idbReq(tx.objectStore('records').getAll());
+    const metaCur = await __idbReq(tx.objectStore('meta').get('currentPerson'));
+    await __idbTxDone(tx);
+    return { persons, records, currentPerson: metaCur ? metaCur.value : '' };
+  }
+  try {
+    const ver = parseInt(localStorage.getItem('dr_schema_ver') || '0');
+    if (ver > 0 && ver < SCHEMA_VER) localStorage.setItem('dr_schema_ver', String(SCHEMA_VER));
+    return {
+      persons: JSON.parse(localStorage.getItem('dr_persons') || '[]'),
+      records: JSON.parse(localStorage.getItem('dr_records') || '[]'),
+      currentPerson: localStorage.getItem('dr_currentPerson') || ''
+    };
+  } catch(e) {
+    return { persons: [], records: [], currentPerson: '' };
+  }
+}
+
+async function saveAll() {
+  if (_useIDB) {
+    try {
+      const tx = _db.transaction(['persons','records','meta'], 'readwrite');
+      const personsStore = tx.objectStore('persons');
+      const recordsStore = tx.objectStore('records');
+      const metaStore = tx.objectStore('meta');
+      personsStore.clear();
+      recordsStore.clear();
+      (_cache.persons || []).forEach(p => personsStore.put(p));
+      (_cache.records || []).forEach(r => recordsStore.put(r));
+      metaStore.put({ key: 'currentPerson', value: currentPerson });
+      metaStore.put({ key: 'schemaVer', value: SCHEMA_VER });
+      await __idbTxDone(tx);
+      return;
+    } catch(e) {
+      console.error('IDB save error:', e);
+      showToast('⚠️ 資料儲存失敗，改用 localStorage');
+      _useIDB = false;
+    }
+  }
+  try {
+    localStorage.setItem('dr_persons', JSON.stringify(_cache.persons));
+    localStorage.setItem('dr_records', JSON.stringify(_cache.records));
+    localStorage.setItem('dr_currentPerson', currentPerson);
+    localStorage.setItem('dr_schema_ver', String(SCHEMA_VER));
+  } catch(e) {
+    showToast('⚠️ 無法儲存資料（可能是空間不足或隱私模式限制）');
+  }
+}
+
+async function addRecordToDB(rec) {
+  if (_useIDB) {
+    const tx = _db.transaction(['records'], 'readwrite');
+    tx.objectStore('records').put(rec);
+    await __idbTxDone(tx);
+  }
+  _cache.records.unshift(rec);
+  if (!_useIDB) await saveAll();
+}
+
+async function updateRecordInDB(rec) {
+  if (_useIDB) {
+    const tx = _db.transaction(['records'], 'readwrite');
+    tx.objectStore('records').put(rec);
+    await __idbTxDone(tx);
+  }
+  const idx = _cache.records.findIndex(r => r.id === rec.id);
+  if (idx !== -1) _cache.records[idx] = rec;
+  if (!_useIDB) await saveAll();
+}
+
+async function deleteRecordFromDB(id) {
+  if (_useIDB) {
+    const tx = _db.transaction(['records'], 'readwrite');
+    tx.objectStore('records').delete(id);
+    await __idbTxDone(tx);
+  }
+  _cache.records = _cache.records.filter(r => r.id !== id);
+  if (!_useIDB) await saveAll();
+}
+
+async function savePersonsToDB() {
+  if (_useIDB) {
+    const tx = _db.transaction(['persons','meta'], 'readwrite');
+    const personsStore = tx.objectStore('persons');
+    const metaStore = tx.objectStore('meta');
+    personsStore.clear();
+    (_cache.persons || []).forEach(p => personsStore.put(p));
+    metaStore.put({ key: 'currentPerson', value: currentPerson });
+    await __idbTxDone(tx);
+  } else {
+    await saveAll();
+  }
+}
 const VALID_PLATFORMS = ['Foodpanda', 'UberEats', 'Grab'];
 
 function validateRecord(data) {
