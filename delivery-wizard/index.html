@@ -1,126 +1,1518 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>跑單紀錄神器</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@0.542.0"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%23d70f64'/%3E%3C/svg%3E">
-  <meta name="theme-color" content="#d70f64">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <script>
-    tailwind.config = { theme: { extend: { colors: { 'panda': '#d70f64', 'uber': '#06C167' } } } }
-  </script>
-  <style>
-    ::-webkit-scrollbar { width: 0; background: transparent; }
-    body { -webkit-tap-highlight-color: transparent; }
-    .tab-active { color: #d70f64; font-weight: bold; }
-    .tab-inactive { color: #94a3b8; }
-    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-    input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>🐼 跑單神器</title>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="跑單神器">
+<meta name="theme-color" content="#d4006e">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;跑單神器&quot;,&quot;short_name&quot;:&quot;跑單神器&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23f7f3f8&quot;,&quot;theme_color&quot;:&quot;%23d4006e&quot;}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Dexie.js for IndexedDB -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.4/dexie.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fp:#d4006e;--fp2:#ff3d8f;--fp-soft:#fff0f7;--fp-border:#ffc0dd;
+  --ue:#009e46;--ue2:#00c853;--ue-soft:#f0fdf5;--ue-border:#9de8bb;
+  --bg:#f7f3f8;--card:#ffffff;--card2:#f2eef5;--card3:#ebe5f0;
+  --text:#1c0f2e;--muted:#8b7aa0;--border:#e5dced;
+  --warn:#d97706;--danger:#dc2626;--good:#059669;
+  --shadow:0 2px 14px rgba(80,30,120,0.09);
+  --shadow-lg:0 6px 28px rgba(80,30,120,0.14);
+  --radius:18px;--radius-sm:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Noto Sans TC',sans-serif;
+  min-height:100vh;padding-bottom:96px;
+  font-size:14px;overscroll-behavior-y:contain;
+  -webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(circle at 15% 10%,rgba(212,0,110,0.05) 0%,transparent 45%),
+                   radial-gradient(circle at 85% 80%,rgba(0,158,70,0.04) 0%,transparent 45%);
+}
+
+/* ── Splash ── */
+#splash{position:fixed;inset:0;z-index:9999;background:linear-gradient(150deg,#140a22 0%,#2a0f40 55%,#0a1f12 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.55s ease,transform 0.55s ease;}
+#splash.hide{opacity:0;transform:scale(1.05);pointer-events:none;}
+.sp-panda{width:96px;height:96px;position:relative;animation:spBounce 0.8s cubic-bezier(.34,1.56,.64,1) both;}
+.sp-face{width:96px;height:96px;background:#fff;border-radius:50%;box-shadow:0 10px 40px rgba(0,0,0,0.6);position:relative;}
+.sp-ear{width:28px;height:28px;background:#1a1a1a;border-radius:50%;position:absolute;top:-9px;}
+.sp-ear.l{left:6px;}.sp-ear.r{right:6px;}
+.sp-eye{width:17px;height:17px;background:#1a1a1a;border-radius:50%;position:absolute;top:30px;}
+.sp-eye.l{left:17px;}.sp-eye.r{right:17px;}
+.sp-eye::after{content:'';width:5px;height:5px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;}
+.sp-blush{width:15px;height:8px;background:rgba(255,80,140,0.45);border-radius:50%;position:absolute;top:56px;}
+.sp-blush.l{left:9px;}.sp-blush.r{right:9px;}
+.sp-nose{width:11px;height:7px;background:var(--fp);border-radius:50%;position:absolute;top:50px;left:50%;transform:translateX(-50%);}
+.sp-mouth{width:19px;height:8px;border:2.5px solid #444;border-top:none;border-radius:0 0 11px 11px;position:absolute;top:58px;left:50%;transform:translateX(-50%);}
+.sp-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:20px;padding:5px 14px;margin-top:8px;}
+.sp-dot{width:6px;height:6px;border-radius:50%;}
+.sp-title{font-family:'Sora',sans-serif;font-size:25px;font-weight:800;color:#fff;margin-top:18px;letter-spacing:-0.5px;animation:spUp 0.5s 0.4s both;}
+.sp-sub{font-size:11.5px;color:rgba(255,255,255,0.6);margin-top:7px;text-align:center;line-height:1.8;padding:0 32px;animation:spUp 0.5s 0.55s both;}
+.sp-tags{display:flex;gap:7px;margin-top:13px;animation:spUp 0.5s 0.7s both;}
+.sp-tag{font-size:10px;font-weight:700;padding:4px 11px;border-radius:20px;}
+.sp-tag.a{background:rgba(212,0,110,0.28);color:#ff99cc;border:1px solid rgba(212,0,110,0.5);}
+.sp-tag.b{background:rgba(0,158,70,0.22);color:#6ee7a8;border:1px solid rgba(0,158,70,0.4);}
+.sp-tag.c{background:rgba(217,119,6,0.22);color:#fcd34d;border:1px solid rgba(217,119,6,0.4);}
+.sp-bar{width:120px;height:2.5px;background:rgba(255,255,255,0.12);border-radius:3px;margin-top:20px;overflow:hidden;animation:spUp 0.4s 0.9s both;}
+.sp-bar-fill{height:100%;background:linear-gradient(90deg,#ff3d8f,#d4006e);border-radius:3px;animation:spBarLoad 1.6s 0.9s ease-out forwards;}
+.sp-skip{font-size:10px;color:rgba(255,255,255,0.22);margin-top:10px;animation:spUp 0.4s 1.2s both;}
+@keyframes spBounce{from{opacity:0;transform:scale(0.3) translateY(40px);}to{opacity:1;transform:scale(1) translateY(0);}}
+@keyframes spUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+@keyframes spBarLoad{from{width:0}to{width:100%}}
+
+/* ── Header ── */
+.header{
+  background:linear-gradient(135deg,#f0006b 0%,#d4006e 60%,#b8005e 100%);
+  padding:14px 16px 0;position:sticky;top:0;z-index:200;
+  box-shadow:0 3px 20px rgba(212,0,110,0.3);
+}
+.header::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");pointer-events:none;}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;position:relative;z-index:1;}
+.logo{font-family:'Sora',sans-serif;font-size:18px;font-weight:800;color:#fff;letter-spacing:-0.5px;}
+.logo span{opacity:0.7;font-weight:700;}
+.logo small{font-size:9px;font-weight:400;opacity:0.45;margin-left:3px;font-family:'JetBrains Mono',monospace;}
+.date-badge{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:rgba(255,255,255,0.9);background:rgba(255,255,255,0.15);padding:3px 9px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);}
+.person-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none;position:relative;z-index:1;}
+.person-bar::-webkit-scrollbar{display:none;}
+.person-chip{flex-shrink:0;padding:5px 13px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all 0.15s;}
+.person-chip.active{background:rgba(255,255,255,0.95);border-color:#fff;color:var(--fp);}
+.person-chip.add-btn{border-style:dashed;color:rgba(255,255,255,0.55);}
+.tabs{display:flex;position:relative;z-index:1;}
+.tab{flex:1;padding:10px 2px 9px;border:none;background:transparent;color:rgba(255,255,255,0.5);font-family:'Noto Sans TC',sans-serif;font-size:10px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;transition:all 0.15s;letter-spacing:0.3px;}
+.tab.active{color:#fff;border-bottom-color:rgba(255,255,255,0.9);}
+
+/* ── Content ── */
+.content{padding:14px 14px 0;-webkit-overflow-scrolling:touch;}
+
+/* ── Cards ── */
+.card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px;border:1.5px solid var(--border);box-shadow:var(--shadow);}
+.card-title{font-size:9.5px;font-weight:900;text-transform:uppercase;letter-spacing:1.8px;color:var(--muted);margin-bottom:14px;}
+.section-title{font-size:9.5px;font-weight:900;text-transform:uppercase;letter-spacing:1.8px;color:var(--muted);margin:18px 0 8px 2px;}
+
+/* ── Dash Cards ── */
+.dash-card{background:var(--card);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;border:1.5px solid var(--border);box-shadow:var(--shadow);transition:box-shadow 0.2s;}
+.dash-card.hl{border-color:var(--fp-border);box-shadow:0 2px 20px rgba(212,0,110,0.12);background:linear-gradient(135deg,#fff 0%,#fff8fb 100%);}
+.dash-card.hl-ue{border-color:var(--ue-border);box-shadow:0 2px 20px rgba(0,158,70,0.1);background:linear-gradient(135deg,#fff 0%,#f5fff8 100%);}
+.dash-card-title{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:1.8px;color:var(--muted);margin-bottom:10px;}
+.dash-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);}
+.dash-row:last-child{border-bottom:none;padding-bottom:0;}
+.dash-label{font-size:12px;color:var(--muted);}
+.dash-val{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--text);}
+.dash-val.fp{color:var(--fp);}
+.dash-val.ue{color:var(--ue);}
+.dash-val.urgent{color:var(--danger);font-weight:900;}
+.dash-val.warn{color:var(--warn);}
+.dash-val.good{color:var(--good);}
+
+/* ── Notice ── */
+.notice-bar{background:linear-gradient(135deg,var(--fp-soft),#fce4f0);border:1.5px solid var(--fp-border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;color:#a8005c;}
+.notice-bar.ue{background:var(--ue-soft);border-color:var(--ue-border);color:#00763a;}
+
+/* ── Stats Grid ── */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.stat-box{background:var(--card);border-radius:16px;padding:14px;border:1.5px solid var(--border);box-shadow:var(--shadow);}
+.stat-label{font-size:9.5px;color:var(--muted);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;}
+.stat-value{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;margin-top:5px;color:var(--text);}
+.stat-value.fp{color:var(--fp);}
+.stat-value.ue{color:var(--ue);}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+
+/* ── Platform Toggle ── */
+.platform-toggle{display:flex;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:14px;box-shadow:var(--shadow);}
+.plat-btn{flex:1;padding:11px;border:none;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans TC',sans-serif;background:transparent;color:var(--muted);transition:all 0.2s;}
+.plat-btn.fp.active{background:linear-gradient(135deg,var(--fp2),var(--fp));color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);}
+.plat-btn.ue.active{background:linear-gradient(135deg,var(--ue2),var(--ue));color:#fff;}
+.plat-btn.grab.active{background:linear-gradient(135deg,#1da462,#00823f);color:#fff;}
+
+/* ── Input ── */
+.input-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;}
+.input-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.input-group label{display:block;font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:700;letter-spacing:0.3px;}
+.input-group input{width:100%;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;padding:10px 6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;text-align:center;outline:none;transition:all 0.15s;}
+.input-group input:focus{border-color:var(--fp);background:#fff;box-shadow:0 0 0 3px rgba(212,0,110,0.09);}
+.input-group input.error{border-color:var(--danger);background:#fff5f5;}
+.date-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.date-row label{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:700;}
+.date-row input[type=date]{flex:1;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;padding:9px 12px;color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:13px;outline:none;}
+.tip-box{background:linear-gradient(135deg,var(--card2),var(--card3));border-radius:var(--radius-sm);padding:12px;margin-bottom:10px;border:1px solid var(--border);}
+.tip-box-title{font-size:9.5px;color:var(--muted);font-weight:700;letter-spacing:0.5px;margin-bottom:10px;}
+.tip-hint{font-size:9px;color:var(--muted);margin-top:3px;line-height:1.5;}
+
+/* ── Buttons ── */
+.btn-add{width:100%;padding:14px;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:900;cursor:pointer;font-family:'Noto Sans TC',sans-serif;background:linear-gradient(135deg,var(--fp2),var(--fp));color:#fff;box-shadow:0 4px 18px rgba(212,0,110,0.38);transition:all 0.15s;letter-spacing:0.5px;}
+.btn-add:active{opacity:0.85;transform:scale(0.97);transition:all 0.07s;}
+.btn-add:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.btn-add.ue{background:linear-gradient(135deg,var(--ue2),var(--ue));box-shadow:0 4px 18px rgba(0,158,70,0.32);}
+.btn-add.grab{background:linear-gradient(135deg,#1da462,#00823f);box-shadow:0 4px 18px rgba(29,164,98,0.3);}
+
+/* ── Records ── */
+.range-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.range-btn{flex:1;min-width:52px;padding:8px 4px;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--muted);font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap;box-shadow:var(--shadow);}
+.range-btn.active{border-color:var(--fp-border);color:var(--fp);background:var(--fp-soft);}
+.record-item{background:var(--card);border-radius:16px;padding:14px;margin-bottom:10px;border:1.5px solid var(--border);box-shadow:var(--shadow);}
+.record-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.record-plat{font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;display:inline-block;}
+.record-plat.fp{background:var(--fp-soft);color:var(--fp);}
+.record-plat.ue{background:var(--ue-soft);color:var(--ue);}
+.record-plat.grab{background:#f0fdf6;color:#1da462;}
+.record-date{font-size:11px;color:var(--muted);margin-top:3px;}
+.record-income{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;}
+.record-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.record-bonus{font-size:11px;color:var(--fp);font-weight:700;}
+.record-actions{display:flex;gap:8px;margin-top:10px;border-top:1.5px solid var(--border);padding-top:10px;}
+.btn-edit,.btn-del{flex:1;padding:8px;border:none;border-radius:9px;font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
+.btn-edit{background:var(--card2);color:var(--text);}
+.btn-del{background:#fff1f1;color:var(--danger);}
+
+/* ── Cycle ── */
+.cycle-box{background:var(--card);border-radius:16px;padding:14px;border:1.5px solid var(--border);margin-bottom:10px;box-shadow:var(--shadow);}
+.cycle-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.cycle-label{font-size:11px;color:var(--muted);}
+.cycle-val{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;text-align:right;max-width:60%;color:var(--text);}
+.bonus-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin:8px 0 4px;}
+.bonus-bar-fill{height:100%;background:linear-gradient(90deg,var(--fp2),var(--fp));border-radius:3px;transition:width 0.5s;}
+.bonus-bar-label{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:6px;}
+.bonus-tiers{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;}
+.tier{font-size:10px;padding:4px 8px;border-radius:20px;border:1.5px solid var(--border);color:var(--muted);font-family:'JetBrains Mono',monospace;background:var(--card2);}
+.tier.done{background:var(--fp);border-color:var(--fp);color:#fff;}
+.tier.next{border-color:var(--fp-border);color:var(--fp);background:var(--fp-soft);}
+.history-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.history-nav button{padding:7px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:13px;cursor:pointer;box-shadow:var(--shadow);}
+.history-nav .period-label{font-size:12px;font-weight:700;color:var(--text);text-align:center;flex:1;}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(28,15,46,0.65);backdrop-filter:blur(5px);z-index:500;display:flex;align-items:flex-end;}
+.modal{background:var(--card);border-radius:24px 24px 0 0;padding:24px 18px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 -10px 40px rgba(0,0,0,0.14);-webkit-overflow-scrolling:touch;}
+.modal-title{font-family:'Sora',sans-serif;font-size:17px;font-weight:800;margin-bottom:18px;text-align:center;color:var(--text);}
+.modal-label{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:5px;display:block;}
+.modal input,.modal select{width:100%;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:14px;outline:none;margin-bottom:12px;}
+.modal input:focus{border-color:var(--fp);}
+.modal-btns{display:flex;gap:10px;margin-top:6px;}
+.btn-cancel{flex:1;padding:13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:transparent;color:var(--muted);font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
+.btn-confirm{flex:1;padding:13px;border:none;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--fp2),var(--fp));color:#fff;font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(212,0,110,0.32);}
+.person-manage-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1.5px solid var(--border);}
+.person-manage-name{font-weight:700;color:var(--text);}
+.person-manage-sub{font-size:11px;color:var(--muted);}
+.btn-del-person{padding:7px 14px;border:none;border-radius:8px;background:#fff1f1;color:var(--danger);font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:48px 20px;color:var(--muted);}
+.empty-icon{font-size:40px;margin-bottom:10px;}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:#fff;padding:11px 22px;border-radius:24px;font-size:13px;font-weight:700;opacity:0;pointer-events:none;transition:all 0.3s;z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.22);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── DB Status ── */
+.db-badge{font-size:9px;padding:2px 6px;border-radius:6px;font-weight:700;margin-left:6px;}
+.db-badge.idb{background:rgba(5,150,105,0.15);color:#059669;}
+.db-badge.ls{background:rgba(217,119,6,0.15);color:#d97706;}
+
+/* ── Bottom Bar ── */
+.bottom-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  background:rgba(255,255,255,0.96);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--border);
+  padding:8px 14px 10px;
+  z-index:150;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+.btn-law{
+  display:flex;align-items:center;
+  background:linear-gradient(135deg,#fff0f7 0%,#fce6f2 100%);
+  border:1.5px solid #f0aed0;
+  border-radius:14px;
+  padding:11px 16px;
+  text-decoration:none;
+  color:var(--fp);
+  gap:12px;
+  transition:all 0.15s;
+  box-shadow:0 1px 6px rgba(212,0,110,0.08);
+}
+.btn-law:active{transform:scale(0.98);opacity:0.9;}
+.btn-law-icon{font-size:18px;flex-shrink:0;}
+.btn-law-text{flex:1;}
+.btn-law-title{font-size:13px;font-weight:900;color:var(--fp);line-height:1.3;}
+.btn-law-sub{font-size:10.5px;color:#c0709a;margin-top:1px;}
+.btn-law-arrow{font-size:18px;color:var(--fp);flex-shrink:0;font-weight:700;}
+.btn-like{
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--fp2),var(--fp));
+  border:none;
+  border-radius:14px;
+  padding:10px 16px;
+  text-decoration:none;
+  color:#fff;
+  gap:8px;
+  font-family:'Noto Sans TC',sans-serif;
+  font-size:13px;
+  font-weight:700;
+  box-shadow:0 3px 14px rgba(212,0,110,0.3);
+  letter-spacing:0.3px;
+  transition:all 0.15s;
+}
+.btn-like:active{transform:scale(0.98);opacity:0.9;}
+
+/* ── Loading Overlay ── */
+#db-loading{position:fixed;inset:0;z-index:10000;background:rgba(20,10,34,0.85);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
+#db-loading.hide{display:none;}
+.db-spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#ff3d8f;border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.db-loading-text{color:rgba(255,255,255,0.7);font-size:13px;font-weight:700;}
+</style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
+<body>
 
-  <script>
-    (function autoRegister() {
-      let appPath = window.location.pathname.replace('index.html', '');
-      if (!appPath.endsWith('/')) appPath += '/';
-      if (appPath === '/') return;
-      try { localStorage.setItem('myAppLauncherLastPath', appPath); localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now())); } catch {}
-      const launcherPath = appPath.replace(/[^/]+\/$/, '') || '/';
-      function probe() {
-        const homeLinks = document.querySelectorAll('[data-home-link]');
-        homeLinks.forEach(el => el.setAttribute('href', launcherPath.includes('?') ? `${launcherPath}&home=1` : `${launcherPath}?home=1`));
-        if (window.location.protocol === 'file:') return;
-        const pUrl = launcherPath.endsWith('/') ? `${launcherPath}index.html` : `${launcherPath}/index.html`;
-        const reveal = () => homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
-        fetch(pUrl, { method: 'HEAD' }).then(r => { if (r.ok) reveal(); else if (r.status===405) fetch(pUrl, {method:'GET'}).then(r2=>{if(r2.ok)reveal()}); }).catch(()=>{});
+<!-- DB Loading -->
+<div id="db-loading">
+  <div class="db-spinner"></div>
+  <div class="db-loading-text">初始化資料庫…</div>
+</div>
+
+<!-- Splash Screen -->
+<div id="splash" onclick="dismissSplash()" style="cursor:pointer;display:none;">
+  <div class="sp-panda">
+    <div class="sp-face">
+      <div class="sp-ear l"></div><div class="sp-ear r"></div>
+      <div class="sp-eye l"></div><div class="sp-eye r"></div>
+      <div class="sp-blush l"></div><div class="sp-blush r"></div>
+      <div class="sp-nose"></div><div class="sp-mouth"></div>
+    </div>
+  </div>
+  <div class="sp-title">🐼 跑單神器 v2.1</div>
+  <div class="sp-sub">養成每日記帳好習慣<br>輕鬆核對年度收入・確保報稅無誤</div>
+  <div class="sp-tags">
+    <span class="sp-tag a">每日記帳</span>
+    <span class="sp-tag b">年度核對</span>
+    <span class="sp-tag c">報稅無憂</span>
+  </div>
+  <div class="sp-bar"><div class="sp-bar-fill"></div></div>
+  <div class="sp-skip">點擊畫面可跳過</div>
+</div>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">🐼 跑單<span>神器</span><small>v2.1</small><span id="db-badge" class="db-badge" style="display:none"></span></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="date-badge" id="dateNow"></div>
+      <button onclick="showPersonManage()" style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:17px;cursor:pointer;padding:5px 9px;border-radius:10px;line-height:1;">👥</button>
+    </div>
+  </div>
+  <div class="person-bar" id="personBar"></div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('home')">主頁</button>
+    <button class="tab" onclick="switchTab('input')">記錄</button>
+    <button class="tab" onclick="switchTab('stats')">統計</button>
+    <button class="tab" onclick="switchTab('records')">明細</button>
+    <button class="tab" onclick="switchTab('cycle')">週期</button>
+    <button class="tab" onclick="switchTab('yearly')">年度</button>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- HOME -->
+<div id="tab-home">
+  <div id="home-alerts"></div>
+  <div id="home-payday" style="display:none"></div>
+  <div id="home-today" style="display:none"></div>
+</div>
+
+<!-- INPUT -->
+<div id="tab-input" style="display:none">
+  <div class="platform-toggle" id="platform-toggle-btns"></div>
+  <div class="card">
+    <div class="card-title">新增跑單紀錄</div>
+    <div class="date-row"><label>日期</label><input type="date" id="inp-date"></div>
+    <div class="input-row">
+      <div class="input-group"><label>單數</label><input type="number" id="inp-orders" inputmode="numeric" placeholder="0" min="0" step="1"></div>
+      <div class="input-group"><label>收入 $</label><input type="number" id="inp-income" inputmode="decimal" placeholder="0" min="0"></div>
+      <div class="input-group"><label>工時 hr</label><input type="number" id="inp-hours" inputmode="decimal" placeholder="0" min="0" max="24" step="0.5"></div>
+    </div>
+    <div class="tip-box">
+      <div class="tip-box-title">💡 小費記錄（選填）</div>
+      <div class="input-row-2" style="margin-bottom:0">
+        <div class="input-group">
+          <label>系統小費 $</label>
+          <input type="number" id="inp-tip-sys" inputmode="decimal" placeholder="0" min="0">
+          <div class="tip-hint">系統已計入總收入<br>本欄僅供個人記錄</div>
+        </div>
+        <div class="input-group">
+          <label>現金小費 $</label>
+          <input type="number" id="inp-tip-cash" inputmode="decimal" placeholder="0" min="0">
+          <div class="tip-hint">客人現金給予<br>本欄僅供個人記錄</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-add" id="btn-add-rec" onclick="addRecord()" style="margin-top:12px">＋ 新增紀錄</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div id="tab-stats" style="display:none"><div id="stats-content"></div></div>
+
+<!-- RECORDS -->
+<div id="tab-records" style="display:none">
+  <div class="range-row">
+    <button class="range-btn active" onclick="setRangeRec('日',this)">今日</button>
+    <button class="range-btn" onclick="setRangeRec('週',this)">本週</button>
+    <button class="range-btn" onclick="setRangeRec('月',this)">本月</button>
+    <button class="range-btn" onclick="setRangeRec('全',this)">全部</button>
+  </div>
+  <div id="records-list"></div>
+</div>
+
+<!-- CYCLE -->
+<div id="tab-cycle" style="display:none">
+  <div style="display:flex;gap:8px;margin-bottom:12px;">
+    <button class="range-btn active" id="cycle-tab-fp" onclick="switchCycleTab('fp')">🐼 Foodpanda</button>
+    <button class="range-btn" id="cycle-tab-ue" onclick="switchCycleTab('ue')">🟢 UberEats</button>
+  </div>
+  <div id="cycle-fp">
+    <div class="section-title">目前週期</div>
+    <div id="fp-cycle-current" class="cycle-box"></div>
+    <div class="section-title">歷史週期</div>
+    <div class="history-nav">
+      <button onclick="fpHistoryPrev()">◀ 上一期</button>
+      <div class="period-label" id="fp-history-label"></div>
+      <button onclick="fpHistoryNext()">下一期 ▶</button>
+    </div>
+    <div id="fp-cycle-history" class="cycle-box"></div>
+  </div>
+  <div id="cycle-ue" style="display:none">
+    <div class="section-title">目前週結算</div>
+    <div id="ue-cycle-current" class="cycle-box"></div>
+    <div class="section-title">UE 趟獎週期</div>
+    <div id="ue-bonus-cycle" class="cycle-box"></div>
+    <div class="section-title">歷史週結算</div>
+    <div class="history-nav">
+      <button onclick="ueHistoryPrev()">◀ 上一週</button>
+      <div class="period-label" id="ue-history-label"></div>
+      <button onclick="ueHistoryNext()">下一週 ▶</button>
+    </div>
+    <div id="ue-cycle-history" class="cycle-box"></div>
+  </div>
+</div>
+
+<!-- YEARLY -->
+<div id="tab-yearly" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <button onclick="yearlyPrev()" style="padding:6px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:13px;cursor:pointer;box-shadow:var(--shadow);">◀ 上一年</button>
+    <div id="yearly-label" style="font-family:'Sora',sans-serif;font-size:15px;font-weight:800;"></div>
+    <button onclick="yearlyNext()" style="padding:6px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:13px;cursor:pointer;box-shadow:var(--shadow);">下一年 ▶</button>
+  </div>
+  <div id="yearly-content"></div>
+</div>
+
+</div><!-- end .content -->
+
+<!-- MODAL: Edit -->
+<div class="modal-overlay" id="modal-edit" style="display:none" onclick="closeModal('modal-edit')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">✏️ 編輯紀錄</div>
+    <input type="hidden" id="edit-id">
+    <span class="modal-label">日期</span><input type="date" id="edit-date">
+    <span class="modal-label">單數</span><input type="number" id="edit-orders" inputmode="numeric" min="0" step="1">
+    <span class="modal-label">收入 $</span><input type="number" id="edit-income" inputmode="decimal" min="0">
+    <span class="modal-label">工時 hr</span><input type="number" id="edit-hours" inputmode="decimal" min="0" max="24" step="0.5">
+    <span class="modal-label">系統小費 $（系統已計入總收入，本欄僅供個人累計記錄）</span><input type="number" id="edit-tip-sys" inputmode="decimal" placeholder="0" min="0">
+    <span class="modal-label">現金小費 $（客人給予，本欄僅供個人累計記錄）</span><input type="number" id="edit-tip-cash" inputmode="decimal" placeholder="0" min="0">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-edit')">取消</button>
+      <button class="btn-confirm" onclick="saveEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Add Person -->
+<div class="modal-overlay" id="modal-person" style="display:none" onclick="closeModal('modal-person')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">新增人員</div>
+    <span class="modal-label">名稱（最多10字）</span><input type="text" id="new-person-name" placeholder="例：帥圍" maxlength="10">
+    <span class="modal-label">平台</span>
+    <select id="new-person-plat">
+      <option value="both">🐼+🟢 兩平台</option>
+      <option value="Foodpanda">🐼 Foodpanda</option>
+      <option value="UberEats">🟢 UberEats</option>
+    </select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-person')">取消</button>
+      <button class="btn-confirm" onclick="addPerson()">新增</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Manage -->
+<div class="modal-overlay" id="modal-manage" style="display:none" onclick="closeModal('modal-manage')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">👥 人員管理</div>
+    <div id="manage-list"></div>
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+      <button class="btn-confirm" onclick="closeModal('modal-manage');showModal('modal-person')">＋ 新增人員</button>
+      <button onclick="closeModal('modal-manage');showModal('modal-backup')" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">📦 備份 / 換機轉移</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Backup -->
+<div class="modal-overlay" id="modal-backup" style="display:none" onclick="closeModal('modal-backup')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">📦 換機轉移資料</div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">匯出：將所有資料存成 JSON 檔案，傳到新手機後匯入即可恢復所有紀錄。</div>
+      <button onclick="exportData()" style="width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--fp2),var(--fp));color:#fff;font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">📤 匯出備份（JSON）</button>
+      <button onclick="exportExcel()" style="width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--ue2),var(--ue));color:#fff;font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;">📊 匯出 Excel 報表</button>
+    </div>
+    <div style="border-top:1.5px solid var(--border);padding-top:16px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;">匯入：選擇之前匯出的備份檔案，⚠️ 會覆蓋現有資料。</div>
+      <label style="display:block;width:100%;padding:13px;border:1.5px dashed var(--border);border-radius:var(--radius-sm);text-align:center;font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;box-sizing:border-box;">
+        📥 選擇備份檔案匯入
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
+      </label>
+    </div>
+    <div class="modal-btns" style="margin-top:14px;">
+      <button class="btn-cancel" onclick="closeModal('modal-backup')">關閉</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Bottom Bar -->
+<div class="bottom-bar">
+  <a href="https://laws.mol.gov.tw/FLAW/FLAWDAT0201.aspx?id=FL105973" target="_blank" class="btn-law">
+    <span class="btn-law-icon">📖</span>
+    <div class="btn-law-text">
+      <div class="btn-law-title">外送員權益保障及外送平臺管理法</div>
+      <div class="btn-law-sub">勞動部 官方法規來源</div>
+    </div>
+    <span class="btn-law-arrow">→</span>
+  </a>
+  <a href="https://www.facebook.com/share/1LjsAm2Afv/" target="_blank" class="btn-like">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+    按讚 心酸熊貓人 🐼
+  </a>
+</div>
+
+<script>
+// =============================================================
+//  ██████  ████████  ██████  ██████   █████   ██████  ███████
+//  ██         ██    ██    ██ ██   ██ ██   ██ ██       ██
+//  ███████    ██    ██    ██ ██████  ███████ ██   ███ █████
+//       ██    ██    ██    ██ ██   ██ ██   ██ ██    ██ ██
+//  ██████     ██     ██████  ██   ██ ██   ██  ██████  ███████
+// =============================================================
+// storage.js — IndexedDB via Dexie with localStorage fallback
+// =============================================================
+
+const DB_NAME = 'PaoDanDB';
+const DB_VER  = 3; // bump for migrations
+const SCHEMA_VER = 3;
+
+let _db = null;       // Dexie instance
+let _useIDB = false;  // whether IndexedDB is available
+let _cache = { persons: [], records: [] }; // in-memory cache
+
+async function initStorage() {
+  try {
+    _db = new Dexie(DB_NAME);
+    _db.version(1).stores({
+      meta:    'key',
+      persons: 'id',
+      records: 'id,personId,platform,date'
+    });
+    _db.version(2).stores({
+      meta:    'key',
+      persons: 'id',
+      records: 'id,personId,platform,date'
+    });
+    _db.version(3).stores({
+      meta:    'key',
+      persons: 'id',
+      records: 'id,personId,platform,date'
+    }).upgrade(async tx => {
+      // migration: pull old localStorage data into IndexedDB
+      await migrateFromLocalStorage(tx);
+    });
+
+    await _db.open();
+    _useIDB = true;
+
+    // set badge
+    const badge = document.getElementById('db-badge');
+    badge.textContent = 'IndexedDB'; badge.className = 'db-badge idb'; badge.style.display = '';
+  } catch(e) {
+    console.warn('IndexedDB not available, using localStorage:', e);
+    _useIDB = false;
+    const badge = document.getElementById('db-badge');
+    badge.textContent = 'localStorage'; badge.className = 'db-badge ls'; badge.style.display = '';
+  }
+}
+
+async function migrateFromLocalStorage(tx) {
+  try {
+    const lsVer = parseInt(localStorage.getItem('dr_schema_ver') || '0');
+    if (lsVer === 0) return; // nothing to migrate
+    const lsPersons = JSON.parse(localStorage.getItem('dr_persons') || '[]');
+    const lsRecords = JSON.parse(localStorage.getItem('dr_records') || '[]');
+    const lsCurrent = localStorage.getItem('dr_currentPerson') || '';
+    if (lsPersons.length) {
+      await tx.table('persons').bulkPut(lsPersons);
+      await tx.table('records').bulkPut(lsRecords);
+      await tx.table('meta').put({ key: 'currentPerson', value: lsCurrent });
+      await tx.table('meta').put({ key: 'schemaVer', value: SCHEMA_VER });
+      // clear old localStorage after successful migration
+      localStorage.removeItem('dr_persons');
+      localStorage.removeItem('dr_records');
+      localStorage.removeItem('dr_currentPerson');
+      localStorage.removeItem('dr_schema_ver');
+      console.log('Migrated', lsRecords.length, 'records from localStorage to IndexedDB');
+    }
+  } catch(e) {
+    console.warn('Migration from localStorage failed:', e);
+  }
+}
+
+async function loadAllData() {
+  if (_useIDB) {
+    const persons = await _db.persons.toArray();
+    const records = await _db.records.toArray();
+    const metaCur = await _db.meta.get('currentPerson');
+    return {
+      persons,
+      records,
+      currentPerson: metaCur ? metaCur.value : ''
+    };
+  } else {
+    // localStorage fallback
+    try {
+      const ver = parseInt(localStorage.getItem('dr_schema_ver') || '0');
+      if (ver > 0 && ver < SCHEMA_VER) {
+        // attempt data migration in localStorage (convert old schema)
+        // keep data, just update version
+        localStorage.setItem('dr_schema_ver', String(SCHEMA_VER));
       }
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', probe, { once: true }); else probe();
-      const meta = { id: 'delivery-wizard', name: '跑單紀錄神器', path: appPath, icon: 'bike', color: 'rose' };
-      const data = JSON.parse(localStorage.getItem('myAppLauncherStorage') || '[]');
-      const idx = data.findIndex(a => a.path === meta.path);
-      if (idx === -1) data.push(meta); else data[idx] = { ...data[idx], ...meta };
-      localStorage.setItem('myAppLauncherStorage', JSON.stringify(data));
-    })();
-  </script>
+      return {
+        persons: JSON.parse(localStorage.getItem('dr_persons') || '[]'),
+        records: JSON.parse(localStorage.getItem('dr_records') || '[]'),
+        currentPerson: localStorage.getItem('dr_currentPerson') || ''
+      };
+    } catch(e) {
+      return { persons: [], records: [], currentPerson: '' };
+    }
+  }
+}
 
-  <header class="bg-panda text-white p-4 shadow-md sticky top-0 z-20">
-    <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-pink-700 rounded-full invisible pointer-events-none"><i data-lucide="home" class="w-5 h-5"></i></a>
-      <h1 class="text-lg font-bold">跑單紀錄神器</h1>
-      <button onclick="requestNotification()" class="p-2 -mr-2 hover:bg-pink-700 rounded-full"><i data-lucide="bell" class="w-5 h-5"></i></button>
+async function saveAll() {
+  if (_useIDB) {
+    try {
+      await _db.transaction('rw', _db.persons, _db.records, _db.meta, async () => {
+        await _db.persons.clear();
+        await _db.persons.bulkPut(_cache.persons);
+        await _db.records.clear();
+        await _db.records.bulkPut(_cache.records);
+        await _db.meta.put({ key: 'currentPerson', value: currentPerson });
+        await _db.meta.put({ key: 'schemaVer', value: SCHEMA_VER });
+      });
+    } catch(e) {
+      console.error('IDB save error:', e);
+      showToast('⚠️ 資料庫儲存失敗，請匯出備份！');
+    }
+  } else {
+    try {
+      localStorage.setItem('dr_persons', JSON.stringify(_cache.persons));
+      localStorage.setItem('dr_records', JSON.stringify(_cache.records));
+      localStorage.setItem('dr_currentPerson', currentPerson);
+      localStorage.setItem('dr_schema_ver', String(SCHEMA_VER));
+    } catch(e) {
+      showToast('⚠️ 儲存空間不足，請匯出備份！');
+    }
+  }
+}
+
+async function addRecordToDB(rec) {
+  if (_useIDB) {
+    await _db.records.put(rec);
+  }
+  _cache.records.unshift(rec);
+  if (!_useIDB) await saveAll();
+}
+
+async function updateRecordInDB(rec) {
+  if (_useIDB) {
+    await _db.records.put(rec);
+  }
+  const idx = _cache.records.findIndex(r => r.id === rec.id);
+  if (idx !== -1) _cache.records[idx] = rec;
+  if (!_useIDB) await saveAll();
+}
+
+async function deleteRecordFromDB(id) {
+  if (_useIDB) {
+    await _db.records.delete(id);
+  }
+  _cache.records = _cache.records.filter(r => r.id !== id);
+  if (!_useIDB) await saveAll();
+}
+
+async function savePersonsToDB() {
+  if (_useIDB) {
+    await _db.transaction('rw', _db.persons, _db.meta, async () => {
+      await _db.persons.clear();
+      await _db.persons.bulkPut(_cache.persons);
+      await _db.meta.put({ key: 'currentPerson', value: currentPerson });
+    });
+  } else {
+    await saveAll();
+  }
+}
+
+// =============================================================
+// validation.js — Input validation
+// =============================================================
+
+const VALID_PLATFORMS = ['Foodpanda', 'UberEats', 'Grab'];
+
+function validateRecord(data) {
+  const errors = [];
+  if (!data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) errors.push('日期格式錯誤');
+  if (!Number.isFinite(data.orders) || data.orders < 0 || !Number.isInteger(data.orders)) errors.push('單數需為非負整數');
+  if (data.orders === 0) errors.push('單數需大於 0');
+  if (!Number.isFinite(data.income) || data.income < 0) errors.push('收入需為非負數');
+  if (data.income === 0) errors.push('收入需大於 0');
+  if (!Number.isFinite(data.hours) || data.hours <= 0 || data.hours > 24) errors.push('工時需介於 0～24 小時');
+  if (!VALID_PLATFORMS.includes(data.platform)) errors.push('平台不合法');
+  if (!Number.isFinite(data.tipSys) || data.tipSys < 0) errors.push('系統小費不能為負數');
+  if (!Number.isFinite(data.tipCash) || data.tipCash < 0) errors.push('現金小費不能為負數');
+  return errors;
+}
+
+function validateImportData(data) {
+  if (typeof data !== 'object' || data === null) return '不是有效的 JSON 物件';
+  if (!Array.isArray(data.persons)) return '缺少 persons 欄位';
+  if (!Array.isArray(data.records)) return '缺少 records 欄位';
+  if (data.persons.length === 0) return 'persons 不可為空';
+  for (const p of data.persons) {
+    if (!p.id || !p.name) return 'persons 格式錯誤（缺少 id 或 name）';
+  }
+  for (const r of data.records) {
+    if (!r.id || !r.personId || !r.date || !r.platform) return 'records 格式錯誤（缺少必要欄位）';
+    if (!VALID_PLATFORMS.includes(r.platform)) return `records 包含未知平台: ${r.platform}`;
+    if (typeof r.orders !== 'number' || typeof r.income !== 'number') return 'records 數值欄位格式錯誤';
+  }
+  return null; // ok
+}
+
+// =============================================================
+// date-utils.js — Timezone-aware date helpers (TW UTC+8)
+// =============================================================
+
+function getTWNow() {
+  const now = new Date();
+  // create a new Date adjusted to Taiwan time (UTC+8)
+  return new Date(now.getTime() + (now.getTimezoneOffset() + 480) * 60000);
+}
+
+function toDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function todayStr() {
+  return toDateStr(getTWNow());
+}
+
+function daysDiff(dateStr) {
+  const tw = getTWNow(); tw.setHours(0, 0, 0, 0);
+  return Math.round((new Date(dateStr + 'T00:00:00') - tw) / 86400000);
+}
+
+// =============================================================
+// FP Cycle — dynamic generation (fixes hardcode expiry)
+// =============================================================
+
+// Anchor: the known cycle start. All cycles are 14 days.
+const FP_CYCLE_ANCHOR = '2025-12-22'; // Monday
+
+function getFPCycleByDate(dateStr) {
+  const anchor = new Date(FP_CYCLE_ANCHOR + 'T00:00:00');
+  const target = new Date(dateStr + 'T00:00:00');
+  const diffMs = target - anchor;
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays < 0) {
+    // before anchor — go backwards
+    const cycleIdx = Math.ceil(diffDays / 14); // negative
+    const start = new Date(anchor); start.setDate(anchor.getDate() + cycleIdx * 14);
+    const end = new Date(start); end.setDate(start.getDate() + 13);
+    return [toDateStr(start), toDateStr(end)];
+  }
+  const cycleIdx = Math.floor(diffDays / 14);
+  const start = new Date(anchor); start.setDate(anchor.getDate() + cycleIdx * 14);
+  const end = new Date(start); end.setDate(start.getDate() + 13);
+  return [toDateStr(start), toDateStr(end)];
+}
+
+function getFPPaydayForCycle(cycleStart) {
+  // Payday = Wednesday after cycle ends (cycle ends day 13, payday is next Wed)
+  const end = new Date(cycleStart + 'T00:00:00');
+  end.setDate(end.getDate() + 13);
+  // Find next Wednesday (dow=3)
+  const d = new Date(end); d.setDate(d.getDate() + 1);
+  while (d.getDay() !== 3) d.setDate(d.getDate() + 1);
+  return toDateStr(d);
+}
+
+function getFPCycleIndex(dateStr) {
+  const anchor = new Date(FP_CYCLE_ANCHOR + 'T00:00:00');
+  const target = new Date(dateStr + 'T00:00:00');
+  return Math.floor((target - anchor) / (86400000 * 14));
+}
+
+function getCycleByIndex(idx) {
+  const anchor = new Date(FP_CYCLE_ANCHOR + 'T00:00:00');
+  const start = new Date(anchor); start.setDate(anchor.getDate() + idx * 14);
+  const end = new Date(start); end.setDate(start.getDate() + 13);
+  return [toDateStr(start), toDateStr(end)];
+}
+
+function getNextFPPayday() {
+  const tw = todayStr();
+  const cycle = getFPCycleByDate(tw);
+  const pay = getFPPaydayForCycle(cycle[0]);
+  if (pay >= tw) return pay;
+  // already past this cycle's payday, get next cycle's
+  const nextCycle = getFPCycleByDate(cycle[1]);
+  // +1 day from end
+  const d = new Date(cycle[1] + 'T00:00:00'); d.setDate(d.getDate() + 1);
+  return getFPPaydayForCycle(toDateStr(d));
+}
+
+// =============================================================
+// PLATFORM CONFIG
+// =============================================================
+
+const PLATFORMS = {
+  fp:   { id:'Foodpanda', label:'Foodpanda', emoji:'🐼', cls:'fp', gradient:'linear-gradient(135deg,#ff3d8f,#d4006e)', shadow:'rgba(212,0,110,0.38)', active:true },
+  ue:   { id:'UberEats',  label:'UberEats',  emoji:'🟢', cls:'ue', gradient:'linear-gradient(135deg,#00c853,#009e46)', shadow:'rgba(0,158,70,0.32)',   active:true },
+  grab: { id:'Grab',      label:'Grab',      emoji:'🟩', cls:'grab',gradient:'linear-gradient(135deg,#1da462,#00823f)', shadow:'rgba(29,164,98,0.3)',  active:false }
+};
+function getActivePlatforms(){ return Object.values(PLATFORMS).filter(p=>p.active); }
+function getPlatform(id){ return Object.values(PLATFORMS).find(p=>p.id===id) || PLATFORMS.fp; }
+
+// =============================================================
+// FP BONUS LOGIC
+// =============================================================
+const FP_BONUS_WEEKDAY=[{min:40,bonus:150},{min:80,bonus:450},{min:120,bonus:1300},{min:150,bonus:2000}];
+const FP_BONUS_SUNDAY=[{min:15,bonus:75},{min:24,bonus:150},{min:35,bonus:350},{min:45,bonus:500}];
+const DAY_NAMES=['週日','週一','週二','週三','週四','週五','週六'];
+
+function getFPGroup(dateStr){
+  const d=new Date(dateStr+'T00:00:00'), dow=d.getDay();
+  if(dow===0) return {start:dateStr,end:dateStr,type:'sunday',settleName:'週日'};
+  const gs=new Date(d);
+  if(dow<=3) gs.setDate(d.getDate()-(dow-1));
+  else gs.setDate(d.getDate()-(dow-4));
+  const ge=new Date(gs); ge.setDate(gs.getDate()+2);
+  return {start:toDateStr(gs),end:toDateStr(ge),type:'weekday',settleName:DAY_NAMES[ge.getDay()]};
+}
+
+function calcFPBonus(dateStr, newOrders, personId){
+  const grp = getFPGroup(dateStr);
+  const tiers = grp.type==='sunday' ? FP_BONUS_SUNDAY : FP_BONUS_WEEKDAY;
+  const existing = _cache.records
+    .filter(r=>r.personId===personId&&r.platform==='Foodpanda'&&r.date>=grp.start&&r.date<=grp.end)
+    .reduce((s,r)=>s+r.orders,0);
+  let bonus=0; tiers.forEach(t=>{ if(existing+newOrders>=t.min) bonus=t.bonus; });
+  return bonus;
+}
+
+function getGroupBonus(grp, pid){
+  const tiers=grp.type==='sunday'?FP_BONUS_SUNDAY:FP_BONUS_WEEKDAY;
+  const orders=_cache.records
+    .filter(r=>r.personId===pid&&r.platform==='Foodpanda'&&r.date>=grp.start&&r.date<=grp.end)
+    .reduce((s,r)=>s+r.orders,0);
+  let bonus=0; tiers.forEach(t=>{ if(orders>=t.min) bonus=t.bonus; }); return {bonus,orders,tiers};
+}
+
+// =============================================================
+// UE LOGIC
+// =============================================================
+function getUEWeekStart(offset){
+  const now=getTWNow(), dow=now.getDay();
+  const mon=new Date(now); mon.setDate(now.getDate()-(dow===0?6:dow-1)); mon.setHours(4,0,0,0);
+  if(now<mon) mon.setDate(mon.getDate()-7);
+  mon.setDate(mon.getDate()+offset*7); return mon;
+}
+function getUEWeekRange(offset){
+  const s=getUEWeekStart(offset), e=new Date(s); e.setDate(s.getDate()+7); e.setHours(3,59,59,999);
+  return {start:toDateStr(s),end:toDateStr(e)};
+}
+function getUEBonusCycle(){
+  const now=getTWNow(), dow=now.getDay(), hr=now.getHours();
+  const isTue=(dow===2&&hr>=4)||(dow===3)||(dow===4)||(dow===5&&hr<4);
+  let cs=new Date(now), ce=new Date(now), name='';
+  if(isTue){
+    const db=dow===2?(hr>=4?0:7):dow-2;
+    cs.setDate(now.getDate()-db); cs.setHours(4,0,0,0);
+    ce=new Date(cs); ce.setDate(cs.getDate()+3); ce.setHours(3,59,59,0); name='週五 03:59';
+  } else {
+    const db=(dow===5&&hr>=4)?0:dow===6?1:dow===0?2:dow===1?3:4;
+    cs.setDate(now.getDate()-db); cs.setHours(4,0,0,0);
+    ce=new Date(cs); ce.setDate(cs.getDate()+4); ce.setHours(3,59,59,0); name='週二 03:59';
+  }
+  const dl=Math.max(0,Math.ceil((ce-now)/86400000));
+  return {start:toDateStr(cs),end:toDateStr(ce),settleName:name,daysLeft:dl,endFull:ce};
+}
+function getNextUEPayday(){
+  const now=getTWNow(), dow=now.getDay();
+  const lm=new Date(now); lm.setDate(now.getDate()-(dow===0?6:dow-1)-7); lm.setHours(4,0,0,0);
+  const th=new Date(lm); th.setDate(lm.getDate()+10);
+  if(todayStr()>toDateStr(th)) th.setDate(th.getDate()+7);
+  return toDateStr(th);
+}
+
+// =============================================================
+// STATE
+// =============================================================
+let persons       = [];
+let currentPerson = '';
+let inputPlatform = 'Foodpanda';
+let recRange      = '日';
+let fpHistoryIdx  = 0;
+let ueHistoryOffset = 0;
+let currentCycleTab = 'fp';
+let yearlyOffset  = 0;
+let _addingRecord = false;
+let _splashDone   = false;
+let _editSaving   = false;
+
+// Convenience getter so rest of code can use `records` as before
+Object.defineProperty(window, 'records', {
+  get(){ return _cache.records; },
+  set(v){ _cache.records = v; }
+});
+
+// =============================================================
+// UTILS
+// =============================================================
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid=setTimeout(()=>t.classList.remove('show'),2800);
+}
+function showModal(id){ document.getElementById(id).style.display='flex'; }
+function closeModal(id){ document.getElementById(id).style.display='none'; }
+
+// =============================================================
+// SPLASH
+// =============================================================
+function dismissSplash(){
+  if(_splashDone) return; _splashDone=true;
+  const s=document.getElementById('splash');
+  s.classList.add('hide');
+  setTimeout(()=>{ s.style.display='none'; },500);
+}
+
+// =============================================================
+// INIT — async boot
+// =============================================================
+async function init(){
+  // Show DB loading overlay
+  document.getElementById('db-loading').classList.remove('hide');
+
+  await initStorage();
+  const state = await loadAllData();
+  _cache.persons = state.persons;
+  _cache.records = state.records;
+  currentPerson  = state.currentPerson;
+
+  if(!_cache.persons.length){
+    _cache.persons=[{id:'p1',name:'我',platform:'both'}];
+    currentPerson='p1';
+    await saveAll();
+  }
+  if(!currentPerson||!_cache.persons.find(p=>p.id===currentPerson)){
+    currentPerson=_cache.persons[0].id;
+  }
+
+  document.getElementById('db-loading').classList.add('hide');
+
+  // Show splash
+  const splash=document.getElementById('splash');
+  splash.style.display='flex';
+
+  document.getElementById('inp-date').value=todayStr();
+  document.getElementById('dateNow').textContent=getTWNow().toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',weekday:'short'});
+  setInputPlat('Foodpanda');
+  renderPersonBar();
+  renderHome();
+
+  setTimeout(dismissSplash, 1800);
+}
+
+// =============================================================
+// PERSONS
+// =============================================================
+function renderPersonBar(){
+  document.getElementById('personBar').innerHTML=
+    _cache.persons.map(p=>`<button class="person-chip${p.id===currentPerson?' active':''}" onclick="selectPerson('${p.id}')">${p.name}</button>`).join('')+
+    `<button class="person-chip add-btn" onclick="showModal('modal-person')">＋</button>`;
+}
+async function selectPerson(id){
+  if(id===currentPerson) return;
+  currentPerson=id;
+  await savePersonsToDB();
+  renderPersonBar(); renderHome();
+  const activeTab=['home','input','stats','records','cycle','yearly'].find(t=>{ const el=document.getElementById('tab-'+t); return el&&el.style.display!=='none'; });
+  if(activeTab==='stats') renderStats();
+  else if(activeTab==='records') renderRecords();
+  else if(activeTab==='cycle') renderCyclePage();
+  else if(activeTab==='yearly') renderYearly();
+}
+async function addPerson(){
+  const name=document.getElementById('new-person-name').value.trim();
+  const plat=document.getElementById('new-person-plat').value;
+  if(!name){ showToast('請輸入名稱'); return; }
+  if(name.length>10){ showToast('名稱最多10個字'); return; }
+  _cache.persons.push({id:'p'+Date.now(),name,platform:plat});
+  await savePersonsToDB();
+  closeModal('modal-person'); document.getElementById('new-person-name').value='';
+  renderPersonBar(); showToast('✅ 已新增 '+name);
+}
+function showPersonManage(){
+  document.getElementById('manage-list').innerHTML=_cache.persons.map(p=>`
+    <div class="person-manage-item">
+      <div><div class="person-manage-name">${p.name}</div><div class="person-manage-sub">${p.platform==='both'?'🐼+🟢 兩平台':getPlatform(p.platform).emoji+' '+getPlatform(p.platform).label}</div></div>
+      ${_cache.persons.length>1?`<button class="btn-del-person" onclick="deletePerson('${p.id}')">刪除</button>`:'<span style="font-size:11px;color:var(--muted)">唯一帳號</span>'}
+    </div>`).join('');
+  showModal('modal-manage');
+}
+async function deletePerson(id){
+  _cache.persons=_cache.persons.filter(p=>p.id!==id);
+  _cache.records=_cache.records.filter(r=>r.personId!==id);
+  if(currentPerson===id) currentPerson=_cache.persons[0]?.id||'';
+  await saveAll();
+  closeModal('modal-manage'); renderPersonBar(); renderHome(); renderStats(); renderRecords(); showToast('已刪除');
+}
+
+// =============================================================
+// TABS
+// =============================================================
+const TAB_LIST=['home','input','stats','records','cycle','yearly'];
+function switchTab(tab){
+  TAB_LIST.forEach(t=>{ const el=document.getElementById('tab-'+t); if(el) el.style.display=t===tab?'':'none'; });
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TAB_LIST[i]===tab));
+  if(tab==='home') renderHome();
+  else if(tab==='stats') renderStats();
+  else if(tab==='records') renderRecords();
+  else if(tab==='cycle') renderCyclePage();
+  else if(tab==='yearly') renderYearly();
+}
+function switchCycleTab(tab){
+  currentCycleTab=tab;
+  document.getElementById('cycle-fp').style.display=tab==='fp'?'':'none';
+  document.getElementById('cycle-ue').style.display=tab==='ue'?'':'none';
+  document.getElementById('cycle-tab-fp').classList.toggle('active',tab==='fp');
+  document.getElementById('cycle-tab-ue').classList.toggle('active',tab==='ue');
+}
+
+// =============================================================
+// PLATFORM TOGGLE
+// =============================================================
+function renderPlatformToggle(){
+  document.getElementById('platform-toggle-btns').innerHTML=
+    getActivePlatforms().map(p=>`<button class="plat-btn ${p.cls}${p.id===inputPlatform?' active':''}" onclick="setInputPlat('${p.id}')">${p.emoji} ${p.label}</button>`).join('');
+}
+function setInputPlat(id){
+  inputPlatform=id;
+  const p=getPlatform(id);
+  renderPlatformToggle();
+  const btn=document.getElementById('btn-add-rec');
+  btn.style.background=p.gradient;
+  btn.style.boxShadow='0 4px 18px '+p.shadow;
+  btn.className='btn-add '+p.cls;
+}
+
+// =============================================================
+// ADD RECORD — debounced + validated
+// =============================================================
+async function addRecord(){
+  if(_addingRecord){ showToast('⚠️ 請勿重複點擊'); return; }
+  _addingRecord=true;
+  const btn=document.getElementById('btn-add-rec');
+  btn.disabled=true;
+
+  try {
+    const dateVal  = document.getElementById('inp-date').value;
+    const orders   = Math.floor(parseFloat(document.getElementById('inp-orders').value) || 0);
+    const income   = parseFloat(document.getElementById('inp-income').value) || 0;
+    const hours    = parseFloat(document.getElementById('inp-hours').value) || 0;
+    const tipSys   = parseFloat(document.getElementById('inp-tip-sys').value) || 0;
+    const tipCash  = parseFloat(document.getElementById('inp-tip-cash').value) || 0;
+
+    const data = { date:dateVal, orders, income, hours, platform:inputPlatform, tipSys, tipCash };
+    const errors = validateRecord(data);
+    if(errors.length){ showToast('⚠️ '+errors[0]); return; }
+
+    const bonus = inputPlatform==='Foodpanda' ? calcFPBonus(dateVal, orders, currentPerson) : 0;
+    const rec = {
+      id: 'r'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      personId: currentPerson,
+      platform: inputPlatform,
+      date: dateVal,
+      orders, income, hours,
+      salary: parseFloat((income/hours).toFixed(1)),
+      bonus, tipSys, tipCash
+    };
+
+    await addRecordToDB(rec);
+    ['inp-orders','inp-income','inp-hours','inp-tip-sys','inp-tip-cash'].forEach(id=>document.getElementById(id).value='');
+    showToast('✅ 新增成功！'+orders+'單 $'+income+(bonus?'（+$'+bonus+'獎金）':''));
+    renderHome(); switchTab('home');
+  } finally {
+    setTimeout(()=>{ _addingRecord=false; btn.disabled=false; }, 800);
+  }
+}
+
+// =============================================================
+// HOME
+// =============================================================
+function renderHome(){
+  const pid=currentPerson, now=getTWNow(), today=todayStr();
+  const dow=now.getDay(), hr=now.getHours();
+  const todayZero=new Date(now); todayZero.setHours(0,0,0,0);
+  const fpGrp=getFPGroup(today);
+  const fpDL=Math.round((new Date(fpGrp.end+'T00:00:00')-todayZero)/86400000);
+  const fpPay=getNextFPPayday(), fpD=fpPay?daysDiff(fpPay):null;
+  let fpSettleVal, fpSettleCls='';
+  if(fpDL===0){ fpSettleVal='今天結算！'; fpSettleCls='urgent'; }
+  else if(fpDL===1){ fpSettleVal='明天結算'; fpSettleCls='warn'; }
+  else { fpSettleVal=fpGrp.end+' 結算'; }
+  const uePay=getNextUEPayday(), ueD=uePay?daysDiff(uePay):null;
+  const ueBc=getUEBonusCycle();
+  let uePayVal, uePayCls='', ueBcVal, ueBcCls='';
+  if(ueD===0){ uePayVal='今天發薪！'; uePayCls='good'; }
+  else if(ueD===1){ uePayVal='明天發薪'; uePayCls='warn'; }
+  else { uePayVal=uePay+'（'+ueD+'天後）'; }
+  if(ueBc.daysLeft===0){ ueBcVal='今天結算！'; ueBcCls='urgent'; }
+  else if(ueBc.daysLeft===1){ ueBcVal='明天結算'; ueBcCls='warn'; }
+  else { ueBcVal=toDateStr(ueBc.endFull)+'（'+ueBc.daysLeft+'天後）'; }
+  let urgentHtml='';
+  if(dow===0) urgentHtml='<div class="notice-bar ue">⚡ UE週結算明天04:00截止，衝最後一單！</div>';
+  else if(dow===1&&hr<4) urgentHtml='<div class="notice-bar ue">⚡ UE週結算今天04:00截止，趕快衝！</div>';
+  const todayRecs=_cache.records.filter(r=>r.personId===pid&&r.date===today);
+  const fpT=todayRecs.filter(r=>r.platform==='Foodpanda');
+  const ueT=todayRecs.filter(r=>r.platform==='UberEats');
+  const fpInc=fpT.reduce((s,r)=>s+r.income,0), fpOrd=fpT.reduce((s,r)=>s+r.orders,0);
+  const ueInc=ueT.reduce((s,r)=>s+r.income,0), ueOrd=ueT.reduce((s,r)=>s+r.orders,0);
+  const total=fpInc+ueInc;
+  document.getElementById('home-alerts').innerHTML=`
+    ${urgentHtml}
+    <div class="notice-bar" style="font-size:11px;">🐼 記得定期查 Foodpanda 後台取單率！低於 <b>85%</b> 會被扣錢</div>
+    <div class="dash-card">
+      <div class="dash-card-title">📅 今日總覽</div>
+      <div class="dash-row"><span class="dash-label">🐼 FP 收入</span><span class="dash-val fp">$${fpInc} <span style="font-size:10px;color:var(--muted);font-weight:400;">${fpOrd}單</span></span></div>
+      <div class="dash-row"><span class="dash-label">🟢 UE 收入</span><span class="dash-val ue">$${ueInc} <span style="font-size:10px;color:var(--muted);font-weight:400;">${ueOrd}單</span></span></div>
+      <div class="dash-row"><span class="dash-label">💰 今日合計</span><span class="dash-val" style="font-size:16px;">${total>0?'$'+total:'尚無紀錄'}</span></div>
     </div>
-  </header>
-
-  <main class="flex-grow w-full max-w-md mx-auto p-4 pb-28 overflow-y-auto" id="main-content">
-    
-    <div id="view-home" class="view-section block">
-      <div class="flex justify-between items-center mb-4">
-        <div class="bg-pink-100 text-panda px-3 py-1.5 rounded-lg text-sm font-bold" id="display-date">讀取中...</div>
-        <button onclick="openAccountModal()" class="flex items-center gap-1.5 bg-white border border-pink-200 text-panda px-3 py-1.5 rounded-full shadow-sm active:scale-95 transition-transform">
-          <i data-lucide="user" class="w-4 h-4"></i><span id="current-account-name" class="text-sm font-bold truncate max-w-[80px]">讀取中...</span><i data-lucide="chevron-down" class="w-3 h-3"></i>
-        </button>
-      </div>
-
-      <div class="grid grid-cols-2 gap-3 mb-6">
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col"><div class="text-slate-500 text-xs flex items-center gap-1 mb-1"><i data-lucide="bike" class="w-3 h-3 text-blue-500"></i>今日單數</div><div class="text-xl font-bold text-blue-500" id="home-orders">0 單</div></div>
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col"><div class="text-slate-500 text-xs flex items-center gap-1 mb-1"><i data-lucide="dollar-sign" class="w-3 h-3 text-green-500"></i>今日收入</div><div class="text-xl font-bold text-green-500" id="home-income">NT$0</div></div>
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col"><div class="text-slate-500 text-xs flex items-center gap-1 mb-1"><i data-lucide="clock" class="w-3 h-3 text-amber-500"></i>今日時薪</div><div class="text-xl font-bold text-amber-500" id="home-wage">NT$0/時</div></div>
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col"><div class="text-slate-500 text-xs flex items-center gap-1 mb-1"><i data-lucide="timer" class="w-3 h-3 text-purple-500"></i>今日工時</div><div class="text-xl font-bold text-purple-500" id="home-hours">0.0 h</div></div>
-      </div>
-
-      <div class="flex justify-between items-center mb-3 relative z-20">
-        <h2 class="text-lg font-bold text-slate-800 pointer-events-none">平台週期進度</h2>
-        <button type="button" onclick="openRuleModal()" class="text-slate-500 hover:text-panda flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm text-xs font-bold active:scale-95 cursor-pointer">
-          <i data-lucide="settings-2" class="w-4 h-4 pointer-events-none"></i> <span class="pointer-events-none">管理規則</span>
-        </button>
-      </div>
-
-      <div id="progress-cards-container" class="space-y-3 mb-6"></div>
-
-      <div id="no-rule-card" class="bg-slate-100 p-4 rounded-2xl text-center text-slate-500 text-sm mb-6 border border-slate-200 border-dashed hidden">今日無啟用的獎金規則<br>點擊上方「管理規則」進行設定</div>
-
-      <div class="grid grid-cols-2 gap-3">
-        <button onclick="openModal()" class="bg-pink-50 text-panda border border-pink-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"><div class="bg-panda text-white rounded-full p-1"><i data-lucide="plus" class="w-5 h-5"></i></div><span class="font-bold text-sm">新增紀錄</span></button>
-        <button onclick="switchTab('stats')" class="bg-blue-50 text-blue-600 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center gap-2 active:scale-95 transition-transform"><div class="bg-blue-500 text-white rounded-full p-1"><i data-lucide="bar-chart-2" class="w-5 h-5"></i></div><span class="font-bold text-sm">查看統計</span></button>
-      </div>
+    <div class="dash-card${fpSettleCls==='urgent'?' hl':''}">
+      <div class="dash-card-title">🐼 Foodpanda</div>
+      <div class="dash-row"><span class="dash-label">📆 結算日</span><span class="dash-val ${fpSettleCls}">${fpSettleVal}</span></div>
+      <div class="dash-row"><span class="dash-label">💳 發薪日</span><span class="dash-val ${fpD!==null&&fpD<=3?'warn':''}">  ${fpPay||'-'}${fpD===0?' 🎉':fpD===1?' （明天）':fpD!==null?' （'+fpD+'天後）':''}</span></div>
     </div>
+    <div class="dash-card${ueBcCls==='urgent'?' hl-ue':''}">
+      <div class="dash-card-title">🟢 UberEats</div>
+      <div class="dash-row"><span class="dash-label">🏆 趟獎結算</span><span class="dash-val ${ueBcCls}">${ueBcVal}</span></div>
+      <div class="dash-row"><span class="dash-label">💳 發薪日</span><span class="dash-val ${uePayCls}">${uePayVal}</span></div>
+    </div>`;
+}
 
-    <div id="view-records" class="view-section hidden"><h2 class="text-xl font-bold mb-4">歷史紀錄</h2><div id="records-list" class="space-y-3"></div><div id="empty-records" class="hidden text-center py-10 text-slate-400"><i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 opacity-50"></i><p>目前無紀錄</p></div></div>
-    <div id="view-stats" class="view-section hidden"><h2 class="text-xl font-bold mb-4">趨勢與統計</h2><div class="bg-white p-4 rounded-2xl shadow-sm border mb-6"><h3 class="text-sm font-bold text-slate-500 mb-3">近10筆收入趨勢</h3><div style="position: relative; height: 200px;"><canvas id="incomeChart"></canvas></div></div><h2 class="text-lg font-bold mb-3">平台分析</h2><div id="platform-analysis" class="space-y-3"></div></div>
-    <div id="view-settings" class="view-section hidden"><h2 class="text-xl font-bold mb-4">資料管理</h2><div class="bg-white rounded-2xl shadow-sm border overflow-hidden mb-4"><button onclick="exportCSV()" class="w-full p-4 border-b flex justify-between items-center active:bg-slate-50"><div class="flex items-center gap-3"><div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i data-lucide="download" class="w-5 h-5"></i></div><span class="font-medium">匯出 CSV</span></div><i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i></button><button onclick="clearAllData()" class="w-full p-4 text-red-500 flex justify-between items-center active:bg-slate-50"><div class="flex items-center gap-3"><div class="bg-red-100 text-red-600 p-2 rounded-lg"><i data-lucide="trash-2" class="w-5 h-5"></i></div><span class="font-medium">清空所有資料</span></div><i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i></button></div></div>
-  </main>
+// =============================================================
+// STATS
+// =============================================================
+function renderStats(){
+  const pid=currentPerson, today=todayStr();
+  const fpCycle=getFPCycleByDate(today);
+  const ueWeek=getUEWeekRange(0);
+  function calcStats(arr){
+    const o=arr.reduce((s,r)=>s+r.orders,0), h=arr.reduce((s,r)=>s+r.hours,0);
+    const i=arr.reduce((s,r)=>{
+      let inc=r.income;
+      if(r.platform==='Foodpanda'){
+        const dow=new Date(r.date+'T00:00:00').getDay();
+        const grp=getFPGroup(r.date);
+        if((dow===3||dow===6||dow===0)&&grp&&r.date===grp.end){
+          const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus;
+        }
+      }
+      return s+inc;
+    },0);
+    const ts=arr.reduce((s,r)=>s+(r.tipSys||0),0), tc=arr.reduce((s,r)=>s+(r.tipCash||0),0);
+    return {o,i:i.toFixed(0),h:h.toFixed(1),sal:h?(i/h).toFixed(1):'0',ts,tc};
+  }
+  function grid(d,cls){
+    return `<div class="stats-grid">
+      <div class="stat-box"><div class="stat-label">單數</div><div class="stat-value ${cls}">${d.o}</div></div>
+      <div class="stat-box"><div class="stat-label">收入</div><div class="stat-value ${cls}">$${d.i}</div></div>
+      <div class="stat-box"><div class="stat-label">工時</div><div class="stat-value">${d.h}hr</div></div>
+      <div class="stat-box"><div class="stat-label">時薪</div><div class="stat-value">$${d.sal}</div></div>
+    </div>${d.ts||d.tc?'<div style="font-size:11px;color:var(--muted);padding:4px 2px 8px;">系統小費 $'+d.ts+'　現金小費 $'+d.tc+'</div>':''}`;
+  }
+  const now=getTWNow(), dow2=now.getDay()||7;
+  const mon=new Date(now); mon.setDate(now.getDate()-dow2+1);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  const monStr=toDateStr(mon), sunStr=toDateStr(sun);
+  const weekRecs=_cache.records.filter(r=>r.personId===pid&&r.date>=monStr&&r.date<=sunStr);
+  const ueWeekRecs=_cache.records.filter(r=>r.personId===pid&&r.platform==='UberEats'&&r.date>=ueWeek.start&&r.date<=ueWeek.end);
+  const fpCycleRecs=fpCycle?_cache.records.filter(r=>r.personId===pid&&r.platform==='Foodpanda'&&r.date>=fpCycle[0]&&r.date<=fpCycle[1]):[];
+  const mPfx=today.slice(0,7);
+  const monthRecs=_cache.records.filter(r=>r.personId===pid&&r.date.startsWith(mPfx));
+  document.getElementById('stats-content').innerHTML=
+    `<div class="section-title">🐼 本週（${monStr}～${sunStr}）</div>`+grid(calcStats(weekRecs.filter(r=>r.platform==='Foodpanda')),'fp')+
+    `<div class="section-title">🐼 雙週週期（${fpCycle?fpCycle[0]+'～'+fpCycle[1]:'無'}）</div>`+grid(calcStats(fpCycleRecs),'fp')+
+    `<div class="section-title">🟢 UE本週（${ueWeek.start}～${ueWeek.end}）</div>`+grid(calcStats(ueWeekRecs),'ue')+
+    `<div class="section-title">🐼 FP本月</div>`+grid(calcStats(monthRecs.filter(r=>r.platform==='Foodpanda')),'fp')+
+    `<div class="section-title">🟢 UE本月</div>`+grid(calcStats(monthRecs.filter(r=>r.platform==='UberEats')),'ue');
+}
 
-  <button id="fab-add" onclick="openModal()" class="hidden fixed bottom-24 right-6 bg-panda text-white p-4 rounded-full shadow-lg z-30 active:scale-95 transition-transform"><i data-lucide="plus" class="w-6 h-6"></i></button>
+// =============================================================
+// RECORDS
+// =============================================================
+function setRangeRec(r,btn){
+  recRange=r;
+  btn.parentElement.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRecords();
+}
+function renderRecords(){
+  const pid=currentPerson, today=todayStr(), now=getTWNow();
+  let recs=_cache.records.filter(r=>r.personId===pid);
+  if(recRange==='日') recs=recs.filter(r=>r.date===today);
+  else if(recRange==='週'){ const dow=now.getDay()||7, mon=new Date(now); mon.setDate(now.getDate()-dow+1); const sun=new Date(mon); sun.setDate(mon.getDate()+6); recs=recs.filter(r=>r.date>=toDateStr(mon)&&r.date<=toDateStr(sun)); }
+  else if(recRange==='月') recs=recs.filter(r=>r.date.startsWith(today.slice(0,7)));
+  recs=recs.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const el=document.getElementById('records-list');
+  if(!recs.length){ el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div style="font-weight:700;margin-bottom:4px;">這個時段沒有紀錄</div><div style="font-size:12px;">切換時段或新增紀錄</div></div>'; return; }
+  const totInc=recs.reduce((s,r)=>s+r.income,0), totOrd=recs.reduce((s,r)=>s+r.orders,0);
+  const totSys=recs.reduce((s,r)=>s+(r.tipSys||0),0), totCash=recs.reduce((s,r)=>s+(r.tipCash||0),0);
+  const sumBar=`<div style="background:var(--card);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;border:1.5px solid var(--border);font-size:12px;color:var(--muted);font-weight:700;display:flex;justify-content:space-between;align-items:center;">
+    <span>${recs.length}筆 / ${totOrd}單 / $${totInc}</span>
+    ${totSys||totCash?'<span>系統$'+totSys+' 現金$'+totCash+'</span>':''}
+  </div>`;
+  el.innerHTML=sumBar+recs.map(r=>{
+    const dow=new Date(r.date+'T00:00:00').getDay();
+    const isSettle=(dow===3||dow===6||dow===0);
+    const grp=r.platform==='Foodpanda'?getFPGroup(r.date):null;
+    let showBonus=false, displayBonus=0;
+    if(r.platform==='Foodpanda'&&isSettle&&grp&&r.date===grp.end){
+      const gb=getGroupBonus(grp,r.personId); displayBonus=gb.bonus; showBonus=displayBonus>0;
+    }
+    const plat=getPlatform(r.platform);
+    return `<div class="record-item">
+      <div class="record-top">
+        <div><span class="record-plat ${plat.cls}">${plat.emoji} ${plat.label}</span><div class="record-date">${r.date}（${DAY_NAMES[dow]}）</div></div>
+        <div style="text-align:right">
+          <div class="record-income" style="color:${plat.cls==='fp'?'var(--fp)':'var(--ue)'}">$${r.income}</div>
+          <div class="record-meta">${r.orders}單 / ${r.hours}hr / 時薪$${r.salary}</div>
+          ${showBonus?`<div class="record-bonus">+$${displayBonus} 獎金（整組）</div>`:''}
+          ${r.tipSys?`<div class="record-meta" style="color:var(--ue)">系統小費 +$${r.tipSys}</div>`:''}
+          ${r.tipCash?`<div class="record-meta" style="color:var(--warn)">💵 現金小費 $${r.tipCash}</div>`:''}
+        </div>
+      </div>
+      <div class="record-actions">
+        <button class="btn-edit" onclick="openEditById('${r.id}')">✏️ 編輯</button>
+        <button class="btn-del" onclick="deleteRecordById('${r.id}')">🗑 刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function deleteRecordById(id){
+  await deleteRecordFromDB(id);
+  renderRecords(); renderHome(); showToast('已刪除 ✓');
+}
+function openEditById(id){
+  const r=_cache.records.find(x=>x.id===id); if(!r) return;
+  document.getElementById('edit-id').value=id;
+  document.getElementById('edit-date').value=r.date;
+  document.getElementById('edit-orders').value=r.orders;
+  document.getElementById('edit-income').value=r.income;
+  document.getElementById('edit-hours').value=r.hours;
+  document.getElementById('edit-tip-sys').value=r.tipSys||'';
+  document.getElementById('edit-tip-cash').value=r.tipCash||'';
+  showModal('modal-edit');
+}
+async function saveEdit(){
+  if(_editSaving) return; _editSaving=true;
+  try {
+    const id=document.getElementById('edit-id').value;
+    const idx=_cache.records.findIndex(r=>r.id===id); if(idx===-1) return;
+    const r={..._cache.records[idx]};
 
-  <nav class="bg-white border-t border-slate-200 fixed bottom-0 w-full z-40 pb-safe">
-    <div class="max-w-md mx-auto flex justify-around items-center p-2">
-      <button onclick="switchTab('home')" class="nav-btn tab-active flex flex-col items-center p-2 w-16" data-target="home">
-        <i data-lucide="home" class="w-6 h-6 mb-1 pointer-events-none"></i><span class="text-[10px] pointer-events-none">首頁</span>
-      </button>
-      <button onclick="switchTab('records')" class="nav-btn tab-inactive flex flex-col items-center p-2 w-16" data-target="records">
-        <i data-lucide="list" class="w-6 h-6 mb-1 pointer-events-none"></i><span class="text-[10px] pointer-events-none">紀錄</span>
-      </button>
-      <button onclick="switchTab('stats')" class="nav-btn tab-inactive flex flex-col items-center p-2 w-16" data-target="stats">
-        <i data-lucide="bar-chart-2" class="w-6 h-6 mb-1 pointer-events-none"></i><span class="text-[10px] pointer-events-none">統計</span>
-      </button>
-      <button onclick="switchTab('settings')" class="nav-btn tab-inactive flex flex-col items-center p-2 w-16" data-target="settings">
-        <i data-lucide="wallet" class="w-6 h-6 mb-1 pointer-events-none"></i><span class="text-[10px] pointer-events-none">設定</span>
-      </button>
+    const newDate    = document.getElementById('edit-date').value || r.date;
+    const newOrders  = Math.floor(parseFloat(document.getElementById('edit-orders').value) || r.orders);
+    const newIncome  = parseFloat(document.getElementById('edit-income').value) || r.income;
+    const newHours   = parseFloat(document.getElementById('edit-hours').value) || r.hours;
+    const newTipSys  = parseFloat(document.getElementById('edit-tip-sys').value) || 0;
+    const newTipCash = parseFloat(document.getElementById('edit-tip-cash').value) || 0;
+
+    const errors = validateRecord({ date:newDate, orders:newOrders, income:newIncome, hours:newHours, platform:r.platform, tipSys:newTipSys, tipCash:newTipCash });
+    if(errors.length){ showToast('⚠️ '+errors[0]); return; }
+
+    r.date=newDate; r.orders=newOrders; r.income=newIncome; r.hours=newHours;
+    r.tipSys=newTipSys; r.tipCash=newTipCash;
+    r.salary=parseFloat((r.income/r.hours).toFixed(1));
+    if(r.platform==='Foodpanda'){
+      // temporarily exclude this record for bonus calc
+      const orig=_cache.records[idx]; _cache.records[idx]={..._cache.records[idx],orders:0};
+      r.bonus=calcFPBonus(r.date,r.orders,r.personId);
+      _cache.records[idx]=orig;
+    }
+
+    await updateRecordInDB(r);
+    closeModal('modal-edit'); renderRecords(); renderHome(); showToast('✅ 已儲存');
+  } finally {
+    setTimeout(()=>{ _editSaving=false; }, 500);
+  }
+}
+
+// =============================================================
+// CYCLE PAGE
+// =============================================================
+function renderCyclePage(){ renderFPCycle(); renderUECycle(); }
+
+function fpCycleBox(cycleArr, pid){
+  if(!cycleArr) return '<div style="text-align:center;padding:20px;"><div style="font-size:24px;">⚠️</div><div style="color:var(--danger);font-weight:700;margin-top:8px;">找不到週期</div></div>';
+  const cycle=cycleArr;
+  const groups=[], cur=todayStr();
+  let d=new Date(cycle[0]+'T00:00:00');
+  while(toDateStr(d)<=cycle[1]){ const g=getFPGroup(toDateStr(d)); if(!groups.find(x=>x.start===g.start)) groups.push(g); d.setDate(d.getDate()+1); }
+  const payday=getFPPaydayForCycle(cycle[0]);
+  let html=`<div class="cycle-row"><span class="cycle-label">結算週期</span><span class="cycle-val">${cycle[0]} ～ ${cycle[1]}</span></div>`;
+  html+=`<div class="cycle-row"><span class="cycle-label">發薪日（週三）</span><span class="cycle-val">${payday}</span></div>`;
+  groups.forEach(grp=>{
+    const {bonus,orders,tiers}=getGroupBonus(grp,pid);
+    const income=_cache.records.filter(r=>r.personId===pid&&r.platform==='Foodpanda'&&r.date>=grp.start&&r.date<=grp.end).reduce((s,r)=>s+r.income,0);
+    const isActive=cur>=grp.start&&cur<=grp.end;
+    html+=`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">`;
+    html+=`<div class="cycle-row"><span class="cycle-label" style="font-size:10px;">${grp.start}～${grp.end}（${grp.settleName}）${isActive?'<span style="color:var(--fp)"> ▶ 當前</span>':''}</span></div>`;
+    html+=`<div class="cycle-row"><span class="cycle-label">單數</span><span class="cycle-val">${orders}單</span></div>`;
+    html+=`<div class="cycle-row"><span class="cycle-label">收入</span><span class="cycle-val">$${income}</span></div>`;
+    html+=`<div class="cycle-row"><span class="cycle-label">獎金</span><span class="cycle-val" style="color:var(--fp)">$${bonus}</span></div>`;
+    if(isActive){
+      const next=tiers.find(t=>t.min>orders);
+      if(next){ const pct=Math.min(100,(orders/next.min*100)).toFixed(0); html+=`<div class="bonus-bar"><div class="bonus-bar-fill" style="width:${pct}%"></div></div><div class="bonus-bar-label"><span>距下一階 ${next.min-orders}單</span><span>+$${next.bonus}</span></div>`; }
+      else html+=`<div style="font-size:11px;color:var(--ue);margin-top:4px;">🎉 最高獎金！</div>`;
+      html+=`<div class="bonus-tiers">${tiers.map(t=>`<span class="tier${orders>=t.min?' done':next&&t.min===next.min?' next':''}">  ${t.min}單 $${t.bonus}</span>`).join('')}</div>`;
+    }
+    html+='</div>';
+  });
+  return html;
+}
+function renderFPCycle(){
+  const pid=currentPerson, today=todayStr();
+  const ci=getFPCycleIndex(today);
+  const currentCycle=getCycleByIndex(ci);
+  document.getElementById('fp-cycle-current').innerHTML=fpCycleBox(currentCycle,pid);
+  const hi=ci+fpHistoryIdx;
+  const histCycle=getCycleByIndex(hi);
+  document.getElementById('fp-history-label').textContent=`第${hi+1}期 ${histCycle[0]}～${histCycle[1]}`;
+  document.getElementById('fp-cycle-history').innerHTML=fpCycleBox(histCycle,pid);
+}
+function fpHistoryPrev(){ fpHistoryIdx--; renderFPCycle(); }
+function fpHistoryNext(){ if(fpHistoryIdx>=0){ showToast('已是最新週期'); return; } fpHistoryIdx++; renderFPCycle(); }
+
+function renderUECycle(){
+  const pid=currentPerson;
+  const uw=getUEWeekRange(0);
+  const ur=_cache.records.filter(r=>r.personId===pid&&r.platform==='UberEats'&&r.date>=uw.start&&r.date<=uw.end);
+  const uInc=ur.reduce((s,r)=>s+r.income,0), uOrd=ur.reduce((s,r)=>s+r.orders,0), uHrs=ur.reduce((s,r)=>s+r.hours,0);
+  document.getElementById('ue-cycle-current').innerHTML=`
+    <div class="cycle-row"><span class="cycle-label">本週（週一04:00起）</span><span class="cycle-val">${uw.start} ～ ${uw.end}</span></div>
+    <div class="cycle-row"><span class="cycle-label">本週單數</span><span class="cycle-val">${uOrd}單</span></div>
+    <div class="cycle-row"><span class="cycle-label">本週收入</span><span class="cycle-val" style="color:var(--ue)">$${uInc}</span></div>
+    <div class="cycle-row"><span class="cycle-label">本週工時</span><span class="cycle-val">${uHrs.toFixed(1)}hr</span></div>
+    <div class="cycle-row"><span class="cycle-label">下次發薪</span><span class="cycle-val">${getNextUEPayday()}</span></div>`;
+  const bc=getUEBonusCycle();
+  const br=_cache.records.filter(r=>r.personId===pid&&r.platform==='UberEats'&&r.date>=bc.start&&r.date<=bc.end);
+  const bOrd=br.reduce((s,r)=>s+r.orders,0), bInc=br.reduce((s,r)=>s+r.income,0);
+  const dlTxt=bc.daysLeft===0?'<span style="color:var(--warn)">今天結算！</span>':bc.daysLeft===1?'<span style="color:var(--warn)">明天結算</span>':bc.daysLeft+'天後結算';
+  document.getElementById('ue-bonus-cycle').innerHTML=`
+    <div class="cycle-row"><span class="cycle-label">趟獎週期</span><span class="cycle-val">${bc.start} ～ ${bc.end}</span></div>
+    <div class="cycle-row"><span class="cycle-label">結算時間</span><span class="cycle-val">${bc.settleName}</span></div>
+    <div class="cycle-row"><span class="cycle-label">本期單數</span><span class="cycle-val">${bOrd}單</span></div>
+    <div class="cycle-row"><span class="cycle-label">本期收入</span><span class="cycle-val" style="color:var(--ue)">$${bInc}</span></div>
+    <div class="cycle-row"><span class="cycle-label">距結算</span><span class="cycle-val">${dlTxt}</span></div>`;
+  const hw=getUEWeekRange(ueHistoryOffset);
+  const hr2=_cache.records.filter(r=>r.personId===pid&&r.platform==='UberEats'&&r.date>=hw.start&&r.date<=hw.end);
+  const hInc=hr2.reduce((s,r)=>s+r.income,0), hOrd=hr2.reduce((s,r)=>s+r.orders,0), hHrs=hr2.reduce((s,r)=>s+r.hours,0);
+  document.getElementById('ue-history-label').textContent=hw.start+'～'+hw.end;
+  document.getElementById('ue-cycle-history').innerHTML=`
+    <div class="cycle-row"><span class="cycle-label">單數</span><span class="cycle-val">${hOrd}單</span></div>
+    <div class="cycle-row"><span class="cycle-label">收入</span><span class="cycle-val" style="color:var(--ue)">$${hInc}</span></div>
+    <div class="cycle-row"><span class="cycle-label">工時</span><span class="cycle-val">${hHrs.toFixed(1)}hr</span></div>
+    <div class="cycle-row"><span class="cycle-label">時薪</span><span class="cycle-val">$${hHrs?(hInc/hHrs).toFixed(1):0}</span></div>`;
+}
+function ueHistoryPrev(){ ueHistoryOffset--; renderUECycle(); }
+function ueHistoryNext(){ if(ueHistoryOffset>=0){ showToast('已是最新週'); return; } ueHistoryOffset++; renderUECycle(); }
+
+// =============================================================
+// YEARLY
+// =============================================================
+function renderYearly(){
+  const pid=currentPerson, year=getTWNow().getFullYear()+yearlyOffset;
+  document.getElementById('yearly-label').textContent=year+'年度';
+  const ys=year.toString();
+  const recs=_cache.records.filter(r=>r.personId===pid&&r.date.startsWith(ys));
+  function sum(arr){
+    const o=arr.reduce((s,r)=>s+r.orders,0), h=arr.reduce((s,r)=>s+r.hours,0);
+    const i=arr.reduce((s,r)=>{
+      let inc=r.income;
+      if(r.platform==='Foodpanda'){
+        const dow=new Date(r.date+'T00:00:00').getDay(), grp=getFPGroup(r.date);
+        if((dow===3||dow===6||dow===0)&&grp&&r.date===grp.end){ const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus; }
+      }
+      return s+inc;
+    },0);
+    return {o,i:parseFloat(i.toFixed(0)),h:parseFloat(h.toFixed(1)),sal:h?parseFloat((i/h).toFixed(1)):0};
+  }
+  const fp=sum(recs.filter(r=>r.platform==='Foodpanda')), ue=sum(recs.filter(r=>r.platform==='UberEats'));
+  const total={o:fp.o+ue.o,i:fp.i+ue.i,h:parseFloat((fp.h+ue.h).toFixed(1))};
+  total.sal=total.h?parseFloat((total.i/total.h).toFixed(1)):0;
+  const mrows=Array.from({length:12},(_,mi)=>mi+1).map(m=>{
+    const mp=ys+'-'+(m<10?'0':'')+m;
+    const mr=recs.filter(r=>r.date.startsWith(mp));
+    const fpM=mr.filter(r=>r.platform==='Foodpanda').reduce((s,r)=>s+r.income,0);
+    const ueM=mr.filter(r=>r.platform==='UberEats').reduce((s,r)=>s+r.income,0);
+    const ts=mr.reduce((s,r)=>s+(r.tipSys||0),0), tc=mr.reduce((s,r)=>s+(r.tipCash||0),0);
+    const t=fpM+ueM; if(t===0) return '';
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;font-weight:700;">${m}月</span>
+        <div style="text-align:right;"><span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;">$${t}</span><span style="font-size:11px;color:var(--muted);margin-left:8px;">🐼$${fpM} 🟢$${ueM}</span></div>
+      </div>
+      ${ts||tc?`<div style="font-size:10px;color:var(--muted);text-align:right;margin-top:2px;">系統小費$${ts} 現金$${tc}</div>`:''}
+    </div>`;
+  }).join('');
+  const taxNote=total.i>=408000?
+    `<div style="background:#fff8e6;border:1.5px solid #fcd34d;border-radius:var(--radius-sm);padding:10px 14px;margin-top:10px;font-size:12px;font-weight:700;color:var(--warn);">⚠️ 年收入 $${total.i}，超過免稅額 $408,000<br>請記得申報，建議諮詢稅務人員！</div>`:
+    `<div style="background:var(--ue-soft);border:1.5px solid var(--ue-border);border-radius:var(--radius-sm);padding:10px 14px;margin-top:10px;font-size:12px;font-weight:700;color:var(--good);">✅ 年收入 $${total.i}，尚未超過免稅額（$408,000）</div>`;
+  document.getElementById('yearly-content').innerHTML=`
+    <div class="section-title">年度總計</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-label">總單數</div><div class="stat-value">${total.o}</div></div>
+      <div class="stat-box"><div class="stat-label">總收入</div><div class="stat-value" style="color:var(--warn)">$${total.i}</div></div>
+      <div class="stat-box"><div class="stat-label">總工時</div><div class="stat-value">${total.h}hr</div></div>
+      <div class="stat-box"><div class="stat-label">平均時薪</div><div class="stat-value">$${total.sal}</div></div>
     </div>
-  </nav>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-label">🐼 FP收入</div><div class="stat-value fp">$${fp.i}</div><div class="stat-sub">${fp.o}單 / ${fp.h}hr</div></div>
+      <div class="stat-box"><div class="stat-label">🟢 UE收入</div><div class="stat-value ue">$${ue.i}</div><div class="stat-sub">${ue.o}單 / ${ue.h}hr</div></div>
+    </div>
+    ${taxNote}
+    <div class="section-title">月份明細</div>
+    <div class="card" style="padding:4px 14px;">${mrows||'<div style="text-align:center;padding:30px 20px;"><div style="font-size:36px;margin-bottom:8px;">📭</div><div style="color:var(--muted);font-size:13px;">這年度尚無紀錄</div></div>'}</div>`;
+}
+function yearlyPrev(){ yearlyOffset--; renderYearly(); }
+function yearlyNext(){ if(yearlyOffset>=0){ showToast('已是今年'); return; } yearlyOffset++; renderYearly(); }
 
-  <div id="add-modal" class="fixed inset-0 z-[100] hidden flex-col justify-end opacity-0 transition-all"><div class="absolute inset-0 bg-slate-900/50" onclick="closeModal()"></div><div class="bg-white rounded-t-3xl p-5 relative z-10 w-full max-w-md mx-auto" id="add-modal-content"><div class="flex justify-between items-center mb-5"><h3 class="text-xl font-bold">新增紀錄</h3><button onclick="closeModal()" class="p-1 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button></div><form onsubmit="handleFormSubmit(event)"><div class="flex gap-3 mb-5"><label class="flex-1 cursor-pointer"><input type="radio" name="platform" value="foodpanda" class="peer hidden" checked><div class="py-3 text-center rounded-xl border-2 peer-checked:border-panda peer-checked:bg-pink-50 peer-checked:text-panda font-bold">Foodpanda</div></label><label class="flex-1 cursor-pointer"><input type="radio" name="platform" value="ubereats" class="peer hidden"><div class="py-3 text-center rounded-xl border-2 peer-checked:border-uber peer-checked:bg-green-50 peer-checked:text-uber font-bold">UberEats</div></label></div><div class="grid grid-cols-2 gap-4 mb-6"><div class="col-span-2"><label class="text-sm font-bold block mb-1">日期</label><input type="date" id="form-date" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div><div><label class="text-sm font-bold block mb-1">單數</label><input type="number" id="form-orders" min="1" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div><div><label class="text-sm font-bold block mb-1">收入 (NT$)</label><input type="number" id="form-income" min="0" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div><div class="col-span-2"><label class="text-sm font-bold block mb-1">工時</label><input type="number" id="form-hours" step="0.1" min="0.1" required class="w-full bg-slate-50 border rounded-xl px-4 py-3"></div></div><button type="submit" class="w-full bg-panda text-white py-4 rounded-xl font-bold text-lg">儲存紀錄</button></form></div></div>
-  <div id="account-modal" class="fixed inset-0 z-[110] hidden flex-col justify-end opacity-0 transition-all"><div class="absolute inset-0 bg-slate-900/50" onclick="closeAccountModal()"></div><div class="bg-white rounded-t-3xl p-5 relative z-10 w-full max-w-md mx-auto" id="account-modal-content"><div class="flex justify-between items-center mb-5"><h3 class="text-xl font-bold">切換帳號</h3><button onclick="closeAccountModal()" class="p-1 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button></div><div id="account-list" class="space-y-2 mb-6 max-h-60 overflow-y-auto"></div><div class="border-t pt-4"><label class="text-xs font-bold text-slate-400 mb-2 block">新增帳號</label><div class="flex gap-2"><input type="text" id="new-account-name" placeholder="輸入姓名" class="flex-grow bg-slate-50 border rounded-xl px-4 py-3 outline-none focus:border-panda"><button onclick="handleAddAccount()" class="bg-panda text-white px-6 rounded-xl font-bold">新增</button></div></div></div></div>
-  <div id="rule-modal" class="fixed inset-0 z-[120] hidden flex-col justify-end opacity-0 transition-all"><div class="absolute inset-0 bg-slate-900/50" onclick="closeRuleModal()"></div><div class="bg-slate-50 rounded-t-3xl p-5 h-[85vh] flex flex-col relative z-10 w-full max-w-md mx-auto" id="rule-modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">獎金規則清單</h3><button onclick="closeRuleModal()" class="p-1 bg-white rounded-full shadow-sm"><i data-lucide="x" class="w-5 h-5"></i></button></div><div class="flex gap-2 mb-4"><button onclick="syncRuleTemplate('foodpanda')" class="flex-1 bg-pink-50 text-panda border border-pink-200 py-2 rounded-xl text-xs font-bold active:scale-95">同步熊貓範本</button><button onclick="syncRuleTemplate('ubereats')" class="flex-1 bg-green-50 text-uber border border-green-200 py-2 rounded-xl text-xs font-bold active:scale-95">同步UE範本</button></div><div id="rule-list" class="flex-grow overflow-y-auto space-y-3 pb-4"></div><button onclick="openEditRuleModal(null)" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold mt-2 shadow-md">新增自訂規則</button></div></div>
-  <div id="edit-rule-modal" class="fixed inset-0 z-[130] hidden flex-col justify-end opacity-0 transition-all"><div class="absolute inset-0 bg-slate-900/50" onclick="closeEditRuleModal()"></div><div class="bg-white rounded-t-3xl p-5 h-[90vh] flex flex-col relative z-10 w-full max-w-md mx-auto" id="edit-rule-modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold" id="edit-rule-title">編輯規則</h3><button onclick="closeEditRuleModal()" class="p-1 bg-slate-100 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button></div><div class="overflow-y-auto flex-grow space-y-4 pb-4"><input type="hidden" id="edit-rule-id"><div><label class="text-sm font-bold block mb-1">平台</label><select id="edit-rule-platform" class="w-full bg-slate-50 border rounded-xl px-4 py-3 font-bold"><option value="foodpanda">Foodpanda</option><option value="ubereats">UberEats</option></select></div><div><label class="text-sm font-bold block mb-1">規則名稱</label><input type="text" id="edit-rule-name" class="w-full bg-slate-50 border rounded-xl px-4 py-3" placeholder="例如：熊貓週一至週三"></div><div><label class="text-sm font-bold block mb-2">適用星期 (可複選)</label><div class="flex gap-2 flex-wrap" id="edit-rule-days"></div></div><div><div class="flex justify-between items-center mb-2"><label class="text-sm font-bold">獎金級距 (階梯)</label><button onclick="addTierRow()" class="text-blue-600 bg-blue-50 px-3 py-1 rounded text-xs font-bold flex items-center gap-1"><i data-lucide="plus" class="w-3 h-3"></i> 加一階</button></div><div id="edit-rule-tiers" class="space-y-2"></div></div></div><button onclick="saveRuleForm()" class="w-full bg-panda text-white py-4 rounded-xl font-bold text-lg mt-2 shadow-md">儲存規則</button></div></div>
+// =============================================================
+// BACKUP / RESTORE
+// =============================================================
+async function exportData(){
+  if(!_cache.records.length&&_cache.persons.length<=1){ showToast('⚠️ 目前沒有紀錄可備份'); return; }
+  const data={version:3,exportedAt:new Date().toISOString(),persons:_cache.persons,records:_cache.records};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const ds=getTWNow().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'');
+  a.href=url; a.download='跑單備份_'+ds+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('✅ 匯出成功！');
+}
 
-  <script src="db.js?v=7"></script>
-  <script src="app.js?v=9"></script>
+async function importData(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    try{
+      let data;
+      try { data=JSON.parse(e.target.result); } catch(pe){ showToast('❌ JSON 解析失敗，請確認檔案格式'); input.value=''; return; }
+
+      // strict schema validation before any write
+      const err=validateImportData(data);
+      if(err){ showToast('❌ 匯入失敗：'+err); input.value=''; return; }
+
+      // confirm before overwrite
+      if(_cache.records.length>0){
+        const ok=window.confirm(`確定要用備份覆蓋現有 ${_cache.records.length} 筆紀錄嗎？\n此操作不可復原。`);
+        if(!ok){ input.value=''; return; }
+      }
+
+      _cache.persons=data.persons;
+      _cache.records=data.records;
+      currentPerson=_cache.persons[0]?.id||'';
+      await saveAll();
+
+      closeModal('modal-backup');
+      renderPersonBar(); renderHome(); setInputPlat('Foodpanda');
+      showToast('✅ 匯入成功！共'+_cache.records.length+'筆紀錄');
+    } catch(ex) {
+      console.error('Import error:', ex);
+      showToast('❌ 匯入失敗，請確認檔案');
+    }
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
+async function exportExcel(){
+  if(!_cache.records.length){ showToast('⚠️ 沒有資料可匯出'); return; }
+  const wb=XLSX.utils.book_new();
+  const DW=['週日','週一','週二','週三','週四','週五','週六'];
+  const dh=['人員','日期','星期','平台','單數','收入($)','工時(hr)','時薪','系統小費($)','現金小費($)','FP獎金($)'];
+  const dr=_cache.records.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(r=>{
+    const dow=new Date(r.date+'T00:00:00').getDay(), isS=(dow===3||dow===6||dow===0);
+    const grp=r.platform==='Foodpanda'?getFPGroup(r.date):null;
+    let bonus=0;
+    if(r.platform==='Foodpanda'&&isS&&grp&&r.date===grp.end){ bonus=getGroupBonus(grp,r.personId).bonus; }
+    const pName=(_cache.persons.find(p=>p.id===r.personId)||{name:'未知'}).name;
+    return [pName,r.date,DW[dow],r.platform,r.orders,r.income,r.hours,r.salary,r.tipSys||0,r.tipCash||0,bonus];
+  });
+  const ws1=XLSX.utils.aoa_to_sheet([dh,...dr]);
+  ws1['!cols']=[{wch:8},{wch:12},{wch:6},{wch:12},{wch:6},{wch:10},{wch:8},{wch:8},{wch:10},{wch:10},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws1,'明細紀錄');
+  const months={};
+  _cache.records.forEach(r=>{ const ym=r.date.slice(0,7); if(!months[ym]) months[ym]={fp:{o:0,i:0,h:0,ts:0,tc:0},ue:{o:0,i:0,h:0,ts:0,tc:0}}; const p=r.platform==='Foodpanda'?'fp':'ue'; months[ym][p].o+=r.orders; months[ym][p].i+=r.income; months[ym][p].h+=r.hours; months[ym][p].ts+=(r.tipSys||0); months[ym][p].tc+=(r.tipCash||0); });
+  const sh=['月份','🐼FP單數','🐼FP收入','🐼FP工時','🐼FP系統小費','🐼FP現金小費','🟢UE單數','🟢UE收入','🟢UE工時','🟢UE系統小費','🟢UE現金小費','合計收入'];
+  const sr=Object.keys(months).sort().map(ym=>{ const {fp,ue}=months[ym]; return [ym,fp.o,fp.i,parseFloat(fp.h.toFixed(1)),fp.ts,fp.tc,ue.o,ue.i,parseFloat(ue.h.toFixed(1)),ue.ts,ue.tc,fp.i+ue.i]; });
+  const ws2=XLSX.utils.aoa_to_sheet([sh,...sr]);
+  ws2['!cols']=[{wch:8},{wch:8},{wch:10},{wch:8},{wch:10},{wch:10},{wch:8},{wch:10},{wch:8},{wch:10},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws2,'月份摘要');
+  const ds=getTWNow().toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'');
+  XLSX.writeFile(wb,'跑單報表_'+ds+'.xlsx');
+  showToast('✅ Excel 匯出成功！');
+}
+
+// =============================================================
+// BOOT
+// =============================================================
+init();
+</script>
 </body>
 </html>
