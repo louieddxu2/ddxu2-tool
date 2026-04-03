@@ -204,6 +204,26 @@ body{
 .person-manage-sub{font-size:11px;color:var(--muted);}
 .btn-del-person{padding:7px 14px;border:none;border-radius:8px;background:#fff1f1;color:var(--danger);font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:700;cursor:pointer;}
 
+/* 🧩 Rules */
+.rule-item{background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:14px 14px 12px;box-shadow:var(--shadow);margin-bottom:10px;}
+.rule-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.rule-name{font-weight:900;color:var(--text);font-size:14px;line-height:1.2;}
+.rule-badge{font-size:10px;font-weight:800;padding:3px 8px;border-radius:999px;background:var(--card2);color:var(--muted);border:1px solid var(--border);white-space:nowrap;}
+.rule-meta{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.6;}
+.rule-actions{display:flex;gap:8px;margin-top:10px;}
+.btn-mini{flex:1;padding:9px 10px;border:none;border-radius:12px;font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:800;cursor:pointer;}
+.btn-mini.edit{background:var(--card2);color:var(--text);border:1.5px solid var(--border);}
+.btn-mini.del{background:#fff1f1;color:var(--danger);border:1.5px solid #ffd2d2;}
+.btn-mini.ghost{background:transparent;color:var(--text);border:1.5px solid var(--border);}
+.day-picker{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px;}
+.day-chip{padding:8px 10px;border-radius:12px;border:1.5px solid var(--border);background:var(--card);font-weight:900;font-size:12px;color:var(--text);cursor:pointer;min-width:42px;text-align:center;box-shadow:0 1px 6px rgba(80,30,120,0.06);}
+.day-chip.active{border-color:var(--fp-border);background:var(--fp-soft);color:var(--fp);}
+.tier-box{background:var(--card2);border:1.5px solid var(--border);border-radius:14px;padding:12px;margin-bottom:12px;}
+.tier-row{display:flex;gap:10px;align-items:center;margin-bottom:10px;}
+.tier-row:last-child{margin-bottom:0;}
+.tier-row input{margin-bottom:0;}
+.tier-row .tier-del{width:40px;flex:0 0 40px;padding:10px 0;border:none;border-radius:12px;background:#fff1f1;color:var(--danger);font-weight:900;cursor:pointer;}
+
 /* ── Empty ── */
 .empty{text-align:center;padding:48px 20px;color:var(--muted);}
 .empty-icon{font-size:40px;margin-bottom:10px;}
@@ -462,6 +482,7 @@ body{
     <div id="manage-list"></div>
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
       <button class="btn-confirm" onclick="closeModal('modal-manage');showModal('modal-person')">＋ 新增人員</button>
+      <button onclick="closeModal('modal-manage');openRulesModal()" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">📌 規則管理</button>
       <button onclick="closeModal('modal-manage');showModal('modal-backup')" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">📦 備份 / 換機轉移</button>
     </div>
   </div>
@@ -485,6 +506,66 @@ body{
     </div>
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-cancel" onclick="closeModal('modal-backup')">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Rules -->
+<div class="modal-overlay" id="modal-rules" style="display:none" onclick="closeModal('modal-rules')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">📌 規則管理</div>
+    <div id="rules-list"></div>
+    <div class="modal-btns" style="margin-top:14px;">
+      <button class="btn-cancel" onclick="closeModal('modal-rules')">關閉</button>
+      <button class="btn-confirm" onclick="openRuleEditor()">＋ 新增規則</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Rule Editor -->
+<div class="modal-overlay" id="modal-rule-edit" style="display:none" onclick="closeModal('modal-rule-edit')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">✍️ 編輯規則</div>
+
+    <span class="modal-label">規則名稱</span>
+    <input type="text" id="rule-name" placeholder="例如：FP 週一～週三獎勵" maxlength="30">
+
+    <span class="modal-label">平台</span>
+    <select id="rule-platform" onchange="onRulePlatformChange()">
+      <option value="Foodpanda">Foodpanda</option>
+      <option value="UberEats">UberEats</option>
+      <option value="Grab">Grab</option>
+    </select>
+
+    <span class="modal-label">生效日期範圍</span>
+    <div style="display:flex;gap:10px;">
+      <input type="date" id="rule-start" style="margin-bottom:12px;">
+      <input type="date" id="rule-end" style="margin-bottom:12px;">
+    </div>
+
+    <span class="modal-label">週期（星期）</span>
+    <div class="day-picker" id="rule-weekdays"></div>
+
+    <span class="modal-label">時間（選填）</span>
+    <div style="display:flex;gap:10px;">
+      <input type="time" id="rule-start-time" value="00:00" style="margin-bottom:12px;">
+      <input type="time" id="rule-end-time" value="23:59" style="margin-bottom:12px;">
+    </div>
+
+    <label style="display:flex;align-items:center;gap:10px;background:var(--card2);border:1.5px solid var(--border);border-radius:12px;padding:12px 12px;margin-bottom:12px;font-weight:900;">
+      <input type="checkbox" id="rule-enabled" checked style="width:18px;height:18px;margin:0;">
+      啟用此規則
+    </label>
+
+    <span class="modal-label">獎金階梯</span>
+    <div class="tier-box">
+      <div id="rule-tiers"></div>
+      <button class="btn-mini ghost" onclick="addTierRow()" style="width:100%;margin-top:10px;">＋ 新增階梯</button>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-rule-edit')">取消</button>
+      <button class="btn-confirm" onclick="saveRuleFromEditor()">儲存</button>
     </div>
   </div>
 </div>
@@ -519,12 +600,12 @@ body{
 // =============================================================
 
 const DB_NAME = 'PaoDanDB';
-const DB_VER  = 3; // bump for migrations
-const SCHEMA_VER = 3;
+const DB_VER  = 4; // bump for migrations
+const SCHEMA_VER = 4;
 
 let _db = null;       // Dexie instance
 let _useIDB = false;  // whether IndexedDB is available
-let _cache = { persons: [], records: [] }; // in-memory cache
+let _cache = { persons: [], records: [], rules: [] }; // in-memory cache
 
 async function initStorage() {
   try {
@@ -547,6 +628,15 @@ async function initStorage() {
       // migration: pull old localStorage data into IndexedDB
       await migrateFromLocalStorage(tx);
     });
+    _db.version(4).stores({
+      meta:    'key',
+      persons: 'id',
+      records: 'id,personId,platform,date',
+      rules:   'id,platform,startDate,endDate'
+    }).upgrade(async tx => {
+      // keep migration available on version bumps
+      await migrateFromLocalStorage(tx);
+    });
 
     await _db.open();
     _useIDB = true;
@@ -567,16 +657,21 @@ async function migrateFromLocalStorage(tx) {
     if (lsVer === 0) return; // nothing to migrate
     const lsPersons = JSON.parse(localStorage.getItem('dr_persons') || '[]');
     const lsRecords = JSON.parse(localStorage.getItem('dr_records') || '[]');
+    const lsRules   = JSON.parse(localStorage.getItem('dr_rules') || '[]');
     const lsCurrent = localStorage.getItem('dr_currentPerson') || '';
     if (lsPersons.length) {
       await tx.table('persons').bulkPut(lsPersons);
       await tx.table('records').bulkPut(lsRecords);
+      try {
+        if (lsRules.length && tx.table('rules')) await tx.table('rules').bulkPut(lsRules);
+      } catch(_) {}
       await tx.table('meta').put({ key: 'currentPerson', value: lsCurrent });
       await tx.table('meta').put({ key: 'schemaVer', value: SCHEMA_VER });
       // clear old localStorage after successful migration
       localStorage.removeItem('dr_persons');
       localStorage.removeItem('dr_records');
       localStorage.removeItem('dr_currentPerson');
+      localStorage.removeItem('dr_rules');
       localStorage.removeItem('dr_schema_ver');
       console.log('Migrated', lsRecords.length, 'records from localStorage to IndexedDB');
     }
@@ -589,10 +684,13 @@ async function loadAllData() {
   if (_useIDB) {
     const persons = await _db.persons.toArray();
     const records = await _db.records.toArray();
+    let rules = [];
+    try { rules = await _db.rules.toArray(); } catch(_) { rules = []; }
     const metaCur = await _db.meta.get('currentPerson');
     return {
       persons,
       records,
+      rules,
       currentPerson: metaCur ? metaCur.value : ''
     };
   } else {
@@ -607,10 +705,11 @@ async function loadAllData() {
       return {
         persons: JSON.parse(localStorage.getItem('dr_persons') || '[]'),
         records: JSON.parse(localStorage.getItem('dr_records') || '[]'),
+        rules: JSON.parse(localStorage.getItem('dr_rules') || '[]'),
         currentPerson: localStorage.getItem('dr_currentPerson') || ''
       };
     } catch(e) {
-      return { persons: [], records: [], currentPerson: '' };
+      return { persons: [], records: [], rules: [], currentPerson: '' };
     }
   }
 }
@@ -618,11 +717,13 @@ async function loadAllData() {
 async function saveAll() {
   if (_useIDB) {
     try {
-      await _db.transaction('rw', _db.persons, _db.records, _db.meta, async () => {
+      await _db.transaction('rw', _db.persons, _db.records, _db.rules, _db.meta, async () => {
         await _db.persons.clear();
         await _db.persons.bulkPut(_cache.persons);
         await _db.records.clear();
         await _db.records.bulkPut(_cache.records);
+        await _db.rules.clear();
+        await _db.rules.bulkPut(_cache.rules || []);
         await _db.meta.put({ key: 'currentPerson', value: currentPerson });
         await _db.meta.put({ key: 'schemaVer', value: SCHEMA_VER });
       });
@@ -634,6 +735,7 @@ async function saveAll() {
     try {
       localStorage.setItem('dr_persons', JSON.stringify(_cache.persons));
       localStorage.setItem('dr_records', JSON.stringify(_cache.records));
+      localStorage.setItem('dr_rules', JSON.stringify(_cache.rules || []));
       localStorage.setItem('dr_currentPerson', currentPerson);
       localStorage.setItem('dr_schema_ver', String(SCHEMA_VER));
     } catch(e) {
@@ -684,6 +786,23 @@ async function savePersonsToDB() {
 // =============================================================
 
 // =============================================================
+async function saveRulesToDB() {
+  if (_useIDB) {
+    try {
+      await _db.transaction('rw', _db.rules, _db.meta, async () => {
+        await _db.rules.clear();
+        await _db.rules.bulkPut(_cache.rules || []);
+        await _db.meta.put({ key: 'schemaVer', value: SCHEMA_VER });
+      });
+    } catch(e) {
+      console.error('Rules save error:', e);
+      showToast('⚠️ 規則儲存失敗，請先備份！');
+    }
+  } else {
+    await saveAll();
+  }
+}
+
 /* OFFLINE-STABLE OVERRIDE (native IndexedDB, no Dexie dependency)
 // This overrides the Dexie-based functions above.
 // =============================================================
@@ -1125,6 +1244,7 @@ async function init(){
   const state = await loadAllData();
   _cache.persons = state.persons;
   _cache.records = state.records;
+  _cache.rules   = state.rules || [];
   currentPerson  = state.currentPerson;
 
   if(!_cache.persons.length){
@@ -1135,6 +1255,8 @@ async function init(){
   if(!currentPerson||!_cache.persons.find(p=>p.id===currentPerson)){
     currentPerson=_cache.persons[0].id;
   }
+
+  await ensureDefaultRules();
 
   document.getElementById('db-loading').classList.add('hide');
 
@@ -1194,6 +1316,266 @@ async function deletePerson(id){
   if(currentPerson===id) currentPerson=_cache.persons[0]?.id||'';
   await saveAll();
   closeModal('modal-manage'); renderPersonBar(); renderHome(); renderStats(); renderRecords(); showToast('已刪除');
+}
+
+// =============================================================
+// RULES (UI scaffolding + persistence)
+// =============================================================
+const RULE_WEEKDAYS = [
+  { d: 1, label: '一' },
+  { d: 2, label: '二' },
+  { d: 3, label: '三' },
+  { d: 4, label: '四' },
+  { d: 5, label: '五' },
+  { d: 6, label: '六' },
+  { d: 7, label: '日' }
+];
+
+let _editingRule = null;
+
+function getDefaultYearRange(){
+  const y = getTWNow().getFullYear();
+  return { start: `${y}-01-01`, end: `${y}-12-31` };
+}
+
+function formatWeekdays(days){
+  const set = new Set(days || []);
+  return RULE_WEEKDAYS.filter(x => set.has(x.d)).map(x => x.label).join('');
+}
+
+function normalizeTiers(tiers){
+  const clean = (tiers || [])
+    .map(t => ({
+      minOrders: Math.max(0, Math.floor(Number(t.minOrders) || 0)),
+      bonus: Math.max(0, Math.floor(Number(t.bonus) || 0))
+    }))
+    .filter(t => Number.isFinite(t.minOrders) && Number.isFinite(t.bonus));
+  clean.sort((a,b)=>a.minOrders-b.minOrders);
+  const out = [];
+  for (const t of clean) {
+    if (!out.length || out[out.length-1].minOrders !== t.minOrders) out.push(t);
+    else out[out.length-1] = t;
+  }
+  return out;
+}
+
+async function ensureDefaultRules(){
+  if ((_cache.rules || []).length) return;
+  const { start, end } = getDefaultYearRange();
+  const now = Date.now();
+  const weekdayTiers = FP_BONUS_WEEKDAY.map(t => ({ minOrders: t.min, bonus: t.bonus }));
+  const sundayTiers  = FP_BONUS_SUNDAY.map(t => ({ minOrders: t.min, bonus: t.bonus }));
+  _cache.rules = [
+    { id:'rule_fp_monwed', name:'FP 週一～週三', platform:'Foodpanda', startDate:start, endDate:end, weekdays:[1,2,3], startTime:'00:00', endTime:'23:59', tiers: weekdayTiers.map(x=>({...x})), calcMode:'group_total', enabled:true, updatedAt: now },
+    { id:'rule_fp_thusat', name:'FP 週四～週六', platform:'Foodpanda', startDate:start, endDate:end, weekdays:[4,5,6], startTime:'00:00', endTime:'23:59', tiers: weekdayTiers.map(x=>({...x})), calcMode:'group_total', enabled:true, updatedAt: now },
+    { id:'rule_fp_sun',    name:'FP 週日',       platform:'Foodpanda', startDate:start, endDate:end, weekdays:[7],     startTime:'00:00', endTime:'23:59', tiers: sundayTiers.map(x=>({...x})),  calcMode:'group_total', enabled:true, updatedAt: now },
+    { id:'rule_ue_default',name:'UE 任務',       platform:'UberEats',  startDate:start, endDate:end, weekdays:[1,2,3,4,5,6,7], startTime:'00:00', endTime:'23:59', tiers: [], calcMode:'group_total', enabled:true, updatedAt: now }
+  ];
+  await saveRulesToDB();
+}
+
+function openRulesModal(){
+  renderRulesList();
+  showModal('modal-rules');
+}
+
+function renderRulesList(){
+  const el = document.getElementById('rules-list');
+  const rules = (_cache.rules || []).slice().sort((a,b)=>{
+    const pa=(a.platform||'').localeCompare(b.platform||'');
+    if (pa) return pa;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  if (!rules.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📌</div><div>目前沒有規則</div></div>`;
+    return;
+  }
+  el.innerHTML = rules.map(r=>{
+    const w = formatWeekdays(r.weekdays);
+    const time = `${r.startTime || '00:00'} ~ ${r.endTime || '23:59'}`;
+    const range = `${r.startDate || '—'} ~ ${r.endDate || '—'}`;
+    const tierCount = (r.tiers || []).length;
+    const state = r.enabled === false ? '停用' : '啟用';
+    return `
+      <div class="rule-item">
+        <div class="rule-top">
+          <div style="min-width:0;flex:1;">
+            <div class="rule-name">${r.name || '（未命名規則）'}</div>
+            <div class="rule-meta">平台：${r.platform || '—'}　｜　日期：${range}<br>星期：${w || '—'}　｜　時間：${time}　｜　階梯：${tierCount} 段</div>
+          </div>
+          <div class="rule-badge">${state}</div>
+        </div>
+        <div class="rule-actions">
+          <button class="btn-mini edit" onclick="openRuleEditor('${r.id}')">✏️ 編輯</button>
+          <button class="btn-mini ghost" onclick="toggleRuleEnabled('${r.id}')">${r.enabled===false?'啟用':'停用'}</button>
+          <button class="btn-mini del" onclick="deleteRuleById('${r.id}')">🗑 刪除</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleRuleEnabled(id){
+  const idx = (_cache.rules || []).findIndex(r => r.id === id);
+  if (idx === -1) return;
+  _cache.rules[idx].enabled = _cache.rules[idx].enabled === false ? true : false;
+  _cache.rules[idx].updatedAt = Date.now();
+  saveRulesToDB().then(()=>{ renderRulesList(); showToast('✅ 已更新'); }).catch(()=>{});
+}
+
+function deleteRuleById(id){
+  const r = (_cache.rules || []).find(x => x.id === id);
+  if (!r) return;
+  const ok = window.confirm(`確定要刪除「${r.name || '未命名規則'}」嗎？`);
+  if (!ok) return;
+  _cache.rules = (_cache.rules || []).filter(x => x.id !== id);
+  saveRulesToDB().then(()=>{ renderRulesList(); showToast('🗑 已刪除'); }).catch(()=>{});
+}
+
+function makeNewRule(platform){
+  const { start, end } = getDefaultYearRange();
+  const base = {
+    id: 'rule_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    name: '',
+    platform: platform || inputPlatform || 'Foodpanda',
+    startDate: start,
+    endDate: end,
+    weekdays: [1,2,3],
+    startTime: '00:00',
+    endTime: '23:59',
+    tiers: [],
+    calcMode: 'group_total',
+    enabled: true,
+    updatedAt: Date.now()
+  };
+  if (base.platform === 'UberEats') base.weekdays = [1,2,3,4,5,6,7];
+  if (base.platform === 'Foodpanda') base.tiers = FP_BONUS_WEEKDAY.map(t => ({ minOrders: t.min, bonus: t.bonus }));
+  return base;
+}
+
+function openRuleEditor(id){
+  const found = id ? (_cache.rules || []).find(r => r.id === id) : null;
+  _editingRule = found ? JSON.parse(JSON.stringify(found)) : makeNewRule();
+
+  document.getElementById('rule-name').value = _editingRule.name || '';
+  document.getElementById('rule-platform').value = _editingRule.platform || 'Foodpanda';
+  document.getElementById('rule-start').value = _editingRule.startDate || todayStr();
+  document.getElementById('rule-end').value = _editingRule.endDate || todayStr();
+  document.getElementById('rule-start-time').value = _editingRule.startTime || '00:00';
+  document.getElementById('rule-end-time').value = _editingRule.endTime || '23:59';
+  document.getElementById('rule-enabled').checked = _editingRule.enabled !== false;
+
+  renderRuleWeekdayChips();
+  renderTierEditor();
+  showModal('modal-rule-edit');
+}
+
+function renderRuleWeekdayChips(){
+  const el = document.getElementById('rule-weekdays');
+  const set = new Set(_editingRule.weekdays || []);
+  el.innerHTML = RULE_WEEKDAYS.map(w => `<button type="button" class="day-chip${set.has(w.d)?' active':''}" onclick="toggleRuleWeekday(${w.d})">${w.label}</button>`).join('');
+}
+
+function toggleRuleWeekday(day){
+  const days = new Set(_editingRule.weekdays || []);
+  if (days.has(day)) days.delete(day); else days.add(day);
+  _editingRule.weekdays = Array.from(days).sort((a,b)=>a-b);
+  renderRuleWeekdayChips();
+  if (_editingRule.platform === 'Foodpanda' && (_editingRule.tiers || []).length === 0) {
+    if (_editingRule.weekdays.length === 1 && _editingRule.weekdays[0] === 7) {
+      _editingRule.tiers = FP_BONUS_SUNDAY.map(t => ({ minOrders: t.min, bonus: t.bonus }));
+    } else {
+      _editingRule.tiers = FP_BONUS_WEEKDAY.map(t => ({ minOrders: t.min, bonus: t.bonus }));
+    }
+    renderTierEditor();
+  }
+}
+
+function onRulePlatformChange(){
+  if (!_editingRule) return;
+  const p = document.getElementById('rule-platform').value;
+  _editingRule.platform = p;
+  if (p === 'UberEats') {
+    if (!_editingRule.weekdays || !_editingRule.weekdays.length) _editingRule.weekdays = [1,2,3,4,5,6,7];
+  } else if (p === 'Foodpanda') {
+    if (!_editingRule.weekdays || !_editingRule.weekdays.length) _editingRule.weekdays = [1,2,3];
+    if ((_editingRule.tiers || []).length === 0) _editingRule.tiers = FP_BONUS_WEEKDAY.map(t => ({ minOrders: t.min, bonus: t.bonus }));
+  }
+  renderRuleWeekdayChips();
+  renderTierEditor();
+}
+
+function renderTierEditor(){
+  const el = document.getElementById('rule-tiers');
+  const tiers = _editingRule.tiers || [];
+  if (!tiers.length) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--muted);line-height:1.6;">目前沒有階梯（可以先新增一段）。</div>`;
+    return;
+  }
+  el.innerHTML = tiers.map((t,idx)=>`
+    <div class="tier-row">
+      <input id="tier-min-${idx}" type="number" inputmode="numeric" min="0" step="1" value="${t.minOrders}" placeholder="滿單數">
+      <input id="tier-bonus-${idx}" type="number" inputmode="numeric" min="0" step="1" value="${t.bonus}" placeholder="獎金">
+      <button class="tier-del" onclick="removeTierRow(${idx})">×</button>
+    </div>
+  `).join('');
+}
+
+function addTierRow(){
+  if (!_editingRule) return;
+  if (!_editingRule.tiers) _editingRule.tiers = [];
+  _editingRule.tiers.push({ minOrders: 0, bonus: 0 });
+  renderTierEditor();
+}
+
+function removeTierRow(idx){
+  if (!_editingRule) return;
+  _editingRule.tiers = (_editingRule.tiers || []).filter((_,i)=>i!==idx);
+  renderTierEditor();
+}
+
+async function saveRuleFromEditor(){
+  if (!_editingRule) return;
+  const name = document.getElementById('rule-name').value.trim();
+  const platform = document.getElementById('rule-platform').value;
+  const startDate = document.getElementById('rule-start').value;
+  const endDate = document.getElementById('rule-end').value;
+  const startTime = document.getElementById('rule-start-time').value || '00:00';
+  const endTime = document.getElementById('rule-end-time').value || '23:59';
+  const enabled = document.getElementById('rule-enabled').checked;
+
+  if (!name) { showToast('請輸入規則名稱'); return; }
+  if (!startDate || !endDate) { showToast('請選擇日期範圍'); return; }
+  if (startDate > endDate) { showToast('日期範圍不正確'); return; }
+  const weekdays = (_editingRule.weekdays || []).slice().sort((a,b)=>a-b);
+  if (!weekdays.length) { showToast('請至少選一天'); return; }
+
+  const tiers = (_editingRule.tiers || []).map((t,idx)=>({
+    minOrders: Number(document.getElementById(`tier-min-${idx}`)?.value ?? t.minOrders),
+    bonus: Number(document.getElementById(`tier-bonus-${idx}`)?.value ?? t.bonus)
+  }));
+
+  const rule = {
+    ..._editingRule,
+    name,
+    platform,
+    startDate,
+    endDate,
+    weekdays,
+    startTime,
+    endTime,
+    enabled,
+    tiers: normalizeTiers(tiers),
+    updatedAt: Date.now()
+  };
+
+  const idx = (_cache.rules || []).findIndex(r => r.id === rule.id);
+  if (idx === -1) _cache.rules.push(rule);
+  else _cache.rules[idx] = rule;
+
+  await saveRulesToDB();
+  closeModal('modal-rule-edit');
+  renderRulesList();
+  showToast('✅ 已儲存規則');
 }
 
 // =============================================================
