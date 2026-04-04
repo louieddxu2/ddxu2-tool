@@ -1217,24 +1217,51 @@ function getGroupBonus(grp, pid){
   return {bonus,orders,tiers:__tiersLegacyForUI(rule)};
 }
 
-function __bonusKey(pid, grp){
-  if(!grp||!grp.ruleId||!grp.end) return '';
-  return `${pid}|${grp.ruleId}|${grp.end}`;
+function __fpRulesForDate(dateStr){
+  const wd=__ruleDayFromDateStr(dateStr);
+  return (_cache.rules||[])
+    .filter(r=>r && r.enabled!==false)
+    .filter(r=>r.platform==='Foodpanda')
+    .filter(r=>(!r.startDate||dateStr>=r.startDate)&&(!r.endDate||dateStr<=r.endDate))
+    .filter(r=>Array.isArray(r.weekdays)&&r.weekdays.includes(wd));
 }
-function __buildBonusCarriers(recs){
-  // For each (personId, ruleId, periodEnd) pick exactly one recordId to carry bonus display.
-  // This prevents double-counting when the user logs multiple records on the settlement day.
-  const m=new Map();
-  for(const r of (recs||[])){
-    if(r.platform!=='Foodpanda') continue;
-    const grp=getFPGroup(r.date);
-    if(!grp||!grp.ruleId) continue;
-    if(r.date!==grp.end) continue;
-    const k=__bonusKey(r.personId, grp);
-    const prev=m.get(k);
-    if(!prev || String(r.id).localeCompare(String(prev))>0) m.set(k, r.id);
+
+function __computeFoodpandaBonusEntries(allRecs, visibleRecs){
+  // Groups are keyed by (personId, ruleId, periodStart, periodEnd).
+  // Each group yields ONE bonus, displayed on the *last record within the period* (not necessarily periodEnd).
+  const groups=new Map();
+  const visibleSet=new Set((visibleRecs||[]).map(r=>r&&r.id).filter(Boolean));
+  for(const r of (allRecs||[])){
+    if(!r || r.platform!=='Foodpanda') continue;
+    const rules=__fpRulesForDate(r.date);
+    if(!rules.length) continue;
+    for(const rule of rules){
+      const period=__getRulePeriod(rule, r.date);
+      const key=`${r.personId}|${rule.id}|${period.start}|${period.end}`;
+      let g=groups.get(key);
+      if(!g){
+        g={ rule, period, personId:r.personId, orders:0, carrierId:r.id, carrierDate:r.date };
+        groups.set(key,g);
+      }
+      g.orders += (r.orders||0);
+      if(r.date>g.carrierDate || (r.date===g.carrierDate && String(r.id).localeCompare(String(g.carrierId))>0)){
+        g.carrierDate=r.date; g.carrierId=r.id;
+      }
+    }
   }
-  return m;
+  const byRecordId=new Map();
+  let totalBonus=0;
+  for(const g of groups.values()){
+    const bonus=__calcBonusFromTiers(g.rule.tiers||[], g.orders);
+    if(!bonus) continue;
+    if(!visibleSet.has(g.carrierId)) continue;
+    totalBonus += bonus;
+    const entry={ ruleId:g.rule.id, ruleName:g.rule.name||'規則', bonus, periodStart:g.period.start, periodEnd:g.period.end };
+    const arr=byRecordId.get(g.carrierId);
+    if(arr) arr.push(entry);
+    else byRecordId.set(g.carrierId,[entry]);
+  }
+  return { byRecordId, totalBonus };
 }
 
 // =============================================================
@@ -1721,7 +1748,7 @@ async function addRecord(){
     const errors = validateRecord(data);
     if(errors.length){ showToast('⚠️ '+errors[0]); return; }
 
-    const bonus = inputPlatform==='Foodpanda' ? calcFPBonus(dateVal, orders, currentPerson) : 0;
+    const bonus = 0;
     const rec = {
       id: 'r'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
       personId: currentPerson,
@@ -1734,7 +1761,7 @@ async function addRecord(){
 
     await addRecordToDB(rec);
     ['inp-orders','inp-income','inp-hours','inp-tip-sys','inp-tip-cash'].forEach(id=>document.getElementById(id).value='');
-    showToast('✅ 新增成功！'+orders+'單 $'+income+(bonus?'（+$'+bonus+'獎金）':''));
+    showToast('✅ 新增成功！'+orders+'單 $'+income);
     renderHome(); switchTab('home');
   } finally {
     setTimeout(()=>{ _addingRecord=false; btn.disabled=false; }, 800);
@@ -1802,18 +1829,13 @@ function renderStats(){
   const fpCycle=getFPCycleByDate(today);
   const ueWeek=getUEWeekRange(0);
   function calcStats(arr){
-    const carriers=__buildBonusCarriers(arr);
     const o=arr.reduce((s,r)=>s+r.orders,0), h=arr.reduce((s,r)=>s+r.hours,0);
+  const bonusEntries=__computeFoodpandaBonusEntries(_cache.records, arr);
     const i=arr.reduce((s,r)=>{
       let inc=r.income;
       if(r.platform==='Foodpanda'){
-        const grp=getFPGroup(r.date);
-        if(grp&&grp.ruleId&&r.date===grp.end){
-          const k=__bonusKey(r.personId, grp);
-          if(carriers.get(k)===r.id){
-            const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus;
-          }
-        }
+        const entries=(bonusEntries.byRecordId.get(r.id)||[]);
+        if(entries.length) inc += entries.reduce((ss,e)=>ss+(e.bonus||0),0);
       }
       return s+inc;
     },0);
@@ -1863,7 +1885,7 @@ function renderRecords(){
   recs=recs.slice().sort((a,b)=>{ const d=b.date.localeCompare(a.date); if(d) return d; return String(b.id).localeCompare(String(a.id)); });
   const el=document.getElementById('records-list');
   if(!recs.length){ el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div style="font-weight:700;margin-bottom:4px;">這個時段沒有紀錄</div><div style="font-size:12px;">切換時段或新增紀錄</div></div>'; return; }
-  const carriers=__buildBonusCarriers(recs);
+  const bonusEntries=__computeFoodpandaBonusEntries(_cache.records, recs);
   const totInc=recs.reduce((s,r)=>s+r.income,0), totOrd=recs.reduce((s,r)=>s+r.orders,0);
   const totSys=recs.reduce((s,r)=>s+(r.tipSys||0),0), totCash=recs.reduce((s,r)=>s+(r.tipCash||0),0);
   const sumBar=`<div style="background:var(--card);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;border:1.5px solid var(--border);font-size:12px;color:var(--muted);font-weight:700;display:flex;justify-content:space-between;align-items:center;">
@@ -1872,14 +1894,9 @@ function renderRecords(){
   </div>`;
   el.innerHTML=sumBar+recs.map(r=>{
     const dow=new Date(r.date+'T00:00:00').getDay();
-    const grp=r.platform==='Foodpanda'?getFPGroup(r.date):null;
+    const entries=(bonusEntries.byRecordId.get(r.id)||[]);
+    const bonusHtml=entries.map(e=>`<div class="record-bonus">+$${e.bonus} çŽé‡‘ï¼ˆ${e.ruleName}ï¼‰</div>`).join('');
     let showBonus=false, displayBonus=0;
-    if(r.platform==='Foodpanda'&&grp&&grp.ruleId&&r.date===grp.end){
-      const k=__bonusKey(r.personId, grp);
-      if(carriers.get(k)===r.id){
-        const gb=getGroupBonus(grp,r.personId); displayBonus=gb.bonus; showBonus=displayBonus>0;
-      }
-    }
     const plat=getPlatform(r.platform);
     return `<div class="record-item">
       <div class="record-top">
@@ -1887,6 +1904,7 @@ function renderRecords(){
         <div style="text-align:right">
           <div class="record-income" style="color:${plat.cls==='fp'?'var(--fp)':'var(--ue)'}">$${r.income}</div>
           <div class="record-meta">${r.orders}單 / ${r.hours}hr / 時薪$${r.salary}</div>
+          ${bonusHtml}
           ${showBonus?`<div class="record-bonus">+$${displayBonus} 獎金（整組）</div>`:''}
           ${r.tipSys?`<div class="record-meta" style="color:var(--ue)">系統小費 +$${r.tipSys}</div>`:''}
           ${r.tipCash?`<div class="record-meta" style="color:var(--warn)">💵 現金小費 $${r.tipCash}</div>`:''}
@@ -1934,12 +1952,7 @@ async function saveEdit(){
     r.date=newDate; r.orders=newOrders; r.income=newIncome; r.hours=newHours;
     r.tipSys=newTipSys; r.tipCash=newTipCash;
     r.salary=parseFloat((r.income/r.hours).toFixed(1));
-    if(r.platform==='Foodpanda'){
-      // temporarily exclude this record for bonus calc
-      const orig=_cache.records[idx]; _cache.records[idx]={..._cache.records[idx],orders:0};
-      r.bonus=calcFPBonus(r.date,r.orders,r.personId);
-      _cache.records[idx]=orig;
-    }
+    if(r.platform==='Foodpanda'){ r.bonus=0; }
 
     await updateRecordInDB(r);
     closeModal('modal-edit'); renderRecords(); renderHome(); showToast('✅ 已儲存');
@@ -1956,15 +1969,33 @@ function renderCyclePage(){ renderFPCycle(); renderUECycle(); }
 function fpCycleBox(cycleArr, pid){
   if(!cycleArr) return '<div style="text-align:center;padding:20px;"><div style="font-size:24px;">⚠️</div><div style="color:var(--danger);font-weight:700;margin-top:8px;">找不到週期</div></div>';
   const cycle=cycleArr;
-  const groups=[], cur=todayStr();
+  const groupsMap=new Map(), cur=todayStr();
   let d=new Date(cycle[0]+'T00:00:00');
-  while(toDateStr(d)<=cycle[1]){ const g=getFPGroup(toDateStr(d)); if(!groups.find(x=>x.start===g.start)) groups.push(g); d.setDate(d.getDate()+1); }
+  while(toDateStr(d)<=cycle[1]){
+    const ds=toDateStr(d);
+    const rules=__fpRulesForDate(ds);
+    for(const rule of rules){
+      const period=__getRulePeriod(rule, ds);
+      const endDow=new Date(period.end+'T00:00:00').getDay();
+      const key=`${rule.id}|${period.start}|${period.end}`;
+      if(!groupsMap.has(key)){
+        groupsMap.set(key,{start:period.start,end:period.end,ruleId:rule.id,ruleName:rule.name||'規則',settleName:DAY_NAMES[endDow]});
+      }
+    }
+    d.setDate(d.getDate()+1);
+  }
+  const groups=Array.from(groupsMap.values()).sort((a,b)=>a.start.localeCompare(b.start)||String(a.ruleName).localeCompare(String(b.ruleName)));
   const payday=getFPPaydayForCycle(cycle[0]);
   let html=`<div class="cycle-row"><span class="cycle-label">結算週期</span><span class="cycle-val">${cycle[0]} ～ ${cycle[1]}</span></div>`;
   html+=`<div class="cycle-row"><span class="cycle-label">發薪日（週三）</span><span class="cycle-val">${payday}</span></div>`;
   groups.forEach(grp=>{
     const {bonus,orders,tiers}=getGroupBonus(grp,pid);
-    const income=_cache.records.filter(r=>r.personId===pid&&r.platform==='Foodpanda'&&r.date>=grp.start&&r.date<=grp.end).reduce((s,r)=>s+r.income,0);
+    const rule=(_cache.rules||[]).find(r=>r.id===grp.ruleId);
+    const daySet=new Set((rule&&rule.weekdays)||[]);
+    const income=_cache.records
+      .filter(r=>r.personId===pid&&r.platform==='Foodpanda'&&r.date>=grp.start&&r.date<=grp.end)
+      .filter(r=>daySet.has(__ruleDayFromDateStr(r.date)))
+      .reduce((s,r)=>s+r.income,0);
     const isActive=cur>=grp.start&&cur<=grp.end;
     html+=`<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">`;
     html+=`<div class="cycle-row"><span class="cycle-label" style="font-size:10px;">${grp.start}～${grp.end}（${grp.settleName}）${isActive?'<span style="color:var(--fp)"> ▶ 當前</span>':''}</span></div>`;
@@ -2037,16 +2068,13 @@ function renderYearly(){
   const ys=year.toString();
   const recs=_cache.records.filter(r=>r.personId===pid&&r.date.startsWith(ys));
   function sum(arr){
-    const carriers=__buildBonusCarriers(arr);
     const o=arr.reduce((s,r)=>s+r.orders,0), h=arr.reduce((s,r)=>s+r.hours,0);
+    const bonusEntries=__computeFoodpandaBonusEntries(_cache.records, arr);
     const i=arr.reduce((s,r)=>{
       let inc=r.income;
       if(r.platform==='Foodpanda'){
-        const grp=getFPGroup(r.date);
-        if(grp&&grp.ruleId&&r.date===grp.end){
-          const k=__bonusKey(r.personId, grp);
-          if(carriers.get(k)===r.id){ const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus; }
-        }
+        const entries=(bonusEntries.byRecordId.get(r.id)||[]);
+        if(entries.length) inc += entries.reduce((ss,e)=>ss+(e.bonus||0),0);
       }
       return s+inc;
     },0);
@@ -2152,14 +2180,13 @@ async function exportExcel(){
   const wb=XLSX.utils.book_new();
   const DW=['週日','週一','週二','週三','週四','週五','週六'];
   const dh=['人員','日期','星期','平台','單數','收入($)','工時(hr)','時薪','系統小費($)','現金小費($)','FP獎金($)'];
-  const carriers=__buildBonusCarriers(_cache.records);
+  const bonusEntries=__computeFoodpandaBonusEntries(_cache.records, _cache.records);
   const dr=_cache.records.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(r=>{
     const dow=new Date(r.date+'T00:00:00').getDay();
-    const grp=r.platform==='Foodpanda'?getFPGroup(r.date):null;
     let bonus=0;
-    if(r.platform==='Foodpanda'&&grp&&grp.ruleId&&r.date===grp.end){
-      const k=__bonusKey(r.personId, grp);
-      if(carriers.get(k)===r.id) bonus=getGroupBonus(grp,r.personId).bonus;
+    if(r.platform==='Foodpanda'){
+      const entries=(bonusEntries.byRecordId.get(r.id)||[]);
+      if(entries.length) bonus = entries.reduce((s,e)=>s+(e.bonus||0),0);
     }
     const pName=(_cache.persons.find(p=>p.id===r.personId)||{name:'未知'}).name;
     return [pName,r.date,DW[dow],r.platform,r.orders,r.income,r.hours,r.salary,r.tipSys||0,r.tipCash||0,bonus];
