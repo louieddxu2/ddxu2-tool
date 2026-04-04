@@ -1217,6 +1217,26 @@ function getGroupBonus(grp, pid){
   return {bonus,orders,tiers:__tiersLegacyForUI(rule)};
 }
 
+function __bonusKey(pid, grp){
+  if(!grp||!grp.ruleId||!grp.end) return '';
+  return `${pid}|${grp.ruleId}|${grp.end}`;
+}
+function __buildBonusCarriers(recs){
+  // For each (personId, ruleId, periodEnd) pick exactly one recordId to carry bonus display.
+  // This prevents double-counting when the user logs multiple records on the settlement day.
+  const m=new Map();
+  for(const r of (recs||[])){
+    if(r.platform!=='Foodpanda') continue;
+    const grp=getFPGroup(r.date);
+    if(!grp||!grp.ruleId) continue;
+    if(r.date!==grp.end) continue;
+    const k=__bonusKey(r.personId, grp);
+    const prev=m.get(k);
+    if(!prev || String(r.id).localeCompare(String(prev))>0) m.set(k, r.id);
+  }
+  return m;
+}
+
 // =============================================================
 // UE LOGIC
 // =============================================================
@@ -1782,13 +1802,17 @@ function renderStats(){
   const fpCycle=getFPCycleByDate(today);
   const ueWeek=getUEWeekRange(0);
   function calcStats(arr){
+    const carriers=__buildBonusCarriers(arr);
     const o=arr.reduce((s,r)=>s+r.orders,0), h=arr.reduce((s,r)=>s+r.hours,0);
     const i=arr.reduce((s,r)=>{
       let inc=r.income;
       if(r.platform==='Foodpanda'){
         const grp=getFPGroup(r.date);
-        if(grp&&r.date===grp.end){
-          const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus;
+        if(grp&&grp.ruleId&&r.date===grp.end){
+          const k=__bonusKey(r.personId, grp);
+          if(carriers.get(k)===r.id){
+            const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus;
+          }
         }
       }
       return s+inc;
@@ -1836,9 +1860,10 @@ function renderRecords(){
   if(recRange==='日') recs=recs.filter(r=>r.date===today);
   else if(recRange==='週'){ const dow=now.getDay()||7, mon=new Date(now); mon.setDate(now.getDate()-dow+1); const sun=new Date(mon); sun.setDate(mon.getDate()+6); recs=recs.filter(r=>r.date>=toDateStr(mon)&&r.date<=toDateStr(sun)); }
   else if(recRange==='月') recs=recs.filter(r=>r.date.startsWith(today.slice(0,7)));
-  recs=recs.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  recs=recs.slice().sort((a,b)=>{ const d=b.date.localeCompare(a.date); if(d) return d; return String(b.id).localeCompare(String(a.id)); });
   const el=document.getElementById('records-list');
   if(!recs.length){ el.innerHTML='<div class="empty"><div class="empty-icon">📭</div><div style="font-weight:700;margin-bottom:4px;">這個時段沒有紀錄</div><div style="font-size:12px;">切換時段或新增紀錄</div></div>'; return; }
+  const carriers=__buildBonusCarriers(recs);
   const totInc=recs.reduce((s,r)=>s+r.income,0), totOrd=recs.reduce((s,r)=>s+r.orders,0);
   const totSys=recs.reduce((s,r)=>s+(r.tipSys||0),0), totCash=recs.reduce((s,r)=>s+(r.tipCash||0),0);
   const sumBar=`<div style="background:var(--card);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;border:1.5px solid var(--border);font-size:12px;color:var(--muted);font-weight:700;display:flex;justify-content:space-between;align-items:center;">
@@ -1849,8 +1874,11 @@ function renderRecords(){
     const dow=new Date(r.date+'T00:00:00').getDay();
     const grp=r.platform==='Foodpanda'?getFPGroup(r.date):null;
     let showBonus=false, displayBonus=0;
-    if(r.platform==='Foodpanda'&&grp&&r.date===grp.end){
-      const gb=getGroupBonus(grp,r.personId); displayBonus=gb.bonus; showBonus=displayBonus>0;
+    if(r.platform==='Foodpanda'&&grp&&grp.ruleId&&r.date===grp.end){
+      const k=__bonusKey(r.personId, grp);
+      if(carriers.get(k)===r.id){
+        const gb=getGroupBonus(grp,r.personId); displayBonus=gb.bonus; showBonus=displayBonus>0;
+      }
     }
     const plat=getPlatform(r.platform);
     return `<div class="record-item">
@@ -2009,12 +2037,16 @@ function renderYearly(){
   const ys=year.toString();
   const recs=_cache.records.filter(r=>r.personId===pid&&r.date.startsWith(ys));
   function sum(arr){
+    const carriers=__buildBonusCarriers(arr);
     const o=arr.reduce((s,r)=>s+r.orders,0), h=arr.reduce((s,r)=>s+r.hours,0);
     const i=arr.reduce((s,r)=>{
       let inc=r.income;
       if(r.platform==='Foodpanda'){
         const grp=getFPGroup(r.date);
-        if(grp&&r.date===grp.end){ const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus; }
+        if(grp&&grp.ruleId&&r.date===grp.end){
+          const k=__bonusKey(r.personId, grp);
+          if(carriers.get(k)===r.id){ const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus; }
+        }
       }
       return s+inc;
     },0);
@@ -2120,11 +2152,15 @@ async function exportExcel(){
   const wb=XLSX.utils.book_new();
   const DW=['週日','週一','週二','週三','週四','週五','週六'];
   const dh=['人員','日期','星期','平台','單數','收入($)','工時(hr)','時薪','系統小費($)','現金小費($)','FP獎金($)'];
+  const carriers=__buildBonusCarriers(_cache.records);
   const dr=_cache.records.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(r=>{
     const dow=new Date(r.date+'T00:00:00').getDay();
     const grp=r.platform==='Foodpanda'?getFPGroup(r.date):null;
     let bonus=0;
-    if(r.platform==='Foodpanda'&&grp&&r.date===grp.end){ bonus=getGroupBonus(grp,r.personId).bonus; }
+    if(r.platform==='Foodpanda'&&grp&&grp.ruleId&&r.date===grp.end){
+      const k=__bonusKey(r.personId, grp);
+      if(carriers.get(k)===r.id) bonus=getGroupBonus(grp,r.personId).bonus;
+    }
     const pName=(_cache.persons.find(p=>p.id===r.personId)||{name:'未知'}).name;
     return [pName,r.date,DW[dow],r.platform,r.orders,r.income,r.hours,r.salary,r.tipSys||0,r.tipCash||0,bonus];
   });
