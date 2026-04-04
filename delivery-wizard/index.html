@@ -2064,7 +2064,10 @@ function yearlyNext(){ if(yearlyOffset>=0){ showToast('已是今年'); return; }
 // BACKUP / RESTORE
 // =============================================================
 async function exportData(){
-  if(!_cache.records.length&&_cache.persons.length<=1){ showToast('⚠️ 目前沒有紀錄可備份'); return; }
+  const hasMeaningfulPersons = (_cache.persons || []).length > 1;
+  const hasRecords = (_cache.records || []).length > 0;
+  const hasRules = (_cache.rules || []).length > 0;
+  if(!hasRecords && !hasMeaningfulPersons && !hasRules){ showToast('⚠️ 目前沒有資料可備份'); return; }
   const data={version:4,exportedAt:new Date().toISOString(),persons:_cache.persons,records:_cache.records,rules:_cache.rules||[]};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
