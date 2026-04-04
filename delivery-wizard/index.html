@@ -1125,32 +1125,96 @@ const FP_BONUS_WEEKDAY=[{min:40,bonus:150},{min:80,bonus:450},{min:120,bonus:130
 const FP_BONUS_SUNDAY=[{min:15,bonus:75},{min:24,bonus:150},{min:35,bonus:350},{min:45,bonus:500}];
 const DAY_NAMES=['週日','週一','週二','週三','週四','週五','週六'];
 
+function __ruleDayFromDateStr(dateStr){
+  const jsDow=new Date(dateStr+'T00:00:00').getDay();
+  return jsDow===0?7:jsDow; // 1..7 (Mon..Sun)
+}
+function __weekMondayDateStr(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  const jsDow=d.getDay();
+  const offset=jsDow===0?6:jsDow-1; // back to Monday
+  d.setDate(d.getDate()-offset);
+  return d;
+}
+function __isRuleActiveForDate(rule, dateStr){
+  if(!rule||rule.enabled===false) return false;
+  if(rule.platform!=='Foodpanda') return false;
+  if(rule.startDate&&dateStr<rule.startDate) return false;
+  if(rule.endDate&&dateStr>rule.endDate) return false;
+  const wd=__ruleDayFromDateStr(dateStr);
+  return Array.isArray(rule.weekdays)&&rule.weekdays.includes(wd);
+}
+function __pickFoodpandaRule(dateStr){
+  const rules=(_cache.rules||[]).filter(r=>__isRuleActiveForDate(r,dateStr));
+  if(!rules.length) return null;
+  rules.sort((a,b)=>{
+    const wa=(a.weekdays||[]).length, wb=(b.weekdays||[]).length;
+    if(wa!==wb) return wa-wb; // more specific first
+    const ra=(a.startDate||'0000-01-01')+'_'+(a.endDate||'9999-12-31');
+    const rb=(b.startDate||'0000-01-01')+'_'+(b.endDate||'9999-12-31');
+    if(ra!==rb) return ra.localeCompare(rb);
+    return (b.updatedAt||0)-(a.updatedAt||0);
+  });
+  return rules[0];
+}
+function __getRulePeriod(rule, dateStr){
+  const mon=__weekMondayDateStr(dateStr);
+  const days=(rule.weekdays||[]).slice().sort((a,b)=>a-b);
+  const minDay=days[0]||1, maxDay=days[days.length-1]||minDay;
+  const s=new Date(mon); s.setDate(mon.getDate()+(minDay-1));
+  const e=new Date(mon); e.setDate(mon.getDate()+(maxDay-1));
+  return { start: toDateStr(s), end: toDateStr(e), minDay, maxDay };
+}
+function __calcBonusFromTiers(tiers, orders){
+  const list=(tiers||[]).slice().sort((a,b)=>(a.minOrders||0)-(b.minOrders||0));
+  let bonus=0;
+  for(const t of list){
+    const min=Number(t.minOrders);
+    if(Number.isFinite(min)&&orders>=min) bonus=Number(t.bonus)||0;
+  }
+  return bonus;
+}
+function __getRuleOrdersInPeriod(rule, pid, period){
+  const daySet=new Set(rule.weekdays||[]);
+  return (_cache.records||[])
+    .filter(r=>r.personId===pid&&r.platform===rule.platform&&r.date>=period.start&&r.date<=period.end)
+    .filter(r=>(!rule.startDate||r.date>=rule.startDate)&&(!rule.endDate||r.date<=rule.endDate))
+    .filter(r=>daySet.has(__ruleDayFromDateStr(r.date)))
+    .reduce((s,r)=>s+(r.orders||0),0);
+}
+function __tiersLegacyForUI(rule){
+  return (rule.tiers||[]).slice().sort((a,b)=>(a.minOrders||0)-(b.minOrders||0)).map(t=>({min:t.minOrders,bonus:t.bonus}));
+}
+
 function getFPGroup(dateStr){
-  const d=new Date(dateStr+'T00:00:00'), dow=d.getDay();
-  if(dow===0) return {start:dateStr,end:dateStr,type:'sunday',settleName:'週日'};
-  const gs=new Date(d);
-  if(dow<=3) gs.setDate(d.getDate()-(dow-1));
-  else gs.setDate(d.getDate()-(dow-4));
-  const ge=new Date(gs); ge.setDate(gs.getDate()+2);
-  return {start:toDateStr(gs),end:toDateStr(ge),type:'weekday',settleName:DAY_NAMES[ge.getDay()]};
+  const rule=__pickFoodpandaRule(dateStr);
+  if(!rule){
+    const jsDow=new Date(dateStr+'T00:00:00').getDay();
+    return {start:dateStr,end:dateStr,type:'none',settleName:DAY_NAMES[jsDow],ruleId:null};
+  }
+  const period=__getRulePeriod(rule,dateStr);
+  const jsDowEnd=new Date(period.end+'T00:00:00').getDay();
+  return {start:period.start,end:period.end,type:'rule',settleName:DAY_NAMES[jsDowEnd],ruleId:rule.id};
 }
 
 function calcFPBonus(dateStr, newOrders, personId){
-  const grp = getFPGroup(dateStr);
-  const tiers = grp.type==='sunday' ? FP_BONUS_SUNDAY : FP_BONUS_WEEKDAY;
-  const existing = _cache.records
-    .filter(r=>r.personId===personId&&r.platform==='Foodpanda'&&r.date>=grp.start&&r.date<=grp.end)
-    .reduce((s,r)=>s+r.orders,0);
-  let bonus=0; tiers.forEach(t=>{ if(existing+newOrders>=t.min) bonus=t.bonus; });
-  return bonus;
+  const grp=getFPGroup(dateStr);
+  if(!grp||!grp.ruleId) return 0;
+  const rule=(_cache.rules||[]).find(r=>r.id===grp.ruleId);
+  if(!rule) return 0;
+  const period={start:grp.start,end:grp.end};
+  const existing=__getRuleOrdersInPeriod(rule,personId,period);
+  return __calcBonusFromTiers(rule.tiers||[], existing+(newOrders||0));
 }
 
 function getGroupBonus(grp, pid){
-  const tiers=grp.type==='sunday'?FP_BONUS_SUNDAY:FP_BONUS_WEEKDAY;
-  const orders=_cache.records
-    .filter(r=>r.personId===pid&&r.platform==='Foodpanda'&&r.date>=grp.start&&r.date<=grp.end)
-    .reduce((s,r)=>s+r.orders,0);
-  let bonus=0; tiers.forEach(t=>{ if(orders>=t.min) bonus=t.bonus; }); return {bonus,orders,tiers};
+  if(!grp||!grp.ruleId) return {bonus:0,orders:0,tiers:[]};
+  const rule=(_cache.rules||[]).find(r=>r.id===grp.ruleId);
+  if(!rule) return {bonus:0,orders:0,tiers:[]};
+  const period={start:grp.start,end:grp.end};
+  const orders=__getRuleOrdersInPeriod(rule,pid,period);
+  const bonus=__calcBonusFromTiers(rule.tiers||[],orders);
+  return {bonus,orders,tiers:__tiersLegacyForUI(rule)};
 }
 
 // =============================================================
@@ -1722,9 +1786,8 @@ function renderStats(){
     const i=arr.reduce((s,r)=>{
       let inc=r.income;
       if(r.platform==='Foodpanda'){
-        const dow=new Date(r.date+'T00:00:00').getDay();
         const grp=getFPGroup(r.date);
-        if((dow===3||dow===6||dow===0)&&grp&&r.date===grp.end){
+        if(grp&&r.date===grp.end){
           const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus;
         }
       }
@@ -1784,10 +1847,9 @@ function renderRecords(){
   </div>`;
   el.innerHTML=sumBar+recs.map(r=>{
     const dow=new Date(r.date+'T00:00:00').getDay();
-    const isSettle=(dow===3||dow===6||dow===0);
     const grp=r.platform==='Foodpanda'?getFPGroup(r.date):null;
     let showBonus=false, displayBonus=0;
-    if(r.platform==='Foodpanda'&&isSettle&&grp&&r.date===grp.end){
+    if(r.platform==='Foodpanda'&&grp&&r.date===grp.end){
       const gb=getGroupBonus(grp,r.personId); displayBonus=gb.bonus; showBonus=displayBonus>0;
     }
     const plat=getPlatform(r.platform);
@@ -1951,8 +2013,8 @@ function renderYearly(){
     const i=arr.reduce((s,r)=>{
       let inc=r.income;
       if(r.platform==='Foodpanda'){
-        const dow=new Date(r.date+'T00:00:00').getDay(), grp=getFPGroup(r.date);
-        if((dow===3||dow===6||dow===0)&&grp&&r.date===grp.end){ const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus; }
+        const grp=getFPGroup(r.date);
+        if(grp&&r.date===grp.end){ const {bonus}=getGroupBonus(grp,r.personId); inc+=bonus; }
       }
       return s+inc;
     },0);
@@ -2003,7 +2065,7 @@ function yearlyNext(){ if(yearlyOffset>=0){ showToast('已是今年'); return; }
 // =============================================================
 async function exportData(){
   if(!_cache.records.length&&_cache.persons.length<=1){ showToast('⚠️ 目前沒有紀錄可備份'); return; }
-  const data={version:3,exportedAt:new Date().toISOString(),persons:_cache.persons,records:_cache.records};
+  const data={version:4,exportedAt:new Date().toISOString(),persons:_cache.persons,records:_cache.records,rules:_cache.rules||[]};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -2033,7 +2095,9 @@ async function importData(input){
 
       _cache.persons=data.persons;
       _cache.records=data.records;
+      _cache.rules=data.rules||[];
       currentPerson=_cache.persons[0]?.id||'';
+      if(!_cache.rules.length) await ensureDefaultRules();
       await saveAll();
 
       closeModal('modal-backup');
@@ -2054,10 +2118,10 @@ async function exportExcel(){
   const DW=['週日','週一','週二','週三','週四','週五','週六'];
   const dh=['人員','日期','星期','平台','單數','收入($)','工時(hr)','時薪','系統小費($)','現金小費($)','FP獎金($)'];
   const dr=_cache.records.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(r=>{
-    const dow=new Date(r.date+'T00:00:00').getDay(), isS=(dow===3||dow===6||dow===0);
+    const dow=new Date(r.date+'T00:00:00').getDay();
     const grp=r.platform==='Foodpanda'?getFPGroup(r.date):null;
     let bonus=0;
-    if(r.platform==='Foodpanda'&&isS&&grp&&r.date===grp.end){ bonus=getGroupBonus(grp,r.personId).bonus; }
+    if(r.platform==='Foodpanda'&&grp&&r.date===grp.end){ bonus=getGroupBonus(grp,r.personId).bonus; }
     const pName=(_cache.persons.find(p=>p.id===r.personId)||{name:'未知'}).name;
     return [pName,r.date,DW[dow],r.platform,r.orders,r.income,r.hours,r.salary,r.tipSys||0,r.tipCash||0,bonus];
   });
