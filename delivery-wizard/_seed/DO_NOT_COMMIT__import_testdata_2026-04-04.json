@@ -25,6 +25,33 @@
   ],
   "records": [
     {
+      "id": "r_test_0001",
+      "personId": "p_demo_1",
+      "platform": "Foodpanda",
+      "date": "2026-04-06",
+      "orders": 15,
+      "income": 1200,
+      "hours": 5.0,
+      "salary": 240,
+      "bonus": 0,
+      "tipSys": 0,
+      "tipCash": 0
+    },
+    {
+      "id": "r_test_0002",
+      "personId": "p_demo_1",
+      "platform": "Foodpanda",
+      "date": "2026-04-07",
+      "orders": 20,
+      "income": 1600,
+      "hours": 6.0,
+      "salary": 266.7,
+      "bonus": 0,
+      "tipSys": 0,
+      "tipCash": 0
+    },
+
+    {
       "id": "r_seed_0007",
       "personId": "p_demo_2",
       "platform": "UberEats",
@@ -1518,7 +1545,7 @@
       "name": "FP 週一～週三（短期小任務）",
       "platform": "Foodpanda",
       "startDate": "2026-03-30",
-      "endDate": "2026-04-03",
+      "endDate": "2026-04-30",
       "weekdays": [
         1,
         2,
@@ -1543,6 +1570,22 @@
       "calcMode": "group_total",
       "enabled": true,
       "updatedAt": 1770400000000
+    },
+    {
+      "id": "rule_test_tue_stack",
+      "name": "FP 週二疊加測試獎金",
+      "platform": "Foodpanda",
+      "startDate": "2026-04-01",
+      "endDate": "2026-04-30",
+      "weekdays": [2],
+      "startTime": "00:00",
+      "endTime": "23:59",
+      "tiers": [
+        { "minOrders": 5, "bonus": 50 }
+      ],
+      "calcMode": "group_total",
+      "enabled": true,
+      "updatedAt": 1770500000000
     }
   ]
 }
