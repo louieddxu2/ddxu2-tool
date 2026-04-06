@@ -1895,7 +1895,7 @@ function renderRecords(){
   el.innerHTML=sumBar+recs.map(r=>{
     const dow=new Date(r.date+'T00:00:00').getDay();
     const entries=(bonusEntries.byRecordId.get(r.id)||[]);
-    const bonusHtml=entries.map(e=>`<div class="record-bonus">+$${e.bonus} çŽé‡‘ï¼ˆ${e.ruleName}ï¼‰</div>`).join('');
+    const bonusHtml=entries.map(e=>`<div class="record-bonus">+$${e.bonus} 獎金（${e.ruleName}）</div>`).join('');
     let showBonus=false, displayBonus=0;
     const plat=getPlatform(r.platform);
     return `<div class="record-item">
