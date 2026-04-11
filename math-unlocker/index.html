@@ -14,8 +14,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
   <style>
-    ::-webkit-scrollbar { width: 4px; height: 4px; background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     body { -webkit-tap-highlight-color: transparent; }
     
     .card-enter {
@@ -25,14 +23,17 @@
       0% { transform: scale(0.8); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
     }
+    .disabled-overlay {
+      pointer-events: none;
+      opacity: 0.6;
+      filter: grayscale(100%);
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
 
   <script>
-    /*
-      自動註冊規則（保留）
-    */
+    /* 自動註冊規則 */
     (function autoRegister() {
       let appPath = window.location.pathname;
       if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
@@ -49,49 +50,26 @@
 
       function configureHomeLinkAndProbe() {
         const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
-
-        const homeHref = normalizedLauncherPath.includes('?')
-          ? `${normalizedLauncherPath}&home=1`
-          : `${normalizedLauncherPath}?home=1`;
-
+        const homeHref = normalizedLauncherPath.includes('?') ? `${normalizedLauncherPath}&home=1` : `${normalizedLauncherPath}?home=1`;
         homeLinks.forEach(el => el.setAttribute('href', homeHref));
 
         if (window.location.protocol === 'file:') return;
 
-        const probeUrl = normalizedLauncherPath.endsWith('/')
-          ? `${normalizedLauncherPath}index.html`
-          : `${normalizedLauncherPath}/index.html`;
-
-        const revealHome = () => {
-          homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
-        };
+        const probeUrl = normalizedLauncherPath.endsWith('/') ? `${normalizedLauncherPath}index.html` : `${normalizedLauncherPath}/index.html`;
+        const revealHome = () => { homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none')); };
 
         fetch(probeUrl, { method: 'HEAD' })
           .then(res => {
             if (res.ok) { revealHome(); return; }
-            if (res.status === 405) {
-              return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); });
-            }
+            if (res.status === 405) { return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); }); }
           })
           .catch(() => {});
       }
 
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
-      } else {
-        configureHomeLinkAndProbe();
-      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
+      else configureHomeLinkAndProbe();
 
-      const appMeta = {
-        id: 'math-unlocker',
-        name: '數字解鎖',
-        nameZh: '數字解鎖',
-        nameEn: 'Math Unlocker',
-        path: appPath,
-        icon: 'calculator',
-        color: 'blue'
-      };
-
+      const appMeta = { id: 'math-unlocker', name: '數字解鎖', nameZh: '數字解鎖', nameEn: 'Math Unlocker', path: appPath, icon: 'calculator', color: 'blue' };
       const storageKey = 'myAppLauncherStorage';
       const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
@@ -101,7 +79,7 @@
     })();
   </script>
 
-  <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-20">
+  <header class="bg-blue-600 text-white p-3 shadow-md sticky top-0 z-20">
     <div class="max-w-md mx-auto flex items-center justify-between">
       <a href="/" data-home-link class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors invisible pointer-events-none" aria-label="返回目錄">
         <i data-lucide="home" class="w-5 h-5"></i>
@@ -113,7 +91,7 @@
     </div>
   </header>
 
-  <main class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4 pb-20">
+  <main class="flex-grow w-full max-w-md mx-auto p-3 flex flex-col gap-3 pb-6">
     
     <div class="flex justify-between text-xs text-slate-500 font-medium px-1">
       <div class="flex items-center gap-1"><i data-lucide="layers" class="w-4 h-4"></i> 牌庫: <span id="ui-deck-count" class="text-blue-600 font-bold">5</span></div>
@@ -121,72 +99,74 @@
       <div class="flex items-center gap-1"><i data-lucide="target" class="w-4 h-4"></i> 進度: <span id="ui-progress" class="text-emerald-600 font-bold">0/94</span></div>
     </div>
 
-    <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm relative overflow-hidden">
-      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1"><i data-lucide="unlock" class="w-3 h-3"></i> 待解鎖目標</h2>
-      <div class="flex gap-2 justify-between items-end">
-        <div class="flex-1 grid grid-cols-3 gap-2" id="ui-market-active">
-          </div>
-        <div class="w-[1px] h-10 bg-slate-200 mx-1"></div>
-        <div class="w-16 flex flex-col items-center opacity-60">
-          <span class="text-[10px] text-slate-400 mb-1">下一張</span>
-          <div id="ui-market-preview" class="w-full aspect-[3/4] bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center font-bold text-lg text-slate-500">
+    <section class="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm relative overflow-hidden">
+      <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1"><i data-lucide="unlock" class="w-3 h-3"></i> 待解鎖目標</h2>
+      <div class="flex gap-2 justify-between items-center">
+        <div class="w-[22%] flex flex-col items-center opacity-70">
+          <span class="text-[10px] text-slate-400 mb-1 font-bold">牌庫頂</span>
+          <div id="ui-market-preview" class="w-full aspect-square bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center font-bold text-lg text-slate-500">
             ?
           </div>
         </div>
+        <div class="w-[1px] h-10 bg-slate-200 mx-1"></div>
+        <div class="flex-1 grid grid-cols-3 gap-2" id="ui-market-active">
+          </div>
       </div>
     </section>
 
-    <section class="bg-blue-50 rounded-2xl p-4 border border-blue-100 shadow-inner min-h-[100px] flex items-center justify-center relative">
+    <section class="bg-blue-50 rounded-2xl p-3 border border-blue-100 shadow-inner flex items-center justify-center relative">
       <h2 class="absolute top-2 left-3 text-[10px] font-bold text-blue-300 uppercase tracking-wider">計算區</h2>
       
-      <div class="flex items-center gap-3 w-full justify-center mt-3">
-        <button onclick="deselectCard(0)" id="slot-0" class="w-16 aspect-[3/4] rounded-xl flex items-center justify-center font-bold text-xl transition-all shadow-sm bg-white border-2 border-blue-200 text-blue-600 hover:border-red-400">
+      <div class="flex items-center gap-4 w-full justify-center mt-3" id="ui-calc-area">
+        <button onclick="deselectCard(0)" id="slot-0" class="w-16 aspect-square rounded-xl flex items-center justify-center font-bold text-xl transition-all shadow-sm bg-white border-2 border-blue-200 text-blue-600 hover:border-red-400">
           <i data-lucide="plus" class="w-5 h-5 text-blue-200"></i>
         </button>
         
         <div class="text-blue-300 font-bold text-xl"><i data-lucide="help-circle" class="w-5 h-5"></i></div>
         
-        <button onclick="deselectCard(1)" id="slot-1" class="w-16 aspect-[3/4] rounded-xl flex items-center justify-center font-bold text-xl transition-all shadow-sm bg-white border-2 border-blue-200 text-blue-600 hover:border-red-400">
+        <button onclick="deselectCard(1)" id="slot-1" class="w-16 aspect-square rounded-xl flex items-center justify-center font-bold text-xl transition-all shadow-sm bg-white border-2 border-blue-200 text-blue-600 hover:border-red-400">
           <i data-lucide="plus" class="w-5 h-5 text-blue-200"></i>
         </button>
       </div>
     </section>
 
-    <section>
-      <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-1 flex items-center gap-1"><i data-lucide="hand" class="w-3 h-3"></i> 我的手牌</h2>
-      <div id="ui-hand" class="flex gap-2 overflow-x-auto pb-2 px-1 snap-x">
+    <section id="section-hand">
+      <div class="flex justify-between items-end mb-2 px-1">
+        <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><i data-lucide="hand" class="w-3 h-3"></i> 我的手牌</h2>
+        <span class="text-[10px] text-slate-400 font-bold" id="ui-hand-count">0/10</span>
+      </div>
+      <div id="ui-hand" class="grid grid-cols-5 gap-2 px-1 min-h-[4rem]">
         </div>
     </section>
 
-    <section>
+    <section id="section-reserve">
       <h2 class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2 px-1 flex items-center gap-1"><i data-lucide="zap" class="w-3 h-3"></i> 備用區 (單次使用)</h2>
-      <div id="ui-reserve" class="flex gap-2 overflow-x-auto pb-2 px-1 min-h-[5rem] bg-amber-50/50 rounded-xl border border-amber-100 p-2">
-        <div class="text-amber-200/50 text-xs flex items-center justify-center w-full my-auto font-medium h-full">空</div>
-      </div>
+      <div id="ui-reserve" class="grid grid-cols-5 gap-2 bg-amber-50/50 rounded-xl border border-amber-100 p-2 min-h-[4rem]">
+        </div>
     </section>
   </main>
 
   <div id="modal-unlock" class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-4 opacity-0 transition-opacity">
     <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl transform scale-95 transition-transform" id="modal-unlock-content">
-      <div class="bg-emerald-500 p-6 text-center text-white">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-3">
-          <i data-lucide="check" class="w-8 h-8"></i>
+      <div class="bg-emerald-500 p-5 text-center text-white">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white/20 mb-2">
+          <i data-lucide="check" class="w-7 h-7"></i>
         </div>
-        <h2 class="text-2xl font-bold">解鎖成功！</h2>
-        <p class="text-emerald-100 mt-1 text-sm">你解鎖了數字 <span id="unlock-val-display" class="font-bold text-lg">X</span></p>
+        <h2 class="text-xl font-bold">解鎖成功！</h2>
+        <p class="text-emerald-100 mt-1 text-sm">解鎖了數字 <span id="unlock-val-display" class="font-bold text-lg">X</span></p>
         <p class="text-emerald-100 text-xs mt-2 bg-black/10 inline-block px-2 py-1 rounded">
-          十位與個位差值：可抽 <span id="unlock-draw-display" class="font-bold text-white">X</span> 張牌
+          差值抽牌：<span id="unlock-draw-display" class="font-bold text-white">X</span> 張 (手牌上限10)
         </p>
       </div>
-      <div class="p-6">
-        <p class="text-slate-600 text-sm mb-4 text-center">請選擇此卡牌的去向：</p>
-        <div class="flex flex-col gap-3">
+      <div class="p-5">
+        <p class="text-slate-600 text-sm mb-3 text-center">請選擇此卡牌的去向：</p>
+        <div class="flex flex-col gap-2">
           <button onclick="resolveUnlock('deck')" class="w-full flex items-center justify-between p-3 rounded-xl border-2 border-blue-100 hover:border-blue-500 hover:bg-blue-50 transition-colors group">
             <div class="flex items-center gap-3 text-left">
-              <div class="bg-blue-100 p-2 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-colors"><i data-lucide="layers"></i></div>
+              <div class="bg-blue-100 p-2 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-colors"><i data-lucide="layers" class="w-5 h-5"></i></div>
               <div>
-                <div class="font-bold text-slate-800">加入牌庫</div>
-                <div class="text-xs text-slate-500">進入棄牌堆，未來可重複抽到</div>
+                <div class="font-bold text-slate-800 text-sm">加入牌庫</div>
+                <div class="text-[10px] text-slate-500">進入棄牌堆，未來可重複抽到</div>
               </div>
             </div>
             <i data-lucide="chevron-right" class="text-slate-400"></i>
@@ -194,10 +174,10 @@
 
           <button onclick="resolveUnlock('reserve')" class="w-full flex items-center justify-between p-3 rounded-xl border-2 border-amber-100 hover:border-amber-500 hover:bg-amber-50 transition-colors group">
             <div class="flex items-center gap-3 text-left">
-              <div class="bg-amber-100 p-2 rounded-lg group-hover:bg-amber-500 group-hover:text-white transition-colors text-amber-600"><i data-lucide="zap"></i></div>
+              <div class="bg-amber-100 p-2 rounded-lg group-hover:bg-amber-500 group-hover:text-white transition-colors text-amber-600"><i data-lucide="zap" class="w-5 h-5"></i></div>
               <div>
-                <div class="font-bold text-slate-800">放在一旁備用</div>
-                <div class="text-xs text-slate-500">進入備用區，限一次性使用</div>
+                <div class="font-bold text-slate-800 text-sm">放在一旁備用</div>
+                <div class="text-[10px] text-slate-500">進入備用區，限一次性使用</div>
               </div>
             </div>
             <i data-lucide="chevron-right" class="text-slate-400"></i>
@@ -213,15 +193,18 @@
         <i data-lucide="frown" class="w-8 h-8"></i>
       </div>
       <h2 class="text-2xl font-bold text-slate-800 mb-2">無法繼續解鎖</h2>
-      <p class="text-slate-500 text-sm mb-6">目前手牌與備用區的組合，已經無法運算出任何場上的目標數字，且沒有後續抽牌機會了。</p>
+      <p class="text-slate-500 text-sm mb-6">目前手牌與備用區的組合，已無法運算出任何場上目標，且無抽牌機會了。</p>
       
-      <div class="bg-slate-50 p-4 rounded-xl mb-6">
+      <div class="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100">
         <div class="text-xs text-slate-400 uppercase mb-1">最終進度</div>
         <div class="text-3xl font-bold text-blue-600" id="go-progress">0/94</div>
       </div>
 
-      <button onclick="resetGame()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors">
+      <button onclick="resetGame()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-md">
         重新挑戰
+      </button>
+      <button onclick="closeGameOverModal()" class="mt-3 w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-colors">
+        關閉以檢視盤面
       </button>
     </div>
   </div>
@@ -238,14 +221,15 @@
       marketDeck: [],
       marketActive: [],
       marketPreview: null,
-      selectedSlots: [null, null], // [ {val, source, id}, ... ]
+      selectedSlots: [null, null], 
       unlockedCount: 0,
-      nextId: 1
+      nextId: 1,
+      isGameOver: false
     };
 
     let pendingUnlock = null;
+    const HAND_LIMIT = 10;
 
-    // 工具函式
     const getUid = () => state.nextId++;
     const shuffle = (arr) => {
       for (let i = arr.length - 1; i > 0; i--) {
@@ -256,22 +240,20 @@
     };
 
     function initGame() {
-      // 1. 初始化牌庫 1~5
       state.deck = [1, 2, 3, 4, 5].map(v => ({ id: getUid(), val: v }));
       state.hand = [];
       state.discard = [];
       state.reserve = [];
       state.selectedSlots = [null, null];
       state.unlockedCount = 0;
+      state.isGameOver = false;
 
-      // 2. 初始化市場 (3疊洗混)
-      let t1 = Array.from({length: 10}, (_, i) => i + 6);   // 6-15
-      let t2 = Array.from({length: 35}, (_, i) => i + 16);  // 16-50
-      let t3 = Array.from({length: 49}, (_, i) => i + 51);  // 51-99
+      let t1 = Array.from({length: 10}, (_, i) => i + 6);   
+      let t2 = Array.from({length: 35}, (_, i) => i + 16);  
+      let t3 = Array.from({length: 49}, (_, i) => i + 51);  
       shuffle(t1); shuffle(t2); shuffle(t3);
       state.marketDeck = [...t1, ...t2, ...t3];
 
-      // 3. 抽滿市場
       state.marketActive = [
         state.marketDeck.shift(),
         state.marketDeck.shift(),
@@ -279,17 +261,18 @@
       ];
       state.marketPreview = state.marketDeck.shift() || null;
 
-      // 4. 起手抽5張 (全抽)
       drawCards(5);
-      
       saveState();
       render();
     }
 
     function drawCards(count) {
-      for(let i=0; i<count; i++) {
+      let space = HAND_LIMIT - state.hand.length;
+      let actualDraw = Math.min(count, space); // 不能超過手牌上限
+      
+      for(let i=0; i<actualDraw; i++) {
         if (state.deck.length === 0) {
-          if (state.discard.length === 0) break; // 真的沒牌了
+          if (state.discard.length === 0) break;
           state.deck = shuffle([...state.discard]);
           state.discard = [];
         }
@@ -298,6 +281,7 @@
     }
 
     function selectCard(cardId, source) {
+      if (state.isGameOver) return;
       let sourceArr = source === 'hand' ? state.hand : state.reserve;
       let idx = sourceArr.findIndex(c => c.id === cardId);
       if (idx === -1) return;
@@ -314,6 +298,7 @@
     }
 
     function deselectCard(slotIdx) {
+      if (state.isGameOver) return;
       let item = state.selectedSlots[slotIdx];
       if (!item) return;
       
@@ -343,7 +328,6 @@
       let v2 = state.selectedSlots[1].val;
       let results = getPossibleResults(v1, v2);
 
-      // 嚴格按照優先級 +, -, *, / 判定
       for (let r of results) {
         let mIdx = state.marketActive.indexOf(r.val);
         if (mIdx !== -1) {
@@ -352,7 +336,6 @@
         }
       }
       
-      // 沒中，卡片閃爍提示錯誤 (延遲一下自動退回)
       setTimeout(() => {
         deselectCard(1);
         deselectCard(0);
@@ -360,17 +343,14 @@
     }
 
     function triggerUnlock(matchedValue, marketIdx) {
-      // 處理計算所消耗的卡牌
       state.selectedSlots.forEach(slot => {
         if (!slot) return;
-        // hand 的進入 discard，reserve 的消失
         if (slot.source === 'hand') {
           state.discard.push({ id: slot.id, val: slot.val });
         }
       });
       state.selectedSlots = [null, null];
 
-      // 市場推進
       state.marketActive.splice(marketIdx, 1);
       if (state.marketPreview) {
         state.marketActive.push(state.marketPreview);
@@ -381,7 +361,7 @@
       pendingUnlock = matchedValue;
 
       saveState();
-      render(); // 先更新畫面
+      render(); 
       showUnlockModal(matchedValue);
     }
 
@@ -404,19 +384,13 @@
       let val = pendingUnlock;
       let diff = Math.abs(Math.floor(val/10) - (val%10));
       
-      // 生成新牌
       let newCard = { id: getUid(), val: val };
-      if (choice === 'deck') {
-        state.discard.push(newCard); // 進入棄牌
-      } else {
-        state.reserve.push(newCard); // 進入備用區
-      }
+      if (choice === 'deck') state.discard.push(newCard);
+      else state.reserve.push(newCard); 
 
-      // 抽牌
       drawCards(diff);
       pendingUnlock = null;
       
-      // 關閉 Modal
       const modal = document.getElementById('modal-unlock');
       modal.classList.add('opacity-0');
       document.getElementById('modal-unlock-content').classList.add('scale-95');
@@ -430,11 +404,7 @@
     }
 
     function checkGameOver() {
-      // 檢查是否真的無法操作
       let available = [...state.hand, ...state.reserve];
-      
-      // 如果還有牌可以抽（即使目前沒組合），不結束 (理論上只有解鎖才會抽牌，所以手牌如果不夠組合就死了)
-      // 但如果 available < 2，且沒有任何事件會觸發抽牌 => 死路
       let hasValidMove = false;
 
       for (let i = 0; i < available.length; i++) {
@@ -451,12 +421,24 @@
       }
 
       if (!hasValidMove) {
+        state.isGameOver = true;
+        saveState();
+        render();
         document.getElementById('go-progress').textContent = `${state.unlockedCount}/94`;
         const modal = document.getElementById('modal-gameover');
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         setTimeout(() => modal.classList.remove('opacity-0'), 10);
       }
+    }
+
+    function closeGameOverModal() {
+      const modal = document.getElementById('modal-gameover');
+      modal.classList.add('opacity-0');
+      setTimeout(() => {
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+      }, 300);
     }
 
     function resetGame() {
@@ -483,9 +465,9 @@
 
     // --- 繪圖邏輯 ---
     function renderCard(card, source) {
-      let bg = source === 'hand' ? 'bg-white border-blue-200 text-blue-700' : 'bg-amber-50 border-amber-200 text-amber-700';
+      let bg = source === 'hand' ? 'bg-white border-blue-200 text-blue-700 hover:border-blue-400' : 'bg-amber-50 border-amber-200 text-amber-700 hover:border-amber-400';
       return `
-        <button onclick="selectCard(${card.id}, '${source}')" class="card-enter shrink-0 w-16 aspect-[3/4] rounded-xl flex items-center justify-center font-bold text-2xl border-2 shadow-sm ${bg} active:scale-95 transition-transform">
+        <button onclick="selectCard(${card.id}, '${source}')" class="card-enter w-full aspect-square rounded-xl flex items-center justify-center font-bold text-xl border-2 shadow-sm ${bg} active:scale-95 transition-all">
           ${card.val}
         </button>
       `;
@@ -495,23 +477,22 @@
       let el = document.getElementById(`slot-${idx}`);
       if (!slotData) {
         el.innerHTML = `<i data-lucide="plus" class="w-5 h-5 text-blue-200"></i>`;
-        el.className = "w-16 aspect-[3/4] rounded-xl flex items-center justify-center font-bold text-xl transition-all shadow-sm bg-white border-2 border-blue-200 border-dashed text-blue-600 hover:border-blue-400";
+        el.className = "w-16 aspect-square rounded-xl flex items-center justify-center font-bold text-xl transition-all shadow-sm bg-white border-2 border-blue-200 border-dashed text-blue-600 hover:border-blue-400";
       } else {
         let bg = slotData.source === 'hand' ? 'bg-blue-600 text-white border-blue-700' : 'bg-amber-500 text-white border-amber-600';
         el.innerHTML = slotData.val;
-        el.className = `w-16 aspect-[3/4] rounded-xl flex items-center justify-center font-bold text-2xl transition-all shadow-md ${bg} active:scale-95`;
+        el.className = `w-16 aspect-square rounded-xl flex items-center justify-center font-bold text-2xl transition-all shadow-md ${bg} active:scale-95`;
       }
     }
 
     function render() {
-      // Top info
       document.getElementById('ui-deck-count').textContent = state.deck.length;
       document.getElementById('ui-discard-count').textContent = state.discard.length;
       document.getElementById('ui-progress').textContent = `${state.unlockedCount}/94`;
+      document.getElementById('ui-hand-count').textContent = `${state.hand.length}/${HAND_LIMIT}`;
 
-      // Market
       const marketHTML = state.marketActive.map(val => `
-        <div class="aspect-[3/4] bg-slate-800 text-white rounded-xl flex items-center justify-center font-black text-2xl shadow-[0_4px_0_0_rgba(15,23,42,1)] border-2 border-slate-700">
+        <div class="aspect-square w-full bg-slate-800 text-white rounded-xl flex items-center justify-center font-black text-2xl shadow-[0_3px_0_0_rgba(15,23,42,1)] border-2 border-slate-700">
           ${val}
         </div>
       `).join('');
@@ -520,29 +501,42 @@
       let previewEl = document.getElementById('ui-market-preview');
       if (state.marketPreview) {
         previewEl.innerHTML = state.marketPreview;
-        previewEl.className = "w-full aspect-[3/4] bg-slate-100 rounded-lg border-2 border-slate-200 flex items-center justify-center font-bold text-lg text-slate-500";
+        previewEl.className = "w-full aspect-square bg-slate-100 rounded-xl border-2 border-slate-200 flex items-center justify-center font-bold text-lg text-slate-500 shadow-inner";
       } else {
         previewEl.innerHTML = '無';
       }
 
-      // Selected Slots
       renderSlot(state.selectedSlots[0], 0);
       renderSlot(state.selectedSlots[1], 1);
 
-      // Hand & Reserve
-      document.getElementById('ui-hand').innerHTML = state.hand.map(c => renderCard(c, 'hand')).join('') || '<div class="text-slate-300 text-xs flex items-center justify-center w-full my-4 font-medium">手牌空空如也</div>';
-      
+      document.getElementById('ui-hand').innerHTML = state.hand.map(c => renderCard(c, 'hand')).join('') || '<div class="col-span-5 text-slate-300 text-xs flex items-center justify-center font-medium py-2">無</div>';
       let reserveHTML = state.reserve.map(c => renderCard(c, 'reserve')).join('');
-      document.getElementById('ui-reserve').innerHTML = reserveHTML || '<div class="text-amber-200/80 text-xs flex items-center justify-center w-full my-auto font-medium h-full min-h-[4rem]">尚無備用牌</div>';
+      document.getElementById('ui-reserve').innerHTML = reserveHTML || '<div class="col-span-5 text-amber-200/80 text-xs flex items-center justify-center font-medium py-2">無</div>';
+
+      // Game Over 鎖定盤面
+      if (state.isGameOver) {
+        document.getElementById('section-hand').classList.add('disabled-overlay');
+        document.getElementById('section-reserve').classList.add('disabled-overlay');
+        document.getElementById('ui-calc-area').classList.add('disabled-overlay');
+      } else {
+        document.getElementById('section-hand').classList.remove('disabled-overlay');
+        document.getElementById('section-reserve').classList.remove('disabled-overlay');
+        document.getElementById('ui-calc-area').classList.remove('disabled-overlay');
+      }
 
       lucide.createIcons();
     }
 
-    // Init
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       if (!loadState()) {
         initGame();
+      } else if (state.isGameOver) {
+        // 如果載入時已經是 Game Over 狀態，重新顯示 Modal 提示
+        document.getElementById('go-progress').textContent = `${state.unlockedCount}/94`;
+        const modal = document.getElementById('modal-gameover');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex', 'opacity-100');
       }
     });
   </script>
