@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>數字解鎖：Combo 聯覺版</title>
+  <title>數字解鎖：Combo 獎勵版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3Ctext x='8' y='11' font-size='10' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3E%2B%3C/text%3E%3C/svg%3E">
@@ -17,11 +17,10 @@
     .calc-success-glow { animation: success-glow 1.5s infinite; border-color: #10b981 !important; }
     @keyframes success-glow { 0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); } 50% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); } }
     .disabled-overlay { pointer-events: none; opacity: 0.5; filter: grayscale(80%); }
-    .combo-badge { animation: bounce 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    @keyframes bounce { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col relative">
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col relative no-scrollbar">
   <script>
     (function autoRegister() {
       let appPath = window.location.pathname;
@@ -51,7 +50,7 @@
       <a href="/" data-home-link class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors invisible pointer-events-none"><i data-lucide="home" class="w-5 h-5"></i></a>
       <div class="flex flex-col items-center">
         <h1 class="text-lg font-bold tracking-tight">數字解鎖</h1>
-        <div id="ui-last-op-display" class="text-[9px] font-black bg-blue-800 px-2 py-0.5 rounded-full opacity-0 transition-opacity uppercase">Last: +</div>
+        <div id="ui-last-op-display" class="text-[9px] font-black bg-blue-800 px-2 py-0.5 rounded-full opacity-0 transition-opacity uppercase tracking-widest">Last: +</div>
       </div>
       <button onclick="resetGame()" class="p-2 -mr-2 hover:bg-blue-700 rounded-full transition-colors"><i data-lucide="rotate-ccw" class="w-5 h-5"></i></button>
     </div>
@@ -60,7 +59,7 @@
   <main class="flex-grow w-full max-w-md mx-auto p-3 flex flex-col gap-3 pb-6">
     <div class="flex justify-between text-[10px] text-slate-500 font-bold px-1 uppercase tracking-wider">
       <div class="flex items-center gap-1"><i data-lucide="layers" class="w-3.5 h-3.5"></i> 牌庫: <span id="ui-deck-count" class="text-blue-600">5</span></div>
-      <div class="flex items-center gap-1"><i data-lucide="zap" class="w-3.5 h-3.5"></i> 連擊: <span id="ui-combo-count" class="text-rose-600">x1</span></div>
+      <div class="flex items-center gap-1"><i data-lucide="zap" class="w-3.5 h-3.5"></i> 連擊獎勵: <span id="ui-combo-reward" class="text-rose-600">+1</span></div>
       <div class="flex items-center gap-1"><i data-lucide="target" class="w-3.5 h-3.5"></i> 進度: <span id="ui-progress" class="text-emerald-600">0/20</span></div>
     </div>
 
@@ -78,9 +77,9 @@
     <section class="bg-blue-50 rounded-2xl p-3 border border-blue-100 shadow-inner relative" id="ui-calc-area">
       <div class="flex items-center gap-2 mt-4">
         <div class="flex items-center gap-1.5 flex-grow" id="calc-expression-area">
-          <div id="slot-0" class="w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-lg bg-white border-2 border-blue-50 border-dashed text-blue-100">1</div>
+          <div id="slot-0" class="w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-lg bg-white border-2 border-blue-50 border-dashed text-blue-100"></div>
           <div id="calc-op" class="text-blue-300 font-black text-lg w-4 text-center">?</div>
-          <div id="slot-1" class="w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-lg bg-white border-2 border-blue-50 border-dashed text-blue-100">2</div>
+          <div id="slot-1" class="w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-lg bg-white border-2 border-blue-50 border-dashed text-blue-100"></div>
           <div class="text-blue-300 font-bold text-lg mx-0.5">=</div>
           <div id="calc-result" class="flex-grow h-12 rounded-lg bg-white border-2 border-blue-50 flex items-center justify-center font-black text-2xl text-slate-100 min-w-[40px]">「 」</div>
         </div>
@@ -94,13 +93,13 @@
 
     <section id="section-hand">
       <div class="flex justify-between items-end mb-1 px-1">
-        <h2 class="text-[10px] font-black text-slate-400 uppercase">Hand <span id="ui-hand-count" class="ml-1">0/10</span></h2>
+        <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hand <span id="ui-hand-count" class="ml-1 text-slate-300">0/10</span></h2>
       </div>
       <div id="ui-hand" class="grid grid-cols-5 gap-2 px-1 min-h-[4rem]"></div>
     </section>
 
     <section id="section-reserve">
-      <h2 class="text-[10px] font-black text-amber-500 uppercase px-1 mb-1">Reserve</h2>
+      <h2 class="text-[10px] font-black text-amber-500 uppercase px-1 mb-1 tracking-widest">Reserve</h2>
       <div id="ui-reserve" class="grid grid-cols-5 gap-2 px-1 min-h-[4rem]"></div>
     </section>
   </main>
@@ -108,9 +107,9 @@
   <div id="modal-gameover" class="fixed inset-0 bg-slate-900/80 z-50 hidden items-center justify-center p-6 opacity-0 transition-opacity">
     <div class="bg-white rounded-3xl w-full max-w-xs p-6 text-center shadow-2xl">
       <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-500 mx-auto flex items-center justify-center mb-4"><i data-lucide="frown" class="w-8 h-8"></i></div>
-      <h2 class="text-2xl font-black text-slate-800 mb-1 uppercase">Stuck</h2>
+      <h2 class="text-2xl font-black text-slate-800 mb-1 uppercase tracking-tight">Game Over</h2>
       <div class="bg-slate-50 p-4 rounded-2xl mb-6 border border-slate-100">
-        <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Progress</div>
+        <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Total Progress</div>
         <div class="text-4xl font-black text-blue-600" id="go-progress">0/20</div>
       </div>
       <button onclick="resetGame()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 mb-3">RETRY</button>
@@ -123,7 +122,7 @@
       deck: [], hand: [], discard: [], reserve: [],
       marketDeck: [], marketActive: [], marketPreview: null,
       selectedCardIds: [], unlockedCount: 0, nextId: 1, isGameOver: false,
-      lastOp: null, combo: 1
+      lastOp: null, combo: 1 // combo 預設 1，代表基礎額外抽牌
     };
     let pendingUnlockInfo = null;
     const HAND_LIMIT = 10;
@@ -203,17 +202,17 @@
       const info = pendingUnlockInfo;
       const val = info.matchedValue;
 
-      // Combo 邏輯
+      // 修正後的 Combo 邏輯：第一次一定會是 Combo 1 (+1獎勵)
       if (info.op !== state.lastOp) {
         state.combo = (state.lastOp === null) ? 1 : state.combo + 1;
       } else {
-        state.combo = 1;
+        state.combo = 1; // 符號相同，連擊中斷回到 1
       }
       state.lastOp = info.op;
 
-      // 基礎抽牌 Min(tens, units) + Combo 獎勵 (Combo 1 = +0, Combo 2 = +1...)
+      // 抽牌公式：數字基礎抽 Min(tens, units) + Combo 獎勵 (Combo 1 就是 +1, Combo 2 就是 +2...)
       const baseDraw = Math.min(Math.floor(val/10), val%10);
-      const bonusDraw = state.combo - 1;
+      const bonusDraw = state.combo; 
       const totalDraw = baseDraw + bonusDraw;
 
       info.consumedIds.forEach(s => {
@@ -280,19 +279,19 @@
 
     function renderSlot(card, idx) {
       let el = document.getElementById(`slot-${idx}`);
-      if (!card) { el.innerHTML = idx+1; el.className = "w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-sm bg-white border-2 border-blue-50 border-dashed text-blue-100"; }
+      if (!card) { el.innerHTML = ""; el.className = "w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-sm bg-white border-2 border-blue-50 border-dashed text-blue-100"; }
       else { el.innerHTML = card.val; el.className = `w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-xl shadow-sm text-white ${card.source==='hand'?'bg-blue-600':'bg-amber-500'}`; }
     }
 
     function render() {
       document.getElementById('ui-deck-count').textContent = state.deck.length;
-      document.getElementById('ui-combo-count').textContent = `x${state.combo}`;
+      document.getElementById('ui-combo-reward').textContent = `+${state.combo}`;
       document.getElementById('ui-progress').textContent = `${state.unlockedCount}/${TOTAL_TARGETS}`;
       document.getElementById('ui-hand-count').textContent = `${state.hand.length}/${HAND_LIMIT}`;
       document.getElementById('ui-market-active').innerHTML = state.marketActive.map(v => `<div class="aspect-square w-full bg-slate-800 text-white rounded-xl flex items-center justify-center font-black text-2xl border-2 border-slate-700 shadow-sm">${v}</div>`).join('');
       document.getElementById('ui-market-preview').textContent = state.marketPreview || '';
-      document.getElementById('ui-hand').innerHTML = state.hand.map(c => renderCard(c, 'hand')).join('') || '<div class="col-span-5 text-slate-300 text-[10px] text-center py-4 uppercase">No Cards</div>';
-      document.getElementById('ui-reserve').innerHTML = state.reserve.map(c => renderCard(c, 'reserve')).join('') || '<div class="col-span-5 text-amber-200 text-[10px] text-center py-4 uppercase">Empty</div>';
+      document.getElementById('ui-hand').innerHTML = state.hand.map(c => renderCard(c, 'hand')).join('') || '<div class="col-span-5 text-slate-300 text-[10px] text-center py-4 uppercase font-black">No Cards</div>';
+      document.getElementById('ui-reserve').innerHTML = state.reserve.map(c => renderCard(c, 'reserve')).join('') || '<div class="col-span-5 text-amber-200 text-[10px] text-center py-4 uppercase font-black">Empty</div>';
       
       const lastOpDisplay = document.getElementById('ui-last-op-display');
       if (state.lastOp) { lastOpDisplay.textContent = `LAST: ${state.lastOp}`; lastOpDisplay.classList.remove('opacity-0'); }
@@ -311,8 +310,7 @@
         
         const isDiff = pendingUnlockInfo.op !== state.lastOp;
         const currentCombo = (state.lastOp === null || !isDiff) ? 1 : state.combo + 1;
-        const bonus = currentCombo - 1;
-        msg.innerHTML = isDiff ? `<span class="text-rose-500">COMBO x${currentCombo}! (+${bonus} Cards)</span>` : `<span class="text-emerald-600">READY TO UNLOCK</span>`;
+        msg.innerHTML = `<span class="text-rose-500 font-black">BONUS: +${currentCombo} CARDS</span>`;
       }
       if (state.isGameOver) { document.getElementById('section-hand').classList.add('disabled-overlay'); document.getElementById('section-reserve').classList.add('disabled-overlay'); document.getElementById('ui-calc-area').classList.add('disabled-overlay'); }
       lucide.createIcons();
