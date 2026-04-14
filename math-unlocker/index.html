@@ -145,10 +145,17 @@
       state.history = [];
       pendingUnlockInfo = null;
 
-      let p1 = shuffle(Array.from({length: 15}, (_, i) => i + 6)).slice(0, 5);
-      let p2 = shuffle(Array.from({length: 30}, (_, i) => i + 21)).slice(0, 10);
-      let p3 = shuffle(Array.from({length: 50}, (_, i) => i + 51)).slice(0, 5);
-      state.marketDeck = [...p1, ...p2, ...p3];
+      // 階段 1: 6~15 (取 5 張)
+      let p1 = shuffle(Array.from({length: 10}, (_, i) => i + 6)).slice(0, 5);
+      // 階段 2: 16~30 (取 5 張)
+      let p2 = shuffle(Array.from({length: 15}, (_, i) => i + 16)).slice(0, 5);
+      // 階段 3: 31~50 (取 5 張)
+      let p3 = shuffle(Array.from({length: 20}, (_, i) => i + 31)).slice(0, 5);
+      // 階段 4: 51~99 (取 5 張)
+      let p4 = shuffle(Array.from({length: 49}, (_, i) => i + 51)).slice(0, 5);
+
+      state.marketDeck = [...p1, ...p2, ...p3, ...p4];
+
       state.marketActive = [state.marketDeck.shift(), state.marketDeck.shift(), state.marketDeck.shift()];
       state.marketPreview = state.marketDeck.shift() || null;
       
