@@ -18,6 +18,7 @@
     @keyframes success-glow { 0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); } 50% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); } }
     .op-slot { transition: all 0.3s ease; }
     .op-slot.active { background-color: #3b82f6; color: white; border-color: #2563eb; transform: scale(1.1); box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+    .op-dimmed { opacity: 0.3; filter: grayscale(1); transform: scale(0.9); }
     .disabled-overlay { pointer-events: none; opacity: 0.5; filter: grayscale(80%); }
   </style>
 </head>
@@ -48,7 +49,7 @@
     <section class="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm">
       <div class="flex justify-between items-center mb-2 px-1">
         <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Operator Track (Sequence)</h2>
-        <div class="text-[10px] font-bold text-blue-500">Combo Bonus</div>
+ <div id="ui-combo-reward" class="text-[10px] font-bold text-blue-500">Combo Bonus</div>
       </div>
       <div class="flex gap-2 justify-center" id="ui-op-track">
         <div class="op-slot w-10 h-10 rounded-lg border-2 border-slate-100 bg-slate-50 flex items-center justify-center font-black text-slate-300">-</div>
@@ -292,13 +293,28 @@
         return `<button onclick="selectCard(${c.id}, 'reserve')" class="card-enter w-full aspect-square rounded-xl flex items-center justify-center font-bold text-xl border-2 shadow-sm transition-all active:scale-95 bg-amber-50 text-amber-700 border-amber-100 ${sCls}">${c.val}</button>`;
       }).join('');
 
-      // 渲染紀錄軌
+       // --- 修復：連擊軌跡亮起邏輯 ---
+      let streakLen = 0;
+      let seenSet = new Set();
+      for (let j = (state.history || []).length - 1; j >= 0; j--) {
+        if (seenSet.has(state.history[j])) break;
+        seenSet.add(state.history[j]);
+        streakLen++;
+      }
+      const activeStartIdx = state.history.length - streakLen;
+
       const trackSlots = document.querySelectorAll('.op-slot');
       trackSlots.forEach((slot, i) => {
         const op = state.history[i];
-        if (op) { slot.textContent = op; slot.classList.add('active'); }
-        else { slot.textContent = '-'; slot.classList.remove('active'); }
+        slot.textContent = op || '-';
+        slot.classList.remove('active', 'op-dimmed');
+        if (op) {
+          if (i >= activeStartIdx) slot.classList.add('active');
+          else slot.classList.add('op-dimmed');
+        }
       });
+      document.getElementById('ui-combo-reward').textContent = `Streak: ${streakLen}`;
+
 
       let c1 = state.selectedCardIds[0] ? {...getCardObj(state.selectedCardIds[0].id, state.selectedCardIds[0].source), source: state.selectedCardIds[0].source} : null;
       let c2 = state.selectedCardIds[1] ? {...getCardObj(state.selectedCardIds[1].id, state.selectedCardIds[1].source), source: state.selectedCardIds[1].source} : null;
@@ -325,3 +341,4 @@
   </script>
 </body>
 </html>
+
