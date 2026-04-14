@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>數字解鎖：連擊視覺優化版</title>
+  <title>數字解鎖：連擊版</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3Ctext x='8' y='11' font-size='10' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'%3E%2B%3C/text%3E%3C/svg%3E">
@@ -12,20 +12,12 @@
     body { -webkit-tap-highlight-color: transparent; font-family: system-ui, -apple-system, sans-serif; }
     .card-enter { animation: card-pop 0.2s ease-out forwards; }
     @keyframes card-pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-    
-    /* 選中狀態 */
     .card-selected-hand { border-color: #3b82f6 !important; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4); transform: translateY(-2px); }
     .card-selected-reserve { border-color: #f59e0b !important; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.4); transform: translateY(-2px); }
-    
-    /* 運算軌跡符號樣式 */
     .op-slot { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    /* 正在連擊中的樣式（亮藍） */
     .op-active { background-color: #3b82f6; color: white; border-color: #2563eb; transform: scale(1.05); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); z-index: 10; }
-    /* 已斷掉或過期的樣式（灰色） */
     .op-dimmed { background-color: #f1f5f9; color: #cbd5e1; border-color: #e2e8f0; opacity: 0.6; transform: scale(0.9); }
-    /* 空白槽位 */
     .op-empty { background-color: transparent; border-color: #f1f5f9; color: transparent; border-style: dashed; }
-
     .calc-success-glow { animation: success-glow 1.5s infinite; border-color: #10b981 !important; }
     @keyframes success-glow { 0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); } 50% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); } }
     .disabled-overlay { pointer-events: none; opacity: 0.5; filter: grayscale(80%); }
@@ -37,7 +29,7 @@
       let appPath = window.location.pathname;
       if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
       if (!appPath.endsWith('/')) appPath += '/';
-      const meta = { id: 'math-unlocker-sequence-pro', name: '數字解鎖：連擊視覺版', path: appPath, icon: 'zap', color: 'blue' };
+      const meta = { id: 'math-unlocker-sequence-pro', name: '數字解鎖', path: appPath, icon: 'zap', color: 'blue' };
       const data = JSON.parse(localStorage.getItem('myAppLauncherStorage') || '[]');
       const idx = data.findIndex(app => app.path === meta.path);
       idx === -1 ? data.push(meta) : data[idx] = { ...data[idx], ...meta };
@@ -56,7 +48,7 @@
   <main class="flex-grow w-full max-w-md mx-auto p-3 flex flex-col gap-3 pb-6">
     <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
       <div class="flex justify-between items-center mb-3 px-1">
-        <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Operation Sequence</h2>
+        <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sequence Track</h2>
         <div id="ui-current-combo-tag" class="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full uppercase">Combo: 0</div>
       </div>
       <div class="flex gap-3 justify-center items-center" id="ui-op-track">
@@ -65,7 +57,6 @@
         <div class="op-slot w-11 h-11 rounded-xl border-2 flex items-center justify-center font-black text-xl op-empty"></div>
         <div class="op-slot w-11 h-11 rounded-xl border-2 flex items-center justify-center font-black text-xl op-empty"></div>
       </div>
-      <p class="text-[9px] text-slate-400 text-center mt-3 uppercase tracking-tighter">重複符號將會切斷連擊，僅亮起連續不同的部分</p>
     </section>
 
     <div class="flex justify-between text-[10px] text-slate-500 font-bold px-1 uppercase tracking-wider">
@@ -76,7 +67,7 @@
     <section class="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm">
       <div class="flex gap-2 justify-between items-center">
         <div class="w-[20%] flex flex-col items-center">
-          <div id="ui-market-preview" class="w-full aspect-square bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 flex items-center justify-center font-bold text-lg text-slate-300 shadow-inner">?</div>
+          <div id="ui-market-preview" class="w-full aspect-square bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 flex items-center justify-center font-bold text-lg text-slate-300"></div>
         </div>
         <div class="w-[1px] h-8 bg-slate-100 mx-1"></div>
         <div class="flex-1 grid grid-cols-3 gap-2" id="ui-market-active"></div>
@@ -90,31 +81,37 @@
           <div id="calc-op" class="text-blue-300 font-black text-lg w-4 text-center">?</div>
           <div id="slot-1" class="w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-lg bg-white border-2 border-blue-100 border-dashed text-blue-100"></div>
           <div class="text-blue-300 font-bold text-lg mx-0.5">=</div>
-          <div id="calc-result" class="flex-grow h-12 rounded-lg bg-white border-2 border-blue-100 flex items-center justify-center font-black text-2xl text-slate-100 min-w-[40px]">「 」</div>
+          <div id="calc-result" class="flex-grow h-12 rounded-lg bg-white border-2 border-blue-100 flex items-center justify-center font-black text-2xl text-slate-100">「 」</div>
         </div>
         <div class="flex flex-col gap-1 w-[32%] shrink-0 pl-2 border-l border-blue-100">
           <button id="btn-resolve-deck" onclick="resolveUnlock('deck')" disabled class="w-full bg-slate-200 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase transition-all">Deck</button>
           <button id="btn-resolve-reserve" onclick="resolveUnlock('reserve')" disabled class="w-full bg-slate-200 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase transition-all">Zap</button>
         </div>
       </div>
-      <div id="calc-msg" class="text-[10px] text-blue-500 font-bold text-center mt-2 h-3 uppercase tracking-tighter">Auto-Calculated Streak Bonus</div>
+      <div id="calc-msg" class="text-[10px] text-blue-500 font-bold text-center mt-2 h-3 uppercase">Select Cards</div>
     </section>
 
-    <section id="section-hand">
-      <div id="ui-hand" class="grid grid-cols-5 gap-2 px-1 min-h-[4rem]"></div>
-    </section>
-
-    <section id="section-reserve">
-      <div id="ui-reserve" class="grid grid-cols-5 gap-2 px-1 min-h-[4rem]"></div>
-    </section>
+    <div id="ui-hand" class="grid grid-cols-5 gap-2 px-1 min-h-[4rem] mb-2"></div>
+    <div id="ui-reserve" class="grid grid-cols-5 gap-2 px-1 min-h-[4rem]"></div>
   </main>
+
+  <div id="modal-gameover" class="fixed inset-0 bg-slate-900/80 z-50 hidden items-center justify-center p-6 transition-opacity opacity-0">
+    <div class="bg-white rounded-3xl w-full max-w-xs p-6 text-center shadow-2xl">
+      <h2 class="text-2xl font-black text-slate-800 mb-1 uppercase">Stuck!</h2>
+      <div class="bg-slate-50 p-4 rounded-2xl mb-6 border border-slate-100">
+        <div class="text-4xl font-black text-blue-600" id="go-progress">0/20</div>
+      </div>
+      <button onclick="resetGame()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg mb-3">RETRY</button>
+      <button onclick="closeGameOverModal()" class="w-full text-slate-400 text-sm font-bold">Inspect</button>
+    </div>
+  </div>
   <script>
-    const STORAGE_KEY = 'mathUnlockerSeqProState';
+    const STORAGE_KEY = 'mathUnlockerSeqProState_v3';
     let state = {
       deck: [], hand: [], discard: [], reserve: [],
       marketDeck: [], marketActive: [], marketPreview: null,
       selectedCardIds: [], unlockedCount: 0, nextId: 1, isGameOver: false,
-      history: [] // 儲存最近 4 個符號
+      history: [] 
     };
     let pendingUnlockInfo = null;
     const HAND_LIMIT = 10;
@@ -130,29 +127,26 @@
     };
 
     function initGame() {
-      state.deck = [1, 2, 3, 4, 5].map(v => ({ id: getUid(), val: v }));
-      state.hand = []; state.discard = []; state.reserve = [];
-      state.selectedCardIds = []; state.unlockedCount = 0; state.isGameOver = false;
-      state.history = [];
-      pendingUnlockInfo = null;
-
+      state = {
+        deck: [1, 2, 3, 4, 5].map(v => ({ id: getUid(), val: v })),
+        hand: [], discard: [], reserve: [],
+        selectedCardIds: [], unlockedCount: 0, nextId: state.nextId, isGameOver: false,
+        history: []
+      };
       let p1 = shuffle(Array.from({length: 15}, (_, i) => i + 6)).slice(0, 5);
       let p2 = shuffle(Array.from({length: 30}, (_, i) => i + 21)).slice(0, 10);
       let p3 = shuffle(Array.from({length: 50}, (_, i) => i + 51)).slice(0, 5);
       state.marketDeck = [...p1, ...p2, ...p3];
       state.marketActive = [state.marketDeck.shift(), state.marketDeck.shift(), state.marketDeck.shift()];
       state.marketPreview = state.marketDeck.shift() || null;
-      
       drawCards(5);
       saveState(); render();
     }
 
-    // 計算當前 history 中「有效」連擊的開始索引
     function getActiveStreakStart(historyArray) {
-      if (historyArray.length === 0) return 0;
+      if (!historyArray || historyArray.length === 0) return 0;
       let seen = new Set();
       let startIndex = historyArray.length - 1;
-      // 從最後一個往回找，直到發現重複
       for (let i = historyArray.length - 1; i >= 0; i--) {
         if (seen.has(historyArray[i])) break;
         seen.add(historyArray[i]);
@@ -162,7 +156,7 @@
     }
 
     function getSequenceLength(newOp) {
-      let temp = [...state.history, newOp];
+      let temp = [...(state.history || []), newOp];
       let seen = new Set();
       let count = 0;
       for (let i = temp.length - 1; i >= 0; i--) {
@@ -184,6 +178,11 @@
       }
     }
 
+    function getCardObj(id, source) {
+      const arr = source === 'hand' ? state.hand : state.reserve;
+      return arr.find(c => c.id === id);
+    }
+
     function selectCard(id, source) {
       if (state.isGameOver) return;
       let idx = state.selectedCardIds.findIndex(s => s.id === id);
@@ -200,11 +199,13 @@
       if (state.selectedCardIds.length < 2) return;
       let c1 = getCardObj(state.selectedCardIds[0].id, state.selectedCardIds[0].source);
       let c2 = getCardObj(state.selectedCardIds[1].id, state.selectedCardIds[1].source);
-      if (!c1 || !c2) return;
+      if (!c1 || !c2) { state.selectedCardIds = []; return; }
       let v1 = c1.val, v2 = c2.val;
       let results = [{op:'+', val:v1+v2}, {op:'-', val:Math.abs(v1-v2)}, {op:'×', val:v1*v2}];
-      if(v1!==0 && v2!==0){ if(v1%v2===0) results.push({op:'÷', val:v1/v2}); else if(v2%v1===0) results.push({op:'÷', val:v2/v1}); }
-      
+      if(v1!==0 && v2!==0){ 
+        if(v1 % v2 === 0) results.push({op:'÷', val:v1/v2}); 
+        else if(v2 % v1 === 0) results.push({op:'÷', val:v2/v1}); 
+      }
       for (let r of results) {
         let mIdx = state.marketActive.indexOf(r.val);
         if (mIdx !== -1) {
@@ -218,10 +219,8 @@
       if (!pendingUnlockInfo) return;
       const info = pendingUnlockInfo;
       const totalDraw = getSequenceLength(info.op);
-
       state.history.push(info.op);
       if (state.history.length > 4) state.history.shift();
-
       info.consumedIds.forEach(s => {
         let arr = s.source === 'hand' ? state.hand : state.reserve;
         let idx = arr.findIndex(c => c.id === s.id);
@@ -230,16 +229,17 @@
           if (s.source === 'hand') state.discard.push(card);
         }
       });
-
       state.marketActive.splice(info.marketIdx, 1);
-      if (state.marketPreview) {
+      if (state.marketDeck.length > 0 && state.marketPreview !== null) {
         state.marketActive.push(state.marketPreview);
-        state.marketPreview = state.marketDeck.shift() || null;
+        state.marketPreview = state.marketDeck.shift();
+      } else if (state.marketPreview !== null) {
+        state.marketActive.push(state.marketPreview);
+        state.marketPreview = null;
       }
       state.unlockedCount++;
       let newCard = { id: getUid(), val: info.matchedValue };
       choice === 'deck' ? state.discard.push(newCard) : state.reserve.push(newCard);
-      
       drawCards(totalDraw);
       state.selectedCardIds = []; pendingUnlockInfo = null;
       saveState(); render(); checkGameOver();
@@ -252,14 +252,15 @@
       else {
         for (let i = 0; i < av.length; i++) {
           for (let j = i + 1; j < av.length; j++) {
-            let rs = [av[i].val+av[j].val, Math.abs(av[i].val-av[j].val), av[i].val*av[j].val];
-            if(av[i].val!==0 && av[j].val!==0){ if(av[i].val%av[j].val===0) rs.push(av[i].val/av[j].val); else if(av[j].val%av[i].val===0) rs.push(av[j].val/av[i].val); }
+            let v1 = av[i].val, v2 = av[j].val;
+            let rs = [v1+v2, Math.abs(v1-v2), v1*v2];
+            if(v1!==0 && v2!==0){ if(v1%v2===0) rs.push(v1/v2); if(v2%v1===0) rs.push(v2/v1); }
             if (rs.some(r => state.marketActive.includes(r))) { move = true; break; }
           }
           if (move) break;
         }
       }
-      if (!move) {
+      if (!move && state.unlockedCount < TOTAL_TARGETS) {
         state.isGameOver = true; saveState(); render();
         document.getElementById('go-progress').textContent = `${state.unlockedCount}/${TOTAL_TARGETS}`;
         const m = document.getElementById('modal-gameover'); m.classList.remove('hidden'); m.classList.add('flex');
@@ -267,13 +268,18 @@
       }
     }
 
-    function getCardObj(id, source) { return (source === 'hand' ? state.hand : state.reserve).find(c => c.id === id); }
     function closeGameOverModal() { document.getElementById('modal-gameover').classList.add('hidden'); }
     function resetGame() { localStorage.removeItem(STORAGE_KEY); location.reload(); }
     function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     function loadState() {
       let saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) { try { state = JSON.parse(saved); checkMath(); render(); return true; } catch(e) {} }
+      if (saved) { 
+        try { 
+          state = JSON.parse(saved); 
+          if (!Array.isArray(state.history)) state.history = [];
+          checkMath(); render(); return true; 
+        } catch(e) {} 
+      }
       return false;
     }
 
@@ -282,57 +288,41 @@
       document.getElementById('ui-progress').textContent = `${state.unlockedCount}/${TOTAL_TARGETS}`;
       document.getElementById('ui-hand-count').textContent = `${state.hand.length}/${HAND_LIMIT}`;
       document.getElementById('ui-market-active').innerHTML = state.marketActive.map(v => `<div class="aspect-square w-full bg-slate-800 text-white rounded-xl flex items-center justify-center font-black text-2xl border-2 border-slate-700 shadow-sm">${v}</div>`).join('');
-      document.getElementById('ui-market-preview').textContent = state.marketPreview || '';
-      
+      document.getElementById('ui-market-preview').textContent = state.marketPreview !== null ? state.marketPreview : '';
       document.getElementById('ui-hand').innerHTML = state.hand.map(c => {
-        const isS = state.selectedCardIds.some(s => s.id === c.id);
-        const sCls = isS ? 'card-selected-hand' : '';
-        return `<button onclick="selectCard(${c.id}, 'hand')" class="card-enter w-full aspect-square rounded-xl flex items-center justify-center font-bold text-xl border-2 shadow-sm transition-all active:scale-95 bg-white text-blue-700 border-blue-100 ${sCls}">${c.val}</button>`;
+        const isS = state.selectedCardIds.some(s => s.id === c.id && s.source === 'hand');
+        return `<button onclick="selectCard(${c.id}, 'hand')" class="card-enter w-full aspect-square rounded-xl flex items-center justify-center font-bold text-xl border-2 shadow-sm transition-all active:scale-95 bg-white text-blue-700 border-blue-100 ${isS ? 'card-selected-hand' : ''}">${c.val}</button>`;
       }).join('');
       document.getElementById('ui-reserve').innerHTML = state.reserve.map(c => {
-        const isS = state.selectedCardIds.some(s => s.id === c.id);
-        const sCls = isS ? 'card-selected-reserve' : '';
-        return `<button onclick="selectCard(${c.id}, 'reserve')" class="card-enter w-full aspect-square rounded-xl flex items-center justify-center font-bold text-xl border-2 shadow-sm transition-all active:scale-95 bg-amber-50 text-amber-700 border-amber-100 ${sCls}">${c.val}</button>`;
+        const isS = state.selectedCardIds.some(s => s.id === c.id && s.source === 'reserve');
+        return `<button onclick="selectCard(${c.id}, 'reserve')" class="card-enter w-full aspect-square rounded-xl flex items-center justify-center font-bold text-xl border-2 shadow-sm transition-all active:scale-95 bg-amber-50 text-amber-700 border-amber-100 ${isS ? 'card-selected-reserve' : ''}">${c.val}</button>`;
       }).join('');
-
-      // 渲染紀錄軌邏輯 (視覺化連擊)
       const trackSlots = document.querySelectorAll('.op-slot');
-      const activeStart = getActiveStreakStart(state.history);
-      const currentCombo = state.history.length === 0 ? 0 : (state.history.length - activeStart);
+      const activeStart = getActiveStreakStart(state.history || []);
+      const currentCombo = !state.history || state.history.length === 0 ? 0 : (state.history.length - activeStart);
       document.getElementById('ui-current-combo-tag').textContent = `Combo: ${currentCombo}`;
-
       trackSlots.forEach((slot, i) => {
-        const op = state.history[i];
-        slot.className = "op-slot w-11 h-11 rounded-xl border-2 flex items-center justify-center font-black text-xl";
-        if (op) {
-          slot.textContent = op;
-          if (i >= activeStart) slot.classList.add('op-active');
-          else slot.classList.add('op-dimmed');
-        } else {
-          slot.textContent = "";
-          slot.classList.add('op-empty');
-        }
+        const op = state.history ? state.history[i] : null;
+        slot.className = "op-slot w-11 h-11 rounded-xl border-2 flex items-center justify-center font-black text-xl " + (op ? (i >= activeStart ? 'op-active' : 'op-dimmed') : 'op-empty');
+        slot.textContent = op || "";
       });
-
-      let c1 = state.selectedCardIds[0] ? {...getCardObj(state.selectedCardIds[0].id, state.selectedCardIds[0].source), source: state.selectedCardIds[0].source} : null;
-      let c2 = state.selectedCardIds[1] ? {...getCardObj(state.selectedCardIds[1].id, state.selectedCardIds[1].source), source: state.selectedCardIds[1].source} : null;
+      let c1 = state.selectedCardIds[0] ? getCardObj(state.selectedCardIds[0].id, state.selectedCardIds[0].source) : null;
+      let c2 = state.selectedCardIds[1] ? getCardObj(state.selectedCardIds[1].id, state.selectedCardIds[1].source) : null;
       [c1, c2].forEach((c, idx) => {
         const el = document.getElementById(`slot-${idx}`);
         if (!c) { el.innerHTML = ""; el.className = "w-12 aspect-square rounded-lg border-2 border-blue-50 border-dashed"; }
-        else { el.innerHTML = c.val; el.className = `w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-xl shadow-sm text-white ${c.source==='hand'?'bg-blue-600':'bg-amber-500'}`; }
+        else { el.innerHTML = c.val; el.className = `w-12 aspect-square rounded-lg flex items-center justify-center font-bold text-xl shadow-sm text-white ${state.selectedCardIds[idx].source==='hand'?'bg-blue-600':'bg-amber-500'}`; }
       });
-      
       const op = document.getElementById('calc-op'), res = document.getElementById('calc-result'), msg = document.getElementById('calc-msg'), expr = document.getElementById('calc-expression-area'), bD = document.getElementById('btn-resolve-deck'), bR = document.getElementById('btn-resolve-reserve');
       op.textContent = "?"; res.textContent = "「 」"; res.className = "flex-grow h-12 rounded-lg bg-white border-2 border-blue-50 flex items-center justify-center font-black text-2xl text-slate-100";
       expr.classList.remove('calc-success-glow'); bD.disabled = bR.disabled = true; bD.className = bR.className = "w-full bg-slate-200 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase";
-      
       if (pendingUnlockInfo) {
         const drawCount = getSequenceLength(pendingUnlockInfo.op);
         op.textContent = pendingUnlockInfo.op; res.textContent = pendingUnlockInfo.matchedValue; res.className = "flex-grow h-12 rounded-lg bg-emerald-50 border-2 border-emerald-400 flex items-center justify-center font-black text-2xl text-emerald-700 shadow-sm";
         expr.classList.add('calc-success-glow'); bD.disabled = bR.disabled = false; bD.className = "w-full bg-emerald-600 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase shadow-md"; bR.className = "w-full bg-amber-500 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase shadow-md";
         msg.innerHTML = `<span class="text-blue-600 font-black">NEXT COMBO: ${drawCount}</span>`;
       }
-      if (state.isGameOver) { document.getElementById('ui-calc-area').classList.add('disabled-overlay'); }
+      if (state.isGameOver) { document.querySelector('main').classList.add('disabled-overlay'); }
       lucide.createIcons();
     }
     document.addEventListener('DOMContentLoaded', () => { if (!loadState()) initGame(); });
