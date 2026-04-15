@@ -1,15 +1,17 @@
 <!DOCTYPE html><html lang="zh-TW"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>數字解鎖：重構版</title>
+  <title>數字解鎖：極簡巧克力</title>
   <script src="https://cdn.tailwindcss.com"></script><script src="https://unpkg.com/lucide@0.542.0"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; overflow: hidden; background: #f8fafc; height: 100vh; font-family: system-ui, sans-serif; }
     .square { aspect-ratio: 1 / 1; }
-    .sac-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(59, 130, 246, 0.6); color: white; font-size: 2.5rem; font-weight: 900; }
-    /* 選中狀態：不消失，但變暗且加框 */
+    /* 卡牌背面：顯示符號，背景淡淡的數字 */
+    .card-back { position: relative; background: #1e293b; color: white; border-radius: 12px; border: 2px solid #334155; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .card-back .op { z-index: 2; font-size: 1.5rem; font-weight: 900; }
+    .card-back .val-hint { position: absolute; z-index: 1; font-size: 1.2rem; font-weight: 900; opacity: 0.15; }
+    
     .card-selected { border-color: #3b82f6 !important; opacity: 0.4; transform: scale(0.95); }
-    .target-card { background: #1e293b; color: white; border: 2px solid #334155; }
-    .btn-action { border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 10px; transition: 0.1s; border: 2px solid transparent; }
+    .btn-action { border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 10px; border: 2px solid transparent; }
     .btn-deck.active { background: #3b82f6; color: white; box-shadow: 0 4px 0 #1d4ed8; }
     .btn-zap.active { background: #f59e0b; color: white; box-shadow: 0 4px 0 #b45309; }
     .disabled { opacity: 0.1; pointer-events: none; }
@@ -21,7 +23,7 @@
       let path = window.location.pathname;
       if (path.endsWith('index.html')) path = path.replace('index.html', '');
       if (!path.endsWith('/')) path += '/';
-      const meta = { id: 'math-unlocker-pro', name: '數字解鎖', path: path, icon: 'calculator', color: 'blue' };
+      const meta = { id: 'math-unlocker-final', name: '數字解鎖', path: path, icon: 'calculator', color: 'blue' };
       const data = JSON.parse(localStorage.getItem('myAppLauncherStorage') || '[]');
       const idx = data.findIndex(app => app.path === path);
       idx === -1 ? data.push(meta) : data[idx] = meta;
@@ -29,43 +31,44 @@
     })();
   </script>
 
-  <header class="h-[7vh] bg-blue-600 text-white px-4 flex justify-between items-center shadow-md z-10">
-    <a href="/?home=1" class="p-1"><i data-lucide="home" class="w-5 h-5"></i></a>
-    <h1 class="text-sm font-black uppercase tracking-widest">Math Unlocker</h1>
-    <button onclick="resetGame()" class="p-1"><i data-lucide="rotate-ccw" class="w-5 h-5"></i></button>
+  <header class="h-[6vh] bg-blue-600 text-white px-4 flex justify-between items-center shadow-md">
+    <a href="/?home=1" class="p-1"><i data-lucide="home" class="w-4 h-4"></i></a>
+    <h1 class="text-xs font-black uppercase tracking-widest">Math Unlocker</h1>
+    <button onclick="resetGame()" class="p-1"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
   </header>
-  <main class="h-[93vh] flex flex-col">
-    <section class="h-[10vh] px-4 pt-2 flex flex-col justify-between">
-      <div class="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase">
-        <div class="flex gap-3">
-          <span>Deck: <span id="ui-deck-count" class="text-blue-600">0</span></span>
-          <span>Waste: <span id="ui-discard-count" class="text-slate-500">0</span></span>
+  <main class="h-[94vh] flex flex-col">
+    <section class="h-[15vh] px-4 pt-1 flex flex-col justify-between">
+      <div class="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
+        <div class="flex gap-2">
+          <span>D: <span id="ui-deck-count" class="text-blue-600">0</span></span>
+          <span>W: <span id="ui-discard-count" class="text-slate-500">0</span></span>
           <span>Goal: <span id="ui-progress" class="text-emerald-600">0/20</span></span>
         </div>
         <div id="ui-combo" class="text-blue-500 italic">Combo: 0</div>
       </div>
-      <div id="ui-op-track" class="flex gap-1 justify-center pb-1"></div>
+      <div id="ui-op-track" class="flex gap-1.5 justify-center py-1">
+        </div>
     </section>
 
-    <section class="h-[13vh] px-4 flex items-center gap-3">
+    <section class="h-[12vh] px-4 flex items-center gap-2">
       <div class="w-10 flex flex-col items-center">
-        <div id="ui-market-preview" class="square w-full border-2 border-dashed border-slate-200 rounded flex items-center justify-center font-bold text-slate-300 text-xs"></div>
-        <span class="text-[7px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">Next</span>
+        <div id="ui-market-preview" class="square w-full border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-300 text-xs"></div>
+        <span class="text-[7px] font-bold text-slate-400 mt-0.5 uppercase">Next</span>
       </div>
       <div id="ui-market-active" class="flex-1 flex gap-1.5"></div>
     </section>
 
-    <section class="h-[28vh] flex items-center justify-center px-4">
-      <div class="flex items-center gap-2 w-full max-w-sm justify-center">
+    <section class="h-[23vh] flex items-center justify-center px-4">
+      <div class="flex items-center gap-1.5 w-full max-w-sm justify-center">
         <div id="slot-0" class="square w-14 bg-white border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center font-black text-xl text-blue-600" onclick="deselect(0)"></div>
         <div class="w-14 h-14 relative">
           <div id="op-selector" class="grid grid-cols-2 gap-0.5 w-full h-full">
-            <button id="btn-op-+" onclick="selectOp('+')" class="text-[10px] border rounded font-black opacity-20 disabled:pointer-events-none">+</button>
-            <button id="btn-op--" onclick="selectOp('-')" class="text-[10px] border rounded font-black opacity-20 disabled:pointer-events-none">-</button>
-            <button id="btn-op-×" onclick="selectOp('×')" class="text-[10px] border rounded font-black opacity-20 disabled:pointer-events-none">×</button>
-            <button id="btn-op-÷" onclick="selectOp('÷')" class="text-[10px] border rounded font-black opacity-20 disabled:pointer-events-none">÷</button>
+            <button id="btn-op-+" onclick="selectOp('+')" class="text-[10px] border rounded font-black opacity-10">+</button>
+            <button id="btn-op--" onclick="selectOp('-')" class="text-[10px] border rounded font-black opacity-10">-</button>
+            <button id="btn-op-×" onclick="selectOp('×')" class="text-[10px] border rounded font-black opacity-10">×</button>
+            <button id="btn-op-÷" onclick="selectOp('÷')" class="text-[10px] border rounded font-black opacity-10">÷</button>
           </div>
-          <div id="slot-sac" onclick="deselectSac()" class="hidden absolute inset-0 bg-white rounded-xl overflow-hidden border-2 border-slate-700 flex items-center justify-center font-black text-xl"></div>
+          <div id="slot-sac" onclick="deselectSac()" class="hidden absolute inset-0"></div>
         </div>
         <div id="slot-1" class="square w-14 bg-white border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center font-black text-xl text-blue-600" onclick="deselect(1)"></div>
         <div class="text-slate-300 font-bold">=</div>
@@ -76,154 +79,140 @@
         </div>
       </div>
     </section>
-
-    <footer class="h-[42vh] bg-slate-100/50 p-3 flex flex-col justify-center">
-      <div id="ui-hand-1" class="flex justify-center gap-1.5 mb-1.5"></div>
-      <div id="ui-hand-2" class="flex justify-center gap-1.5 mb-2"></div>
-      <div class="border-t border-slate-200 pt-2 flex flex-col items-center">
-        <span class="text-[8px] font-black text-amber-500 uppercase mb-1">Reserve</span>
-        <div id="ui-reserve" class="flex justify-center gap-1.5 h-14 w-full"></div>
+    <footer class="h-[44vh] bg-slate-100/50 p-2 flex flex-col gap-1 justify-start">
+      <div id="ui-hand-1" class="flex justify-center gap-1"></div>
+      <div id="ui-hand-2" class="flex justify-center gap-1"></div>
+      <div class="mt-1 border-t border-slate-200 pt-1 flex flex-col items-center">
+        <span class="text-[8px] font-black text-amber-500 uppercase mb-0.5">Reserve (One-Time)</span>
+        <div id="ui-reserve-1" class="flex justify-center gap-1 mb-1"></div>
+        <div id="ui-reserve-2" class="flex justify-center gap-1"></div>
       </div>
     </footer>
   </main>
-<script>
-  const STORAGE_KEY = 'math_choco_pro_v1';
-  let state = { deck:[], hand:[], discard:[], reserve:[], market:[], mActive:[], mPreview:null, slots:[null,null], sac:null, op:null, validOps:[], history:[], count:0, nextId:1 };
-  const getUid = () => state.nextId++;
-  const shuffle = (a) => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
 
-  function initGame() {
-    state.nextId=1; state.hand=[1,2,3,4,5,6,7].map(v=>({id:getUid(), val:v}));
-    state.deck=[]; state.discard=[]; state.reserve=[]; state.slots=[null,null]; state.sac=null; state.op=null; state.history=[]; state.count=0;
-    let p=[shuffle(Array.from({length:10},(_,i)=>i+6)).slice(0,5), shuffle(Array.from({length:15},(_,i)=>i+16)).slice(0,5), shuffle(Array.from({length:20},(_,i)=>i+31)).slice(0,5), shuffle(Array.from({length:49},(_,i)=>i+51)).slice(0,5)];
-    state.market=[...p[0],...p[1],...p[2],...p[3]];
-    state.mActive=[state.market.shift(), state.market.shift(), state.market.shift()];
-    state.mPreview=state.market.shift();
-    save(); render();
-  }
+  <script>
+    const STORAGE_KEY = 'math_chocolate_final_v1';
+    let state = { deck:[], hand:[], discard:[], reserve:[], market:[], mActive:[], mPreview:null, slots:[null,null], sac:null, op:null, validOps:[], history:[], count:0, nextId:1 };
+    const getUid = () => state.nextId++;
+    const shuffle = (a) => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
 
-  function selectCard(id, src) {
-    // 檢查卡片是否已經被選在別的槽位
-    if(state.slots.some(s=>s&&s.id===id) || (state.sac&&state.sac.id===id)) return;
-    let arr = src==='hand'?state.hand:state.reserve;
-    let card = arr.find(c=>c.id===id); if(!card) return;
-    
-    if(state.slots[0] && state.slots[1] && state.op && !state.sac) {
-      state.sac = { ...card, src };
-    } else {
-      let sIdx = state.slots.findIndex(s=>s===null);
-      if(sIdx!==-1){ state.slots[sIdx]={...card, src}; check(); }
+    function initGame() {
+      state.nextId=1; state.hand=[1,2,3,4,5,6,7].map(v=>({id:getUid(), val:v}));
+      state.deck=[]; state.discard=[]; state.reserve=[]; state.slots=[null,null]; state.sac=null; state.op=null; state.history=[]; state.count=0;
+      let p=[shuffle(Array.from({length:10},(_,i)=>i+6)).slice(0,5), shuffle(Array.from({length:15},(_,i)=>i+16)).slice(0,5), shuffle(Array.from({length:20},(_,i)=>i+31)).slice(0,5), shuffle(Array.from({length:49},(_,i)=>i+51)).slice(0,5)];
+      state.market=[...p[0],...p[1],...p[2],...p[3]];
+      state.mActive=[state.market.shift(), state.market.shift(), state.market.shift()];
+      state.mPreview=state.market.shift();
+      save(); render();
     }
-    render();
-  }
 
-  function check() {
-    state.validOps=[]; state.op=null;
-    if(!state.slots[0] || !state.slots[1]) return;
-    let v1=state.slots[0].val, v2=state.slots[1].val;
-    let tests=[{o:'+',v:v1+v2},{o:'-',v:Math.abs(v1-v2)},{o:'×',v:v1*v2}];
-    if(v1!==0&&v2!==0){ if(v1%v2===0)tests.push({o:'÷',v:v1/v2}); if(v2%v1===0)tests.push({o:'÷',v:v2/v1}); }
-    tests.forEach(t=>{ if(state.mActive.includes(t.v)) state.validOps.push(t.o); });
-    if(state.validOps.length>0) state.op=state.validOps[0];
-  }
-
-  function resolve(choice) {
-    if(!state.sac || !state.op) return;
-    let v1=state.slots[0].val, v2=state.slots[1].val;
-    let res = state.op==='+'?v1+v2 : state.op==='-'?Math.abs(v1-v2) : state.op==='×'?v1*v2 : Math.max(v1,v2)/Math.min(v1,v2);
-    
-    // 結算時才真正移除卡片
-    [state.slots[0], state.slots[1], state.sac].forEach(s => {
-      let targetArr = s.src === 'hand' ? state.hand : state.reserve;
-      let idx = targetArr.findIndex(c => c.id === s.id);
-      if(idx !== -1) state.discard.push(targetArr.splice(idx, 1)[0]);
-    });
-
-    let dup = -1; for(let i=state.history.length-1;i>=0;i--) if(state.history[i].op===state.op){ dup=i; break; }
-    if(dup!==-1) state.history.splice(0, dup+1).forEach(i=>state.discard.push(i.card));
-    state.history.push({op:state.op, card:state.discard[state.discard.length-1]});
-    
-    state.mActive.splice(state.mActive.indexOf(res),1);
-    if(state.mPreview){ state.mActive.push(state.mPreview); state.mPreview=state.market.shift()||null; }
-    state.count++; let nc={id:getUid(),val:res}; choice==='deck'?state.discard.push(nc):state.reserve.push(nc);
-    
-    draw(state.history.length);
-    state.slots=[null,null]; state.sac=null; state.op=null; state.validOps=[];
-    save(); render(); checkGameOver();
-  }
-
-  function draw(n) {
-    for(let i=0;i<Math.min(n, 7-state.hand.length);i++) {
-      if(state.deck.length===0){ if(state.discard.length===0)break; state.deck=shuffle([...state.discard]); state.discard=[]; }
-      state.hand.push(state.deck.shift());
+    function selectCard(id, src) {
+      if(state.slots.some(s=>s&&s.id===id) || (state.sac&&state.sac.id===id)) return;
+      let arr = src==='hand'?state.hand:state.reserve;
+      let card = arr.find(c=>c.id===id); if(!card) return;
+      if(state.slots[0] && state.slots[1] && state.op && !state.sac) { state.sac = { ...card, src }; }
+      else { let sIdx = state.slots.findIndex(s=>s===null); if(sIdx!==-1){ state.slots[sIdx]={...card, src}; check(); } }
+      render();
     }
-  }
 
-  function render() {
-    document.getElementById('ui-deck-count').textContent = state.deck.length;
-    document.getElementById('ui-discard-count').textContent = state.discard.length;
-    document.getElementById('ui-progress').textContent = `${state.count}/20`;
-    
-    let tH=''; for(let i=0;i<4;i++){
-      if(i<state.history.length) tH+=`<div class="w-8 h-8 bg-slate-800 text-white rounded flex items-center justify-center font-black text-xs">${state.history[i].op}</div>`;
-      else tH+=`<div class="w-8 h-8 border border-dashed border-slate-200 rounded"></div>`;
+    function check() {
+      state.validOps=[]; state.op=null;
+      if(!state.slots[0] || !state.slots[1]) return;
+      let v1=state.slots[0].val, v2=state.slots[1].val;
+      let tests=[{o:'+',v:v1+v2},{o:'-',v:Math.abs(v1-v2)},{o:'×',v:v1*v2}];
+      if(v1!==0&&v2!==0){ if(v1%v2===0)tests.push({o:'÷',v:v1/v2}); if(v2%v1===0)tests.push({o:'÷',v:v2/v1}); }
+      tests.forEach(t=>{ if(state.mActive.includes(t.v)) state.validOps.push(t.o); });
+      if(state.validOps.length>0) state.op=state.validOps[0];
     }
-    document.getElementById('ui-op-track').innerHTML=tH;
-    document.getElementById('ui-combo').textContent=`Combo: ${state.history.length}`;
-    document.getElementById('ui-market-active').innerHTML = state.mActive.map(v=>`<div class="square target-card w-12 rounded-lg flex items-center justify-center font-black text-lg">${v}</div>`).join('');
-    document.getElementById('ui-market-preview').textContent = state.mPreview || '';
 
-    const isWaitSac = state.slots[0] && state.slots[1] && state.op && !state.sac;
-    const cardUI = (c,s) => {
-      let isSel = state.slots.some(sl=>sl&&sl.id===c.id) || (state.sac&&state.sac.id===c.id);
-      let cls = s==='hand' ? 'bg-white text-blue-700' : 'bg-amber-400 text-white';
-      if(isSel) cls += ' card-selected';
-      let overlay = (isWaitSac && !isSel) ? `<div class="sac-overlay opacity-20">${state.op}</div>` : '';
-      return `<button onclick="selectCard(${c.id},'${s}')" class="square w-14 rounded-xl flex items-center justify-center font-black text-xl choc-card shadow-sm relative overflow-hidden ${cls} transition-all">${c.val}${overlay}</button>`;
-    };
-    document.getElementById('ui-hand-1').innerHTML = state.hand.slice(0,4).map(c=>cardUI(c,'hand')).join('');
-    document.getElementById('ui-hand-2').innerHTML = state.hand.slice(4).map(c=>cardUI(c,'hand')).join('');
-    document.getElementById('ui-reserve').innerHTML = state.reserve.map(c=>cardUI(c,'reserve')).join('');
-
-    [0,1].forEach(i=>{
-      const s = state.slots[i], el = document.getElementById(`slot-${i}`);
-      el.innerHTML = s ? s.val : '';
-      el.className = `square w-14 rounded-xl flex items-center justify-center font-black text-xl border-2 transition-all ${s?(s.src==='hand'?'bg-blue-600 text-white shadow-md':'bg-amber-500 text-white shadow-md'):'bg-white border-slate-200 border-dashed text-slate-200'}`;
-    });
-
-    const sSac=document.getElementById('slot-sac'), bD=document.getElementById('btn-deck'), bR=document.getElementById('btn-zap'), res=document.getElementById('ui-res');
-    if(state.sac){
-      sSac.classList.remove('hidden'); sSac.innerHTML = `${state.sac.val}<div class="sac-overlay text-blue-600 opacity-60">${state.op}</div>`;
-      res.textContent = state.op==='+'?state.slots[0].val+state.slots[1].val: state.op==='-'?Math.abs(state.slots[0].val-state.slots[1].val): state.op==='×'?state.slots[0].val*state.slots[1].val: Math.max(state.slots[0].val,state.slots[1].val)/Math.min(state.slots[0].val,state.slots[1].val);
-      res.className = "square w-14 bg-emerald-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg";
-      bD.className="btn-action btn-deck active square w-full"; bR.className="btn-action btn-zap active square w-full"; bD.disabled=bR.disabled=false;
-    } else {
-      sSac.classList.add('hidden');
-      ['+','-','×','÷'].forEach(o=>{ 
-        let btn = document.getElementById(`btn-op-${o}`);
-        btn.className = `text-[10px] border rounded font-black transition-all ${state.validOps.includes(o)?(state.op===o?'bg-blue-600 text-white border-blue-600 opacity-100':'bg-blue-50 text-blue-600 border-blue-200 opacity-100'):'opacity-10'}`;
+    function resolve(choice) {
+      if(!state.sac || !state.op) return;
+      let v1=state.slots[0].val, v2=state.slots[1].val;
+      let res = state.op==='+'?v1+v2 : state.op==='-'?Math.abs(v1-v2) : state.op==='×'?v1*v2 : Math.max(v1,v2)/Math.min(v1,v2);
+      [state.slots[0], state.slots[1], state.sac].forEach(s => {
+        let arr = s.src === 'hand' ? state.hand : state.reserve;
+        let idx = arr.findIndex(c => c.id === s.id);
+        if(idx !== -1) state.discard.push(arr.splice(idx, 1)[0]);
       });
-      res.textContent=""; res.className="square w-14 bg-white border-2 border-slate-50 rounded-xl";
-      bD.className=bR.className="btn-action disabled square w-full"; bD.disabled=bR.disabled=true;
+      let dup = -1; for(let i=state.history.length-1;i>=0;i--) if(state.history[i].op===state.op){ dup=i; break; }
+      if(dup!==-1) state.history.splice(0, dup+1).forEach(i=>state.discard.push(i.card));
+      state.history.push({op:state.op, card:state.discard[state.discard.length-1]});
+      state.mActive.splice(state.mActive.indexOf(res),1);
+      if(state.mPreview){ state.mActive.push(state.mPreview); state.mPreview=state.market.shift()||null; }
+      state.count++; let nc={id:getUid(),val:res}; choice==='deck'?state.discard.push(nc):state.reserve.push(nc);
+      draw(state.history.length); state.slots=[null,null]; state.sac=null; state.op=null; state.validOps=[];
+      save(); render();
     }
-    lucide.createIcons();
-  }
 
-  function selectOp(o) { if(state.validOps.includes(o)){ state.op=o; render(); } }
-  function deselect(i) { state.slots[i]=null; state.op=null; render(); }
-  function deselectSac() { state.sac=null; render(); }
-  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  function resetGame() { if(confirm('重置遊戲？')) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
-  function checkGameOver() {
-    if (state.hand.length + state.reserve.length < 3 && state.deck.length === 0 && state.discard.length === 0) {
-      document.getElementById('go-progress').textContent = `${state.count}/20`;
-      document.getElementById('modal-gameover').classList.remove('hidden');
-      document.getElementById('modal-gameover').classList.add('flex');
+    function draw(n) {
+      for(let i=0;i<Math.min(n, 7-state.hand.length);i++) {
+        if(state.deck.length===0){ if(state.discard.length===0)break; state.deck=shuffle([...state.discard]); state.discard=[]; }
+        state.hand.push(state.deck.shift());
+      }
     }
-  }
-  document.addEventListener('DOMContentLoaded', () => {
-    let saved = localStorage.getItem(STORAGE_KEY);
-    if(saved) try { state = Object.assign(state, JSON.parse(saved)); } catch(e) { initGame(); } else initGame();
-    render(); lucide.createIcons();
-  });
-</script></body></html>
+
+    function render() {
+      document.getElementById('ui-deck-count').textContent = state.deck.length;
+      document.getElementById('ui-discard-count').textContent = state.discard.length;
+      document.getElementById('ui-progress').textContent = `${state.count}/20`;
+      
+      // 上方軌跡：放大卡片，顯示淡淡數字
+      let tH=''; for(let i=0;i<4;i++){
+        if(i<state.history.length) {
+          let item = state.history[i];
+          tH+=`<div class="square w-10 card-back"><span class="val-hint">${item.card.val}</span><span class="op">${item.op}</span></div>`;
+        } else tH+=`<div class="square w-10 border-2 border-dashed border-slate-200 rounded-xl"></div>`;
+      }
+      document.getElementById('ui-op-track').innerHTML=tH;
+      document.getElementById('ui-combo').textContent=`Combo: ${state.history.length}`;
+      document.getElementById('ui-market-active').innerHTML = state.mActive.map(v=>`<div class="square target-card w-12 rounded-xl flex items-center justify-center font-black text-xl">${v}</div>`).join('');
+      document.getElementById('ui-market-preview').textContent = state.mPreview || '';
+
+      const isWaitSac = state.slots[0] && state.slots[1] && state.op && !state.sac;
+      const cardUI = (c,s) => {
+        let isSel = state.slots.some(sl=>sl&&sl.id===c.id) || (state.sac&&state.sac.id===c.id);
+        let cls = s==='hand' ? 'bg-white text-blue-700' : 'bg-amber-400 text-white';
+        if(isSel) cls += ' card-selected';
+        let overlay = (isWaitSac && !isSel) ? `<div class="absolute inset-0 flex items-center justify-center bg-blue-600/20 font-black text-2xl text-blue-600">${state.op}</div>` : '';
+        return `<button onclick="selectCard(${c.id},'${s}')" class="square w-14 rounded-xl flex items-center justify-center font-black text-xl border shadow-sm relative overflow-hidden ${cls}">${c.val}${overlay}</button>`;
+      };
+      document.getElementById('ui-hand-1').innerHTML = state.hand.slice(0,4).map(c=>cardUI(c,'hand')).join('');
+      document.getElementById('ui-hand-2').innerHTML = state.hand.slice(4).map(c=>cardUI(c,'hand')).join('');
+      document.getElementById('ui-reserve-1').innerHTML = state.reserve.slice(0,4).map(c=>cardUI(c,'reserve')).join('');
+      document.getElementById('ui-reserve-2').innerHTML = state.reserve.slice(4).map(c=>cardUI(c,'reserve')).join('');
+
+      [0,1].forEach(i=>{
+        const s = state.slots[i], el = document.getElementById(`slot-${i}`);
+        el.innerHTML = s ? s.val : '';
+        el.className = `square w-14 rounded-xl flex items-center justify-center font-black text-xl border-2 transition-all ${s?(s.src==='hand'?'bg-blue-600 text-white':'bg-amber-500 text-white'):'bg-white border-slate-200 border-dashed text-slate-200'}`;
+      });
+
+      const sSac=document.getElementById('slot-sac'), bD=document.getElementById('btn-deck'), bR=document.getElementById('btn-zap'), res=document.getElementById('ui-res');
+      if(state.sac){
+        sSac.classList.remove('hidden'); 
+        sSac.innerHTML = `<div class="square w-full h-full card-back"><span class="val-hint">${state.sac.val}</span><span class="op">${state.op}</span></div>`;
+        let rv = state.op==='+'?state.slots[0].val+state.slots[1].val: state.op==='-'?Math.abs(state.slots[0].val-state.slots[1].val): state.op==='×'?state.slots[0].val*state.slots[1].val: Math.max(state.slots[0].val,state.slots[1].val)/Math.min(state.slots[0].val,state.slots[1].val);
+        res.textContent = rv; res.className = "square w-14 bg-emerald-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg";
+        bD.className="btn-action btn-deck active square w-full"; bR.className="btn-action btn-zap active square w-full"; bD.disabled=bR.disabled=false;
+      } else {
+        sSac.classList.add('hidden');
+        ['+','-','×','÷'].forEach(o=>{ document.getElementById(`btn-op-${o}`).className=`text-[10px] border rounded font-black transition-all ${state.validOps.includes(o)?(state.op===o?'bg-blue-600 text-white border-blue-600 opacity-100':'bg-blue-50 text-blue-600 border-blue-200 opacity-100'):'opacity-10'}`; });
+        res.textContent=""; res.className="square w-14 bg-white border-2 border-slate-50 rounded-xl";
+        bD.className=bR.className="btn-action disabled square w-full"; bD.disabled=bR.disabled=true;
+      }
+      lucide.createIcons();
+    }
+
+    function selectOp(o) { if(state.validOps.includes(o)){ state.op=o; render(); } }
+    function deselect(i) { state.slots[i]=null; state.op=null; render(); }
+    function deselectSac() { state.sac=null; render(); }
+    function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function resetGame() { if(confirm('Reset?')) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      let saved = localStorage.getItem(STORAGE_KEY);
+      if(saved) try { state = Object.assign(state, JSON.parse(saved)); } catch(e) { initGame(); } else initGame();
+      render(); lucide.createIcons();
+    });
+  </script>
+</body></html>
