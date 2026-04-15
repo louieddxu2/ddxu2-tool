@@ -1,17 +1,24 @@
 <!DOCTYPE html><html lang="zh-TW"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>數字解鎖：極簡巧克力</title>
+  <title>數字解鎖：清晰標記版</title>
   <script src="https://cdn.tailwindcss.com"></script><script src="https://unpkg.com/lucide@0.542.0"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; overflow: hidden; background: #f8fafc; height: 100vh; font-family: system-ui, sans-serif; }
     .square { aspect-ratio: 1 / 1; }
-    /* 卡牌背面：顯示符號，背景淡淡的數字 */
-    .card-back { position: relative; background: #1e293b; color: white; border-radius: 12px; border: 2px solid #334155; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .card-back .op { z-index: 2; font-size: 1.5rem; font-weight: 900; }
-    .card-back .val-hint { position: absolute; z-index: 1; font-size: 1.2rem; font-weight: 900; opacity: 0.15; }
     
-    .card-selected { border-color: #3b82f6 !important; opacity: 0.4; transform: scale(0.95); }
-    .btn-action { border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 10px; border: 2px solid transparent; }
+    /* 核心卡片樣式：確保左上角數字絕對清晰 */
+    .card-base { position: relative; display: flex; align-items: center; justify-content: center; border-radius: 12px; transition: all 0.1s; overflow: hidden; border: 1px solid rgba(0,0,0,0.1); }
+    .num-tag { position: absolute; top: 2px; left: 4px; font-size: 0.75rem; font-weight: 900; z-index: 20; color: inherit; }
+    .op-main { font-size: 1.8rem; font-weight: 900; z-index: 10; }
+    
+    /* 巧克力塊狀態 */
+    .card-hand { background: white; color: #1d4ed8; }
+    .card-sac { background: #1e293b; color: white; border: 2px solid #334155; }
+    .card-selected { opacity: 0.2; transform: scale(0.9); }
+    .target-card { background: #1e293b; color: white; border: 2px solid #475569; font-weight: 900; }
+
+    /* 結算按鈕 */
+    .btn-action { border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 9px; border: 2px solid transparent; }
     .btn-deck.active { background: #3b82f6; color: white; box-shadow: 0 4px 0 #1d4ed8; }
     .btn-zap.active { background: #f59e0b; color: white; box-shadow: 0 4px 0 #b45309; }
     .disabled { opacity: 0.1; pointer-events: none; }
@@ -23,7 +30,7 @@
       let path = window.location.pathname;
       if (path.endsWith('index.html')) path = path.replace('index.html', '');
       if (!path.endsWith('/')) path += '/';
-      const meta = { id: 'math-unlocker-final', name: '數字解鎖', path: path, icon: 'calculator', color: 'blue' };
+      const meta = { id: 'math-unlocker-clear', name: '數字解鎖', path: path, icon: 'calculator', color: 'blue' };
       const data = JSON.parse(localStorage.getItem('myAppLauncherStorage') || '[]');
       const idx = data.findIndex(app => app.path === path);
       idx === -1 ? data.push(meta) : data[idx] = meta;
@@ -33,34 +40,35 @@
 
   <header class="h-[6vh] bg-blue-600 text-white px-4 flex justify-between items-center shadow-md">
     <a href="/?home=1" class="p-1"><i data-lucide="home" class="w-4 h-4"></i></a>
-    <h1 class="text-xs font-black uppercase tracking-widest">Math Unlocker</h1>
+    <h1 class="text-[10px] font-black uppercase tracking-widest">Math Unlocker</h1>
     <button onclick="resetGame()" class="p-1"><i data-lucide="rotate-ccw" class="w-4 h-4"></i></button>
   </header>
   <main class="h-[94vh] flex flex-col">
-    <section class="h-[15vh] px-4 pt-1 flex flex-col justify-between">
-      <div class="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
+    <section class="h-[10vh] px-4 pt-1 flex flex-col justify-between">
+      <div class="flex justify-between items-center text-[8px] font-black text-slate-400 uppercase">
         <div class="flex gap-2">
-          <span>D: <span id="ui-deck-count" class="text-blue-600">0</span></span>
-          <span>W: <span id="ui-discard-count" class="text-slate-500">0</span></span>
+          <span>Deck: <span id="ui-deck-count" class="text-blue-600">0</span></span>
+          <span>Waste: <span id="ui-discard-count" class="text-slate-400">0</span></span>
           <span>Goal: <span id="ui-progress" class="text-emerald-600">0/20</span></span>
         </div>
         <div id="ui-combo" class="text-blue-500 italic">Combo: 0</div>
       </div>
-      <div id="ui-op-track" class="flex gap-1.5 justify-center py-1">
+      <div id="ui-op-track" class="flex gap-1 justify-center py-1">
         </div>
     </section>
 
-    <section class="h-[12vh] px-4 flex items-center gap-2">
-      <div class="w-10 flex flex-col items-center">
-        <div id="ui-market-preview" class="square w-full border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-300 text-xs"></div>
-        <span class="text-[7px] font-bold text-slate-400 mt-0.5 uppercase">Next</span>
+    <section class="h-[9vh] px-4 flex items-center gap-2">
+      <div class="w-9 flex flex-col items-center">
+        <div id="ui-market-preview" class="square w-full border-2 border-dashed border-slate-200 rounded flex items-center justify-center font-bold text-slate-300 text-[10px]"></div>
+        <span class="text-[6px] font-bold text-slate-400 uppercase mt-0.5">Next</span>
       </div>
       <div id="ui-market-active" class="flex-1 flex gap-1.5"></div>
     </section>
 
-    <section class="h-[23vh] flex items-center justify-center px-4">
-      <div class="flex items-center gap-1.5 w-full max-w-sm justify-center">
-        <div id="slot-0" class="square w-14 bg-white border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center font-black text-xl text-blue-600" onclick="deselect(0)"></div>
+    <section class="h-[20vh] flex items-center justify-center px-4">
+      <div class="flex items-center gap-1 w-full max-w-sm justify-center">
+        <div id="slot-0" class="square w-14 card-base bg-white border-2 border-dashed border-slate-200 font-black text-xl text-blue-600" onclick="deselect(0)"></div>
+        
         <div class="w-14 h-14 relative">
           <div id="op-selector" class="grid grid-cols-2 gap-0.5 w-full h-full">
             <button id="btn-op-+" onclick="selectOp('+')" class="text-[10px] border rounded font-black opacity-10">+</button>
@@ -70,20 +78,22 @@
           </div>
           <div id="slot-sac" onclick="deselectSac()" class="hidden absolute inset-0"></div>
         </div>
-        <div id="slot-1" class="square w-14 bg-white border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center font-black text-xl text-blue-600" onclick="deselect(1)"></div>
+
+        <div id="slot-1" class="square w-14 card-base bg-white border-2 border-dashed border-slate-200 font-black text-xl text-blue-600" onclick="deselect(1)"></div>
         <div class="text-slate-300 font-bold">=</div>
-        <div id="ui-res" class="square w-14 bg-white border-2 border-slate-50 rounded-xl flex items-center justify-center font-black text-xl text-slate-200"></div>
+        <div id="ui-res" class="square w-14 bg-white border-2 border-slate-50 rounded-xl flex items-center justify-center font-black text-xl text-slate-100"></div>
+        
         <div class="flex flex-col gap-1 w-10">
           <button id="btn-deck" onclick="resolve('deck')" class="btn-action btn-deck disabled square w-full"><i data-lucide="layers" class="w-3 h-3"></i></button>
           <button id="btn-zap" onclick="resolve('reserve')" class="btn-action btn-zap disabled square w-full"><i data-lucide="zap" class="w-3 h-3"></i></button>
         </div>
       </div>
     </section>
-    <footer class="h-[44vh] bg-slate-100/50 p-2 flex flex-col gap-1 justify-start">
+    <footer class="h-[55vh] bg-slate-100/50 p-2 flex flex-col gap-1">
       <div id="ui-hand-1" class="flex justify-center gap-1"></div>
       <div id="ui-hand-2" class="flex justify-center gap-1"></div>
-      <div class="mt-1 border-t border-slate-200 pt-1 flex flex-col items-center">
-        <span class="text-[8px] font-black text-amber-500 uppercase mb-0.5">Reserve (One-Time)</span>
+      <div class="mt-2 border-t border-slate-200 pt-1 flex flex-col items-center">
+        <span class="text-[7px] font-black text-amber-600 uppercase mb-1">Reserve (One-Time)</span>
         <div id="ui-reserve-1" class="flex justify-center gap-1 mb-1"></div>
         <div id="ui-reserve-2" class="flex justify-center gap-1"></div>
       </div>
@@ -91,7 +101,7 @@
   </main>
 
   <script>
-    const STORAGE_KEY = 'math_chocolate_final_v1';
+    const STORAGE_KEY = 'math_choco_pro_v12';
     let state = { deck:[], hand:[], discard:[], reserve:[], market:[], mActive:[], mPreview:null, slots:[null,null], sac:null, op:null, validOps:[], history:[], count:0, nextId:1 };
     const getUid = () => state.nextId++;
     const shuffle = (a) => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
@@ -116,8 +126,7 @@
     }
 
     function check() {
-      state.validOps=[]; state.op=null;
-      if(!state.slots[0] || !state.slots[1]) return;
+      state.validOps=[]; state.op=null; if(!state.slots[0] || !state.slots[1]) return;
       let v1=state.slots[0].val, v2=state.slots[1].val;
       let tests=[{o:'+',v:v1+v2},{o:'-',v:Math.abs(v1-v2)},{o:'×',v:v1*v2}];
       if(v1!==0&&v2!==0){ if(v1%v2===0)tests.push({o:'÷',v:v1/v2}); if(v2%v1===0)tests.push({o:'÷',v:v2/v1}); }
@@ -140,8 +149,7 @@
       state.mActive.splice(state.mActive.indexOf(res),1);
       if(state.mPreview){ state.mActive.push(state.mPreview); state.mPreview=state.market.shift()||null; }
       state.count++; let nc={id:getUid(),val:res}; choice==='deck'?state.discard.push(nc):state.reserve.push(nc);
-      draw(state.history.length); state.slots=[null,null]; state.sac=null; state.op=null; state.validOps=[];
-      save(); render();
+      draw(state.history.length); state.slots=[null,null]; state.sac=null; state.op=null; state.validOps=[]; save(); render();
     }
 
     function draw(n) {
@@ -156,25 +164,26 @@
       document.getElementById('ui-discard-count').textContent = state.discard.length;
       document.getElementById('ui-progress').textContent = `${state.count}/20`;
       
-      // 上方軌跡：放大卡片，顯示淡淡數字
-      let tH=''; for(let i=0;i<4;i++){
-        if(i<state.history.length) {
+      // 上方軌跡：標記清晰的左上角數字
+      let tH=''; for(let i=0; i<4; i++){
+        if(i < state.history.length) {
           let item = state.history[i];
-          tH+=`<div class="square w-10 card-back"><span class="val-hint">${item.card.val}</span><span class="op">${item.op}</span></div>`;
-        } else tH+=`<div class="square w-10 border-2 border-dashed border-slate-200 rounded-xl"></div>`;
+          tH+=`<div class="square w-9 card-base card-sac"><span class="num-tag">${item.card.val}</span><span class="op-main text-sm">${item.op}</span></div>`;
+        } else tH+=`<div class="square w-9 border-2 border-dashed border-slate-200 rounded-xl"></div>`;
       }
-      document.getElementById('ui-op-track').innerHTML=tH;
-      document.getElementById('ui-combo').textContent=`Combo: ${state.history.length}`;
-      document.getElementById('ui-market-active').innerHTML = state.mActive.map(v=>`<div class="square target-card w-12 rounded-xl flex items-center justify-center font-black text-xl">${v}</div>`).join('');
+      document.getElementById('ui-op-track').innerHTML = tH;
+      document.getElementById('ui-combo').textContent = `Combo: ${state.history.length}`;
+      document.getElementById('ui-market-active').innerHTML = state.mActive.map(v=>`<div class="square target-card w-11 rounded-xl flex items-center justify-center font-black text-xl shadow-sm">${v}</div>`).join('');
       document.getElementById('ui-market-preview').textContent = state.mPreview || '';
 
       const isWaitSac = state.slots[0] && state.slots[1] && state.op && !state.sac;
       const cardUI = (c,s) => {
         let isSel = state.slots.some(sl=>sl&&sl.id===c.id) || (state.sac&&state.sac.id===c.id);
-        let cls = s==='hand' ? 'bg-white text-blue-700' : 'bg-amber-400 text-white';
+        let cls = s==='hand' ? 'card-hand' : 'bg-amber-400 text-white';
         if(isSel) cls += ' card-selected';
-        let overlay = (isWaitSac && !isSel) ? `<div class="absolute inset-0 flex items-center justify-center bg-blue-600/20 font-black text-2xl text-blue-600">${state.op}</div>` : '';
-        return `<button onclick="selectCard(${c.id},'${s}')" class="square w-14 rounded-xl flex items-center justify-center font-black text-xl border shadow-sm relative overflow-hidden ${cls}">${c.val}${overlay}</button>`;
+        // 關鍵修正：犧牲預覽時，左上角數字一定要清晰
+        let content = isWaitSac && !isSel ? `<span class="num-tag text-blue-700">${c.val}</span><span class="op-main text-blue-700">${state.op}</span>` : c.val;
+        return `<button onclick="selectCard(${c.id},'${s}')" class="square w-14 card-base shadow-sm ${cls}">${content}</button>`;
       };
       document.getElementById('ui-hand-1').innerHTML = state.hand.slice(0,4).map(c=>cardUI(c,'hand')).join('');
       document.getElementById('ui-hand-2').innerHTML = state.hand.slice(4).map(c=>cardUI(c,'hand')).join('');
@@ -184,13 +193,13 @@
       [0,1].forEach(i=>{
         const s = state.slots[i], el = document.getElementById(`slot-${i}`);
         el.innerHTML = s ? s.val : '';
-        el.className = `square w-14 rounded-xl flex items-center justify-center font-black text-xl border-2 transition-all ${s?(s.src==='hand'?'bg-blue-600 text-white':'bg-amber-500 text-white'):'bg-white border-slate-200 border-dashed text-slate-200'}`;
+        el.className = `square w-14 card-base border-2 transition-all ${s?(s.src==='hand'?'bg-blue-600 text-white shadow-md':'bg-amber-500 text-white shadow-md'):'bg-white border-slate-200 border-dashed text-slate-200'}`;
       });
 
       const sSac=document.getElementById('slot-sac'), bD=document.getElementById('btn-deck'), bR=document.getElementById('btn-zap'), res=document.getElementById('ui-res');
       if(state.sac){
         sSac.classList.remove('hidden'); 
-        sSac.innerHTML = `<div class="square w-full h-full card-back"><span class="val-hint">${state.sac.val}</span><span class="op">${state.op}</span></div>`;
+        sSac.innerHTML = `<div class="square w-full h-full card-base card-sac"><span class="num-tag">${state.sac.val}</span><span class="op-main">${state.op}</span></div>`;
         let rv = state.op==='+'?state.slots[0].val+state.slots[1].val: state.op==='-'?Math.abs(state.slots[0].val-state.slots[1].val): state.op==='×'?state.slots[0].val*state.slots[1].val: Math.max(state.slots[0].val,state.slots[1].val)/Math.min(state.slots[0].val,state.slots[1].val);
         res.textContent = rv; res.className = "square w-14 bg-emerald-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg";
         bD.className="btn-action btn-deck active square w-full"; bR.className="btn-action btn-zap active square w-full"; bD.disabled=bR.disabled=false;
@@ -208,7 +217,6 @@
     function deselectSac() { state.sac=null; render(); }
     function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     function resetGame() { if(confirm('Reset?')) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
-    
     document.addEventListener('DOMContentLoaded', () => {
       let saved = localStorage.getItem(STORAGE_KEY);
       if(saved) try { state = Object.assign(state, JSON.parse(saved)); } catch(e) { initGame(); } else initGame();
