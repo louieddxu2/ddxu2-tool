@@ -1,337 +1,189 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>數字解鎖：祭品符號版</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@0.542.0"></script>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233b82f6'/%3E%3C/svg%3E">
-  <meta name="theme-color" content="#3b82f6">
+<!DOCTYPE html><html lang="zh-TW"><head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>數字解鎖：祭品版</title>
+  <script src="https://cdn.tailwindcss.com"></script><script src="https://unpkg.com/lucide@0.542.0"></script>
   <style>
-    body { -webkit-tap-highlight-color: transparent; font-family: system-ui, -apple-system, sans-serif; }
-    .card-enter { animation: card-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-    @keyframes card-pop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-    .card-selected-hand { border-color: #3b82f6 !important; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4); transform: translateY(-2px); }
-    .card-selected-reserve { border-color: #f59e0b !important; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.4); transform: translateY(-2px); }
-    .op-btn { transition: all 0.2s; }
-    .op-btn.disabled { opacity: 0.2; pointer-events: none; background-color: #f1f5f9; color: #cbd5e1; }
-    .op-btn.available { background-color: #dbeafe; color: #3b82f6; border-color: #bfdbfe; }
-    .op-btn.selected { background-color: #3b82f6; color: white; border-color: #2563eb; transform: scale(1.05); }
-    .disabled-overlay { pointer-events: none; opacity: 0.5; filter: grayscale(80%); }
-    .track-card { animation: card-pop 0.3s ease forwards; }
+    body { -webkit-tap-highlight-color: transparent; background: #f8fafc; }
+    .card-enter { animation: pop 0.3s ease forwards; }
+    @keyframes pop { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .op-btn { border: 2px solid #e2e8f0; transition: 0.2s; }
+    .op-btn.active { background: #3b82f6; color: white; border-color: #2563eb; }
+    .op-btn.valid { background: #dbeafe; color: #3b82f6; border-color: #bfdbfe; }
+    .op-btn.disabled { opacity: 0.2; pointer-events: none; }
+    .card-sel { border-color: #3b82f6 !important; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3); transform: translateY(-2px); }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col relative">
-  <script>
-    (function autoRegister() {
-      let appPath = window.location.pathname;
-      if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
-      if (!appPath.endsWith('/')) appPath += '/';
-      const lp = appPath.replace(/[^/]+\/$/, '') || '/';
-      const meta = { id: 'math-unlocker-sacrifice', name: '數字解鎖', path: appPath, icon: 'zap', color: 'blue' };
-      const data = JSON.parse(localStorage.getItem('myAppLauncherStorage') || '[]');
-      const idx = data.findIndex(app => app.path === appPath);
-      if (idx === -1) data.push(meta); else data[idx] = meta;
-      localStorage.setItem('myAppLauncherStorage', JSON.stringify(data));
-    })();
-  </script>
-  <header class="bg-blue-600 text-white p-3 shadow-md sticky top-0 z-20">
-    <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/?home=1" class="p-2 -ml-2 hover:bg-blue-700 rounded-full transition-colors"><i data-lucide="home" class="w-5 h-5"></i></a>
-      <h1 class="text-lg font-bold">數字解鎖</h1>
-      <button onclick="resetGame()" class="p-2 -mr-2 hover:bg-blue-700 rounded-full transition-colors"><i data-lucide="rotate-ccw" class="w-5 h-5"></i></button>
-    </div>
+<body class="min-h-screen flex flex-col">
+  <header class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center">
+    <h1 class="text-lg font-bold">數字解鎖</h1>
+    <button onclick="resetGame()"><i data-lucide="rotate-ccw" class="w-5 h-5"></i></button>
   </header>
-
-  <main class="flex-grow w-full max-w-md mx-auto p-3 flex flex-col gap-3 pb-6">
-    <section class="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm">
-      <div class="flex justify-between items-center mb-2 px-1">
-        <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sequence Track</h2>
-        <div id="ui-combo-reward" class="text-[10px] font-bold text-blue-500 uppercase">Combo: 0</div>
+  <main class="max-w-md mx-auto w-full p-4 flex flex-col gap-4">
+    <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+      <div class="flex justify-between text-[10px] font-black text-slate-400 uppercase mb-2">
+        <span>Sequence Track</span><span id="ui-combo-reward" class="text-blue-600">Combo: 0</span>
       </div>
-      <div class="flex gap-2 justify-center h-12" id="ui-op-track">
-        </div>
+      <div id="ui-op-track" class="flex gap-2 justify-center h-12"></div>
     </section>
-
-    <div class="flex justify-between text-[10px] text-slate-500 font-bold px-1 uppercase tracking-wider">
-      <div class="flex items-center gap-1"><i data-lucide="layers" class="w-3.5 h-3.5 text-blue-500"></i> 牌庫: <span id="ui-deck-count" class="text-blue-600">0</span></div>
-      <div class="flex items-center gap-1"><i data-lucide="target" class="w-3.5 h-3.5 text-emerald-500"></i> 進度: <span id="ui-progress" class="text-emerald-600">0/20</span></div>
+    <div class="flex justify-between text-[10px] font-bold text-slate-500 uppercase px-1">
+      <span>牌庫: <span id="ui-deck-count" class="text-blue-600">0</span></span>
+      <span>進度: <span id="ui-progress" class="text-emerald-600">0/20</span></span>
     </div>
-    <section class="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm">
-      <div class="flex gap-2 justify-between items-center">
-        <div class="w-[20%] flex flex-col items-center">
-          <div id="ui-market-preview" class="w-full aspect-square bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 flex items-center justify-center font-bold text-lg text-slate-300 shadow-inner">?</div>
-          <span class="text-[9px] text-slate-400 mt-1 font-bold">NEXT</span>
-        </div>
-        <div class="w-[1px] h-8 bg-slate-100 mx-1"></div>
-        <div class="flex-1 grid grid-cols-3 gap-2" id="ui-market-active"></div>
+    <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex gap-4 items-center">
+      <div class="w-16 text-center">
+        <div id="ui-market-preview" class="aspect-square bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center font-bold text-slate-300"></div>
+        <div class="text-[9px] mt-1 text-slate-400 font-bold uppercase">Next</div>
       </div>
+      <div id="ui-market-active" class="flex-1 grid grid-cols-3 gap-2"></div>
     </section>
-
-    <section class="bg-blue-50 rounded-2xl p-3 border border-blue-100 shadow-inner relative" id="ui-calc-area">
-      <div class="flex items-center gap-2 mt-4">
-        <div class="flex items-center gap-1.5 flex-grow" id="calc-expression-area">
-          <div id="slot-0" class="w-12 aspect-[3/4] rounded-lg border-2 border-blue-100 border-dashed bg-white flex items-center justify-center font-bold text-lg text-blue-600"></div>
-          
-          <div class="w-12 h-12 relative flex items-center justify-center shrink-0">
-            <div id="op-selector" class="grid grid-cols-2 gap-0.5 w-full h-full">
-              <button onclick="selectOp('+')" id="btn-op-+" class="op-btn disabled rounded border text-xs font-black">+</button>
-              <button onclick="selectOp('-')" id="btn-op--" class="op-btn disabled rounded border text-xs font-black">-</button>
-              <button onclick="selectOp('×')" id="btn-op-×" class="op-btn disabled rounded border text-xs font-black">×</button>
-              <button onclick="selectOp('÷')" id="btn-op-÷" class="op-btn disabled rounded border text-xs font-black">÷</button>
-            </div>
-            <button onclick="deselectSacrifice()" id="slot-sac" class="hidden absolute inset-0 w-full aspect-[3/4] rounded-lg bg-slate-800 text-white border-2 border-slate-700 shadow-md flex items-center justify-center font-black text-xl"></button>
+    <section id="ui-calc-area" class="bg-blue-50 rounded-2xl p-4 border border-blue-100 relative">
+      <div class="flex items-center gap-2">
+        <div id="slot-0" class="w-12 h-14 rounded-xl border-2 border-dashed border-blue-200 bg-white flex items-center justify-center font-bold text-xl text-blue-600"></div>
+        <div class="w-12 h-12 relative">
+          <div id="op-selector" class="grid grid-cols-2 gap-0.5 w-full h-full">
+            <button id="btn-op-+" onclick="selectOp('+')" class="op-btn disabled rounded text-[10px] font-black">+</button>
+            <button id="btn-op--" onclick="selectOp('-')" class="op-btn disabled rounded text-[10px] font-black">-</button>
+            <button id="btn-op-×" onclick="selectOp('×')" class="op-btn disabled rounded text-[10px] font-black">×</button>
+            <button id="btn-op-÷" onclick="selectOp('÷')" class="op-btn disabled rounded text-[10px] font-black">÷</button>
           </div>
-
-          <div id="slot-1" class="w-12 aspect-[3/4] rounded-lg border-2 border-blue-100 border-dashed bg-white flex items-center justify-center font-bold text-lg text-blue-600"></div>
-          <div class="text-blue-300 font-bold text-lg mx-0.5">=</div>
-          <div id="calc-result" class="flex-grow h-12 rounded-lg bg-white border-2 border-blue-50 flex items-center justify-center font-black text-2xl text-slate-100 min-w-[40px]">「 」</div>
+          <div id="slot-sac" onclick="deselectSac()" class="hidden absolute inset-0 bg-slate-800 text-white rounded-lg flex items-center justify-center font-black text-xl border-2 border-slate-700"></div>
         </div>
-        <div class="flex flex-col gap-1 w-[32%] shrink-0 pl-2 border-l border-blue-100">
-          <button id="btn-resolve-deck" onclick="resolveUnlock('deck')" disabled class="w-full bg-slate-200 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase transition-all shadow-sm">Deck</button>
-          <button id="btn-resolve-reserve" onclick="resolveUnlock('reserve')" disabled class="w-full bg-slate-200 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase transition-all shadow-sm">Zap</button>
+        <div id="slot-1" class="w-12 h-14 rounded-xl border-2 border-dashed border-blue-200 bg-white flex items-center justify-center font-bold text-xl text-blue-600"></div>
+        <div class="text-blue-300 font-bold">=</div>
+        <div class="flex-1 flex flex-col gap-1">
+          <div id="ui-res" class="h-10 bg-white rounded-lg flex items-center justify-center font-black text-slate-200 border-2 border-blue-50">「 」</div>
+          <div class="flex gap-1">
+            <button id="btn-deck" onclick="resolve('deck')" disabled class="flex-1 bg-slate-200 text-white text-[9px] py-1.5 rounded font-bold uppercase">Deck</button>
+            <button id="btn-zap" onclick="resolve('reserve')" disabled class="flex-1 bg-slate-200 text-white text-[9px] py-1.5 rounded font-bold uppercase">Zap</button>
+          </div>
         </div>
       </div>
-      <div id="calc-msg" class="text-[10px] text-blue-500 font-bold text-center mt-2 h-3 uppercase tracking-tighter">Choose 2 Numbers</div>
+      <div id="ui-msg" class="text-[9px] text-center mt-3 font-bold text-blue-400 uppercase tracking-tighter">Choose 2 Numbers</div>
     </section>
-    <section>
-      <div class="flex justify-between items-end mb-1 px-1">
-        <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hand <span id="ui-hand-count" class="ml-1 text-slate-300">0/7</span></h2>
-      </div>
-      <div id="ui-hand" class="flex gap-2 overflow-x-auto pb-2 px-1 snap-x min-h-[5rem]"></div>
-    </section>
-
-    <section>
-      <h2 class="text-[10px] font-black text-amber-500 uppercase px-1 mb-1 tracking-widest">Reserve</h2>
-      <div id="ui-reserve" class="flex gap-2 overflow-x-auto pb-2 px-1 min-h-[5rem] bg-amber-50/50 rounded-xl border border-amber-100 p-2"></div>
-    </section>
+    <div class="px-1 text-[10px] font-black text-slate-400 uppercase flex justify-between"><span>Hand <span id="ui-h-count">0/7</span></span></div>
+    <div id="ui-hand" class="flex gap-2 overflow-x-auto pb-2 snap-x min-h-[4.5rem]"></div>
+    <div class="px-1 text-[10px] font-black text-amber-500 uppercase mt-2">Reserve</div>
+    <div id="ui-reserve" class="flex gap-2 overflow-x-auto pb-2 min-h-[4.5rem] bg-amber-50/50 rounded-xl p-2 border border-amber-100"></div>
   </main>
+<script>
+  const STORAGE_KEY = 'math_sacrifice_v8';
+  let state = { deck:[], hand:[], discard:[], reserve:[], market:[], mActive:[], mPreview:null, slots:[null, null], sac:null, op:null, validOps:[], history:[], count:0, nextId:1 };
+  const getUid = () => state.nextId++;
+  const shuffle = (a) => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
 
-  <div id="modal-gameover" class="fixed inset-0 bg-slate-900/80 z-50 hidden items-center justify-center p-6 transition-opacity opacity-0">
-    <div class="bg-white rounded-3xl w-full max-w-xs p-6 text-center shadow-2xl">
-      <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-500 mx-auto flex items-center justify-center mb-4"><i data-lucide="frown" class="w-8 h-8"></i></div>
-      <h2 class="text-2xl font-black text-slate-800 mb-1 uppercase tracking-tight">Stuck!</h2>
-      <div class="bg-slate-50 p-4 rounded-2xl mb-6 border border-slate-100">
-        <div class="text-4xl font-black text-blue-600" id="go-progress">0/20</div>
-      </div>
-      <button onclick="resetGame()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg mb-3">RETRY</button>
-      <button onclick="closeGameOverModal()" class="w-full text-slate-400 text-sm font-bold">Inspect</button>
-    </div>
-  </div>
-  <script>
-    const STORAGE_KEY = 'mathUnlocker_Sacrifice_v7_stable';
-    let state = {
-      deck: [], hand: [], discard: [], reserve: [],
-      marketDeck: [], marketActive: [], marketPreview: null,
-      selectedSlots: [null, null], 
-      pendingSacrifice: null,
-      activeOp: null,
-      validOps: [],
-      history: [], // [{op, card}]
-      unlockedCount: 0, nextId: 1, isGameOver: false
+  function initGame() {
+    state.nextId=1; state.hand=[1,2,3,4,5,6,7].map(v=>({id:getUid(), val:v}));
+    state.deck=[]; state.discard=[]; state.reserve=[]; state.slots=[null,null]; state.sac=null; state.op=null; state.history=[]; state.count=0;
+    let p=[shuffle(Array.from({length:10},(_,i)=>i+6)).slice(0,5), shuffle(Array.from({length:15},(_,i)=>i+16)).slice(0,5), shuffle(Array.from({length:20},(_,i)=>i+31)).slice(0,5), shuffle(Array.from({length:49},(_,i)=>i+51)).slice(0,5)];
+    state.market=[...p[0],...p[1],...p[2],...p[3]];
+    state.mActive=[state.market.shift(), state.market.shift(), state.market.shift()];
+    state.mPreview=state.market.shift();
+    save(); render();
+  }
+
+  function selectCard(id, src) {
+    let arr = src === 'hand' ? state.hand : state.reserve;
+    let idx = arr.findIndex(c => c.id === id);
+    if(idx===-1) return;
+    let card = arr[idx];
+    if(state.slots[0] && state.slots[1] && state.op && !state.sac) {
+      state.sac = { ...card, src }; arr.splice(idx,1);
+    } else {
+      let sIdx = state.slots.findIndex(s=>s===null);
+      if(sIdx!==-1) { state.slots[sIdx] = { ...card, src }; arr.splice(idx,1); check(); }
+    }
+    render();
+  }
+
+  function check() {
+    state.validOps=[]; state.op=null;
+    if(!state.slots[0] || !state.slots[1]) return;
+    let v1=state.slots[0].val, v2=state.slots[1].val;
+    let tests=[{o:'+',v:v1+v2},{o:'-',v:Math.abs(v1-v2)},{o:'×',v:v1*v2}];
+    if(v1!==0&&v2!==0){ if(v1%v2===0)tests.push({o:'÷',v:v1/v2}); else if(v2%v1===0)tests.push({o:'÷',v:v2/v1}); }
+    tests.forEach(t=>{ if(state.mActive.includes(t.v)) state.validOps.push(t.o); });
+    if(state.validOps.length>0) state.op=state.validOps[0];
+    else setTimeout(()=>deselect(1)||deselect(0), 500);
+  }
+
+  function resolve(choice) {
+    if(!state.sac || !state.op) return;
+    let res = state.op==='+'?state.slots[0].val+state.slots[1].val: state.op==='-'?Math.abs(state.slots[0].val-state.slots[1].val): state.op==='×'?state.slots[0].val*state.slots[1].val: Math.max(state.slots[0].val,state.slots[1].val)/Math.min(state.slots[0].val,state.slots[1].val);
+    state.slots.forEach(s=>state.discard.push({id:s.id,val:s.val})); state.slots=[null,null];
+    let dup = -1; for(let i=state.history.length-1;i>=0;i--) if(state.history[i].op===state.op){ dup=i; break; }
+    if(dup!==-1) state.history.splice(0, dup+1).forEach(i=>state.discard.push(i.card));
+    state.history.push({op:state.op, card:{id:state.sac.id,val:state.sac.val}}); state.sac=null;
+    state.mActive.splice(state.mActive.indexOf(res),1);
+    if(state.mPreview){ state.mActive.push(state.mPreview); state.mPreview=state.market.shift()||null; }
+    state.count++; let nc={id:getUid(),val:res}; choice==='deck'?state.discard.push(nc):state.reserve.push(nc);
+    draw(state.history.length); state.op=null; state.validOps=[]; save(); render();
+  }
+
+  function draw(n) {
+    for(let i=0;i<Math.min(n, 7-state.hand.length);i++) {
+      if(state.deck.length===0){ if(state.discard.length===0)break; state.deck=shuffle([...state.discard]); state.discard=[]; }
+      state.hand.push(state.deck.shift());
+    }
+  }
+</script>
+<script>
+  function selectOp(o) { if(state.validOps.includes(o)){ state.op=o; render(); } }
+  function deselect(i) { let c=state.slots[i]; if(!c) return; deselectSac(); (c.src==='hand'?state.hand:state.reserve).push({id:c.id,val:c.val}); state.slots[i]=null; state.op=null; render(); }
+  function deselectSac() { if(!state.sac) return; (state.sac.src==='hand'?state.hand:state.reserve).push({id:state.sac.id,val:state.sac.val}); state.sac=null; render(); }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function resetGame() { localStorage.removeItem(STORAGE_KEY); location.reload(); }
+  
+  function render() {
+    document.getElementById('ui-deck-count').textContent = state.deck.length + state.discard.length;
+    document.getElementById('ui-progress').textContent = `${state.count}/20`;
+    document.getElementById('ui-h-count').textContent = `${state.hand.length}/7`;
+    document.getElementById('ui-market-active').innerHTML = state.mActive.map(v=>`<div class="aspect-[3/4] bg-slate-800 text-white rounded-xl flex items-center justify-center font-black text-2xl border-2 border-slate-700 shadow">${v}</div>`).join('');
+    document.getElementById('ui-market-preview').textContent = state.mPreview || '';
+    
+    let tH=''; for(let i=0;i<4;i++){
+      if(i<state.history.length) tH+=`<div class="w-10 h-full bg-slate-800 text-white rounded border-2 border-slate-700 flex items-center justify-center font-black text-xl card-enter">${state.history[i].op}</div>`;
+      else tH+=`<div class="w-10 h-full bg-slate-50 border-2 border-slate-200 border-dashed rounded"></div>`;
+    }
+    document.getElementById('ui-op-track').innerHTML=tH;
+    document.getElementById('ui-combo-reward').textContent=`Combo: ${state.history.length}`;
+
+    const isWaitSac = state.slots[0] && state.slots[1] && state.op && !state.sac;
+    const cardUI = (c,s) => {
+      let isS = (state.slots[0]?.id===c.id && state.slots[0]?.src===s) || (state.slots[1]?.id===c.id && state.slots[1]?.src===s);
+      let cls = s==='hand' ? 'bg-white text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+      let inner = c.val;
+      if(isWaitSac) { cls += ' border-blue-400 shadow-md relative overflow-hidden'; inner += `<div class="absolute inset-0 flex items-center justify-center text-4xl font-black text-blue-500/20">${state.op}</div>`; }
+      return `<button onclick="selectCard(${c.id},'${s}')" class="card-enter shrink-0 w-16 aspect-[3/4] rounded-xl flex items-center justify-center font-bold text-2xl border-2 ${cls} active:scale-95 transition-all">${inner}</button>`;
     };
-    let pendingUnlockInfo = null;
-    const HAND_LIMIT = 7;
+    document.getElementById('ui-hand').innerHTML = state.hand.map(c=>cardUI(c,'hand')).join('');
+    document.getElementById('ui-reserve').innerHTML = state.reserve.map(c=>cardUI(c,'reserve')).join('');
 
-    const getUid = () => state.nextId++;
-    const shuffle = (arr) => {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
-    };
+    [0,1].forEach(i=>{
+      const s = state.slots[i], el = document.getElementById(`slot-${i}`);
+      el.innerHTML = s ? s.val : '<i data-lucide="plus" class="w-4 h-4 text-blue-100"></i>';
+      el.className = `w-12 h-14 rounded-xl flex items-center justify-center font-bold text-xl border-2 transition-all ${s?(s.src==='hand'?'bg-blue-600 border-blue-700 text-white shadow-md':'bg-amber-500 border-amber-600 text-white shadow-md'):'bg-white border-blue-100 border-dashed text-blue-100'}`;
+    });
 
-    function initGame() {
-      state.nextId = 1;
-      // 起手 7 張 1~7
-      state.hand = [1, 2, 3, 4, 5, 6, 7].map(v => ({ id: getUid(), val: v }));
-      state.deck = []; state.discard = []; state.reserve = [];
-      state.selectedSlots = [null, null]; state.pendingSacrifice = null;
-      state.activeOp = null; state.validOps = []; state.history = [];
-      state.unlockedCount = 0; state.isGameOver = false;
-
-      // 4階段難度 (5+5+5+5 = 20)
-      let p1 = shuffle(Array.from({length: 10}, (_, i) => i + 6)).slice(0, 5);
-      let p2 = shuffle(Array.from({length: 15}, (_, i) => i + 16)).slice(0, 5);
-      let p3 = shuffle(Array.from({length: 20}, (_, i) => i + 31)).slice(0, 5);
-      let p4 = shuffle(Array.from({length: 49}, (_, i) => i + 51)).slice(0, 5);
-      state.marketDeck = [...p1, ...p2, ...p3, ...p4];
-
-      state.marketActive = [state.marketDeck.shift(), state.marketDeck.shift(), state.marketDeck.shift()];
-      state.marketPreview = state.marketDeck.shift() || null;
-      saveState(); render();
+    const sSac=document.getElementById('slot-sac'), oSel=document.getElementById('op-selector'), bD=document.getElementById('btn-deck'), bR=document.getElementById('btn-zap'), res=document.getElementById('ui-res'), msg=document.getElementById('ui-msg');
+    if(state.sac){
+      oSel.classList.add('hidden'); sSac.classList.remove('hidden'); sSac.textContent=state.op;
+      res.textContent = "✓"; res.className = "h-10 bg-emerald-50 text-emerald-700 rounded-lg flex items-center justify-center font-black border-2 border-emerald-400 shadow-sm card-enter";
+      bD.disabled=bR.disabled=false; bD.className="flex-1 bg-emerald-600 text-white text-[9px] py-1.5 rounded font-bold uppercase shadow"; bR.className="flex-1 bg-amber-500 text-white text-[9px] py-1.5 rounded font-bold uppercase shadow";
+      msg.textContent="Choose Destination";
+    } else {
+      oSel.classList.remove('hidden'); sSac.classList.add('hidden');
+      ['+','-','×','÷'].forEach(o=>{ document.getElementById(`btn-op-${o}`).className=`op-btn rounded text-[10px] font-black ${state.validOps.includes(o)?(state.op===o?'active':'valid'):'disabled'}`; });
+      res.textContent="「 」"; res.className="h-10 bg-white rounded-lg flex items-center justify-center font-black text-slate-100 border-2 border-blue-50";
+      bD.disabled=bR.disabled=true; bD.className=bR.className="flex-1 bg-slate-200 text-white text-[9px] py-1.5 rounded font-bold uppercase";
+      msg.textContent = isWaitSac ? `Sacrifice card for ${state.op}` : "Select 2 Numbers";
     }
-    function selectCard(cardId, source) {
-      if (state.isGameOver) return;
-      let sourceArr = source === 'hand' ? state.hand : state.reserve;
-      let idx = sourceArr.findIndex(c => c.id === cardId);
-      if (idx === -1) return;
-      let card = sourceArr[idx];
+    lucide.createIcons();
+  }
 
-      // 如果已經選了兩數，這張就是祭品
-      if (state.selectedSlots[0] && state.selectedSlots[1] && state.activeOp && !state.pendingSacrifice) {
-        state.pendingSacrifice = { ...card, source };
-        sourceArr.splice(idx, 1);
-        let res = calcResult(state.selectedSlots[0].val, state.selectedSlots[1].val, state.activeOp);
-        pendingUnlockInfo = { val: res };
-        render(); return;
-      }
-
-      // 否則就是選數字
-      let emptyIdx = state.selectedSlots.findIndex(s => s === null);
-      if (emptyIdx !== -1) {
-        state.selectedSlots[emptyIdx] = { ...card, source };
-        sourceArr.splice(idx, 1);
-        checkMath(); render();
-      }
-    }
-
-    function checkMath() {
-      state.validOps = []; state.activeOp = null;
-      if (!state.selectedSlots[0] || !state.selectedSlots[1]) return;
-      let v1 = state.selectedSlots[0].val, v2 = state.selectedSlots[1].val;
-      let tests = [{op:'+', v:v1+v2}, {op:'-', v:Math.abs(v1-v2)}, {op:'×', v:v1*v2}];
-      if(v1!==0 && v2!==0){ if(v1%v2===0) tests.push({op:'÷', v:v1/v2}); else if(v2%v1===0) tests.push({op:'÷', v:v2/v1}); }
-      
-      for (let t of tests) { if (state.marketActive.includes(t.v)) state.validOps.push(t.op); }
-      if (state.validOps.length > 0) state.activeOp = state.validOps[0];
-      else { setTimeout(() => { deselectCard(1); deselectCard(0); }, 500); }
-    }
-
-    function calcResult(v1, v2, op) {
-      if(op==='+') return v1+v2; if(op==='-') return Math.abs(v1-v2); if(op==='×') return v1*v2;
-      return Math.max(v1,v2)/Math.min(v1,v2);
-    }
-
-    function resolveUnlock(choice) {
-      if (!pendingUnlockInfo || !state.pendingSacrifice) return;
-      const op = state.activeOp;
-
-      // 1. 數字進棄牌
-      state.selectedSlots.forEach(s => state.discard.push({id: s.id, val: s.val}));
-      state.selectedSlots = [null, null];
-
-      // 2. 斷連擊判定：如果新符號已存在，將重複及其左側的所有實體卡進棄牌
-      let dupIdx = -1;
-      for (let i = state.history.length-1; i>=0; i--) {
-        if (state.history[i].op === op) { dupIdx = i; break; }
-      }
-      if (dupIdx !== -1) {
-        let broken = state.history.splice(0, dupIdx + 1);
-        broken.forEach(item => state.discard.push({id: item.card.id, val: item.card.val}));
-      }
-
-      // 3. 祭品卡上軌跡
-      state.history.push({ op: op, card: { id: state.pendingSacrifice.id, val: state.pendingSacrifice.val } });
-      state.pendingSacrifice = null;
-
-      // 4. 市場與新卡
-      state.marketActive.splice(state.marketActive.indexOf(pendingUnlockInfo.val), 1);
-      if (state.marketPreview) { state.marketActive.push(state.marketPreview); state.marketPreview = state.marketDeck.shift() || null; }
-      state.unlockedCount++;
-      let nc = { id: getUid(), val: pendingUnlockInfo.val };
-      choice === 'deck' ? state.discard.push(nc) : state.reserve.push(nc);
-
-      // 5. 抽牌量 = 軌跡長度
-      drawCards(state.history.length);
-      state.activeOp = null; state.validOps = []; pendingUnlockInfo = null;
-      saveState(); render(); checkGameOver();
-    }
-
-    function drawCards(count) {
-      let actual = Math.min(count, HAND_LIMIT - state.hand.length);
-      for(let i=0; i<actual; i++) {
-        if (state.deck.length === 0) {
-          if (state.discard.length === 0) break;
-          state.deck = shuffle([...state.discard]); state.discard = [];
-        }
-        if (state.deck.length > 0) state.hand.push(state.deck.shift());
-      }
-    }
-    function selectOp(op) { if(state.validOps.includes(op)) { state.activeOp = op; render(); } }
-    function deselectCard(i) {
-      let item = state.selectedSlots[i]; if(!item) return;
-      deselectSacrifice();
-      item.source === 'hand' ? state.hand.push({id: item.id, val: item.val}) : state.reserve.push({id: item.id, val: item.val});
-      state.selectedSlots[i] = null; state.activeOp = null; state.validOps = []; render();
-    }
-    function deselectSacrifice() {
-      if(!state.pendingSacrifice) return;
-      let s = state.pendingSacrifice;
-      s.source === 'hand' ? state.hand.push({id: s.id, val: s.val}) : state.reserve.push({id: s.id, val: s.val});
-      state.pendingSacrifice = null; pendingUnlockInfo = null; render();
-    }
-    function checkGameOver() {
-      let av = [...state.hand, ...state.reserve];
-      if (av.length < 3 && state.unlockedCount < 20) { /* 必死判定 */
-        state.isGameOver = true; render();
-        document.getElementById('go-progress').textContent = `${state.unlockedCount}/20`;
-        const m = document.getElementById('modal-gameover'); m.classList.remove('hidden'); m.classList.add('flex');
-        setTimeout(() => m.classList.add('opacity-100'), 10);
-      }
-    }
-    function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    function loadState() {
-      try { let s = localStorage.getItem(STORAGE_KEY); if(!s) return false; state = Object.assign(state, JSON.parse(s)); return true; } catch(e) { return false; }
-    }
-    function resetGame() { localStorage.removeItem(STORAGE_KEY); location.reload(); }
-    function closeGameOverModal() { document.getElementById('modal-gameover').classList.add('hidden'); }
-
-    function render() {
-      document.getElementById('ui-deck-count').textContent = state.deck.length;
-      document.getElementById('ui-discard-count').textContent = state.discard.length;
-      document.getElementById('ui-progress').textContent = `${state.unlockedCount}/20`;
-      document.getElementById('ui-hand-count').textContent = `${state.hand.length}/7`;
-      document.getElementById('ui-market-active').innerHTML = state.marketActive.map(v => `<div class="aspect-[3/4] bg-slate-800 text-white rounded-xl flex items-center justify-center font-black text-2xl border-2 border-slate-700 shadow">${v}</div>`).join('');
-      document.getElementById('ui-market-preview').textContent = state.marketPreview || '';
-
-      // 軌跡
-      let tH = ''; for(let i=0; i<4; i++) {
-        if(i < state.history.length) tH += `<div class="track-card w-10 h-full bg-slate-800 text-white rounded border-2 border-slate-700 flex items-center justify-center font-black text-xl">${state.history[i].op}</div>`;
-        else tH += `<div class="w-10 h-full bg-slate-50 border-2 border-slate-200 border-dashed rounded"></div>`;
-      }
-      document.getElementById('ui-op-track').innerHTML = tH;
-      document.getElementById('ui-combo-reward').textContent = `Combo: ${state.history.length}`;
-
-      // 手牌與浮水印
-      const isWaitingSac = state.selectedSlots[0] && state.selectedSlots[1] && state.activeOp && !state.pendingSacrifice;
-      const cardUI = (c, s) => {
-        let cls = s==='hand' ? 'bg-white text-blue-700 border-blue-200' : 'bg-amber-50 text-amber-700 border-amber-200';
-        let inner = c.val;
-        if(isWaitingSac) { cls += ' relative overflow-hidden border-blue-400 shadow-md'; inner += `<div class="absolute inset-0 flex items-center justify-center text-4xl font-black text-blue-500/20">${state.activeOp}</div>`; }
-        return `<button onclick="selectCard(${c.id}, '${s}')" class="card-enter shrink-0 w-16 aspect-[3/4] rounded-xl flex items-center justify-center font-bold text-2xl border-2 shadow-sm ${cls} active:scale-95 transition-all">${inner}</button>`;
-      };
-      document.getElementById('ui-hand').innerHTML = state.hand.map(c => cardUI(c, 'hand')).join('') || '<div class="text-slate-300 text-xs flex items-center justify-center w-full">No Cards</div>';
-      document.getElementById('ui-reserve').innerHTML = state.reserve.map(c => cardUI(c, 'reserve')).join('');
-
-      // 槽位
-      [0, 1].forEach(i => {
-        const sel = state.selectedSlots[i]; const el = document.getElementById(`slot-${i}`);
-        el.innerHTML = sel ? sel.val : `<i data-lucide="plus" class="w-5 h-5 text-blue-200"></i>`;
-        el.className = `w-12 aspect-[3/4] rounded-lg flex items-center justify-center font-bold text-xl border-2 transition-all ${sel ? (sel.source==='hand'?'bg-blue-600 border-blue-700 text-white shadow-md':'bg-amber-500 border-amber-600 text-white shadow-md') : 'bg-white border-blue-100 border-dashed text-blue-100'}`;
-      });
-
-      const sSac = document.getElementById('slot-sac'), oSel = document.getElementById('op-selector'), bD = document.getElementById('btn-resolve-deck'), bR = document.getElementById('btn-resolve-reserve'), res = document.getElementById('calc-result'), msg = document.getElementById('calc-msg');
-      if(state.pendingSacrifice) {
-        oSel.classList.add('hidden'); sSac.classList.remove('hidden'); sSac.textContent = state.activeOp;
-        res.textContent = pendingUnlockInfo.val; res.className = "flex-grow h-12 rounded-lg bg-emerald-50 border-2 border-emerald-400 flex items-center justify-center font-black text-2xl text-emerald-700 shadow-sm";
-        bD.disabled = bR.disabled = false; bD.className = "w-full bg-emerald-600 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase"; bR.className = "w-full bg-amber-500 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase";
-        msg.textContent = "CHOOSE DESTINATION";
-      } else {
-        oSel.classList.remove('hidden'); sSac.classList.add('hidden');
-        ['+', '-', '×', '÷'].forEach(o => {
-          let b = document.getElementById(`btn-op-${o}`);
-          b.className = `op-btn rounded border text-xs font-black ${state.validOps.includes(o) ? (state.activeOp===o?'selected':'available') : 'disabled'}`;
-        });
-        res.textContent = "「 」"; res.className = "flex-grow h-12 rounded-lg bg-white border-2 border-blue-50 flex items-center justify-center font-black text-2xl text-slate-100";
-        bD.disabled = bR.disabled = true; bD.className = bR.className = "w-full bg-slate-200 text-white text-[10px] py-2.5 rounded-lg font-bold uppercase";
-        msg.textContent = isWaitingSac ? `Sacrifice card for ${state.activeOp}` : "Select 2 Numbers";
-      }
-      lucide.createIcons();
-    }
-    document.addEventListener('DOMContentLoaded', () => { if (!loadState()) initGame(); else render(); });
-  </script>
-</body>
-</html>
+  document.addEventListener('DOMContentLoaded', () => {
+    let saved = localStorage.getItem(STORAGE_KEY);
+    if(saved) try { state = Object.assign(state, JSON.parse(saved)); } catch(e) { initGame(); }
+    else initGame();
+    render();
+  });
+</script></body></html>
