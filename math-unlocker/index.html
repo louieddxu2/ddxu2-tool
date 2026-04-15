@@ -1,23 +1,19 @@
 <!DOCTYPE html><html lang="zh-TW"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>數字解鎖：清晰標記版</title>
+  <title>數字解鎖：邏輯修正版</title>
   <script src="https://cdn.tailwindcss.com"></script><script src="https://unpkg.com/lucide@0.542.0"></script>
   <style>
     body { -webkit-tap-highlight-color: transparent; overflow: hidden; background: #f8fafc; height: 100vh; font-family: system-ui, sans-serif; }
     .square { aspect-ratio: 1 / 1; }
-    
-    /* 核心卡片樣式：確保左上角數字絕對清晰 */
     .card-base { position: relative; display: flex; align-items: center; justify-content: center; border-radius: 12px; transition: all 0.1s; overflow: hidden; border: 1px solid rgba(0,0,0,0.1); }
-    .num-tag { position: absolute; top: 2px; left: 4px; font-size: 0.75rem; font-weight: 900; z-index: 20; color: inherit; }
+    /* 左上角數字標記：強制高對比 */
+    .num-tag { position: absolute; top: 2px; left: 4px; font-size: 0.75rem; font-weight: 900; z-index: 20; }
     .op-main { font-size: 1.8rem; font-weight: 900; z-index: 10; }
     
-    /* 巧克力塊狀態 */
     .card-hand { background: white; color: #1d4ed8; }
     .card-sac { background: #1e293b; color: white; border: 2px solid #334155; }
     .card-selected { opacity: 0.2; transform: scale(0.9); }
     .target-card { background: #1e293b; color: white; border: 2px solid #475569; font-weight: 900; }
-
-    /* 結算按鈕 */
     .btn-action { border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 9px; border: 2px solid transparent; }
     .btn-deck.active { background: #3b82f6; color: white; box-shadow: 0 4px 0 #1d4ed8; }
     .btn-zap.active { background: #f59e0b; color: white; box-shadow: 0 4px 0 #b45309; }
@@ -30,14 +26,13 @@
       let path = window.location.pathname;
       if (path.endsWith('index.html')) path = path.replace('index.html', '');
       if (!path.endsWith('/')) path += '/';
-      const meta = { id: 'math-unlocker-clear', name: '數字解鎖', path: path, icon: 'calculator', color: 'blue' };
+      const meta = { id: 'math-unlocker-final-fix', name: '數字解鎖', path: path, icon: 'calculator', color: 'blue' };
       const data = JSON.parse(localStorage.getItem('myAppLauncherStorage') || '[]');
       const idx = data.findIndex(app => app.path === path);
       idx === -1 ? data.push(meta) : data[idx] = meta;
       localStorage.setItem('myAppLauncherStorage', JSON.stringify(data));
     })();
   </script>
-
   <header class="h-[6vh] bg-blue-600 text-white px-4 flex justify-between items-center shadow-md">
     <a href="/?home=1" class="p-1"><i data-lucide="home" class="w-4 h-4"></i></a>
     <h1 class="text-[10px] font-black uppercase tracking-widest">Math Unlocker</h1>
@@ -53,8 +48,7 @@
         </div>
         <div id="ui-combo" class="text-blue-500 italic">Combo: 0</div>
       </div>
-      <div id="ui-op-track" class="flex gap-1 justify-center py-1">
-        </div>
+      <div id="ui-op-track" class="flex gap-1 justify-center py-1"></div>
     </section>
 
     <section class="h-[9vh] px-4 flex items-center gap-2">
@@ -68,7 +62,6 @@
     <section class="h-[20vh] flex items-center justify-center px-4">
       <div class="flex items-center gap-1 w-full max-w-sm justify-center">
         <div id="slot-0" class="square w-14 card-base bg-white border-2 border-dashed border-slate-200 font-black text-xl text-blue-600" onclick="deselect(0)"></div>
-        
         <div class="w-14 h-14 relative">
           <div id="op-selector" class="grid grid-cols-2 gap-0.5 w-full h-full">
             <button id="btn-op-+" onclick="selectOp('+')" class="text-[10px] border rounded font-black opacity-10">+</button>
@@ -78,11 +71,9 @@
           </div>
           <div id="slot-sac" onclick="deselectSac()" class="hidden absolute inset-0"></div>
         </div>
-
         <div id="slot-1" class="square w-14 card-base bg-white border-2 border-dashed border-slate-200 font-black text-xl text-blue-600" onclick="deselect(1)"></div>
         <div class="text-slate-300 font-bold">=</div>
         <div id="ui-res" class="square w-14 bg-white border-2 border-slate-50 rounded-xl flex items-center justify-center font-black text-xl text-slate-100"></div>
-        
         <div class="flex flex-col gap-1 w-10">
           <button id="btn-deck" onclick="resolve('deck')" class="btn-action btn-deck disabled square w-full"><i data-lucide="layers" class="w-3 h-3"></i></button>
           <button id="btn-zap" onclick="resolve('reserve')" class="btn-action btn-zap disabled square w-full"><i data-lucide="zap" class="w-3 h-3"></i></button>
@@ -93,7 +84,7 @@
       <div id="ui-hand-1" class="flex justify-center gap-1"></div>
       <div id="ui-hand-2" class="flex justify-center gap-1"></div>
       <div class="mt-2 border-t border-slate-200 pt-1 flex flex-col items-center">
-        <span class="text-[7px] font-black text-amber-600 uppercase mb-1">Reserve (One-Time)</span>
+        <span class="text-[7px] font-black text-amber-600 uppercase mb-1">Reserve</span>
         <div id="ui-reserve-1" class="flex justify-center gap-1 mb-1"></div>
         <div id="ui-reserve-2" class="flex justify-center gap-1"></div>
       </div>
@@ -101,7 +92,7 @@
   </main>
 
   <script>
-    const STORAGE_KEY = 'math_choco_pro_v12';
+    const STORAGE_KEY = 'math_choco_v13_logic_fixed';
     let state = { deck:[], hand:[], discard:[], reserve:[], market:[], mActive:[], mPreview:null, slots:[null,null], sac:null, op:null, validOps:[], history:[], count:0, nextId:1 };
     const getUid = () => state.nextId++;
     const shuffle = (a) => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
@@ -109,10 +100,14 @@
     function initGame() {
       state.nextId=1; state.hand=[1,2,3,4,5,6,7].map(v=>({id:getUid(), val:v}));
       state.deck=[]; state.discard=[]; state.reserve=[]; state.slots=[null,null]; state.sac=null; state.op=null; state.history=[]; state.count=0;
-      let p=[shuffle(Array.from({length:10},(_,i)=>i+6)).slice(0,5), shuffle(Array.from({length:15},(_,i)=>i+16)).slice(0,5), shuffle(Array.from({length:20},(_,i)=>i+31)).slice(0,5), shuffle(Array.from({length:49},(_,i)=>i+51)).slice(0,5)];
-      state.market=[...p[0],...p[1],...p[2],...p[3]];
-      state.mActive=[state.market.shift(), state.market.shift(), state.market.shift()];
-      state.mPreview=state.market.shift();
+      // 修正範圍：8~15 (從長度 8 的數組中選 5 個)
+      let p1 = shuffle(Array.from({length: 8}, (_, i) => i + 8)).slice(0, 5);
+      let p2 = shuffle(Array.from({length: 15}, (_, i) => i + 16)).slice(0, 5);
+      let p3 = shuffle(Array.from({length: 20}, (_, i) => i + 31)).slice(0, 5);
+      let p4 = shuffle(Array.from({length: 49}, (_, i) => i + 51)).slice(0, 5);
+      state.market = [...p1, ...p2, ...p3, ...p4];
+      state.mActive = [state.market.shift(), state.market.shift(), state.market.shift()];
+      state.mPreview = state.market.shift();
       save(); render();
     }
 
@@ -136,24 +131,44 @@
 
     function resolve(choice) {
       if(!state.sac || !state.op) return;
-      let v1=state.slots[0].val, v2=state.slots[1].val;
-      let res = state.op==='+'?v1+v2 : state.op==='-'?Math.abs(v1-v2) : state.op==='×'?v1*v2 : Math.max(v1,v2)/Math.min(v1,v2);
-      [state.slots[0], state.slots[1], state.sac].forEach(s => {
+      let v1=state.slots[0].val, v2=state.slots[1].val, op=state.op;
+      let res = op==='+'?v1+v2 : op==='-'?Math.abs(v1-v2) : op==='×'?v1*v2 : Math.max(v1,v2)/Math.min(v1,v2);
+      
+      // 1. 數字卡進入棄牌堆
+      state.slots.forEach(s => {
         let arr = s.src === 'hand' ? state.hand : state.reserve;
         let idx = arr.findIndex(c => c.id === s.id);
         if(idx !== -1) state.discard.push(arr.splice(idx, 1)[0]);
       });
-      let dup = -1; for(let i=state.history.length-1;i>=0;i--) if(state.history[i].op===state.op){ dup=i; break; }
-      if(dup!==-1) state.history.splice(0, dup+1).forEach(i=>state.discard.push(i.card));
-      state.history.push({op:state.op, card:state.discard[state.discard.length-1]});
-      state.mActive.splice(state.mActive.indexOf(res),1);
+
+      // 2. 犧牲卡從來源移除 (但不進棄牌堆，改進軌跡)
+      let sacSource = state.sac.src === 'hand' ? state.hand : state.reserve;
+      let sIdx = sacSource.findIndex(c => c.id === state.sac.id);
+      let sacCard = sacSource.splice(sIdx, 1)[0];
+
+      // 3. 處理軌跡衝突
+      let dup = -1; 
+      for(let i=state.history.length-1; i>=0; i--) if(state.history[i].op===op){ dup=i; break; }
+      if(dup!==-1) {
+        // 斷掉的部分才進入棄牌堆
+        let broken = state.history.splice(0, dup + 1);
+        broken.forEach(item => state.discard.push(item.card));
+      }
+
+      // 4. 犧牲卡正式加入軌跡
+      state.history.push({ op: op, card: sacCard });
+
+      state.mActive.splice(state.mActive.indexOf(res), 1);
       if(state.mPreview){ state.mActive.push(state.mPreview); state.mPreview=state.market.shift()||null; }
       state.count++; let nc={id:getUid(),val:res}; choice==='deck'?state.discard.push(nc):state.reserve.push(nc);
-      draw(state.history.length); state.slots=[null,null]; state.sac=null; state.op=null; state.validOps=[]; save(); render();
+      
+      draw(state.history.length);
+      state.slots=[null,null]; state.sac=null; state.op=null; state.validOps=[];
+      save(); render();
     }
 
     function draw(n) {
-      for(let i=0;i<Math.min(n, 7-state.hand.length);i++) {
+      for(let i=0; i<Math.min(n, 7-state.hand.length); i++) {
         if(state.deck.length===0){ if(state.discard.length===0)break; state.deck=shuffle([...state.discard]); state.discard=[]; }
         state.hand.push(state.deck.shift());
       }
@@ -164,11 +179,10 @@
       document.getElementById('ui-discard-count').textContent = state.discard.length;
       document.getElementById('ui-progress').textContent = `${state.count}/20`;
       
-      // 上方軌跡：標記清晰的左上角數字
       let tH=''; for(let i=0; i<4; i++){
         if(i < state.history.length) {
           let item = state.history[i];
-          tH+=`<div class="square w-9 card-base card-sac"><span class="num-tag">${item.card.val}</span><span class="op-main text-sm">${item.op}</span></div>`;
+          tH+=`<div class="square w-9 card-base card-sac"><span class="num-tag text-white/80">${item.card.val}</span><span class="op-main text-sm text-white">${item.op}</span></div>`;
         } else tH+=`<div class="square w-9 border-2 border-dashed border-slate-200 rounded-xl"></div>`;
       }
       document.getElementById('ui-op-track').innerHTML = tH;
@@ -181,7 +195,6 @@
         let isSel = state.slots.some(sl=>sl&&sl.id===c.id) || (state.sac&&state.sac.id===c.id);
         let cls = s==='hand' ? 'card-hand' : 'bg-amber-400 text-white';
         if(isSel) cls += ' card-selected';
-        // 關鍵修正：犧牲預覽時，左上角數字一定要清晰
         let content = isWaitSac && !isSel ? `<span class="num-tag text-blue-700">${c.val}</span><span class="op-main text-blue-700">${state.op}</span>` : c.val;
         return `<button onclick="selectCard(${c.id},'${s}')" class="square w-14 card-base shadow-sm ${cls}">${content}</button>`;
       };
@@ -199,7 +212,7 @@
       const sSac=document.getElementById('slot-sac'), bD=document.getElementById('btn-deck'), bR=document.getElementById('btn-zap'), res=document.getElementById('ui-res');
       if(state.sac){
         sSac.classList.remove('hidden'); 
-        sSac.innerHTML = `<div class="square w-full h-full card-base card-sac"><span class="num-tag">${state.sac.val}</span><span class="op-main">${state.op}</span></div>`;
+        sSac.innerHTML = `<div class="square w-full h-full card-base card-sac"><span class="num-tag text-white/80">${state.sac.val}</span><span class="op-main text-white">${state.op}</span></div>`;
         let rv = state.op==='+'?state.slots[0].val+state.slots[1].val: state.op==='-'?Math.abs(state.slots[0].val-state.slots[1].val): state.op==='×'?state.slots[0].val*state.slots[1].val: Math.max(state.slots[0].val,state.slots[1].val)/Math.min(state.slots[0].val,state.slots[1].val);
         res.textContent = rv; res.className = "square w-14 bg-emerald-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg";
         bD.className="btn-action btn-deck active square w-full"; bR.className="btn-action btn-zap active square w-full"; bD.disabled=bR.disabled=false;
