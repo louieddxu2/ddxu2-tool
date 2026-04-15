@@ -51,12 +51,12 @@
       <div id="ui-op-track" class="flex gap-1 justify-center py-1"></div>
     </section>
 
-    <section class="h-[9vh] px-4 flex items-center gap-2">
+    <section class="h-[9vh] px-4 flex items-center justify-center gap-4">
       <div class="w-9 flex flex-col items-center">
         <div id="ui-market-preview" class="square w-full border-2 border-dashed border-slate-200 rounded flex items-center justify-center font-bold text-slate-300 text-[10px]"></div>
         <span class="text-[6px] font-bold text-slate-400 uppercase mt-0.5">Next</span>
       </div>
-      <div id="ui-market-active" class="flex-1 flex gap-1.5"></div>
+      <div id="ui-market-active" class="flex gap-1.5 justify-center"></div>
     </section>
 
     <section class="h-[20vh] flex items-center justify-center px-4">
@@ -93,7 +93,7 @@
 
   <script>
     const STORAGE_KEY = 'math_choco_v13_logic_fixed';
-    let state = { deck:[], hand:[], discard:[], reserve:[], market:[], mActive:[], mPreview:null, slots:[null,null], sac:null, op:null, validOps:[], history:[], count:0, nextId:1 };
+    let state = { deck:[], hand:[], discard:[], reserve:[], market:[], mActive:[], mPreview:null, slots:[null,null], sac:null, op:null, validOps:[], possibleResults:[], history:[], count:0, nextId:1 };
     const getUid = () => state.nextId++;
     const shuffle = (a) => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
 
@@ -112,21 +112,56 @@
     }
 
     function selectCard(id, src) {
-      if(state.slots.some(s=>s&&s.id===id) || (state.sac&&state.sac.id===id)) return;
       let arr = src==='hand'?state.hand:state.reserve;
       let card = arr.find(c=>c.id===id); if(!card) return;
-      if(state.slots[0] && state.slots[1] && state.op && !state.sac) { state.sac = { ...card, src }; }
-      else { let sIdx = state.slots.findIndex(s=>s===null); if(sIdx!==-1){ state.slots[sIdx]={...card, src}; check(); } }
+      let slotIndex = state.slots.findIndex(s=>s&&s.id===id);
+      if(slotIndex !== -1) { deselect(slotIndex); return; }
+      if(state.sac && state.sac.id===id) { deselectSac(); return; }
+      if(state.slots[0] && state.slots[1] && state.op && !state.sac) {
+        let selectedOp = state.op || state.validOps[0] || null;
+        let currentResultVal = null;
+        if(selectedOp) {
+          let resultItem = state.possibleResults.find(r => r.o === selectedOp);
+          currentResultVal = resultItem ? resultItem.v : null;
+        }
+        if(currentResultVal !== null && card.val === currentResultVal) return;
+        state.sac = { ...card, src };
+      } else {
+        let sIdx = state.slots.findIndex(s=>s===null);
+        if(sIdx!==-1){ state.slots[sIdx]={...card, src}; check(); }
+      }
       render();
     }
 
     function check() {
-      state.validOps=[]; state.op=null; if(!state.slots[0] || !state.slots[1]) return;
+      state.validOps=[]; state.possibleResults=[]; state.op=null; if(!state.slots[0] || !state.slots[1]) return;
       let v1=state.slots[0].val, v2=state.slots[1].val;
       let tests=[{o:'+',v:v1+v2},{o:'-',v:Math.abs(v1-v2)},{o:'×',v:v1*v2}];
       if(v1!==0&&v2!==0){ if(v1%v2===0)tests.push({o:'÷',v:v1/v2}); if(v2%v1===0)tests.push({o:'÷',v:v2/v1}); }
-      tests.forEach(t=>{ if(state.mActive.includes(t.v)) state.validOps.push(t.o); });
-      if(state.validOps.length>0) state.op=state.validOps[0];
+      const selectedIds = state.slots.filter(Boolean).map(s=>s.id);
+      const existsInZone = (val, zone) => zone.some(c=>c.val===val && !selectedIds.includes(c.id));
+      tests.forEach(t=>{
+        let inMarket = state.mActive.includes(t.v);
+        let inHand = existsInZone(t.v, state.hand);
+        let inReserve = existsInZone(t.v, state.reserve);
+        state.possibleResults.push({o:t.o, v:t.v, inMarket, inHand, inReserve});
+        if(inMarket || inHand || inReserve) state.validOps.push(t.o);
+      });
+      
+      // 優先選擇能解鎖新數字的運算，沒有的話才找手牌/reserve結果
+      if(state.validOps.length > 0) {
+        // 先找能解鎖 mActive 目標的運算
+        let marketOps = state.possibleResults.filter(r => r.inMarket).map(r => r.o);
+        if(marketOps.length > 0) {
+          state.op = marketOps[0];
+        } else {
+          // 沒有的話找手牌/reserve結果
+          let consumeOps = state.possibleResults.filter(r => r.inHand || r.inReserve).map(r => r.o);
+          if(consumeOps.length > 0) {
+            state.op = consumeOps[0];
+          }
+        }
+      }
     }
 
     function resolve(choice) {
@@ -158,12 +193,53 @@
       // 4. 犧牲卡正式加入軌跡
       state.history.push({ op: op, card: sacCard });
 
-      state.mActive.splice(state.mActive.indexOf(res), 1);
-      if(state.mPreview){ state.mActive.push(state.mPreview); state.mPreview=state.market.shift()||null; }
-      state.count++; let nc={id:getUid(),val:res}; choice==='deck'?state.discard.push(nc):state.reserve.push(nc);
+      if(choice === 'consume') {
+        // 移除結果卡
+        let resultCard = state.hand.find(c=>c.val===res && !state.slots.some(s=>s&&s.id===c.id));
+        let resultZone = 'hand';
+        if(!resultCard) {
+          resultCard = state.reserve.find(c=>c.val===res && !state.slots.some(s=>s&&s.id===c.id));
+          resultZone = 'reserve';
+        }
+        if(resultCard) {
+          let arr = resultZone === 'hand' ? state.hand : state.reserve;
+          let idx = arr.findIndex(c=>c.id===resultCard.id);
+          if(idx !== -1) arr.splice(idx, 1);
+        }
+        if(state.mActive.includes(res)) {
+          state.mActive.splice(state.mActive.indexOf(res), 1);
+          if(state.mPreview){ state.mActive.push(state.mPreview); state.mPreview=state.market.shift()||null; }
+        }
+        state.count++;
+      } else {
+        let consumedResult = false;
+        let resultCard = state.hand.find(c=>c.val===res && !state.slots.some(s=>s&&s.id===c.id));
+        let resultZone = 'hand';
+        if(!resultCard) {
+          resultCard = state.reserve.find(c=>c.val===res && !state.slots.some(s=>s&&s.id===c.id));
+          resultZone = 'reserve';
+        }
+        if(resultCard) {
+          let arr = resultZone === 'hand' ? state.hand : state.reserve;
+          let idx = arr.findIndex(c=>c.id===resultCard.id);
+          if(idx !== -1) arr.splice(idx, 1);
+          consumedResult = true;
+        }
+        if(!consumedResult) {
+          state.mActive.splice(state.mActive.indexOf(res), 1);
+          if(state.mPreview){ state.mActive.push(state.mPreview); state.mPreview=state.market.shift()||null; }
+          state.count++; let nc={id:getUid(),val:res}; choice==='deck'?state.discard.push(nc):state.reserve.push(nc);
+        } else {
+          if(state.mActive.includes(res)) {
+            state.mActive.splice(state.mActive.indexOf(res), 1);
+            if(state.mPreview){ state.mActive.push(state.mPreview); state.mPreview=state.market.shift()||null; }
+          }
+          state.count++;
+        }
+      }
       
       draw(state.history.length);
-      state.slots=[null,null]; state.sac=null; state.op=null; state.validOps=[];
+      state.slots=[null,null]; state.sac=null; state.op=null; state.validOps=[]; state.possibleResults=[];
       save(); render();
     }
 
@@ -187,7 +263,24 @@
       }
       document.getElementById('ui-op-track').innerHTML = tH;
       document.getElementById('ui-combo').textContent = `Combo: ${state.history.length}`;
-      document.getElementById('ui-market-active').innerHTML = state.mActive.map(v=>`<div class="square target-card w-11 rounded-xl flex items-center justify-center font-black text-xl shadow-sm">${v}</div>`).join('');
+      
+      // 市場卡片顯示邏輯：根據當前預覽/選中運算符號高亮對應結果
+      let currentResultVal = null;
+      if(state.slots[0] && state.slots[1]) {
+        let selectedOp = state.op || state.validOps[0] || null;
+        if(selectedOp) {
+          let resultItem = state.possibleResults.find(r => r.o === selectedOp);
+          currentResultVal = resultItem ? resultItem.v : null;
+        }
+      }
+      const targetMarketUI = state.mActive.map(v => {
+        let className = 'square target-card w-11 rounded-xl flex items-center justify-center font-black text-xl shadow-sm transition-all';
+        if(currentResultVal === v) {
+          className += ' ring-2 ring-amber-400';  // 完整亮起
+        }
+        return `<div class="${className}">${v}</div>`;
+      }).join('');
+      document.getElementById('ui-market-active').innerHTML = targetMarketUI;
       document.getElementById('ui-market-preview').textContent = state.mPreview || '';
 
       const isWaitSac = state.slots[0] && state.slots[1] && state.op && !state.sac;
@@ -195,6 +288,9 @@
         let isSel = state.slots.some(sl=>sl&&sl.id===c.id) || (state.sac&&state.sac.id===c.id);
         let cls = s==='hand' ? 'card-hand' : 'bg-amber-400 text-white';
         if(isSel) cls += ' card-selected';
+        if(!isSel && currentResultVal !== null && c.val === currentResultVal) {
+          cls += ' ring-2 ring-amber-400 cursor-not-allowed opacity-60';
+        }
         let content = isWaitSac && !isSel ? `<span class="num-tag text-blue-700">${c.val}</span><span class="op-main text-blue-700">${state.op}</span>` : c.val;
         return `<button onclick="selectCard(${c.id},'${s}')" class="square w-14 card-base shadow-sm ${cls}">${content}</button>`;
       };
@@ -215,18 +311,68 @@
         sSac.innerHTML = `<div class="square w-full h-full card-base card-sac"><span class="num-tag text-white/80">${state.sac.val}</span><span class="op-main text-white">${state.op}</span></div>`;
         let rv = state.op==='+'?state.slots[0].val+state.slots[1].val: state.op==='-'?Math.abs(state.slots[0].val-state.slots[1].val): state.op==='×'?state.slots[0].val*state.slots[1].val: Math.max(state.slots[0].val,state.slots[1].val)/Math.min(state.slots[0].val,state.slots[1].val);
         res.textContent = rv; res.className = "square w-14 bg-emerald-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg";
-        bD.className="btn-action btn-deck active square w-full"; bR.className="btn-action btn-zap active square w-full"; bD.disabled=bR.disabled=false;
+        
+        // 檢查是否會移除結果卡
+        let willConsumeResult = false;
+        let resultCard = state.hand.find(c=>c.val===rv && !state.slots.some(s=>s&&s.id===c.id));
+        if(!resultCard) {
+          resultCard = state.reserve.find(c=>c.val===rv && !state.slots.some(s=>s&&s.id===c.id));
+        }
+        if(resultCard) willConsumeResult = true;
+        
+        if(willConsumeResult) {
+          bD.innerHTML = '<i data-lucide="trash-2" class="w-3 h-3"></i>';
+          bR.innerHTML = '';
+          bD.onclick = () => resolve('consume');
+          bR.onclick = null;
+          bD.className="btn-action btn-deck active square w-full"; bR.className="btn-action disabled square w-full"; bD.disabled=false; bR.disabled=true;
+        } else {
+          bD.innerHTML = '<i data-lucide="layers" class="w-3 h-3"></i>';
+          bR.innerHTML = '<i data-lucide="zap" class="w-3 h-3"></i>';
+          bD.onclick = () => resolve('deck');
+          bR.onclick = () => resolve('reserve');
+          bD.className="btn-action btn-deck active square w-full"; bR.className="btn-action btn-zap active square w-full"; bD.disabled=bR.disabled=false;
+        }
       } else {
         sSac.classList.add('hidden');
         ['+','-','×','÷'].forEach(o=>{ document.getElementById(`btn-op-${o}`).className=`text-[10px] border rounded font-black transition-all ${state.validOps.includes(o)?(state.op===o?'bg-blue-600 text-white border-blue-600 opacity-100':'bg-blue-50 text-blue-600 border-blue-200 opacity-100'):'opacity-10'}`; });
-        res.textContent=""; res.className="square w-14 bg-white border-2 border-slate-50 rounded-xl";
-        bD.className=bR.className="btn-action disabled square w-full"; bD.disabled=bR.disabled=true;
+        
+        // 兩個數字已填入且有合理運算符號時，顯示當前運算符號對應的結果
+        if(state.slots[0] && state.slots[1] && state.op && state.validOps.length > 0) {
+          let resultItem = state.possibleResults.find(r => r.o === state.op);
+          if(resultItem) {
+            res.innerHTML = resultItem.v;
+            res.className = "square w-14 bg-amber-100 border-2 border-amber-300 rounded-xl flex items-center justify-center font-black text-xl text-amber-700 transition-all";
+            
+            // 預先檢查是否會移除結果卡
+            let willConsumeResult = false;
+            let resultCard = state.hand.find(c=>c.val===resultItem.v && !state.slots.some(s=>s&&s.id===c.id));
+            if(!resultCard) {
+              resultCard = state.reserve.find(c=>c.val===resultItem.v && !state.slots.some(s=>s&&s.id===c.id));
+            }
+            if(resultCard) willConsumeResult = true;
+            
+            if(willConsumeResult) {
+              bD.innerHTML = '<i data-lucide="trash-2" class="w-3 h-3"></i>';
+              bR.innerHTML = '';
+              bD.className="btn-action btn-deck disabled square w-full"; bR.className="btn-action disabled square w-full"; bD.disabled=bR.disabled=true;
+            } else {
+              bD.innerHTML = '<i data-lucide="layers" class="w-3 h-3"></i>';
+              bR.innerHTML = '<i data-lucide="zap" class="w-3 h-3"></i>';
+              bD.className="btn-action btn-deck disabled square w-full"; bR.className="btn-action btn-zap disabled square w-full"; bD.disabled=bR.disabled=true;
+            }
+          }
+        } else {
+          res.innerHTML = '';
+          res.className = "square w-14 bg-white border-2 border-slate-50 rounded-xl flex items-center justify-center font-black text-xl text-slate-100";
+          bD.className=bR.className="btn-action disabled square w-full"; bD.disabled=bR.disabled=true;
+        }
       }
       lucide.createIcons();
     }
 
     function selectOp(o) { if(state.validOps.includes(o)){ state.op=o; render(); } }
-    function deselect(i) { state.slots[i]=null; state.op=null; render(); }
+    function deselect(i) { state.slots[i]=null; state.op=null; state.possibleResults=[]; render(); }
     function deselectSac() { state.sac=null; render(); }
     function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     function resetGame() { if(confirm('Reset?')) { localStorage.removeItem(STORAGE_KEY); location.reload(); } }
