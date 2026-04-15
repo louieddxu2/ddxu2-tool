@@ -1,89 +1,85 @@
 <!DOCTYPE html><html lang="zh-TW"><head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>數字解鎖：巧克力版</title>
+  <title>數字解鎖：祭品透明版</title>
   <script src="https://cdn.tailwindcss.com"></script><script src="https://unpkg.com/lucide@0.542.0"></script>
   <style>
-    body { -webkit-tap-highlight-color: transparent; overflow: hidden; background: #f1f5f9; height: 100vh; }
+    body { -webkit-tap-highlight-color: transparent; overflow: hidden; background: #f8fafc; height: 100vh; font-family: system-ui, sans-serif; }
     .square { aspect-ratio: 1 / 1; }
-    /* 巧克力塊的基本樣式 */
-    .choc-card { border: 1px solid rgba(0,0,0,0.05); transition: none; }
-    .choc-target { background: #1e293b; color: white; border: 2px solid #334155; box-shadow: 0 4px 0 #0f172a; }
-    /* 運算狀態顏色 */
-    .op-btn { background: #f8fafc; border: 1px solid #e2e8f0; font-weight: 900; }
+    /* 祭品卡：數字底，符號半透明疊加 */
+    .sac-overlay { position: absolute; inset: 0; display: flex; items-center: center; justify-content: center; background: rgba(30, 41, 59, 0.7); color: white; font-size: 2.5rem; font-weight: 900; pointer-events: none; }
+    .choc-card { border: 1px solid rgba(0,0,0,0.05); }
+    .target-card { background: #1e293b; color: white; border: 2px solid #334155; }
+    .op-btn { background: #fff; border: 1px solid #e2e8f0; font-weight: 900; font-size: 0.75rem; }
     .op-btn.valid { background: #dbeafe; color: #3b82f6; border-color: #bfdbfe; }
     .op-btn.selected { background: #3b82f6; color: white; border-color: #2563eb; }
-    /* 結算塔顏色 */
-    .btn-deck.active { background: #3b82f6; color: white; box-shadow: 0 4px 0 #1d4ed8; }
-    .btn-zap.active { background: #f59e0b; color: white; box-shadow: 0 4px 0 #b45309; }
-    .disabled { opacity: 0.15; pointer-events: none; }
+    /* 結算按鈕樣式 */
+    .btn-action { border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; font-size: 10px; transition: 0.1s; border: 2px solid transparent; }
+    .btn-deck.active { background: #3b82f6; color: white; border-color: #2563eb; box-shadow: 0 4px 0 #1d4ed8; }
+    .btn-zap.active { background: #f59e0b; color: white; border-color: #d97706; box-shadow: 0 4px 0 #b45309; }
+    .disabled { opacity: 0.1; pointer-events: none; }
   </style>
 </head>
-<body class="flex flex-col text-slate-800">
-  <header class="h-[15vh] p-3 flex flex-col justify-between">
-    <div class="flex justify-between items-center px-1">
-      <div class="flex gap-3 text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+<body class="flex flex-col">
+  <header class="h-[12vh] p-3 flex flex-col justify-between">
+    <div class="flex justify-between items-center text-[10px] font-black text-slate-400 uppercase">
+      <div class="flex gap-2">
         <span>Deck: <span id="ui-deck-count" class="text-blue-600">0</span></span>
         <span>Progress: <span id="ui-progress" class="text-emerald-600">0/20</span></span>
       </div>
-      <div id="ui-combo-reward" class="text-xs font-black text-blue-500 italic">COMBO: 0</div>
+      <div id="ui-combo" class="text-blue-500">Combo: 0</div>
     </div>
-    <div id="ui-op-track" class="flex gap-1.5 justify-center">
-      <div class="w-8 h-8 rounded border-2 border-dashed border-slate-200"></div>
-      <div class="w-8 h-8 rounded border-2 border-dashed border-slate-200"></div>
-      <div class="w-8 h-8 rounded border-2 border-dashed border-slate-200"></div>
-      <div class="w-8 h-8 rounded border-2 border-dashed border-slate-200"></div>
-    </div>
+    <div id="ui-op-track" class="flex gap-1 justify-center"></div>
   </header>
 
-  <section class="h-[15vh] px-4 flex items-center justify-center gap-2">
-    <div id="ui-market-active" class="flex-1 flex gap-2 justify-center max-w-[280px]"></div>
-    <div class="w-8 flex flex-col items-center opacity-40">
-      <div id="ui-market-preview" class="square w-full border-2 border-dashed border-slate-300 rounded flex items-center justify-center font-bold text-slate-400 text-xs"></div>
+  <section class="h-[15vh] px-4 flex items-center gap-3">
+    <div class="w-12 flex flex-col items-center">
+      <div id="ui-market-preview" class="square w-full border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center font-bold text-slate-300 text-sm"></div>
+      <span class="text-[8px] font-bold text-slate-400 mt-1 uppercase">Next</span>
     </div>
+    <div id="ui-market-active" class="flex-1 flex gap-2"></div>
   </section>
-  <section id="ui-calc-area" class="h-[35vh] flex items-center justify-center px-4">
-    <div class="flex items-center gap-2 w-full max-w-sm">
-      <div class="flex-1 flex items-center gap-1.5 justify-end">
-        <div id="slot-0" class="square w-16 bg-white border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center font-black text-2xl text-blue-600 shadow-inner" onclick="deselect(0)"></div>
-        
-        <div class="w-14 h-14 relative flex items-center justify-center">
-          <div id="op-selector" class="grid grid-cols-2 gap-1 w-full h-full">
-            <button id="btn-op-+" onclick="selectOp('+')" class="op-btn disabled rounded text-xs">+</button>
-            <button id="btn-op--" onclick="selectOp('-')" class="op-btn disabled rounded text-xs">-</button>
-            <button id="btn-op-×" onclick="selectOp('×')" class="op-btn disabled rounded text-xs">×</button>
-            <button id="btn-op-÷" onclick="selectOp('÷')" class="op-btn disabled rounded text-xs">÷</button>
-          </div>
-          <div id="slot-sac" onclick="deselectSac()" class="hidden absolute inset-0 bg-slate-800 text-white rounded-lg flex items-center justify-center font-black text-2xl border-2 border-slate-600 shadow-md"></div>
+  <section class="h-[33vh] flex items-center justify-center px-4">
+    <div class="flex items-center gap-2 w-full max-w-sm justify-center">
+      <div id="slot-0" class="square w-14 bg-white border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center font-black text-xl text-blue-600" onclick="deselect(0)"></div>
+      
+      <div class="w-14 h-14 relative">
+        <div id="op-selector" class="grid grid-cols-2 gap-0.5 w-full h-full">
+          <button id="btn-op-+" onclick="selectOp('+')" class="op-btn disabled rounded">+</button>
+          <button id="btn-op--" onclick="selectOp('-')" class="op-btn disabled rounded">-</button>
+          <button id="btn-op-×" onclick="selectOp('×')" class="op-btn disabled rounded">×</button>
+          <button id="btn-op-÷" onclick="selectOp('÷')" class="op-btn disabled rounded">÷</button>
         </div>
-
-        <div id="slot-1" class="square w-16 bg-white border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center font-black text-2xl text-blue-600 shadow-inner" onclick="deselect(1)"></div>
+        <div id="slot-sac" onclick="deselectSac()" class="hidden absolute inset-0 bg-white rounded-xl overflow-hidden border-2 border-slate-700 flex items-center justify-center font-black text-xl"></div>
       </div>
 
-      <div class="text-slate-300 font-bold text-xl">=</div>
+      <div id="slot-1" class="square w-14 bg-white border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center font-black text-xl text-blue-600" onclick="deselect(1)"></div>
+      
+      <div class="text-slate-300 font-bold">=</div>
+      <div id="ui-res" class="square w-14 bg-white border-2 border-slate-100 rounded-xl flex items-center justify-center font-black text-xl text-slate-200"></div>
 
-      <div class="w-16 flex flex-col gap-1">
-        <button id="btn-deck" onclick="resolve('deck')" class="btn-deck disabled square w-full rounded-lg flex items-center justify-center"><i data-lucide="arrow-big-up-dash"></i></button>
-        <div id="ui-res" class="square w-full bg-white border-2 border-blue-50 rounded-lg flex items-center justify-center font-black text-2xl text-slate-100 shadow-inner"></div>
-        <button id="btn-zap" onclick="resolve('reserve')" class="btn-zap disabled square w-full rounded-lg flex items-center justify-center"><i data-lucide="zap"></i></button>
+      <div class="flex flex-col gap-1 w-12">
+        <button id="btn-deck" onclick="resolve('deck')" class="btn-action btn-deck disabled square w-full"><i data-lucide="layers" class="w-4 h-4 mb-0.5"></i>DECK</button>
+        <button id="btn-zap" onclick="resolve('reserve')" class="btn-action btn-zap disabled square w-full"><i data-lucide="zap" class="w-4 h-4 mb-0.5"></i>ZAP</button>
       </div>
     </div>
   </section>
 
-  <footer class="h-[35vh] bg-slate-200/50 p-4 flex flex-col gap-2 justify-center">
-    <div id="ui-hand-row-1" class="flex justify-center gap-1"></div>
-    <div id="ui-hand-row-2" class="flex justify-center gap-1"></div>
-    <div id="ui-reserve" class="flex justify-center gap-1 mt-1 border-t border-slate-300 pt-2 h-10"></div>
-  </footer class="h-[35vh]">
+  <footer class="h-[40vh] bg-slate-200/40 p-3 flex flex-col gap-2 justify-center">
+    <div id="ui-hand-1" class="flex justify-center gap-1"></div>
+    <div id="ui-hand-2" class="flex justify-center gap-1"></div>
+    <div class="mt-2 border-t border-slate-300 pt-2 text-[9px] font-black text-amber-600 uppercase tracking-widest text-center">Reserve (One-Time)</div>
+    <div id="ui-reserve" class="flex justify-center gap-1 h-12"></div>
+  </footer>
 
-  <div id="modal-gameover" class="fixed inset-0 bg-slate-900/90 z-50 hidden items-center justify-center p-8 opacity-0 transition-opacity">
+  <div id="modal-gameover" class="fixed inset-0 bg-slate-900/90 z-50 hidden items-center justify-center p-8 opacity-0">
     <div class="bg-white rounded-3xl w-full max-w-xs p-8 text-center">
-      <h2 class="text-3xl font-black mb-4">GAME OVER</h2>
+      <h2 class="text-2xl font-black mb-2">GAME OVER</h2>
       <div class="text-5xl font-black text-blue-600 mb-6" id="go-progress">0/20</div>
-      <button onclick="resetGame()" class="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-xl shadow-lg">RETRY</button>
+      <button onclick="resetGame()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-black shadow-lg">RETRY</button>
     </div>
   </div>
 <script>
-  const STORAGE_KEY = 'math_choco_v9';
+  const STORAGE_KEY = 'math_choco_v10';
   let state = { deck:[], hand:[], discard:[], reserve:[], market:[], mActive:[], mPreview:null, slots:[null,null], sac:null, op:null, validOps:[], history:[], count:0, nextId:1 };
   const getUid = () => state.nextId++;
   const shuffle = (a) => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
@@ -116,13 +112,11 @@
     if(!state.slots[0] || !state.slots[1]) return;
     let v1=state.slots[0].val, v2=state.slots[1].val;
     let tests=[{o:'+',v:v1+v2},{o:'-',v:Math.abs(v1-v2)},{o:'×',v:v1*v2}];
-    if(v1!==0&&v2!==0){ if(v1%v2===0)tests.push({o:'÷',v:v1/v2}); else if(v2%v1===0)tests.push({o:'÷',v:v2/v1}); }
+    if(v1!==0&&v2!==0){ if(v1%v2===0)tests.push({o:'÷',v:v1/v2}); if(v2%v1===0)tests.push({o:'÷',v:v2/v1}); }
     tests.forEach(t=>{ if(state.mActive.includes(t.v)) state.validOps.push(t.o); });
     if(state.validOps.length>0) state.op=state.validOps[0];
     else setTimeout(()=>deselect(1)||deselect(0), 400);
   }
-
-  function selectOp(o) { if(state.validOps.includes(o)){ state.op=o; render(); } }
 
   function resolve(choice) {
     if(!state.sac || !state.op) return;
@@ -145,60 +139,55 @@
     }
   }
 
-  function deselect(i) { let c=state.slots[i]; if(!c) return; deselectSac(); (c.src==='hand'?state.hand:state.reserve).push({id:c.id,val:c.val}); state.slots[i]=null; state.op=null; state.validOps=[]; render(); }
-  function deselectSac() { if(!state.sac) return; (state.sac.src==='hand'?state.hand:state.reserve).push({id:state.sac.id,val:state.sac.val}); state.sac=null; render(); }
-  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-  function resetGame() { localStorage.removeItem(STORAGE_KEY); location.reload(); }
-
   function render() {
     document.getElementById('ui-deck-count').textContent = state.deck.length + state.discard.length;
     document.getElementById('ui-progress').textContent = `${state.count}/20`;
-    document.getElementById('ui-market-active').innerHTML = state.mActive.map(v=>`<div class="square choc-card choc-target w-16 rounded-xl flex items-center justify-center font-black text-2xl">${v}</div>`).join('');
+    document.getElementById('ui-market-active').innerHTML = state.mActive.map(v=>`<div class="square target-card w-14 rounded-xl flex items-center justify-center font-black text-xl shadow-md">${v}</div>`).join('');
     document.getElementById('ui-market-preview').textContent = state.mPreview || '';
     
-    // 渲染連擊軌跡 (圓型按鈕感)
     let tH=''; for(let i=0;i<4;i++){
-      if(i<state.history.length) tH+=`<div class="w-8 h-8 bg-slate-800 text-white rounded-full flex items-center justify-center font-black text-sm">${state.history[i].op}</div>`;
-      else tH+=`<div class="w-8 h-8 border-2 border-dashed border-slate-200 rounded-full"></div>`;
+      if(i<state.history.length) tH+=`<div class="w-8 h-8 bg-slate-800 text-white rounded-lg flex items-center justify-center font-black text-sm">${state.history[i].op}</div>`;
+      else tH+=`<div class="w-8 h-8 border-2 border-dashed border-slate-200 rounded-lg"></div>`;
     }
     document.getElementById('ui-op-track').innerHTML=tH;
-    document.getElementById('ui-combo-reward').textContent=`COMBO: ${state.history.length}`;
+    document.getElementById('ui-combo').textContent=`Combo: ${state.history.length}`;
 
-    // 渲染 4+3 巧克力手牌
     const isWaitSac = state.slots[0] && state.slots[1] && state.op && !state.sac;
     const cardUI = (c,s) => {
-      let cls = s==='hand' ? 'bg-white text-blue-700 shadow-sm' : 'bg-amber-400 text-white shadow-sm';
-      let inner = c.val;
-      if(isWaitSac) { cls = 'bg-blue-600 text-white'; inner = `<span class="text-3xl">${state.op}</span>`; }
-      return `<button onclick="selectCard(${c.id},'${s}')" class="choc-card square w-20 rounded-xl flex items-center justify-center font-black text-2xl ${cls} active:scale-90 transition-transform">${inner}</button>`;
+      let cls = s==='hand' ? 'bg-white text-blue-700' : 'bg-amber-400 text-white';
+      let overlay = isWaitSac ? `<div class="sac-overlay">${state.op}</div>` : '';
+      return `<button onclick="selectCard(${c.id},'${s}')" class="square w-[4.5rem] rounded-xl flex items-center justify-center font-black text-2xl choc-card shadow-sm relative overflow-hidden ${cls} active:scale-90 transition-transform">${c.val}${overlay}</button>`;
     };
-    document.getElementById('ui-hand-row-1').innerHTML = state.hand.slice(0,4).map(c=>cardUI(c,'hand')).join('');
-    document.getElementById('ui-hand-row-2').innerHTML = state.hand.slice(4).map(c=>cardUI(c,'hand')).join('');
+    document.getElementById('ui-hand-1').innerHTML = state.hand.slice(0,4).map(c=>cardUI(c,'hand')).join('');
+    document.getElementById('ui-hand-2').innerHTML = state.hand.slice(4).map(c=>cardUI(c,'hand')).join('');
     document.getElementById('ui-reserve').innerHTML = state.reserve.map(c=>cardUI(c,'reserve')).join('');
 
-    // 算式槽位
     [0,1].forEach(i=>{
       const s = state.slots[i], el = document.getElementById(`slot-${i}`);
       el.innerHTML = s ? s.val : '';
-      el.className = `square w-16 rounded-xl flex items-center justify-center font-black text-2xl transition-all ${s?(s.src==='hand'?'bg-blue-600 text-white shadow-md':'bg-amber-500 text-white shadow-md'):'bg-white border-2 border-slate-200 border-dashed text-slate-200'}`;
+      el.className = `square w-14 rounded-xl flex items-center justify-center font-black text-2xl border-2 transition-all ${s?(s.src==='hand'?'bg-blue-600 text-white':'bg-amber-500 text-white'):'bg-white border-slate-200 border-dashed text-slate-200'}`;
     });
 
-    const sSac=document.getElementById('slot-sac'), oSel=document.getElementById('op-selector'), bD=document.getElementById('btn-deck'), bR=document.getElementById('btn-zap'), res=document.getElementById('ui-res'), msg=document.getElementById('ui-msg');
+    const sSac=document.getElementById('slot-sac'), oSel=document.getElementById('op-selector'), bD=document.getElementById('btn-deck'), bR=document.getElementById('btn-zap'), res=document.getElementById('ui-res');
     if(state.sac){
-      oSel.classList.add('hidden'); sSac.classList.remove('hidden'); sSac.textContent=state.op;
-      res.textContent = pendingUnlockInfo.val; res.className = "square w-full bg-emerald-500 text-white rounded-lg flex items-center justify-center font-black text-2xl shadow-lg";
-      bD.classList.add('active'); bR.classList.add('active'); bD.classList.remove('disabled'); bR.classList.remove('disabled');
-      msg.textContent="Choose Destination";
+      oSel.classList.add('hidden'); sSac.classList.remove('hidden'); sSac.innerHTML = `${state.sac.val}<div class="sac-overlay">${state.op}</div>`;
+      res.textContent = state.op==='+'?state.slots[0].val+state.slots[1].val: state.op==='-'?Math.abs(state.slots[0].val-state.slots[1].val): state.op==='×'?state.slots[0].val*state.slots[1].val: Math.max(state.slots[0].val,state.slots[1].val)/Math.min(state.slots[0].val,state.slots[1].val);
+      res.className = "square w-14 bg-emerald-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg";
+      bD.className="btn-action btn-deck active square w-full"; bR.className="btn-action btn-zap active square w-full"; bD.disabled=bR.disabled=false;
     } else {
       oSel.classList.remove('hidden'); sSac.classList.add('hidden');
       ['+','-','×','÷'].forEach(o=>{ document.getElementById(`btn-op-${o}`).className=`op-btn rounded font-black ${state.validOps.includes(o)?(state.op===o?'selected':'valid'):'disabled'}`; });
-      res.textContent=""; res.className="square w-full bg-white border-2 border-slate-100 rounded-lg shadow-inner";
-      bD.classList.add('disabled'); bR.classList.add('disabled'); bD.classList.remove('active'); bR.classList.remove('active');
-      msg.textContent = isWaitSac ? "Sacrifice for Op" : "Select 2 Numbers";
+      res.textContent=""; res.className="square w-14 bg-white border-2 border-slate-100 rounded-xl";
+      bD.className=bR.className="btn-action disabled square w-full"; bD.disabled=bR.disabled=true;
     }
     lucide.createIcons();
   }
 
+  function selectOp(o) { if(state.validOps.includes(o)){ state.op=o; render(); } }
+  function deselect(i) { let c=state.slots[i]; if(!c) return; deselectSac(); (c.src==='hand'?state.hand:state.reserve).push({id:c.id,val:c.val}); state.slots[i]=null; state.op=null; render(); }
+  function deselectSac() { if(!state.sac) return; (state.sac.src==='hand'?state.hand:state.reserve).push({id:state.sac.id,val:state.sac.val}); state.sac=null; render(); }
+  function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function resetGame() { localStorage.removeItem(STORAGE_KEY); location.reload(); }
   function checkGameOver() {
     let av = [...state.hand, ...state.reserve];
     if (av.length < 3 && state.unlockedCount < 20) {
@@ -208,7 +197,6 @@
       setTimeout(() => m.classList.add('opacity-100'), 10);
     }
   }
-
   document.addEventListener('DOMContentLoaded', () => {
     let saved = localStorage.getItem(STORAGE_KEY);
     if(saved) try { state = Object.assign(state, JSON.parse(saved)); } catch(e) { initGame(); } else initGame();
