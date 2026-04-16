@@ -244,7 +244,7 @@
     }
 
     function draw(n) {
-      for(let i=0; i<Math.min(n, 7-state.hand.length); i++) {
+      for(let i=0;state.hand.length<7; i++) {
         if(state.deck.length===0){ if(state.discard.length===0)break; state.deck=shuffle([...state.discard]); state.discard=[]; }
         state.hand.push(state.deck.shift());
       }
