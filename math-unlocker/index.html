@@ -98,14 +98,13 @@
     const shuffle = (a) => { for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
 
     function initGame() {
-      state.nextId=1; state.hand=[1,2,3,4,5,6,7].map(v=>({id:getUid(), val:v}));
+      state.nextId=1; state.hand=[1,2,3,4,5,6,7,8].map(v=>({id:getUid(), val:v}));
       state.deck=[]; state.discard=[]; state.reserve=[]; state.slots=[null,null]; state.sac=null; state.op=null; state.history=[]; state.count=0;
       // 修正範圍：8~15 (從長度 8 的數組中選 5 個)
-      let p1 = shuffle(Array.from({length: 8}, (_, i) => i + 8)).slice(0, 5);
-      let p2 = shuffle(Array.from({length: 15}, (_, i) => i + 16)).slice(0, 5);
-      let p3 = shuffle(Array.from({length: 20}, (_, i) => i + 31)).slice(0, 5);
-      let p4 = shuffle(Array.from({length: 49}, (_, i) => i + 51)).slice(0, 5);
-      state.market = [...p1, ...p2, ...p3, ...p4];
+      let p1 = shuffle(Array.from({length: 12}, (_, i) => i + 9)).slice(0, 5);
+      let p2 = shuffle(Array.from({length: 20}, (_, i) => i + 21)).slice(0, 5);
+      let p3 = shuffle(Array.from({length: 35}, (_, i) => i + 41)).slice(0, 10);
+      state.market = [...p1, ...p2, ...p3];
       state.mActive = [state.market.shift(), state.market.shift(), state.market.shift()];
       state.mPreview = state.market.shift();
       save(); render();
@@ -244,7 +243,7 @@
     }
 
     function draw(n) {
-      for(let i=0;i<n && state.hand.length<7; i++) {
+      for(let i=0;i<n && state.hand.length<8; i++) {
         if(state.deck.length===0){ if(state.discard.length===0)break; state.deck=shuffle([...state.discard]); state.discard=[]; }
         state.hand.push(state.deck.shift());
       }
