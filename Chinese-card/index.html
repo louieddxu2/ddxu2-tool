@@ -1,16 +1,14 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
+<!DOCTYPE html><html lang="zh-TW"><head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>卡牌中文化裁切庫</title>
+  <title>卡牌翻譯圖庫 (輕量版)</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%233b82f6' d='M2 3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3zm2-1v10h8V2H4z'/%3E%3C/svg%3E">
-  <meta name="theme-color" content="#3b82f6">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2310b981' d='M2 3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3zm2-1v10h8V2H4z'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#10b981">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -18,70 +16,42 @@
     ::-webkit-scrollbar { width: 0; background: transparent; }
     body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
     .crop-handle {
-      width: 24px; height: 24px; background: rgba(59, 130, 246, 0.8);
-      border: 2px solid white; border-radius: 50%; position: absolute;
-      transform: translate(-50%, -50%); cursor: grab; touch-action: none; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      width: 28px; height: 28px; background: rgba(16, 185, 129, 0.9);
+      border: 3px solid white; border-radius: 50%; position: absolute;
+      transform: translate(-50%, -50%); cursor: grab; touch-action: none; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
-    .crop-handle:active { cursor: grabbing; background: #2563eb; transform: translate(-50%, -50%) scale(1.2); }
+    .crop-handle:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.3); }
     svg.crop-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-    .loader { border-top-color: #3b82f6; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+    .loader { border-top-color: #10b981; -webkit-animation: spinner 1s linear infinite; animation: spinner 1s linear infinite; }
     @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  </style>
-</head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
+  </style></head><body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
 
   <script>
-    /*
-      自動註冊規則（請保留）
-    */
     (function autoRegister() {
       let appPath = window.location.pathname;
       if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
       if (!appPath.endsWith('/')) appPath += '/';
       if (appPath === '/') return;
-
       try {
         localStorage.setItem('myAppLauncherLastPath', appPath);
         localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
       } catch {}
-
       const launcherPath = appPath.replace(/[^/]+\/$/, '');
       const normalizedLauncherPath = launcherPath || '/';
-
       function configureHomeLinkAndProbe() {
         const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
         const homeHref = normalizedLauncherPath.includes('?') ? `${normalizedLauncherPath}&home=1` : `${normalizedLauncherPath}?home=1`;
         homeLinks.forEach(el => el.setAttribute('href', homeHref));
-
         if (window.location.protocol === 'file:') return;
-
         const probeUrl = normalizedLauncherPath.endsWith('/') ? `${normalizedLauncherPath}index.html` : `${normalizedLauncherPath}/index.html`;
-        const revealHome = () => homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
-
-        fetch(probeUrl, { method: 'HEAD' })
-          .then(res => {
-            if (res.ok) { revealHome(); return; }
-            if (res.status === 405) return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); });
-          })
-          .catch(() => {});
+        fetch(probeUrl, { method: 'HEAD' }).then(res => {
+          if (res.ok) homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
+        }).catch(() => {});
       }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
+      else configureHomeLinkAndProbe();
 
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
-      } else {
-        configureHomeLinkAndProbe();
-      }
-
-      const appMeta = {
-        id: 'bg-card-cropper',
-        name: '卡牌翻譯圖庫',
-        nameZh: '卡牌翻譯圖庫',
-        nameEn: 'Card Cropper',
-        path: appPath,
-        icon: 'scan-text',
-        color: 'emerald'
-      };
-
+      const appMeta = { id: 'bg-card-cropper-lite', name: '卡牌翻譯圖庫', nameZh: '卡牌翻譯圖庫', nameEn: 'Card Cropper', path: appPath, icon: 'scan-text', color: 'emerald' };
       const storageKey = 'myAppLauncherStorage';
       const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
@@ -91,13 +61,13 @@
     })();
   </script>
 
-  <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-20">
+  <header class="bg-emerald-600 text-white p-4 shadow-md sticky top-0 z-20">
     <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-slate-700 rounded-full transition-colors invisible pointer-events-none" aria-label="返回目錄">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-emerald-700 rounded-full transition-colors invisible pointer-events-none" aria-label="返回目錄">
         <i data-lucide="home" class="w-5 h-5"></i>
       </a>
       <h1 class="text-lg font-bold tracking-tight">卡牌翻譯圖庫</h1>
-      <button onclick="exportData()" class="p-2 -mr-2 hover:bg-slate-700 rounded-full transition-colors" title="匯出備份">
+      <button onclick="exportData()" class="p-2 -mr-2 hover:bg-emerald-700 rounded-full transition-colors">
         <i data-lucide="download" class="w-5 h-5"></i>
       </button>
     </div>
@@ -105,87 +75,69 @@
 
   <main id="view-main" class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4 pb-24">
     <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col gap-3">
-      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">檢索與建檔 (遊戲 / 類型 / 編號)</h2>
+      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">檢索與建檔</h2>
       <div class="grid grid-cols-2 gap-2">
-        <input type="text" id="inp-game" list="list-games" placeholder="例如：第七堡壘" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <input type="text" id="inp-game" list="list-games" placeholder="遊戲名稱" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-emerald-500 outline-none">
         <datalist id="list-games"></datalist>
-
-        <input type="text" id="inp-type" list="list-types" placeholder="例如：綠卡正面" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <input type="text" id="inp-type" list="list-types" placeholder="卡牌類型" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-emerald-500 outline-none">
         <datalist id="list-types"></datalist>
       </div>
-      <input type="text" id="inp-number" placeholder="卡牌編號 / 名稱 (例如: 125, 血脈相連)" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <input type="text" id="inp-number" placeholder="編號或名稱" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full focus:ring-2 focus:ring-emerald-500 outline-none">
       
-      <div id="add-action-area" class="mt-2 bg-blue-50 p-3 rounded-xl border border-blue-100 hidden flex-col items-center text-center">
-        <p class="text-sm text-blue-800 font-medium mb-2">找不到此卡牌，立即建檔？</p>
-        <div class="flex gap-2 w-full">
-          <button onclick="document.getElementById('file-upload').click()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-transform">
-            <i data-lucide="camera" class="w-4 h-4"></i> 拍照 / 上傳
-          </button>
-          <a href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images" target="_blank" class="flex-1 bg-white text-slate-700 border border-slate-300 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-transform">
-            <i data-lucide="languages" class="w-4 h-4"></i> 去翻譯
-          </a>
-        </div>
+      <div id="add-action-area" class="mt-1 flex gap-2">
+        <button onclick="document.getElementById('file-upload').click()" class="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-transform">
+          <i data-lucide="camera" class="w-4 h-4"></i> 新增圖片
+        </button>
+        <a href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images" target="_blank" class="px-4 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center">
+          <i data-lucide="languages" class="w-4 h-4"></i>
+        </a>
       </div>
     </section>
 
-    <section>
-      <div id="gallery-grid" class="grid grid-cols-2 gap-3">
-        </div>
-      <div id="empty-state" class="text-center py-10 text-slate-400 hidden">
-        <i data-lucide="image" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
-        <p class="text-sm">尚未建立卡牌或無符合搜尋結果</p>
-      </div>
-    </section>
+    <section id="gallery-grid" class="flex flex-col gap-4"></section>
+    <div id="empty-state" class="text-center py-10 text-slate-400 hidden">
+      <i data-lucide="image" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+      <p class="text-sm">尚未建立卡牌</p>
+    </div>
   </main>
 
   <input type="file" id="file-upload" accept="image/*" class="hidden">
-  <input type="file" id="file-import" accept=".json" class="hidden" onchange="importData(event)">
 
-  <div id="view-crop" class="fixed inset-0 bg-slate-900 z-50 hidden flex-col">
-    <header class="bg-slate-900 text-white p-4 flex items-center justify-between shadow-md">
-      <button onclick="cancelCrop()" class="p-2 -ml-2 text-slate-300 hover:text-white">取消</button>
-      <select id="sel-ratio" class="bg-slate-800 text-white border border-slate-600 text-sm rounded-lg px-2 py-1 focus:outline-none">
+  <div id="view-crop" class="fixed inset-0 bg-slate-900 z-50 hidden flex flex-col">
+    <header class="bg-slate-900 text-white p-4 flex items-center justify-between">
+      <button onclick="cancelCrop()" class="text-slate-400">取消</button>
+      <select id="sel-ratio" class="bg-slate-800 text-white text-sm rounded-lg px-2 py-1 outline-none border border-slate-700">
         <option value="63:88">標準 (63x88)</option>
         <option value="44:68">迷你 (44x68)</option>
         <option value="70:120">塔羅 (70x120)</option>
-        <option value="1:1">正方形 (1x1)</option>
+        <option value="1:1">正方形 (1:1)</option>
       </select>
-      <button onclick="processCrop()" class="p-2 -mr-2 text-blue-400 hover:text-blue-300 font-bold">完成</button>
+      <button onclick="processCrop()" class="text-emerald-400 font-bold">完成裁切</button>
     </header>
-
-    <div class="flex-grow relative overflow-hidden flex items-center justify-center bg-slate-950 p-4" id="crop-container">
-      <div id="crop-loading" class="absolute inset-0 bg-slate-900/80 z-20 flex flex-col items-center justify-center text-white hidden">
-        <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-10 w-10 mb-4"></div>
-        <p class="text-sm" id="crop-loading-text">影像處理中...</p>
+    <div class="flex-grow relative overflow-hidden bg-black flex items-center justify-center" id="crop-container">
+      <div id="crop-loading" class="absolute inset-0 bg-black/80 z-30 flex flex-col items-center justify-center text-white hidden">
+        <div class="loader rounded-full border-4 border-slate-700 h-10 w-10 mb-4"></div>
+        <p class="text-sm">處理中...</p>
       </div>
-
-      <div class="relative max-w-full max-h-full" id="canvas-wrapper">
-        <canvas id="canvas-source" class="block max-w-full max-h-full object-contain"></canvas>
-        <svg class="crop-lines" id="crop-svg">
-          <polygon id="crop-polygon" points="" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4" />
-        </svg>
-        </div>
-    </div>
-    <div class="bg-slate-900 text-slate-400 text-xs p-3 text-center border-t border-slate-800">
-      請拖曳四個藍色控制點，對齊卡牌的真實邊緣。
+      <div class="relative" id="canvas-wrapper">
+        <canvas id="canvas-source" class="block max-w-full max-h-full"></canvas>
+        <svg class="crop-lines" id="crop-svg"><polygon id="crop-polygon" points="" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="2" stroke-dasharray="4" /></svg>
+      </div>
     </div>
   </div>
 
-  <div id="view-preview" class="fixed inset-0 bg-slate-900/95 z-50 hidden flex-col backdrop-blur-sm" onclick="closePreview()">
-    <div class="absolute top-4 right-4 text-white z-10 flex gap-4">
-      <button onclick="event.stopPropagation(); deleteCurrentCard()" class="p-2 bg-red-600/80 rounded-full hover:bg-red-600">
-        <i data-lucide="trash-2" class="w-5 h-5"></i>
-      </button>
-      <button class="p-2 bg-slate-700/80 rounded-full">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
-    </div>
-    <div class="flex-grow flex items-center justify-center p-4">
-      <img id="preview-img" src="" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl">
-    </div>
-    <div class="p-6 bg-gradient-to-t from-slate-900 to-transparent text-white text-center pb-12">
-      <h3 id="preview-title" class="text-xl font-bold mb-1"></h3>
-      <p id="preview-subtitle" class="text-slate-300 text-sm"></p>
+  <div id="modal-edit" class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl w-full max-w-xs p-6 shadow-xl">
+      <h3 class="text-lg font-bold mb-4">編輯卡牌資訊</h3>
+      <div class="flex flex-col gap-3 mb-6">
+        <input type="text" id="edit-game" placeholder="遊戲" class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500">
+        <input type="text" id="edit-type" placeholder="類型" class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500">
+        <input type="text" id="edit-number" placeholder="編號/名稱" class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500">
+      </div>
+      <div class="flex gap-2">
+        <button onclick="closeEditModal()" class="flex-1 py-3 text-slate-500 font-medium">取消</button>
+        <button onclick="saveEdit()" class="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold">儲存</button>
+      </div>
     </div>
   </div>
 
@@ -193,475 +145,258 @@
 
   <script>
     lucide.createIcons();
-
-    // --- 狀態與資料庫 ---
     let dbCards = [];
-    let currentImageSrc = null;
-    let points = []; // [{x, y}]
-    let originalImgWidth = 0;
-    let originalImgHeight = 0;
-    let displayRatio = 1;
-    let previewingId = null;
-
-    // --- 初始化 OpenCV.js (非同步載入避免阻塞 UI) ---
+    let points = []; 
+    let originalImgWidth, originalImgHeight, displayRatio;
     let cvReady = false;
-    function loadOpenCV() {
-      const script = document.createElement('script');
-      script.src = 'https://docs.opencv.org/4.8.0/opencv.js';
-      script.async = true;
-      script.onload = () => { cvReady = true; console.log('OpenCV.js loaded.'); };
-      script.onerror = () => { console.warn('OpenCV.js failed to load. Falling back to manual mode only.'); cvReady = false; };
-      document.head.appendChild(script);
-    }
-    loadOpenCV();
+    let editingId = null;
 
-    // --- UI 互動邏輯 ---
-    const inpGame = document.getElementById('inp-game');
-    const inpType = document.getElementById('inp-type');
-    const inpNumber = document.getElementById('inp-number');
-    const addActionArea = document.getElementById('add-action-area');
-    const galleryGrid = document.getElementById('gallery-grid');
-    const emptyState = document.getElementById('empty-state');
+    // 初始化 OpenCV
+    const loadCV = () => {
+      const s = document.createElement('script');
+      s.src = 'https://docs.opencv.org/4.8.0/opencv.js';
+      s.async = true; s.onload = () => { cvReady = true; };
+      document.head.appendChild(s);
+    };
+    loadCV();
 
-    function renderGallery() {
-      const gameQ = inpGame.value.toLowerCase();
-      const typeQ = inpType.value.toLowerCase();
-      const numQ = inpNumber.value.toLowerCase();
+    // 記憶選項
+    const els = ['inp-game', 'inp-type', 'sel-ratio'];
+    els.forEach(id => {
+      const el = document.getElementById(id);
+      el.value = localStorage.getItem('bg_last_' + id) || el.value;
+      el.addEventListener('change', () => localStorage.setItem('bg_last_' + id, el.value));
+    });
+
+    const renderGallery = () => {
+      const gQ = document.getElementById('inp-game').value.toLowerCase();
+      const tQ = document.getElementById('inp-type').value.toLowerCase();
+      const nQ = document.getElementById('inp-number').value.toLowerCase();
 
       const filtered = dbCards.filter(c => 
-        (c.game.toLowerCase().includes(gameQ)) &&
-        (c.type.toLowerCase().includes(typeQ)) &&
-        (c.number.toLowerCase().includes(numQ))
-      ).sort((a, b) => b.timestamp - a.timestamp); // 最新在前
+        c.game.toLowerCase().includes(gQ) && c.type.toLowerCase().includes(tQ) && c.number.toLowerCase().includes(nQ)
+      ).sort((a,b) => b.timestamp - a.timestamp);
 
-      galleryGrid.innerHTML = '';
-      if (filtered.length === 0) {
-        emptyState.classList.remove('hidden');
-        // 如果有輸入搜尋條件但沒找到，顯示添加按鈕
-        if(gameQ || typeQ || numQ) {
-          addActionArea.classList.remove('hidden');
-          emptyState.classList.add('hidden'); // 隱藏原本的空狀態，改顯示添加提示
-        } else {
-          addActionArea.classList.add('hidden');
-        }
-      } else {
-        emptyState.classList.add('hidden');
-        addActionArea.classList.add('hidden');
-        
-        filtered.forEach(card => {
-          const div = document.createElement('div');
-          div.className = 'bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm active:scale-95 transition-transform cursor-pointer relative pt-[140%]'; // 預設 63:88 比例容器
-          
-          const imgUrl = URL.createObjectURL(card.blob);
-          
-          div.innerHTML = `
-            <img src="${imgUrl}" class="absolute inset-0 w-full h-full object-cover" onload="URL.revokeObjectURL(this.src)">
-            <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-2 pt-6">
-              <p class="text-white text-xs font-bold truncate">${card.number || '無編號'}</p>
-              <p class="text-slate-300 text-[10px] truncate">${card.game} - ${card.type}</p>
-            </div>
-          `;
-          div.onclick = () => openPreview(card.id);
-          galleryGrid.appendChild(div);
-        });
-      }
+      const grid = document.getElementById('gallery-grid');
+      grid.innerHTML = '';
+      document.getElementById('empty-state').classList.toggle('hidden', filtered.length > 0);
+
+      filtered.forEach(c => {
+        const url = URL.createObjectURL(c.blob);
+        const div = document.createElement('div');
+        div.className = 'bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm relative';
+        div.innerHTML = `
+          <img src="${url}" class="w-full h-auto block" onload="URL.revokeObjectURL('${url}')">
+          <div class="absolute top-3 right-3 flex gap-2">
+            <button onclick="openEditModal('${c.id}')" class="p-2 bg-white/90 rounded-full shadow-lg text-slate-600"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+            <button onclick="deleteCard('${c.id}')" class="p-2 bg-white/90 rounded-full shadow-lg text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </div>
+          <div class="p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent absolute bottom-0 inset-x-0 text-white">
+            <div class="text-xs opacity-70 mb-1">${c.game} · ${c.type}</div>
+            <div class="font-bold text-lg">${c.number || '未命名'}</div>
+          </div>
+        `;
+        grid.appendChild(div);
+      });
+      lucide.createIcons();
       updateDatalists();
-    }
+    };
 
-    function updateDatalists() {
-      const games = [...new Set(dbCards.map(c => c.game).filter(Boolean))];
-      document.getElementById('list-games').innerHTML = games.map(g => `<option value="${g}">`).join('');
-      
-      const currGame = inpGame.value;
-      let types = dbCards;
-      if(currGame) types = types.filter(c => c.game === currGame);
-      types = [...new Set(types.map(c => c.type).filter(Boolean))];
-      document.getElementById('list-types').innerHTML = types.map(t => `<option value="${t}">`).join('');
-    }
+    const updateDatalists = () => {
+      const gs = [...new Set(dbCards.map(c => c.game))].filter(Boolean);
+      document.getElementById('list-games').innerHTML = gs.map(g => `<option value="${g}">`).join('');
+      const ts = [...new Set(dbCards.filter(c => c.game === document.getElementById('inp-game').value).map(c => c.type))].filter(Boolean);
+      document.getElementById('list-types').innerHTML = ts.map(t => `<option value="${t}">`).join('');
+    };
 
-    [inpGame, inpType, inpNumber].forEach(el => el.addEventListener('input', renderGallery));
-
-    // --- 資料庫初始化與載入 ---
-    async function loadData() {
-      try {
-        const stored = await idbKeyval.get('bgCards');
-        dbCards = stored || [];
+    // 編輯功能
+    window.openEditModal = (id) => {
+      const c = dbCards.find(x => x.id === id);
+      if(!c) return;
+      editingId = id;
+      document.getElementById('edit-game').value = c.game;
+      document.getElementById('edit-type').value = c.type;
+      document.getElementById('edit-number').value = c.number;
+      document.getElementById('modal-edit').classList.replace('hidden', 'flex');
+    };
+    window.closeEditModal = () => document.getElementById('modal-edit').classList.replace('flex', 'hidden');
+    window.saveEdit = async () => {
+      const idx = dbCards.findIndex(c => c.id === editingId);
+      if(idx > -1) {
+        dbCards[idx].game = document.getElementById('edit-game').value;
+        dbCards[idx].type = document.getElementById('edit-type').value;
+        dbCards[idx].number = document.getElementById('edit-number').value;
+        await idbKeyval.set('bgCards', dbCards);
         renderGallery();
-      } catch(e) { console.error('Failed to load DB:', e); }
-    }
-    loadData();
-
-    // --- 圖片匯入與裁切處理 ---
-    document.getElementById('file-upload').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      // 確保上傳前有填寫基本資料
-      if(!inpGame.value) { alert('請先在上方輸入【遊戲名稱】以便歸檔'); return; }
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        openCropView(event.target.result);
-      };
-      reader.readAsDataURL(file);
-      e.target.value = ''; // reset
-    });
-
-    // 支援貼上圖片
-    window.addEventListener('paste', e => {
-      const item = e.clipboardData.items[0];
-      if (item.type.indexOf('image') === 0) {
-        if(!inpGame.value) { alert('請先在上方輸入【遊戲名稱】以便歸檔'); return; }
-        const blob = item.getAsFile();
-        const reader = new FileReader();
-        reader.onload = (evt) => openCropView(evt.target.result);
-        reader.readAsDataURL(blob);
       }
-    });
+      closeEditModal();
+    };
 
-    const viewCrop = document.getElementById('view-crop');
-    const canvasSrc = document.getElementById('canvas-source');
-    const ctxSrc = canvasSrc.getContext('2d');
-    const wrapper = document.getElementById('canvas-wrapper');
-    const cropSvg = document.getElementById('crop-svg');
-    const cropPolygon = document.getElementById('crop-polygon');
+    // 裁切功能
+    const autoDetect = (w, h) => {
+      let pts = null;
+      if (cvReady) {
+        try {
+          const src = cv.imread('canvas-source');
+          const gray = new cv.Mat(); cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+          cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
+          cv.Canny(gray, gray, 75, 200);
+          const contours = new cv.MatVector(); const hier = new cv.Mat();
+          cv.findContours(gray, contours, hier, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
 
-    function openCropView(imgDataUrl) {
-      viewCrop.classList.remove('hidden');
+          const ratioStr = document.getElementById('sel-ratio').value.split(':');
+          const targetRatio = parseInt(ratioStr[0]) / parseInt(ratioStr[1]);
+          let bestScore = -1;
+
+          for (let i = 0; i < contours.size(); i++) {
+            const cnt = contours.get(i);
+            const area = cv.contourArea(cnt);
+            if (area < (w * h * 0.05)) continue;
+            const peri = cv.arcLength(cnt, true);
+            const approx = new cv.Mat();
+            cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+            if (approx.rows === 4) {
+              const p = [];
+              for(let j=0; j<4; j++) p.push({x: approx.data32S[j*2], y: approx.data32S[j*2+1]});
+              const avgW = (Math.hypot(p[1].x-p[0].x, p[1].y-p[0].y) + Math.hypot(p[2].x-p[3].x, p[2].y-p[3].y)) / 2;
+              const avgH = (Math.hypot(p[3].x-p[0].x, p[3].y-p[0].y) + Math.hypot(p[2].x-p[1].x, p[2].y-p[1].y)) / 2;
+              const currentRatio = avgW / avgH;
+              const ratioMatch = 1 / (1 + Math.abs(currentRatio - targetRatio));
+              const score = area * ratioMatch;
+              if (score > bestScore) { bestScore = score; pts = p; }
+            }
+            approx.delete();
+          }
+          src.delete(); gray.delete(); contours.delete(); hier.delete();
+        } catch(e) { console.error(e); }
+      }
+      if (!pts) {
+        const px = w * 0.1, py = h * 0.1;
+        pts = [{x:px, y:py}, {x:w-px, y:py}, {x:w-px, y:h-py}, {x:px, y:h-py}];
+      }
+      points = sortPoints(pts);
+      setupHandles();
+    };
+
+    const sortPoints = (pts) => {
+      const c = { x: pts.reduce((a,b)=>a+b.x,0)/4, y: pts.reduce((a,b)=>a+b.y,0)/4 };
+      return pts.sort((a,b) => Math.atan2(a.y-c.y, a.x-c.x) - Math.atan2(b.y-c.y, b.x-c.x));
+    };
+
+    const setupHandles = () => {
+      document.querySelectorAll('.crop-handle').forEach(h => h.remove());
+      points.forEach((pt, i) => {
+        const h = document.createElement('div');
+        h.className = 'crop-handle';
+        h.style.left = pt.x * displayRatio + 'px';
+        h.style.top = pt.y * displayRatio + 'px';
+        const move = (e) => {
+          const r = document.getElementById('canvas-wrapper').getBoundingClientRect();
+          const touch = e.touches ? e.touches[0] : e;
+          points[i].x = Math.max(0, Math.min(originalImgWidth, (touch.clientX - r.left) / displayRatio));
+          points[i].y = Math.max(0, Math.min(originalImgHeight, (touch.clientY - r.top) / displayRatio));
+          h.style.left = points[i].x * displayRatio + 'px';
+          h.style.top = points[i].y * displayRatio + 'px';
+          drawLines();
+        };
+        h.addEventListener('mousedown', () => { window.addEventListener('mousemove', move); });
+        h.addEventListener('touchstart', (e) => { e.preventDefault(); window.addEventListener('touchmove', move); });
+        window.addEventListener('mouseup', () => window.removeEventListener('mousemove', move));
+        window.addEventListener('touchend', () => window.removeEventListener('touchmove', move));
+        document.getElementById('canvas-wrapper').appendChild(h);
+      });
+      drawLines();
+    };
+
+    const drawLines = () => {
+      const s = points.map(p => `${p.x * displayRatio},${p.y * displayRatio}`).join(' ');
+      document.getElementById('crop-polygon').setAttribute('points', s);
+    };
+
+    const openCropView = (src) => {
+      document.getElementById('view-crop').classList.remove('hidden');
       document.getElementById('crop-loading').classList.remove('hidden');
-      document.getElementById('crop-loading-text').innerText = '正在尋找邊緣...';
-
       const img = new Image();
       img.onload = () => {
-        // 為了效能，限制最大處理寬度
-        const MAX_WIDTH = 1200;
-        let w = img.width;
-        let h = img.height;
-        if (w > MAX_WIDTH) {
-          h = Math.round(h * (MAX_WIDTH / w));
-          w = MAX_WIDTH;
-        }
-        
-        canvasSrc.width = w;
-        canvasSrc.height = h;
-        ctxSrc.drawImage(img, 0, 0, w, h);
-        originalImgWidth = w;
-        originalImgHeight = h;
-
-        // 設定 CSS 以符合螢幕 (保持比例)
-        const wrapperMaxWidth = window.innerWidth - 32;
-        const wrapperMaxHeight = window.innerHeight - 150; // header & footer space
-        const scale = Math.min(wrapperMaxWidth / w, wrapperMaxHeight / h);
-        
-        displayRatio = scale; // 顯示大小與真實畫布的比例
-        canvasSrc.style.width = `${w * scale}px`;
-        canvasSrc.style.height = `${h * scale}px`;
-
-        // 嘗試使用 OpenCV 尋找邊緣
-        setTimeout(() => autoDetectCorners(w, h, scale), 100);
-      };
-      img.src = imgDataUrl;
-    }
-
-    function cancelCrop() { viewCrop.classList.add('hidden'); }
-
-    // 自動偵測或提供預設四邊形
-    function autoDetectCorners(w, h, scale) {
-      let foundCorners = null;
-
-      if (cvReady) {
-        try {
-          const src = cv.imread(canvasSrc);
-          cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
-          cv.GaussianBlur(src, src, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
-          cv.Canny(src, src, 75, 200);
-          
-          let contours = new cv.MatVector();
-          let hierarchy = new cv.Mat();
-          cv.findContours(src, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
-          
-          let maxArea = 0;
-          let bestContour = null;
-
-          for (let i = 0; i < contours.size(); ++i) {
-            let cnt = contours.get(i);
-            let area = cv.contourArea(cnt);
-            if (area > (w * h * 0.1)) { // 至少佔據畫面 10%
-              let tmp = new cv.Mat();
-              let peri = cv.arcLength(cnt, true);
-              cv.approxPolyDP(cnt, tmp, 0.02 * peri, true);
-              if (tmp.rows === 4 && area > maxArea) {
-                maxArea = area;
-                bestContour = tmp.clone(); // Clone 取出點
-              }
-              tmp.delete();
-            }
-          }
-
-          if (bestContour) {
-            foundCorners = [];
-            for (let i = 0; i < 4; i++) {
-               foundCorners.push({ x: bestContour.data32S[i*2], y: bestContour.data32S[i*2+1] });
-            }
-            bestContour.delete();
-            // 點排序：左上, 右上, 右下, 左下
-            foundCorners = sortCorners(foundCorners);
-          }
-          
-          src.delete(); contours.delete(); hierarchy.delete();
-        } catch(e) {
-          console.error("OpenCV Auto-detect failed:", e);
-        }
-      }
-
-      // 如果找不到，給定預設框 (內縮 10%)
-      if (!foundCorners) {
-        const paddingX = w * 0.1; const paddingY = h * 0.1;
-        foundCorners = [
-          {x: paddingX, y: paddingY},
-          {x: w - paddingX, y: paddingY},
-          {x: w - paddingX, y: h - paddingY},
-          {x: paddingX, y: h - paddingY}
-        ];
-      }
-
-      points = foundCorners;
-      document.getElementById('crop-loading').classList.add('hidden');
-      setupDraggablePoints();
-    }
-
-    // 將四個點依照順序排列：TL, TR, BR, BL
-    function sortCorners(pts) {
-      let center = { x: pts.reduce((sum, p) => sum + p.x, 0) / 4, y: pts.reduce((sum, p) => sum + p.y, 0) / 4 };
-      return pts.sort((a, b) => {
-        let aAngle = Math.atan2(a.y - center.y, a.x - center.x);
-        let bAngle = Math.atan2(b.y - center.y, b.x - center.x);
-        return aAngle - bAngle;
-      });
-    }
-
-    // 設定 UI 控制點與繪製輔助線
-    function setupDraggablePoints() {
-      // 移除舊點
-      document.querySelectorAll('.crop-handle').forEach(el => el.remove());
-      
-      points.forEach((pt, i) => {
-        const handle = document.createElement('div');
-        handle.className = 'crop-handle';
-        handle.dataset.index = i;
-        updateHandlePos(handle, pt);
-        wrapper.appendChild(handle);
-
-        let isDragging = false;
-        handle.addEventListener('touchstart', () => isDragging = true, {passive: true});
-        handle.addEventListener('mousedown', () => isDragging = true);
-        
-        window.addEventListener('touchmove', e => {
-          if(!isDragging) return;
-          e.preventDefault(); // 阻止背景捲動
-          const rect = wrapper.getBoundingClientRect();
-          let newX = (e.touches[0].clientX - rect.left) / displayRatio;
-          let newY = (e.touches[0].clientY - rect.top) / displayRatio;
-          movePoint(i, handle, newX, newY);
-        }, {passive: false});
-
-        window.addEventListener('mousemove', e => {
-          if(!isDragging) return;
-          const rect = wrapper.getBoundingClientRect();
-          let newX = (e.clientX - rect.left) / displayRatio;
-          let newY = (e.clientY - rect.top) / displayRatio;
-          movePoint(i, handle, newX, newY);
-        });
-
-        window.addEventListener('touchend', () => isDragging = false);
-        window.addEventListener('mouseup', () => isDragging = false);
-      });
-      drawPolygon();
-    }
-
-    function movePoint(i, handle, newX, newY) {
-      // 邊界限制
-      newX = Math.max(0, Math.min(originalImgWidth, newX));
-      newY = Math.max(0, Math.min(originalImgHeight, newY));
-      points[i] = {x: newX, y: newY};
-      updateHandlePos(handle, points[i]);
-      drawPolygon();
-    }
-
-    function updateHandlePos(el, pt) {
-      el.style.left = `${pt.x * displayRatio}px`;
-      el.style.top = `${pt.y * displayRatio}px`;
-    }
-
-    function drawPolygon() {
-      const pStr = points.map(pt => `${pt.x * displayRatio},${pt.y * displayRatio}`).join(' ');
-      cropPolygon.setAttribute('points', pStr);
-    }
-
-    // 執行透視變換與儲存
-    async function processCrop() {
-      document.getElementById('crop-loading').classList.remove('hidden');
-      document.getElementById('crop-loading-text').innerText = '儲存中...';
-
-      // 取得長寬比設定
-      const ratioStr = document.getElementById('sel-ratio').value.split(':');
-      const ratioW = parseInt(ratioStr[0]);
-      const ratioH = parseInt(ratioStr[1]);
-
-      // 決定產出的解析度 (依據使用者選取的邊界寬度)
-      const topWidth = Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
-      const bottomWidth = Math.hypot(points[2].x - points[3].x, points[2].y - points[3].y);
-      let outW = Math.round(Math.max(topWidth, bottomWidth));
-      let outH = Math.round(outW * (ratioH / ratioW));
-
-      const cvsOut = document.getElementById('canvas-processing');
-      cvsOut.width = outW;
-      cvsOut.height = outH;
-      const ctxOut = cvsOut.getContext('2d');
-
-      if (cvReady) {
-        // 使用 OpenCV 透視變換
-        try {
-          const src = cv.imread(canvasSrc);
-          let dst = new cv.Mat();
-          
-          // 原圖四點
-          let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-            points[0].x, points[0].y, points[1].x, points[1].y,
-            points[2].x, points[2].y, points[3].x, points[3].y
-          ]);
-          // 目標四點
-          let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-            0, 0, outW, 0, outW, outH, 0, outH
-          ]);
-          
-          let M = cv.getPerspectiveTransform(srcTri, dstTri);
-          let dsize = new cv.Size(outW, outH);
-          cv.warpPerspective(src, dst, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
-          
-          cv.imshow(cvsOut, dst);
-          src.delete(); dst.delete(); srcTri.delete(); dstTri.delete(); M.delete();
-        } catch(e) {
-          console.error("Warp failed:", e);
-          fallbackCrop(ctxOut, outW, outH);
-        }
-      } else {
-        // Fallback: 簡易方形裁切 (若 OpenCV 壞掉)
-        fallbackCrop(ctxOut, outW, outH);
-      }
-
-      // 轉換為 Blob 並存入 IndexedDB
-      cvsOut.toBlob(async (blob) => {
-        const newCard = {
-          id: Date.now().toString(),
-          game: inpGame.value.trim(),
-          type: inpType.value.trim() || '未分類',
-          number: inpNumber.value.trim(),
-          blob: blob,
-          timestamp: Date.now()
-        };
-        
-        dbCards.push(newCard);
-        await idbKeyval.set('bgCards', dbCards);
-        
-        inpNumber.value = ''; // 清空編號，保留遊戲與類型以便連續建檔
-        renderGallery();
-        
+        const w = img.width > 1200 ? 1200 : img.width;
+        const h = Math.round(img.height * (w / img.width));
+        const canvas = document.getElementById('canvas-source');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        originalImgWidth = w; originalImgHeight = h;
+        displayRatio = Math.min((window.innerWidth-32)/w, (window.innerHeight-160)/h);
+        canvas.style.width = w * displayRatio + 'px';
+        canvas.style.height = h * displayRatio + 'px';
+        autoDetect(w, h);
         document.getElementById('crop-loading').classList.add('hidden');
-        viewCrop.classList.add('hidden');
-      }, 'image/webp', 0.85); // 0.85 壓縮比
-    }
-
-    function fallbackCrop(ctx, w, h) {
-       // 最簡單的 Fallback：直接從最左上角畫一個包含範圍的矩形
-       let minX = Math.min(...points.map(p=>p.x));
-       let minY = Math.min(...points.map(p=>p.y));
-       let maxX = Math.max(...points.map(p=>p.x));
-       let maxY = Math.max(...points.map(p=>p.y));
-       ctx.drawImage(canvasSrc, minX, minY, maxX-minX, maxY-minY, 0, 0, w, h);
-    }
-
-    // --- 預覽與刪除 ---
-    const viewPreview = document.getElementById('view-preview');
-    const previewImg = document.getElementById('preview-img');
-    const previewTitle = document.getElementById('preview-title');
-    const previewSubtitle = document.getElementById('preview-subtitle');
-
-    function openPreview(id) {
-      const card = dbCards.find(c => c.id === id);
-      if(!card) return;
-      previewingId = id;
-      previewImg.src = URL.createObjectURL(card.blob);
-      previewTitle.innerText = card.number || '無名稱/編號';
-      previewSubtitle.innerText = `${card.game} - ${card.type}`;
-      viewPreview.classList.remove('hidden');
-    }
-
-    function closePreview() {
-      viewPreview.classList.add('hidden');
-      if(previewImg.src) URL.revokeObjectURL(previewImg.src);
-      previewingId = null;
-    }
-
-    async function deleteCurrentCard() {
-      if(!previewingId || !confirm('確定要刪除這張卡牌？')) return;
-      dbCards = dbCards.filter(c => c.id !== previewingId);
-      await idbKeyval.set('bgCards', dbCards);
-      closePreview();
-      renderGallery();
-    }
-
-    // --- 匯出與匯入 (Base64 <-> Blob 轉換以符合 JSON) ---
-    async function exportData() {
-      if(dbCards.length === 0) return alert('沒有資料可匯出');
-      const confirmExp = confirm('將目前所有圖庫打包為 JSON 下載？\n(圖片將轉為 Base64，可能需要幾秒鐘)');
-      if(!confirmExp) return;
-
-      const exportArr = await Promise.all(dbCards.map(async (card) => {
-        return new Promise(resolve => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            resolve({ id: card.id, game: card.game, type: card.type, number: card.number, timestamp: card.timestamp, base64: reader.result });
-          };
-          reader.readAsDataURL(card.blob);
-        });
-      }));
-
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportArr));
-      const el = document.createElement('a');
-      el.setAttribute("href", dataStr);
-      el.setAttribute("download", `bg_cards_backup_${new Date().toISOString().slice(0,10)}.json`);
-      document.body.appendChild(el);
-      el.click();
-      el.remove();
-    }
-
-    function importData(e) {
-      const file = e.target.files[0];
-      if(!file) return;
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        try {
-          const imported = JSON.parse(event.target.result);
-          if(!Array.isArray(imported)) throw new Error('Format error');
-          
-          const newDb = await Promise.all(imported.map(async (item) => {
-            const res = await fetch(item.base64);
-            const blob = await res.blob();
-            return { id: item.id, game: item.game, type: item.type, number: item.number, timestamp: item.timestamp, blob: blob };
-          }));
-
-          dbCards = newDb;
-          await idbKeyval.set('bgCards', dbCards);
-          renderGallery();
-          alert(`成功匯入 ${dbCards.length} 張卡牌！`);
-        } catch(err) {
-          alert('匯入失敗，檔案格式錯誤或損毀。');
-          console.error(err);
-        }
       };
-      reader.readAsText(file);
+      img.src = src;
+    };
+
+    window.cancelCrop = () => document.getElementById('view-crop').classList.add('hidden');
+    
+    window.processCrop = async () => {
+      document.getElementById('crop-loading').classList.remove('hidden');
+      const ratio = document.getElementById('sel-ratio').value.split(':');
+      const outW = 800; // 極致輕量：鎖定 800px 寬
+      const outH = Math.round(outW * (parseInt(ratio[1])/parseInt(ratio[0])));
+      const outCvs = document.getElementById('canvas-processing');
+      outCvs.width = outW; outCvs.height = outH;
+
+      if(cvReady) {
+        const src = cv.imread('canvas-source');
+        const dst = new cv.Mat();
+        const sT = cv.matFromArray(4, 1, cv.CV_32FC2, [points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y, points[3].x, points[3].y]);
+        const dT = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, outW, 0, outW, outH, 0, outH]);
+        const M = cv.getPerspectiveTransform(sT, dT);
+        cv.warpPerspective(src, dst, M, new cv.Size(outW, outH));
+        cv.imshow(outCvs, dst);
+        src.delete(); dst.delete(); sT.delete(); dT.delete(); M.delete();
+      }
+      
+      outCvs.toBlob(async (b) => {
+        const c = { id: Date.now().toString(), game: document.getElementById('inp-game').value, type: document.getElementById('inp-type').value, number: document.getElementById('inp-number').value, blob: b, timestamp: Date.now() };
+        dbCards.push(c);
+        await idbKeyval.set('bgCards', dbCards);
+        document.getElementById('inp-number').value = '';
+        renderGallery();
+        document.getElementById('view-crop').classList.add('hidden');
+      }, 'image/webp', 0.7); // 極致輕量：0.7 品質
+    };
+
+     // 事件
+    document.getElementById('file-upload').onchange = (e) => {
+      const f = e.target.files[0]; if(!f) return;
+      const r = new FileReader(); r.onload = (ev) => openCropView(ev.target.result); r.readAsDataURL(f);
       e.target.value = '';
-    }
-  </script>
-</body>
-</html>
+    };
+
+    window.addEventListener('paste', e => {
+      const item = e.clipboardData.items[0];
+      if (item && item.type.indexOf('image') === 0) {
+        const r = new FileReader(); r.onload = (ev) => openCropView(ev.target.result); r.readAsDataURL(item.getAsFile());
+      }
+    });
+
+    window.deleteCard = async (id) => {
+      if(!confirm('刪除？')) return;
+      dbCards = dbCards.filter(c => c.id !== id);
+      await idbKeyval.set('bgCards', dbCards);
+      renderGallery();
+    };
+
+    window.exportData = async () => {
+      const data = await Promise.all(dbCards.map(async c => {
+        const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(c.blob); });
+        return { ...c, base64: b64, blob: null };
+      }));
+      const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `cards_${Date.now()}.json`; a.click();
+    };
+
+    idbKeyval.get('bgCards').then(d => { dbCards = d || []; renderGallery(); });
+    document.getElementById('inp-game').oninput = renderGallery;
+    document.getElementById('inp-type').oninput = renderGallery;
+    document.getElementById('inp-number').oninput = renderGallery;
+    document.getElementById('sel-ratio').onchange = () => { if(!document.getElementById('view-crop').classList.contains('hidden')) autoDetect(originalImgWidth, originalImgHeight); };
+  </script></body></html>
