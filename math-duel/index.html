@@ -159,13 +159,24 @@
     }
 
     function checkEquation(handCards, op, targetCards) {
-      const targets = getValues(targetCards);
+      // 修正：必須將場中目標卡牌也進行全排列，才能支援如 9, 5 顛倒變成 59, 56 的情況
+      let targets = [];
+      const targetPerms = getPermutations(targetCards);
+      for (let p of targetPerms) {
+        targets = targets.concat(getValues(p));
+      }
+
       const perms = getPermutations(handCards);
       for (let p of perms) {
         let splits = [];
         if (p.length === 2) splits.push({A: [p[0]], B: [p[1]]});
-        if (p.length === 3) { splits.push({A: [p[0]], B: [p[1], p[2]]}); splits.push({A: [p[0], p[1]], B: [p[2]]}); }
-        if (p.length === 4) { splits.push({A: [p[0], p[1]], B: [p[2], p[3]]}); }
+        if (p.length === 3) { 
+          splits.push({A: [p[0]], B: [p[1], p[2]]}); 
+          splits.push({A: [p[0], p[1]], B: [p[2]]}); 
+        }
+        if (p.length === 4) { 
+          splits.push({A: [p[0], p[1]], B: [p[2], p[3]]}); 
+        }
         for (let split of splits) {
           let valsA = getValues(split.A);
           let valsB = getValues(split.B);
@@ -183,6 +194,7 @@
       }
       return false;
     }
+
 
     function getCombinations(arr, size) {
       if (size === 0) return [[]];
@@ -349,14 +361,25 @@
       return [];
     }
 
-    function checkEquation(handCards, op, targetCards) {
-      const targets = getValues(targetCards);
+     function checkEquation(handCards, op, targetCards) {
+      // 修正：必須將場中目標卡牌也進行全排列，才能支援如 9, 5 顛倒變成 59, 56 的情況
+      let targets = [];
+      const targetPerms = getPermutations(targetCards);
+      for (let p of targetPerms) {
+        targets = targets.concat(getValues(p));
+      }
+
       const perms = getPermutations(handCards);
       for (let p of perms) {
         let splits = [];
         if (p.length === 2) splits.push({A: [p[0]], B: [p[1]]});
-        if (p.length === 3) { splits.push({A: [p[0]], B: [p[1], p[2]]}); splits.push({A: [p[0], p[1]], B: [p[2]]}); }
-        if (p.length === 4) { splits.push({A: [p[0], p[1]], B: [p[2], p[3]]}); }
+        if (p.length === 3) { 
+          splits.push({A: [p[0]], B: [p[1], p[2]]}); 
+          splits.push({A: [p[0], p[1]], B: [p[2]]}); 
+        }
+        if (p.length === 4) { 
+          splits.push({A: [p[0], p[1]], B: [p[2], p[3]]}); 
+        }
         for (let split of splits) {
           let valsA = getValues(split.A);
           let valsB = getValues(split.B);
@@ -374,6 +397,7 @@
       }
       return false;
     }
+
 
     // --- UI 互動 ---
     function toggleSelect(id, location) {
