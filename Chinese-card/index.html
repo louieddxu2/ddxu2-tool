@@ -51,7 +51,7 @@
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
       else configureHomeLinkAndProbe();
 
-      const appMeta = { id: 'bg-card-cropper-ultimate', name: '卡牌翻譯圖庫', nameZh: '卡牌翻譯圖庫', nameEn: 'Card Cropper', path: appPath, icon: 'scan-text', color: 'emerald' };
+      const appMeta = { id: 'bg-card-cropper-v3', name: '卡牌翻譯圖庫', nameZh: '卡牌翻譯圖庫', nameEn: 'Card Cropper', path: appPath, icon: 'scan-text', color: 'emerald' };
       const storageKey = 'myAppLauncherStorage';
       const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
@@ -229,7 +229,7 @@
       closeEditModal();
     };
 
-    // 終極抗干擾邊緣偵測：形態學閉運算 + 最小外接矩形
+    // 終極防錯邊緣偵測：直方圖均衡 + 外接矩形
     const autoDetect = (w, h) => {
       let foundPts = null;
       if (cvReady) {
@@ -238,68 +238,75 @@
           const gray = new cv.Mat();
           cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
           
-          // 模糊處理降低噪點
-          cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
+          // 1. 強制強化對比度 (專治綠底綠卡)
+          cv.equalizeHist(gray, gray);
           
-          // 抓取邊緣：使用較低的閥值，盡可能抓出所有微弱的卡牌外框線條
+          // 2. 稍微模糊去噪點
+          cv.GaussianBlur(gray, gray, new cv.Size(7, 7), 0);
+          
+          // 3. 邊緣檢測：極低閥值，盡可能保留所有微弱的線條
           const edges = new cv.Mat();
-          cv.Canny(gray, edges, 40, 150);
+          cv.Canny(gray, edges, 20, 80);
           
-          // 殺手鐧 1：超大核形態學閉運算 (Morphological CLOSE)
-          // 這會把內部文字框、外部綠色卡框、斷裂的反光線，物理性地「糊」成一個巨大白塊
-          const M_close = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(15, 15));
-          cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, M_close);
+          // 4. 膨脹：把斷裂的邊線物理性黏合起來
+          const kernel = cv.Mat.ones(9, 9, cv.CV_8U);
+          cv.dilate(edges, edges, kernel, new cv.Point(-1, -1), 1);
           
-          // 尋找輪廓：只抓最外層
+          // 5. 取出所有輪廓 (不再限制最外層，打破畫面邊界干擾)
           const contours = new cv.MatVector();
           const hier = new cv.Mat();
-          cv.findContours(edges, contours, hier, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+          cv.findContours(edges, contours, hier, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
 
-          let maxArea = 0;
-          let bestContour = null;
+          let bestScore = -1;
 
-          // 找出面積最大的「糊狀物」(通常就是整張卡牌的範圍)
           for (let i = 0; i < contours.size(); i++) {
             const cnt = contours.get(i);
             const area = cv.contourArea(cnt);
-            if (area > maxArea && area > (w * h * 0.1)) {
-              maxArea = area;
-              bestContour = cnt;
+
+            // 忽略太小 (<5%) 或太大 (>95%，通常是桌緣) 的區塊
+            if (area < (w * h * 0.05) || area > (w * h * 0.95)) continue;
+
+            // 取得該區塊的「最小外接矩形」
+            const rect = cv.minAreaRect(cnt);
+            const rectArea = rect.size.width * rect.size.height;
+            
+            // 計算「實心度」(Solidity)：判斷它長得像不像一個方塊
+            const solidity = area / rectArea;
+
+            // 條件極度放寬：只要超過 40% 像方塊，且面積夠大，我們就採納
+            if (solidity > 0.4) {
+              if (area > bestScore) {
+                bestScore = area;
+                const verticesMat = new cv.Mat();
+                cv.boxPoints(rect, verticesMat);
+                
+                let ptsArr = [];
+                for(let j=0; j<4; j++) {
+                  // 確保座標不超出邊界
+                  ptsArr.push({
+                    x: Math.max(0, Math.min(w, verticesMat.data32F[j*2])),
+                    y: Math.max(0, Math.min(h, verticesMat.data32F[j*2+1]))
+                  });
+                }
+                foundPts = ptsArr;
+                verticesMat.delete();
+              }
             }
           }
 
-          if (bestContour) {
-            // 殺手鐧 2：最小外接矩形 (Minimum Area Rectangle)
-            // 直接用一個完美的矩形紙箱，套住這個糊掉的、有手指干擾的巨大輪廓
-            const rotatedRect = cv.minAreaRect(bestContour);
-            const verticesMat = new cv.Mat();
-            cv.boxPoints(rotatedRect, verticesMat);
-            
-            let ptsArr = [];
-            for (let i = 0; i < 4; i++) {
-              ptsArr.push({ 
-                x: verticesMat.data32F[i * 2], 
-                y: verticesMat.data32F[i * 2 + 1] 
-              });
-            }
-            
-            // 確保順序正確 (左上, 右上, 右下, 左下)
-            foundPts = sortPoints(ptsArr);
-            verticesMat.delete();
-          }
-
-          src.delete(); gray.delete(); edges.delete(); M_close.delete(); contours.delete(); hier.delete();
+          src.delete(); gray.delete(); edges.delete(); kernel.delete(); contours.delete(); hier.delete();
         } catch(e) { 
-          console.error("CV Error:", e); 
+          console.error("CV 演算錯誤，啟動備援:", e); 
         }
       }
       
-      // 若失敗，給定預設內縮矩形
+      // 若真的運算失敗，給予預設框
       if (!foundPts) {
         const px = w * 0.1, py = h * 0.1;
         foundPts = [{x:px, y:py}, {x:w-px, y:py}, {x:w-px, y:h-py}, {x:px, y:h-py}];
       }
-      points = foundPts;
+      
+      points = sortPoints(foundPts);
       setupHandles();
     };
 
@@ -375,7 +382,7 @@
       document.getElementById('crop-loading-text').innerText = "儲存中...";
       
       const ratio = document.getElementById('sel-ratio').value.split(':');
-      const outW = 800; // 極致輕量
+      const outW = 800; 
       const outH = Math.round(outW * (parseInt(ratio[1])/parseInt(ratio[0])));
       const outCvs = document.getElementById('canvas-processing');
       outCvs.width = outW; outCvs.height = outH;
