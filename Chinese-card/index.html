@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="zh-TW"><head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>卡牌翻譯圖庫 (智慧偵測版)</title>
+  <title>卡牌翻譯圖庫 (終極抗干擾版)</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
@@ -51,7 +51,7 @@
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
       else configureHomeLinkAndProbe();
 
-      const appMeta = { id: 'bg-card-cropper-smart', name: '卡牌翻譯圖庫', nameZh: '卡牌翻譯圖庫', nameEn: 'Card Cropper', path: appPath, icon: 'scan-text', color: 'emerald' };
+      const appMeta = { id: 'bg-card-cropper-ultimate', name: '卡牌翻譯圖庫', nameZh: '卡牌翻譯圖庫', nameEn: 'Card Cropper', path: appPath, icon: 'scan-text', color: 'emerald' };
       const storageKey = 'myAppLauncherStorage';
       const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
@@ -229,7 +229,7 @@
       closeEditModal();
     };
 
-    // 核心優化：智慧邊緣偵測
+    // 終極抗干擾邊緣偵測：形態學閉運算 + 最小外接矩形
     const autoDetect = (w, h) => {
       let foundPts = null;
       if (cvReady) {
@@ -238,73 +238,74 @@
           const gray = new cv.Mat();
           cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
           
-          // 模糊處理以減少雜訊
+          // 模糊處理降低噪點
           cv.GaussianBlur(gray, gray, new cv.Size(5, 5), 0);
           
-          // 邊緣檢測
-          cv.Canny(gray, gray, 50, 150);
+          // 抓取邊緣：使用較低的閥值，盡可能抓出所有微弱的卡牌外框線條
+          const edges = new cv.Mat();
+          cv.Canny(gray, edges, 40, 150);
           
-          // 膨脹處理：把斷裂的邊緣連起來 (對抗同色背景)
-          const M_dilate = cv.Mat.ones(3, 3, cv.CV_8U);
-          cv.dilate(gray, gray, M_dilate, new cv.Point(-1, -1), 1);
+          // 殺手鐧 1：超大核形態學閉運算 (Morphological CLOSE)
+          // 這會把內部文字框、外部綠色卡框、斷裂的反光線，物理性地「糊」成一個巨大白塊
+          const M_close = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(15, 15));
+          cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, M_close);
           
+          // 尋找輪廓：只抓最外層
           const contours = new cv.MatVector();
           const hier = new cv.Mat();
-          cv.findContours(gray, contours, hier, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+          cv.findContours(edges, contours, hier, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-          // 取得目標長寬比
-          const ratioStr = document.getElementById('sel-ratio').value.split(':');
-          const targetRatio = parseInt(ratioStr[0]) / parseInt(ratioStr[1]);
-          let bestScore = -1;
+          let maxArea = 0;
+          let bestContour = null;
 
+          // 找出面積最大的「糊狀物」(通常就是整張卡牌的範圍)
           for (let i = 0; i < contours.size(); i++) {
             const cnt = contours.get(i);
             const area = cv.contourArea(cnt);
-            if (area < (w * h * 0.08)) continue; // 忽略太小的區塊
-
-            // 將輪廓轉換為點陣列
-            let ptsArr = [];
-            for(let j=0; j<cnt.rows; j++) {
-              ptsArr.push({x: cnt.data32S[j*2], y: cnt.data32S[j*2+1]});
-            }
-
-            // 四極點演算法：尋找對角線極端值，自動無視圓角！
-            let tl = ptsArr.reduce((a, b) => (a.x+a.y) < (b.x+b.y) ? a : b); // 左上
-            let br = ptsArr.reduce((a, b) => (a.x+a.y) > (b.x+b.y) ? a : b); // 右下
-            let tr = ptsArr.reduce((a, b) => (a.x-a.y) > (b.x-b.y) ? a : b); // 右上
-            let bl = ptsArr.reduce((a, b) => (a.x-a.y) < (b.x-b.y) ? a : b); // 左下
-
-            const currentPts = [tl, tr, br, bl];
-
-            // 計算當下形狀的視覺長寬比
-            const avgW = (Math.hypot(tr.x-tl.x, tr.y-tl.y) + Math.hypot(br.x-bl.x, br.y-bl.y)) / 2;
-            const avgH = (Math.hypot(bl.x-tl.x, bl.y-tl.y) + Math.hypot(br.x-tr.x, br.y-tr.y)) / 2;
-            const currentRatio = avgW / avgH;
-
-            // 比例評分 (允許 90 度橫擺的可能)
-            const ratioDiff = Math.abs(currentRatio - targetRatio);
-            const invRatioDiff = Math.abs((1/currentRatio) - targetRatio);
-            const bestRatioMatch = Math.max(0, 1 - Math.min(ratioDiff, invRatioDiff));
-
-            // 總分 = 面積 * 比例吻合度
-            const score = area * bestRatioMatch;
-
-            if (score > bestScore) {
-              bestScore = score;
-              foundPts = currentPts;
+            if (area > maxArea && area > (w * h * 0.1)) {
+              maxArea = area;
+              bestContour = cnt;
             }
           }
-          src.delete(); gray.delete(); M_dilate.delete(); contours.delete(); hier.delete();
-        } catch(e) { console.error("CV Error:", e); }
+
+          if (bestContour) {
+            // 殺手鐧 2：最小外接矩形 (Minimum Area Rectangle)
+            // 直接用一個完美的矩形紙箱，套住這個糊掉的、有手指干擾的巨大輪廓
+            const rotatedRect = cv.minAreaRect(bestContour);
+            const verticesMat = new cv.Mat();
+            cv.boxPoints(rotatedRect, verticesMat);
+            
+            let ptsArr = [];
+            for (let i = 0; i < 4; i++) {
+              ptsArr.push({ 
+                x: verticesMat.data32F[i * 2], 
+                y: verticesMat.data32F[i * 2 + 1] 
+              });
+            }
+            
+            // 確保順序正確 (左上, 右上, 右下, 左下)
+            foundPts = sortPoints(ptsArr);
+            verticesMat.delete();
+          }
+
+          src.delete(); gray.delete(); edges.delete(); M_close.delete(); contours.delete(); hier.delete();
+        } catch(e) { 
+          console.error("CV Error:", e); 
+        }
       }
       
-      // 若失敗，給定預設完美矩形
+      // 若失敗，給定預設內縮矩形
       if (!foundPts) {
         const px = w * 0.1, py = h * 0.1;
         foundPts = [{x:px, y:py}, {x:w-px, y:py}, {x:w-px, y:h-py}, {x:px, y:h-py}];
       }
       points = foundPts;
       setupHandles();
+    };
+
+    const sortPoints = (pts) => {
+      const c = { x: pts.reduce((a,b)=>a+b.x,0)/4, y: pts.reduce((a,b)=>a+b.y,0)/4 };
+      return pts.sort((a,b) => Math.atan2(a.y-c.y, a.x-c.x) - Math.atan2(b.y-c.y, b.x-c.x));
     };
 
     const setupHandles = () => {
@@ -354,7 +355,6 @@
         canvas.style.width = w * displayRatio + 'px';
         canvas.style.height = h * displayRatio + 'px';
         
-        // 確保 OpenCV 載入完畢後再執行，避免首次開啟時太快點擊匯入
         const attemptDetect = () => {
           if(cvReady) {
             autoDetect(w, h);
@@ -391,7 +391,6 @@
           cv.imshow(outCvs, dst);
           src.delete(); dst.delete(); sT.delete(); dT.delete(); M.delete();
         } catch(e) {
-          // Fallback
           outCvs.getContext('2d').drawImage(document.getElementById('canvas-source'), 0, 0, outW, outH);
         }
       }
