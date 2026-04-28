@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>黑白算術對決</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@0.300.0"></script>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <style>
+    ::-webkit-scrollbar { width: 0; background: transparent; }
+    body { -webkit-tap-highlight-color: transparent; }
+    .card-enter { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
+
+  <script>
+    /*
+      自動註冊規則（請保留）
+    */
+    (function autoRegister() {
+      let appPath = window.location.pathname;
+      if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
+      if (!appPath.endsWith('/')) appPath += '/';
+      if (appPath === '/') return;
+
+      try {
+        localStorage.setItem('myAppLauncherLastPath', appPath);
+        localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
+      } catch {}
+
+      const launcherPath = appPath.replace(/[^/]+\/$/, '');
+      const normalizedLauncherPath = launcherPath || '/';
+
+      function configureHomeLinkAndProbe() {
+        const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
+        const homeHref = normalizedLauncherPath.includes('?')
+          ? `${normalizedLauncherPath}&home=1`
+          : `${normalizedLauncherPath}?home=1`;
+        homeLinks.forEach(el => el.setAttribute('href', homeHref));
+
+        if (window.location.protocol === 'file:') return;
+
+        const probeUrl = normalizedLauncherPath.endsWith('/')
+          ? `${normalizedLauncherPath}index.html`
+          : `${normalizedLauncherPath}/index.html`;
+
+        const revealHome = () => {
+          homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
+        };
+
+        fetch(probeUrl, { method: 'HEAD' })
+          .then(res => {
+            if (res.ok) { revealHome(); return; }
+            if (res.status === 405) {
+              return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); });
+            }
+          })
+          .catch(() => {});
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
+      } else {
+        configureHomeLinkAndProbe();
+      }
+
+      const appMeta = {
+        id: 'math-duel',
+        name: '黑白算術對決',
+        nameZh: '黑白算術對決',
+        nameEn: 'Math Duel',
+        path: appPath,
+        icon: 'swords',
+        color: 'slate' 
+      };
+
+      const storageKey = 'myAppLauncherStorage';
+      const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
+      if (existingIndex === -1) launcherData.push(appMeta);
+      else launcherData[existingIndex] = { ...launcherData[existingIndex], ...appMeta };
+      localStorage.setItem(storageKey, JSON.stringify(launcherData));
+    })();
+  </script>
+
+  <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-20">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-slate-700 rounded-full transition-colors invisible pointer-events-none" aria-label="返回目錄">
+        <i data-lucide="home" class="w-5 h-5"></i>
+      </a>
+      <h1 class="text-lg font-bold tracking-tight">黑白算術對決</h1>
+      <button onclick="resetGame(true)" class="p-2 -mr-2 hover:bg-slate-700 rounded-full transition-colors" aria-label="重新開始">
+        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4">
+    
+    <div id="status-banner" class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200">
+      載入中...
+    </div>
+
+    <section id="white-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-bold text-slate-500">白方手牌</h2>
+      </div>
+      <div id="white-hand" class="flex flex-wrap gap-2 min-h-[4.5rem]"></div>
+    </section>
+
+    <section class="flex flex-col gap-3 relative">
+      <div id="center-area" class="bg-slate-200 rounded-2xl p-4 border-2 border-slate-300 shadow-inner">
+        <div class="text-center font-bold text-slate-600 mb-3 text-sm">場中央 (目標)</div>
+        <div id="center-cards" class="flex justify-center flex-wrap gap-2 min-h-[4.5rem]"></div>
+      </div>
+
+      <div id="action-panel" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
+        
+        <div id="operator-group" class="flex justify-center gap-2">
+          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border border-slate-300 text-xl font-bold hover:bg-slate-200" data-op="+">+</button>
+          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border border-slate-300 text-xl font-bold hover:bg-slate-200" data-op="-">-</button>
+          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border border-slate-300 text-xl font-bold hover:bg-slate-200" data-op="*">×</button>
+          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border border-slate-300 text-xl font-bold hover:bg-slate-200" data-op="/">÷</button>
+        </div>
+
+        <button id="main-btn" onclick="handleMainAction()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98] transition-transform">
+          送出算式
+        </button>
+        <div id="hint-text" class="text-xs text-slate-400 text-center">系統會自動嘗試所有排列與 6/9 翻轉</div>
+        
+        <button id="giveup-btn" onclick="giveUp()" class="w-full mt-2 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border border-rose-200 active:scale-[0.98] transition-transform">
+          無法湊出 (對手獲勝)
+        </button>
+      </div>
+    </section>
+
+    <section id="black-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-bold text-slate-500">黑方手牌</h2>
+      </div>
+      <div id="black-hand" class="flex flex-wrap gap-2 min-h-[4.5rem]"></div>
+    </section>
+
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    const SAVE_KEY = 'mathDuelState';
+
+    // 初始狀態工廠
+    function createInitialState() {
+      const bHand = Array.from({length: 9}, (_, i) => ({ id: `b${i+1}`, val: i+1, color: 'b' }));
+      const wHand = Array.from({length: 8}, (_, i) => ({ id: `w${i+1}`, val: i+1, color: 'w' }));
+      const center = [{ id: 'w9', val: 9, color: 'w' }];
+      return {
+        turn: 'BLACK',       // 'BLACK' | 'WHITE'
+        state: 'PLAYING',    // 'PLAYING' | 'DISCARDING' | 'GAMEOVER'
+        winner: null,
+        blackHand: bHand,
+        whiteHand: wHand,
+        center: center,
+        selections: {
+          hand: [],          // [id]
+          center: [],        // [id]
+          operator: null     // '+' | '-' | '*' | '/'
+        },
+        discardSelections: []// [id]
+      };
+    }
+
+    let game = loadState() || createInitialState();
+
+    function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(game)); }
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(SAVE_KEY);
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) { return null; }
+    }
+
+    function resetGame(force = false) {
+      if (force && !confirm('確定要重新開始遊戲嗎？')) return;
+      game = createInitialState();
+      saveState();
+      render();
+    }
+
+    // --- 數學與邏輯核心 ---
+
+    // 取得所有排列
+    function getPermutations(arr) {
+      if (arr.length <= 1) return [arr];
+      const result = [];
+      for (let i = 0; i < arr.length; i++) {
+        const current = arr[i];
+        const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
+        const remainingPerms = getPermutations(remaining);
+        for (let perm of remainingPerms) {
+          result.push([current].concat(perm));
+        }
+      }
+      return result;
+    }
+
+    // 取得卡牌陣列能組成的所有可能數字 (處理兩位數與6/9翻轉)
+    function getValues(cards) {
+      if (cards.length === 1) {
+        let v = cards[0].val;
+        return (v === 6 || v === 9) ? [6, 9] : [v];
+      } else if (cards.length === 2) {
+        let v1_opts = (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
+        let v2_opts = (cards[1].val === 6 || cards[1].val === 9) ? [6, 9] : [cards[1].val];
+        let vals = [];
+        for (let v1 of v1_opts) {
+          for (let v2 of v2_opts) {
+            vals.push(v1 * 10 + v2);
+          }
+        }
+        return vals;
+      }
+      return [];
+    }
+
+    // 驗證算式
+    function checkEquation(handCards, op, targetCards) {
+      const targets = getValues(targetCards);
+      const perms = getPermutations(handCards);
+
+      for (let p of perms) {
+        let splits = [];
+        // 將手牌分成兩個運算元 (每個運算元最少1張，最多2張)
+        if (p.length === 2) splits.push({A: [p[0]], B: [p[1]]});
+        if (p.length === 3) {
+          splits.push({A: [p[0]], B: [p[1], p[2]]});
+          splits.push({A: [p[0], p[1]], B: [p[2]]});
+        }
+        if (p.length === 4) {
+          splits.push({A: [p[0], p[1]], B: [p[2], p[3]]});
+        }
+
+        for (let split of splits) {
+          let valsA = getValues(split.A);
+          let valsB = getValues(split.B);
+          for (let a of valsA) {
+            for (let b of valsB) {
+              let res;
+              if (op === '+') res = a + b;
+              if (op === '-') res = a - b;
+              if (op === '*') res = a * b;
+              if (op === '/') res = a / b;
+              if (targets.includes(res)) return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    // --- 操作與流程 ---
+
+    function toggleSelect(id, location) {
+      if (game.state === 'GAMEOVER') return;
+
+      if (game.state === 'DISCARDING') {
+        if (location !== 'center') return;
+        const idx = game.discardSelections.indexOf(id);
+        if (idx > -1) game.discardSelections.splice(idx, 1);
+        else if (game.discardSelections.length < 2) game.discardSelections.push(id);
+        render();
+        return;
+      }
+
+      // PLAYING 狀態
+      if (location === 'hand') {
+        const idx = game.selections.hand.indexOf(id);
+        if (idx > -1) game.selections.hand.splice(idx, 1);
+        else if (game.selections.hand.length < 4) game.selections.hand.push(id);
+      } else if (location === 'center') {
+        const idx = game.selections.center.indexOf(id);
+        if (idx > -1) game.selections.center.splice(idx, 1);
+        else if (game.selections.center.length < 2) game.selections.center.push(id);
+      }
+      render();
+    }
+
+    document.querySelectorAll('.op-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        if (game.state !== 'PLAYING') return;
+        game.selections.operator = e.target.dataset.op;
+        render();
+      });
+    });
+
+    function handleMainAction() {
+      if (game.state === 'DISCARDING') {
+        if (game.discardSelections.length !== 2) return alert('請選擇要保留的 2 張牌！');
+        game.center = game.center.filter(c => game.discardSelections.includes(c.id));
+        game.discardSelections = [];
+        endTurn();
+        return;
+      }
+
+      if (game.state === 'GAMEOVER') {
+        resetGame(false);
+        return;
+      }
+
+      // PLAYING 狀態下送出
+      const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+      const hCards = activeHand.filter(c => game.selections.hand.includes(c.id));
+      const cCards = game.center.filter(c => game.selections.center.includes(c.id));
+      const op = game.selections.operator;
+
+      if (hCards.length < 2 || hCards.length > 4) return alert("請從手牌選擇 2~4 張牌參與運算");
+      if (cCards.length < 1 || cCards.length > 2) return alert("請從場中央選擇 1~2 張牌作為目標");
+      if (!op) return alert("請選擇運算符號");
+
+      if (checkEquation(hCards, op, cCards)) {
+        // 成功，交換卡牌
+        if (game.turn === 'BLACK') {
+          game.blackHand = game.blackHand.filter(c => !game.selections.hand.includes(c.id)).concat(cCards);
+        } else {
+          game.whiteHand = game.whiteHand.filter(c => !game.selections.hand.includes(c.id)).concat(cCards);
+        }
+        game.center = game.center.filter(c => !game.selections.center.includes(c.id)).concat(hCards);
+        
+        game.selections = { hand: [], center: [], operator: null };
+
+        if (game.center.length > 2) {
+          game.state = 'DISCARDING';
+          render();
+        } else {
+          endTurn();
+        }
+      } else {
+        alert("無法湊出這個結果！確認一下數字或符號是否有誤？");
+      }
+    }
+
+    function endTurn() {
+      // 檢查獲勝條件：回合結束時，手牌均為對手顏色
+      const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+      const targetColor = game.turn === 'BLACK' ? 'w' : 'b';
+      const hasWon = activeHand.length > 0 && activeHand.every(c => c.color === targetColor);
+
+      if (hasWon) {
+        game.winner = game.turn;
+        game.state = 'GAMEOVER';
+      } else {
+        game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+        game.state = 'PLAYING';
+      }
+      saveState();
+      render();
+    }
+
+    function giveUp() {
+      if (!confirm("確定無法湊出算式嗎？對手將直接獲勝！")) return;
+      game.winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+      game.state = 'GAMEOVER';
+      saveState();
+      render();
+    }
+
+    // --- 畫面渲染 ---
+
+    function generateCardHTML(card, location) {
+      const isBlack = card.color === 'b';
+      const isSelectable = (game.state === 'PLAYING' && (location === 'center' || (game.turn === 'BLACK' && location === 'black') || (game.turn === 'WHITE' && location === 'white'))) ||
+                           (game.state === 'DISCARDING' && location === 'center');
+      
+      let isSelected = false;
+      if (game.state === 'PLAYING') {
+        isSelected = game.selections.hand.includes(card.id) || game.selections.center.includes(card.id);
+      } else if (game.state === 'DISCARDING') {
+        isSelected = game.discardSelections.includes(card.id);
+      }
+
+      const baseClasses = "w-12 h-16 flex items-center justify-center text-2xl font-bold font-mono rounded-lg border-2 shadow-sm transition-all select-none card-enter";
+      const colorClasses = isBlack 
+        ? "bg-slate-800 text-white border-slate-900" 
+        : "bg-white text-slate-800 border-slate-300";
+      
+      let interactiveClasses = "opacity-60";
+      if (isSelectable) {
+        interactiveClasses = isSelected 
+          ? "ring-4 ring-blue-500 scale-105 opacity-100 cursor-pointer" 
+          : "cursor-pointer hover:-translate-y-1 opacity-100";
+      } else if (isSelected) {
+         interactiveClasses = "opacity-100 ring-2 ring-slate-400"; // 殘留狀態顯示
+      }
+
+      // 為了處理 onClick 傳參數的 location，將 black/white 統一視為 hand
+      const targetLoc = location === 'center' ? 'center' : 'hand';
+
+      return `<div class="${baseClasses} ${colorClasses} ${interactiveClasses}" 
+                   onclick="${isSelectable ? `toggleSelect('${card.id}', '${targetLoc}')` : ''}">
+                ${card.val}
+              </div>`;
+    }
+
+    function render() {
+      // 1. 更新卡牌
+      document.getElementById('white-hand').innerHTML = game.whiteHand.map(c => generateCardHTML(c, 'white')).join('');
+      document.getElementById('black-hand').innerHTML = game.blackHand.map(c => generateCardHTML(c, 'black')).join('');
+      document.getElementById('center-cards').innerHTML = game.center.map(c => generateCardHTML(c, 'center')).join('');
+
+      // 2. 更新區塊高亮
+      const whiteArea = document.getElementById('white-area');
+      const blackArea = document.getElementById('black-area');
+      whiteArea.className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors ${game.turn === 'WHITE' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
+      blackArea.className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4 ${game.turn === 'BLACK' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
+
+      // 3. 更新運算子按鈕狀態
+      document.querySelectorAll('.op-btn').forEach(btn => {
+        const isSelected = game.selections.operator === btn.dataset.op;
+        btn.className = `op-btn w-12 h-12 rounded-lg border text-xl font-bold transition-colors ${
+          isSelected ? 'bg-blue-600 text-white border-blue-700 shadow-md' : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+        } ${game.state !== 'PLAYING' ? 'opacity-50 cursor-not-allowed' : ''}`;
+      });
+
+      // 4. 更新狀態列與按鈕
+      const statusBanner = document.getElementById('status-banner');
+      const mainBtn = document.getElementById('main-btn');
+      const giveupBtn = document.getElementById('giveup-btn');
+      const opGroup = document.getElementById('operator-group');
+      const hintText = document.getElementById('hint-text');
+
+      if (game.state === 'GAMEOVER') {
+        const winnerName = game.winner === 'BLACK' ? '黑方' : '白方';
+        statusBanner.className = "bg-amber-100 text-amber-800 p-3 rounded-xl text-center font-bold shadow-sm border border-amber-200";
+        statusBanner.innerHTML = `遊戲結束！🏆 ${winnerName} 獲得勝利！`;
+        
+        mainBtn.innerText = "再玩一局";
+        mainBtn.className = "w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98] transition-transform";
+        giveupBtn.classList.add('hidden');
+        opGroup.classList.add('hidden');
+        hintText.classList.add('hidden');
+
+      } else if (game.state === 'DISCARDING') {
+        const player = game.turn === 'BLACK' ? '黑方' : '白方';
+        statusBanner.className = "bg-rose-100 text-rose-800 p-3 rounded-xl text-center font-bold shadow-sm border border-rose-200";
+        statusBanner.innerHTML = `⚠️ 場中央超過兩張，請 ${player} 選擇 2 張保留`;
+        
+        mainBtn.innerText = `確認保留 (${game.discardSelections.length}/2)`;
+        mainBtn.className = `w-full py-3 rounded-xl font-bold shadow-md transition-transform ${game.discardSelections.length === 2 ? 'bg-rose-600 text-white active:scale-[0.98]' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`;
+        giveupBtn.classList.add('hidden');
+        opGroup.classList.add('hidden');
+        hintText.classList.add('hidden');
+
+      } else {
+        const player = game.turn === 'BLACK' ? '黑方' : '白方';
+        statusBanner.className = "bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200";
+        statusBanner.innerHTML = `現在輪到：<span class="text-xl mx-1">${player}</span> 行動`;
+        
+        mainBtn.innerText = "送出算式";
+        mainBtn.className = "w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98] transition-transform";
+        giveupBtn.classList.remove('hidden');
+        opGroup.classList.remove('hidden');
+        hintText.classList.remove('hidden');
+      }
+    }
+
+    // 初始化渲染
+    render();
+  </script>
+</body>
+</html>
