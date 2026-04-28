@@ -51,7 +51,7 @@
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
       else configureHomeLinkAndProbe();
 
-      const appMeta = { id: 'bg-card-cropper-v3', name: '卡牌翻譯圖庫', nameZh: '卡牌翻譯圖庫', nameEn: 'Card Cropper', path: appPath, icon: 'scan-text', color: 'emerald' };
+      const appMeta = { id: 'bg-card-cropper-v4', name: '卡牌翻譯圖庫', nameZh: '卡牌翻譯圖庫', nameEn: 'Card Cropper', path: appPath, icon: 'scan-text', color: 'emerald' };
       const storageKey = 'myAppLauncherStorage';
       const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
@@ -229,7 +229,7 @@
       closeEditModal();
     };
 
-    // 終極防錯邊緣偵測：直方圖均衡 + 外接矩形
+    // 終極防錯邊緣偵測：手動三角函數 + 線段長度篩選
     const autoDetect = (w, h) => {
       let foundPts = null;
       if (cvReady) {
@@ -238,60 +238,89 @@
           const gray = new cv.Mat();
           cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
           
-          // 1. 強制強化對比度 (專治綠底綠卡)
+          // 1. 強化對比度
           cv.equalizeHist(gray, gray);
           
-          // 2. 稍微模糊去噪點
-          cv.GaussianBlur(gray, gray, new cv.Size(7, 7), 0);
+          // 2. 加重模糊 (9x9) 來抹除綠色絨布桌墊的纖維紋理
+          cv.GaussianBlur(gray, gray, new cv.Size(9, 9), 0);
           
-          // 3. 邊緣檢測：極低閥值，盡可能保留所有微弱的線條
+          // 3. 邊緣檢測
           const edges = new cv.Mat();
-          cv.Canny(gray, edges, 20, 80);
+          cv.Canny(gray, edges, 30, 100);
           
-          // 4. 膨脹：把斷裂的邊線物理性黏合起來
-          const kernel = cv.Mat.ones(9, 9, cv.CV_8U);
+          // 4. 膨脹黏合斷裂的線條
+          const kernel = cv.Mat.ones(5, 5, cv.CV_8U);
           cv.dilate(edges, edges, kernel, new cv.Point(-1, -1), 1);
           
-          // 5. 取出所有輪廓 (不再限制最外層，打破畫面邊界干擾)
           const contours = new cv.MatVector();
           const hier = new cv.Mat();
           cv.findContours(edges, contours, hier, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
 
-          let bestScore = -1;
+          let allPoints = [];
+          // 關鍵修正：用「長度」而不是「面積」來篩選。長度大於畫面的 5% 才計入
+          const minLength = Math.min(w, h) * 0.05;
+          const maxArea = w * h * 0.98; // 避免把整張照片的最外框算進去
 
           for (let i = 0; i < contours.size(); i++) {
             const cnt = contours.get(i);
-            const area = cv.contourArea(cnt);
-
-            // 忽略太小 (<5%) 或太大 (>95%，通常是桌緣) 的區塊
-            if (area < (w * h * 0.05) || area > (w * h * 0.95)) continue;
-
-            // 取得該區塊的「最小外接矩形」
-            const rect = cv.minAreaRect(cnt);
-            const rectArea = rect.size.width * rect.size.height;
+            const len = cv.arcLength(cnt, false);
             
-            // 計算「實心度」(Solidity)：判斷它長得像不像一個方塊
-            const solidity = area / rectArea;
-
-            // 條件極度放寬：只要超過 40% 像方塊，且面積夠大，我們就採納
-            if (solidity > 0.4) {
-              if (area > bestScore) {
-                bestScore = area;
-                const verticesMat = new cv.Mat();
-                cv.boxPoints(rect, verticesMat);
-                
-                let ptsArr = [];
-                for(let j=0; j<4; j++) {
-                  // 確保座標不超出邊界
-                  ptsArr.push({
-                    x: Math.max(0, Math.min(w, verticesMat.data32F[j*2])),
-                    y: Math.max(0, Math.min(h, verticesMat.data32F[j*2+1]))
-                  });
+            if (len > minLength) {
+              const boundingRect = cv.boundingRect(cnt);
+              const rectArea = boundingRect.width * boundingRect.height;
+              
+              // 排除剛好貼齊照片邊緣的巨大雜訊框
+              if (rectArea < maxArea) {
+                for (let j = 0; j < cnt.rows; j++) {
+                  let px = cnt.data32S[j * 2];
+                  let py = cnt.data32S[j * 2 + 1];
+                  // 排除緊貼著圖片最邊界 2 pixel 的點
+                  if (px > 2 && px < w - 2 && py > 2 && py < h - 2) {
+                    allPoints.push(px, py);
+                  }
                 }
-                foundPts = ptsArr;
-                verticesMat.delete();
               }
             }
+          }
+
+          if (allPoints.length > 0) {
+            // 將所有收集到的點融合成一個大集合
+            const combinedContour = cv.matFromArray(allPoints.length / 2, 1, cv.CV_32SC2, allPoints);
+            const hull = new cv.Mat();
+            
+            // 用橡皮筋把所有點包起來
+            cv.convexHull(combinedContour, hull, false, true);
+
+            // 求出包住這個橡皮筋形狀的「最小旋轉矩形」
+            const rect = cv.minAreaRect(hull);
+            
+            // 關鍵修正 2：手動計算四個角落，徹底避開 cv.boxPoints 導致的閃退當機
+            const cx = rect.center.x;
+            const cy = rect.center.y;
+            const rectW = rect.size.width / 2;
+            const rectH = rect.size.height / 2;
+            const angle = rect.angle * Math.PI / 180.0;
+
+            const cosA = Math.cos(angle);
+            const sinA = Math.sin(angle);
+
+            // 根據中心點、寬高向量、角度推算四個角的完美座標
+            let ptsArr = [
+              { x: cx - rectW * cosA + rectH * sinA, y: cy - rectW * sinA - rectH * cosA },
+              { x: cx + rectW * cosA + rectH * sinA, y: cy + rectW * sinA - rectH * cosA },
+              { x: cx + rectW * cosA - rectH * sinA, y: cy + rectW * sinA + rectH * cosA },
+              { x: cx - rectW * cosA - rectH * sinA, y: cy - rectW * sinA + rectH * cosA }
+            ];
+            
+            // 確保座標不超出畫面範圍
+            ptsArr.forEach(pt => {
+              pt.x = Math.max(0, Math.min(w, pt.x));
+              pt.y = Math.max(0, Math.min(h, pt.y));
+            });
+
+            foundPts = ptsArr;
+            combinedContour.delete();
+            hull.delete();
           }
 
           src.delete(); gray.delete(); edges.delete(); kernel.delete(); contours.delete(); hier.delete();
@@ -300,7 +329,6 @@
         }
       }
       
-      // 若真的運算失敗，給予預設框
       if (!foundPts) {
         const px = w * 0.1, py = h * 0.1;
         foundPts = [{x:px, y:py}, {x:w-px, y:py}, {x:w-px, y:h-py}, {x:px, y:h-py}];
@@ -310,6 +338,7 @@
       setupHandles();
     };
 
+    // 排序四個點：左上、右上、右下、左下，避免線條交叉
     const sortPoints = (pts) => {
       const c = { x: pts.reduce((a,b)=>a+b.x,0)/4, y: pts.reduce((a,b)=>a+b.y,0)/4 };
       return pts.sort((a,b) => Math.atan2(a.y-c.y, a.x-c.x) - Math.atan2(b.y-c.y, b.x-c.x));
