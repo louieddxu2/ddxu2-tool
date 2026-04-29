@@ -1,22 +1,59 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>黑白算術對決</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.300.0"></script>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
+  <link rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
   <style>
-    ::-webkit-scrollbar { width: 0; background: transparent; }
-    body { -webkit-tap-highlight-color: transparent; }
-    .card-enter { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-    .ai-thinking { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    ::-webkit-scrollbar {
+      width: 0;
+      background: transparent;
+    }
+
+    body {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .ai-thinking {
+      animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .5;
+      }
+    }
+
+    .card-pop {
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      0% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
   </style>
 </head>
+
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
 
   <script>
@@ -26,7 +63,7 @@
       if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
       if (!appPath.endsWith('/')) appPath += '/';
       if (appPath === '/') return;
-      try { localStorage.setItem('myAppLauncherLastPath', appPath); } catch {}
+      try { localStorage.setItem('myAppLauncherLastPath', appPath); } catch { }
       const launcherPath = appPath.replace(/[^/]+\/$/, '') || '/';
       const homeHref = launcherPath.includes('?') ? `${launcherPath}&home=1` : `${launcherPath}?home=1`;
       window.addEventListener('DOMContentLoaded', () => {
@@ -39,37 +76,147 @@
       if (idx === -1) launcherData.push(appMeta); else launcherData[idx] = { ...launcherData[idx], ...appMeta };
       localStorage.setItem(storageKey, JSON.stringify(launcherData));
     })();
+
+    const I18N = {
+      zh: {
+        title: '黑白算術對決',
+        mode_pvp: '🎮 雙人同機對戰',
+        mode_ai_easy: '🤖 單人打 AI (新手)',
+        mode_ai_hard: '💀 單人打 AI (大師)',
+        loading: '載入中...',
+        white_hand_ai: '白方手牌 (AI)',
+        white_hand: '白方手牌',
+        black_hand_you: '黑方手牌 (你)',
+        black_hand: '黑方手牌',
+        center_target: '場中央 (目標)',
+        send_eq: '送出算式',
+        give_up: '無法湊出 (對手獲勝)',
+        confirm_change_mode: '確定要切換模式並重新開始嗎？',
+        confirm_reset: '確定要重新開始遊戲嗎？',
+        ai_thinking_easy: '新手 AI 思考中...',
+        ai_thinking_hard: '大師級推演中 (深度 3)',
+        ai_discarding: 'AI 正在丟棄多餘卡牌...',
+        discard_hint: '⚠️ 場中央超過兩張，請選擇 2 張保留',
+        confirm_keep: '確認保留',
+        turn_label: '現在輪到：',
+        waiting_first: '等待第一手...',
+        last_turn_white: '白方上回',
+        last_turn_black: '黑方上回',
+        game_over: '遊戲結束！',
+        win_suffix: ' 獲得勝利！',
+        play_again: '再玩一局',
+        ai_thinking_btn: 'AI 決定中...',
+        giveup_confirm: '確定無法湊出算式嗎？對手將直接獲勝！',
+        select_hand_err: '請從手牌選擇 2~4 張牌',
+        select_target_err: '請從場中選擇 1~2 張目標',
+        select_op_err: '請選擇運算符號',
+        discard_err: '請選擇要保留的 2 張牌！',
+        eq_error: '無法湊出這個結果！確認一下數字或符號是否有誤？',
+        rules_title: '遊戲規則',
+        rules_init: '【初始設定】黑方拿 1~9，白方拿 1~8，場中央放白方 9。',
+        rules_action: '【行動規則】輪到你時，打出 2~4 張牌，配上一個四則運算符號，湊出場中央的數字。湊成後，把場中央被湊成的牌收回手牌，打出的牌留在場上。',
+        rules_limit: '【場地限制】場中央若超過 2 張牌，當回合玩家需選擇保留 2 張，其餘移出遊戲。',
+        rules_special: '【特殊規則】數字 6 與 9 可以自由翻轉互換。手中或場中的 2 張牌可以自由結合成二位數（如 1 和 2 可視為 12 或 21）。',
+        rules_win: '【獲勝條件】回合結束時，手牌全部變成對手的顏色；或對手無牌可出、無法湊出算式。',
+        close: '關閉'
+      },
+      en: {
+        title: 'Math Duel',
+        mode_pvp: '🎮 Local PVP',
+        mode_ai_easy: '🤖 vs AI (Novice)',
+        mode_ai_hard: '💀 vs AI (Master)',
+        loading: 'Loading...',
+        white_hand_ai: 'White Hand (AI)',
+        white_hand: 'White Hand',
+        black_hand_you: 'Black Hand (You)',
+        black_hand: 'Black Hand',
+        center_target: 'Center (Target)',
+        send_eq: 'Send Equation',
+        give_up: 'I Give Up',
+        confirm_change_mode: 'Are you sure you want to change mode and restart?',
+        confirm_reset: 'Are you sure you want to restart the game?',
+        ai_thinking_easy: 'AI thinking...',
+        ai_thinking_hard: 'Master AI deducing (Depth 3)',
+        ai_discarding: 'AI discarding extra cards...',
+        discard_hint: '⚠️ More than 2 cards in center, keep 2.',
+        confirm_keep: 'Confirm Keep',
+        turn_label: 'Turn: ',
+        waiting_first: 'Waiting for first move...',
+        last_turn_white: 'White Last',
+        last_turn_black: 'Black Last',
+        game_over: 'Game Over!',
+        win_suffix: ' Wins!',
+        play_again: 'Play Again',
+        ai_thinking_btn: 'AI deciding...',
+        giveup_confirm: 'Are you sure? Opponent will win immediately!',
+        select_hand_err: 'Please select 2-4 hand cards.',
+        select_target_err: 'Please select 1-2 targets.',
+        select_op_err: 'Please select an operator.',
+        discard_err: 'Please select 2 cards to keep!',
+        eq_error: 'Invalid equation! Check your numbers or operator.',
+        rules_title: 'Game Rules',
+        rules_init: '[Initial] Black: 1-9, White: 1-8, Center: White 9.',
+        rules_action: '[Action] Use 2-4 hand cards + 1 operator to match center. Take center cards, leave played cards.',
+        rules_limit: '[Limit] If center > 2 cards, keep 2 and discard others.',
+        rules_special: '[Special] 6 and 9 are interchangeable. 2 cards can form a 2-digit number (e.g., 1 & 2 = 12 or 21).',
+        rules_win: '[Victory] All your cards match opponent\'s color, or opponent has no valid moves.',
+        close: 'Close'
+      }
+    };
+
+    let LANG = localStorage.getItem('mathDuelLang') || (navigator.language.startsWith('en') ? 'en' : 'zh');
+    const t = (key) => I18N[LANG][key] || key;
+    function toggleLang() {
+      LANG = LANG === 'zh' ? 'en' : 'zh';
+      localStorage.setItem('mathDuelLang', LANG);
+      render();
+    }
   </script>
 
   <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-20 flex flex-col gap-2">
     <div class="max-w-md mx-auto w-full flex items-center justify-between">
-      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-slate-700 rounded-full transition-colors invisible pointer-events-none">
+      <a href="/" data-home-link
+        class="p-2 -ml-2 hover:bg-slate-700 rounded-full transition-colors invisible pointer-events-none">
         <i data-lucide="home" class="w-5 h-5"></i>
       </a>
-      <h1 class="text-lg font-bold tracking-tight">黑白算術對決</h1>
-      <button onclick="resetGame(true)" class="p-2 -mr-2 hover:bg-slate-700 rounded-full transition-colors"><i data-lucide="rotate-ccw" class="w-5 h-5"></i></button>
+      <h1 id="ui-title" class="text-lg font-bold tracking-tight"></h1>
+      <div class="flex gap-1">
+        <button onclick="toggleLang()"
+          class="p-2 hover:bg-slate-700 rounded-full transition-colors flex items-center justify-center font-bold text-xs w-9 h-9">
+          <span id="ui-lang-indicator"></span>
+        </button>
+        <button onclick="toggleRules(true)" class="p-2 hover:bg-slate-700 rounded-full transition-colors"><i
+            data-lucide="help-circle" class="w-5 h-5"></i></button>
+        <button onclick="resetGame(true)" class="p-2 -mr-2 hover:bg-slate-700 rounded-full transition-colors"><i
+            data-lucide="rotate-ccw" class="w-5 h-5"></i></button>
+      </div>
     </div>
     <div class="max-w-md mx-auto w-full flex justify-center">
-      <select id="mode-select" onchange="changeMode(this.value)" class="bg-slate-700 text-sm text-white px-3 py-1.5 rounded-full border border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
-        <option value="PVP">🎮 雙人同機對戰</option>
-        <option value="AI_EASY">🤖 單人打 AI (新手)</option>
-        <option value="AI_HARD">💀 單人打 AI (大師)</option>
+      <select id="mode-select" onchange="changeMode(this.value)"
+        class="bg-slate-700 text-sm text-white px-3 py-1.5 rounded-full border border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
+        <option value="PVP"></option>
+        <option value="AI_EASY"></option>
+        <option value="AI_HARD"></option>
       </select>
     </div>
   </header>
 
   <main class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4">
-    <div id="status-banner" class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200">載入中...</div>
-    <div id="history-area" class="flex flex-col items-center gap-1 py-1 overflow-hidden min-h-[3.5rem] transition-all"></div>
+    <div id="status-banner"
+      class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200"></div>
+    <div id="history-area" class="flex flex-col items-center gap-1 py-1 overflow-hidden min-h-[3.5rem] transition-all">
+    </div>
 
     <section id="white-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors">
-      <div class="flex justify-between items-center mb-3"><h2 class="text-sm font-bold text-slate-500" id="white-label">白方手牌</h2></div>
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-bold text-slate-500" id="white-label"></h2>
+      </div>
       <div id="white-hand" class="flex flex-wrap gap-2 min-h-[4.5rem]"></div>
     </section>
 
     <section class="flex flex-col gap-3 relative">
       <div id="center-area" class="bg-slate-200 rounded-2xl p-4 border-2 border-slate-300 shadow-inner">
-        <div class="text-center font-bold text-slate-600 mb-3 text-sm">場中央 (目標)</div>
+        <div id="ui-center-label" class="text-center font-bold text-slate-600 mb-3 text-sm"></div>
         <div id="center-cards" class="flex justify-center flex-wrap gap-2 min-h-[4.5rem]"></div>
       </div>
 
@@ -80,23 +227,52 @@
           <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="*">×</button>
           <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="/">÷</button>
         </div>
-        <button id="main-btn" onclick="handleMainAction()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md">送出算式</button>
-        <button id="giveup-btn" onclick="giveUp()" class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border">無法湊出 (對手獲勝)</button>
+        <button id="main-btn" onclick="handleMainAction()"
+          class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md"></button>
+        <button id="giveup-btn" onclick="giveUp()"
+          class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border"></button>
       </div>
     </section>
 
     <section id="black-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4">
-      <div class="flex justify-between items-center mb-3"><h2 class="text-sm font-bold text-slate-500" id="black-label">黑方手牌 (你)</h2></div>
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-bold text-slate-500" id="black-label"></h2>
+      </div>
       <div id="black-hand" class="flex flex-wrap gap-2 min-h-[4.5rem]"></div>
     </section>
   </main>
+
+  <!-- Rules Modal -->
+  <div id="rules-modal"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+    <div
+      class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300">
+      <div class="bg-slate-800 p-4 text-white flex justify-between items-center">
+        <h3 class="font-bold text-lg" id="modal-rules-title"></h3>
+        <button onclick="toggleRules(false)" class="p-1 hover:bg-slate-700 rounded-full"><i data-lucide="x"
+            class="w-6 h-6"></i></button>
+      </div>
+      <div class="p-6 space-y-4 text-slate-600 text-sm leading-relaxed max-h-[70vh] overflow-y-auto">
+        <p id="rule-1"></p>
+        <p id="rule-2"></p>
+        <p id="rule-3"></p>
+        <p id="rule-4"></p>
+        <p id="rule-5"></p>
+      </div>
+      <div class="p-4 bg-slate-50 border-t flex justify-end">
+        <button onclick="toggleRules(false)"
+          class="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold shadow-md hover:bg-slate-700 transition-colors"
+          id="modal-close-btn"></button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // ==========================================
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-    const APP_VERSION = '1.0.2';
+    const APP_VERSION = '1.1.5';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -106,11 +282,14 @@
     const SAVE_KEY = `mathDuelState_v${APP_VERSION}`;
 
     function createInitialState(mode = 'PVP') {
+      const aiSide = (mode.startsWith('AI')) ? (Math.random() < 0.5 ? 'BLACK' : 'WHITE') : null;
       return {
         mode: mode,
-        turn: 'BLACK', state: 'PLAYING', winner: null,
-        blackHand: Array.from({length: 9}, (_, i) => ({ id: `b${i+1}`, val: i+1, color: 'b' })),
-        whiteHand: Array.from({length: 8}, (_, i) => ({ id: `w${i+1}`, val: i+1, color: 'w' })),
+        turn: 'BLACK',
+        aiSide: aiSide,
+        state: 'PLAYING', winner: null,
+        blackHand: Array.from({ length: 9 }, (_, i) => ({ id: `b${i + 1}`, val: i + 1, color: 'b' })),
+        whiteHand: Array.from({ length: 8 }, (_, i) => ({ id: `w${i + 1}`, val: i + 1, color: 'w' })),
         center: [{ id: 'w9', val: 9, color: 'w' }],
         selections: { hand: [], center: [], operator: null },
         discardSelections: [],
@@ -120,15 +299,15 @@
 
     let game = loadState() || createInitialState('PVP');
     document.getElementById('mode-select').value = game.mode;
-    
+
     // ... 後續的 saveState, loadState 與遊戲邏輯保持不變 ...
 
 
     function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(game)); }
-    function loadState() { try { const saved = localStorage.getItem(SAVE_KEY); return saved ? JSON.parse(saved) : null; } catch(e) { return null; } }
+    function loadState() { try { const saved = localStorage.getItem(SAVE_KEY); return saved ? JSON.parse(saved) : null; } catch (e) { return null; } }
 
     function changeMode(newMode) {
-      if(confirm(`確定要切換模式並重新開始嗎？`)) {
+      if (confirm(t('confirm_change_mode'))) {
         game = createInitialState(newMode);
         saveState(); render();
       } else {
@@ -137,59 +316,100 @@
     }
 
     function resetGame(force = false) {
-      if (force && !confirm('確定要重新開始遊戲嗎？')) return;
+      if (force && !confirm(t('confirm_reset'))) return;
       game = createInitialState(game.mode);
       saveState(); render();
+      checkAITurn();
     }
 
     // --- 前端運算共用區 ---
     function getPermutations(arr) {
       if (arr.length <= 1) return [arr];
       let res = [];
-      for (let i=0; i<arr.length; i++) {
-        let cur = arr[i], rem = arr.slice(0,i).concat(arr.slice(i+1));
+      for (let i = 0; i < arr.length; i++) {
+        let cur = arr[i], rem = arr.slice(0, i).concat(arr.slice(i + 1));
         for (let p of getPermutations(rem)) res.push([cur].concat(p));
       }
       return res;
     }
     function getValues(cards) {
-      if (cards.length === 1) return (cards[0].val===6 || cards[0].val===9) ? [6,9] : [cards[0].val];
+      if (cards.length === 1) return (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
       if (cards.length === 2) {
-        let v1_opts = (cards[0].val===6 || cards[0].val===9) ? [6,9] : [cards[0].val];
-        let v2_opts = (cards[1].val===6 || cards[1].val===9) ? [6,9] : [cards[1].val];
+        let v1_opts = (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
+        let v2_opts = (cards[1].val === 6 || cards[1].val === 9) ? [6, 9] : [cards[1].val];
         let vals = [];
-        for (let v1 of v1_opts) for (let v2 of v2_opts) vals.push(v1*10+v2);
+        for (let v1 of v1_opts) for (let v2 of v2_opts) vals.push(v1 * 10 + v2);
         return vals;
       }
       return [];
     }
     function checkEquation(handCards, op, targetCards) {
-      let targets = [];
+      let targetVals = [];
       const targetPerms = getPermutations(targetCards);
-      for (let p of targetPerms) targets = targets.concat(getValues(p));
+      for (let p of targetPerms) targetVals = targetVals.concat(getValues(p));
 
       const perms = getPermutations(handCards);
       for (let p of perms) {
         let splits = [];
-        if (p.length === 2) splits.push({A: [p[0]], B: [p[1]]});
-        if (p.length === 3) { splits.push({A: [p[0]], B: [p[1], p[2]]}); splits.push({A: [p[0], p[1]], B: [p[2]]}); }
-        if (p.length === 4) { splits.push({A: [p[0], p[1]], B: [p[2], p[3]]}); }
+        if (p.length === 2) splits.push({ A: [p[0]], B: [p[1]] });
+        if (p.length === 3) { splits.push({ A: [p[0]], B: [p[1], p[2]] }); splits.push({ A: [p[0], p[1]], B: [p[2]] }); }
+        if (p.length === 4) { splits.push({ A: [p[0], p[1]], B: [p[2], p[3]] }); }
         for (let split of splits) {
           let valsA = getValues(split.A), valsB = getValues(split.B);
           for (let a of valsA) {
             for (let b of valsB) {
-              if (op==='+' && targets.includes(a+b)) return true;
-              if (op==='-' && targets.includes(a-b)) return true;
-              if (op==='*' && targets.includes(a*b)) return true;
-              if (op==='/' && targets.includes(a/b)) return true;
+              let res;
+              if (op === '+') res = a + b;
+              else if (op === '-') res = a - b;
+              else if (op === '*') res = a * b;
+              else if (op === '/') res = a / b;
+
+              if (targetVals.includes(res)) {
+                const opChar = op === '*' ? '×' : (op === '/' ? '÷' : op);
+                return { success: true, eq: `${a} ${opChar} ${b} = ${res}`, cardsA: split.A, cardsB: split.B };
+              }
             }
           }
         }
-      } return false;
+      } return { success: false };
+    }
+
+    // --- 核心邏輯工具 ---
+    function getCombinations(arr, k) {
+      const result = [];
+      function helper(start, combo) {
+        if (combo.length === k) { result.push([...combo]); return; }
+        for (let i = start; i < arr.length; i++) helper(i + 1, [...combo, arr[i]]);
+      }
+      helper(0, []);
+      return result;
+    }
+
+    function hasValidMove(hand, center) {
+      if (hand.length < 2) return false;
+      const ops = ['+', '-', '*', '/'];
+      const handCombos = [];
+      for (let i = 2; i <= Math.min(hand.length, 4); i++) {
+        const combos = getCombinations(hand, i);
+        for (let c of combos) handCombos.push(c);
+      }
+      const centerCombos = [];
+      for (let i = 1; i <= Math.min(center.length, 2); i++) {
+        const combos = getCombinations(center, i);
+        for (let c of combos) centerCombos.push(c);
+      }
+      for (let h of handCombos) {
+        for (let c of centerCombos) {
+          for (let op of ops) {
+            if (checkEquation(h, op, c).success) return true;
+          }
+        }
+      }
+      return false;
     }
 
     // --- UI 邏輯 ---
-    function isAITurn() { return game.mode.startsWith('AI') && game.turn === 'WHITE'; }
+    function isAITurn() { return game.mode.startsWith('AI') && game.turn === game.aiSide; }
 
     function toggleSelect(id, location) {
       if (game.state === 'GAMEOVER' || isAITurn()) return;
@@ -208,7 +428,10 @@
         const idx = game.selections.center.indexOf(id);
         if (idx > -1) game.selections.center.splice(idx, 1);
         else if (game.selections.center.length < 2) game.selections.center.push(id);
-      } render();
+      }
+
+      // 精確更新：只更新被點擊卡片的樣式，避免全量 render 的閃爍
+      render();
     }
 
     document.querySelectorAll('.op-btn').forEach(btn => {
@@ -221,7 +444,7 @@
 
     function handleMainAction() {
       if (game.state === 'DISCARDING') {
-        if (game.discardSelections.length !== 2) return alert('請選擇要保留的 2 張牌！');
+        if (game.discardSelections.length !== 2) return alert(t('discard_err'));
         game.center = game.center.filter(c => game.discardSelections.includes(c.id));
         game.discardSelections = [];
         endTurn(); return;
@@ -233,31 +456,41 @@
       const cCards = game.center.filter(c => game.selections.center.includes(c.id));
       const op = game.selections.operator;
 
-      if (hCards.length < 2 || hCards.length > 4) return alert("請從手牌選擇 2~4 張牌");
-      if (cCards.length < 1 || cCards.length > 2) return alert("請從場中選擇 1~2 張目標");
-      if (!op) return alert("請選擇運算符號");
+      if (hCards.length < 2 || hCards.length > 4) return alert(t('select_hand_err'));
+      if (cCards.length < 1 || cCards.length > 2) return alert(t('select_target_err'));
+      if (!op) return alert(t('select_op_err'));
 
-      if (checkEquation(hCards, op, cCards)) {
+      const eqResult = checkEquation(hCards, op, cCards);
+      if (eqResult.success) {
         if (game.turn === 'BLACK') game.blackHand = game.blackHand.filter(c => !game.selections.hand.includes(c.id)).concat(cCards);
         else game.whiteHand = game.whiteHand.filter(c => !game.selections.hand.includes(c.id)).concat(cCards);
         game.center = game.center.filter(c => !game.selections.center.includes(c.id)).concat(hCards);
-        
+
         // 紀錄歷史紀錄
         game.lastMove = {
-          handCards: hCards.map(c => ({...c})),
-          centerCards: cCards.map(c => ({...c})),
+          handCards: hCards.map(c => ({ ...c })),
+          centerCards: cCards.map(c => ({ ...c })),
           op: op,
-          turn: game.turn
+          turn: game.turn,
+          eq: eqResult.eq,
+          cardsA: eqResult.cardsA,
+          cardsB: eqResult.cardsB
         };
 
         game.selections = { hand: [], center: [], operator: null };
+        if (game.aiMoveInfo) {
+          game.lastMove.eq = game.aiMoveInfo.eq;
+          game.lastMove.cardsA = game.aiMoveInfo.cardsA;
+          game.lastMove.cardsB = game.aiMoveInfo.cardsB;
+          delete game.aiMoveInfo;
+        }
 
         if (game.center.length > 2) {
           game.state = 'DISCARDING';
           if (isAITurn()) handleMainAction(); // AI 自動丟牌
           else render();
         } else endTurn();
-      } else alert("無法湊出這個結果！確認一下數字或符號是否有誤？");
+      } else alert(t('eq_error'));
     }
 
     function endTurn() {
@@ -270,16 +503,44 @@
         game.state = 'PLAYING';
       }
       saveState(); render();
+      checkAITurn();
+    }
 
-      if (isAITurn() && game.state === 'PLAYING') {
+    function checkAITurn() {
+      if (game.state !== 'PLAYING') return;
+
+      // 檢查當前行動方是否還有路走 (死局判定)
+      const currentHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+      if (!hasValidMove(currentHand, game.center)) {
+        setTimeout(() => {
+          const winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+          const msg = game.turn === 'BLACK' ? (LANG === 'zh' ? '你已無路可走！' : 'No moves left!') : (LANG === 'zh' ? 'AI 已無路可走！' : 'AI has no moves left!');
+          alert(msg);
+          game.winner = winner;
+          game.state = 'GAMEOVER';
+          saveState(); render();
+        }, 300);
+        return;
+      }
+
+      if (isAITurn()) {
         const difficulty = game.mode === 'AI_HARD' ? 'hard' : 'easy';
-        document.getElementById('status-banner').innerHTML = `<span class="ai-thinking">🧠 ${difficulty==='hard'?'大師級推演中 (深度 3)':'新手 AI 思考中...'}</span>`;
-        // 把雙方手牌都傳給 AI，讓它能推演你的可能反擊
-        worker.postMessage({ difficulty, whiteHand: game.whiteHand, blackHand: game.blackHand, centerCards: game.center });
+        document.getElementById('status-banner').innerHTML = `<span class="ai-thinking">🧠 ${difficulty === 'hard' ? t('ai_thinking_hard') : t('ai_thinking_easy')}</span>`;
+
+        // 核心修正：明確告知 AI 誰才是它的手牌
+        const aiHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+        const oppHand = game.turn === 'BLACK' ? game.whiteHand : game.blackHand;
+
+        worker.postMessage({
+          difficulty,
+          aiHand,
+          opponentHand: oppHand,
+          centerCards: game.center
+        });
       }
     }
 
-    worker.onmessage = function(e) {
+    worker.onmessage = function (e) {
       const move = e.data;
       if (!move) { setTimeout(() => giveUp(), 1500); return; }
       setTimeout(() => {
@@ -287,73 +548,147 @@
         game.selections.center = move.center;
         game.selections.operator = move.op;
         if (move.discard && move.discard.length === 2) game.discardSelections = move.discard;
+
+        // 修正：動態取得 AI 目前的手牌，解決 AI 當黑方時的 Bug
+        const aiHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+        const eqResult = checkEquation(aiHand.filter(c => move.hand.includes(c.id)), move.op, game.center.filter(c => move.center.includes(c.id)));
+        if (move.eq) game.aiMoveInfo = { eq: move.eq, cardsA: move.cardsA, cardsB: move.cardsB };
+
         render(); setTimeout(() => handleMainAction(), 800);
       }, 500);
     };
 
     function giveUp() {
-      if (game.turn === 'BLACK' || game.mode === 'PVP') if (!confirm(`確定無法湊出算式嗎？對手將直接獲勝！`)) return;
+      if (game.turn === 'BLACK' || game.mode === 'PVP') if (!confirm(t('giveup_confirm'))) return;
       game.winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
       game.state = 'GAMEOVER'; saveState(); render();
     }
 
-    function generateCardHTML(card, location) {
+    function generateCardHTML(card, location, isNew = false) {
       const isBlack = card.color === 'b';
       const isSelectable = (game.state === 'PLAYING' && (location === 'center' || (game.turn === 'BLACK' && location === 'black') || (game.turn === 'WHITE' && location === 'white'))) ||
-                           (game.state === 'DISCARDING' && location === 'center');
+        (game.state === 'DISCARDING' && location === 'center');
       let isSelected = (game.state === 'PLAYING') ? (game.selections.hand.includes(card.id) || game.selections.center.includes(card.id)) :
-                       (game.state === 'DISCARDING') ? game.discardSelections.includes(card.id) : false;
+        (game.state === 'DISCARDING') ? game.discardSelections.includes(card.id) : false;
 
-      const baseClasses = "w-12 h-16 flex items-center justify-center text-2xl font-bold font-mono rounded-lg border-2 shadow-sm transition-all select-none card-enter";
+      const baseClasses = `w-12 h-16 flex items-center justify-center text-2xl font-bold font-mono rounded-lg border-2 shadow-sm transition-all select-none ${isNew ? 'card-pop' : ''}`;
       const colorClasses = isBlack ? "bg-slate-800 text-white border-slate-900" : "bg-white text-slate-800 border-slate-300";
       let interactiveClasses = "opacity-60";
-      
+
       if (isAITurn() && location !== 'center' && !isSelected) interactiveClasses = "opacity-40";
       else if (isSelectable) interactiveClasses = isSelected ? "ring-4 ring-blue-500 scale-105 opacity-100 cursor-pointer" : "cursor-pointer hover:-translate-y-1 opacity-100";
       else if (isSelected) interactiveClasses = "opacity-100 ring-2 ring-slate-400";
 
-      return `<div class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${location==='center'?'center':'hand'}')` : ''}">${card.val}</div>`;
+      return `<div class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${location === 'center' ? 'center' : 'hand'}')` : ''}">${card.val}</div>`;
     }
 
-    function render() {
-      lucide.createIcons();
-      document.getElementById('white-hand').innerHTML = game.whiteHand.map(c => generateCardHTML(c, 'white')).join('');
-      document.getElementById('black-hand').innerHTML = game.blackHand.map(c => generateCardHTML(c, 'black')).join('');
-      document.getElementById('center-cards').innerHTML = game.center.map(c => generateCardHTML(c, 'center')).join('');
+    let lastRenderState = { white: '', black: '', center: '', title: '', lang: '' };
 
-      document.getElementById('white-label').innerText = game.mode.startsWith('AI') ? '白方手牌 (AI)' : '白方手牌';
-      document.getElementById('black-label').innerText = game.mode === 'PVP' ? '黑方手牌' : '黑方手牌 (你)';
+    function render() {
+      // 1. 靜態 UI 更新 (僅在必要時)
+      const titleStr = t('title');
+      if (lastRenderState.title !== titleStr || lastRenderState.lang !== LANG) {
+        document.getElementById('ui-title').innerText = titleStr;
+        document.getElementById('ui-lang-indicator').innerText = LANG === 'zh' ? 'EN' : '中';
+        document.querySelector('#mode-select option[value="PVP"]').innerText = t('mode_pvp');
+        document.querySelector('#mode-select option[value="AI_EASY"]').innerText = t('mode_ai_easy');
+        document.querySelector('#mode-select option[value="AI_HARD"]').innerText = t('mode_ai_hard');
+        document.getElementById('ui-center-label').innerText = t('center_target');
+        lucide.createIcons();
+        lastRenderState.title = titleStr;
+        lastRenderState.lang = LANG;
+      }
+
+      // 2. 卡牌區域智慧更新
+      const whiteHTML = game.whiteHand.map(c => generateCardHTML(c, 'white')).join('');
+      const blackHTML = game.blackHand.map(c => generateCardHTML(c, 'black')).join('');
+      // 場中央也同步使用智慧更新，消除閃爍
+      const centerHTML = game.center.map(c => generateCardHTML(c, 'center', false)).join('');
+
+      if (lastRenderState.white !== whiteHTML) {
+        document.getElementById('white-hand').innerHTML = whiteHTML;
+        lastRenderState.white = whiteHTML;
+      }
+      if (lastRenderState.black !== blackHTML) {
+        document.getElementById('black-hand').innerHTML = blackHTML;
+        lastRenderState.black = blackHTML;
+      }
+      if (lastRenderState.center !== centerHTML) {
+        document.getElementById('center-cards').innerHTML = centerHTML;
+        lastRenderState.center = centerHTML;
+      }
+
+      // 3. 標籤與 Banner 更新 (僅在文字改變時)
+      const whiteLabel = game.mode.startsWith('AI') ? (game.aiSide === 'WHITE' ? t('white_hand_ai') : t('white_hand')) : t('white_hand');
+      const blackLabel = game.mode.startsWith('AI') ? (game.aiSide === 'BLACK' ? (LANG === 'zh' ? '黑方手牌 (AI)' : 'Black Hand (AI)') : t('black_hand_you')) : t('black_hand');
+
+      if (document.getElementById('white-label').innerText !== whiteLabel) document.getElementById('white-label').innerText = whiteLabel;
+      if (document.getElementById('black-label').innerText !== blackLabel) document.getElementById('black-label').innerText = blackLabel;
 
       document.getElementById('white-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors ${game.turn === 'WHITE' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
       document.getElementById('black-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4 ${game.turn === 'BLACK' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
 
       document.querySelectorAll('.op-btn').forEach(btn => {
         const isSel = game.selections.operator === btn.dataset.op;
-        btn.className = `op-btn w-12 h-12 rounded-lg border text-xl font-bold transition-colors ${isSel ? 'bg-blue-600 text-white border-blue-700 shadow-md scale-105' : 'bg-slate-100 text-slate-700 border-slate-300'} ${game.state !== 'PLAYING' || (isAITurn() && !isSel) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200'}`;
+        const isDisabled = game.state !== 'PLAYING' || isAITurn();
+
+        // 基礎樣式
+        let classes = `op-btn w-12 h-12 rounded-lg border text-xl font-bold transition-all duration-200 flex items-center justify-center `;
+
+        // 選中狀態顏色
+        if (isSel) {
+          classes += `bg-blue-600 text-white border-blue-700 shadow-lg scale-110 z-10 `;
+        } else {
+          classes += `bg-slate-100 text-slate-700 border-slate-200 `;
+        }
+
+        // 鎖定/啟用狀態與透明度處理
+        if (isDisabled) {
+          // 如果選中了，保持較高透明度 (0.9)；未選中才變淡 (0.3)
+          classes += (isSel ? "opacity-90 " : "opacity-30 ") + "cursor-not-allowed ";
+        } else {
+          classes += "cursor-pointer active:scale-95 ";
+          // 僅在未選中時套用 hover 效果
+          if (!isSel) classes += "hover:bg-slate-200 hover:border-slate-300 ";
+        }
+
+        btn.className = classes;
       });
 
       const sb = document.getElementById('status-banner'), mb = document.getElementById('main-btn'), gb = document.getElementById('giveup-btn'), og = document.getElementById('operator-group');
       if (game.state === 'GAMEOVER') {
-        const winnerName = game.winner === 'BLACK' ? (game.mode.startsWith('AI')?'🎉 你':'黑方') : (game.mode.startsWith('AI')?'🤖 AI':'白方');
+        let winnerName;
+        if (game.mode.startsWith('AI')) {
+          if (game.winner === game.aiSide) winnerName = '🤖 AI';
+          else winnerName = (LANG === 'zh' ? '🎉 你' : '🎉 You');
+        } else {
+          winnerName = game.winner === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
+        }
         sb.className = "bg-amber-100 text-amber-800 p-3 rounded-xl text-center font-bold shadow-sm border border-amber-200";
-        sb.innerHTML = `遊戲結束！ ${winnerName} 獲得勝利！`;
-        mb.innerText = "再玩一局"; mb.className = "w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98]";
+        sb.innerHTML = t('game_over') + winnerName + t('win_suffix');
+        mb.innerText = t('play_again'); mb.className = "w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98]";
         gb.classList.add('hidden'); og.classList.add('hidden');
       } else if (game.state === 'DISCARDING') {
         sb.className = "bg-rose-100 text-rose-800 p-3 rounded-xl text-center font-bold shadow-sm border border-rose-200";
-        sb.innerHTML = isAITurn() ? `AI 正在丟棄多餘卡牌...` : `⚠️ 場中央超過兩張，請選擇 2 張保留`;
-        mb.innerText = `確認保留 (${game.discardSelections.length}/2)`;
+        sb.innerHTML = isAITurn() ? t('ai_discarding') : t('discard_hint');
+        mb.innerText = `${t('confirm_keep')} (${game.discardSelections.length}/2)`;
         mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${game.discardSelections.length === 2 ? 'bg-rose-600 text-white active:scale-[0.98]' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`;
-        if(isAITurn()) mb.className += " hidden";
+        if (isAITurn()) mb.className += " hidden";
         gb.classList.add('hidden'); og.classList.add('hidden');
       } else {
-        const pName = game.turn === 'BLACK' ? '黑方 (你)' : (game.mode==='AI_HARD'?'大師級 AI':(game.mode==='AI_EASY'?'新手 AI':'白方'));
+        let pName;
+        if (game.mode.startsWith('AI')) {
+          pName = game.turn === game.aiSide ? (game.mode === 'AI_HARD' ? t('mode_ai_hard') : t('mode_ai_easy')) : (LANG === 'zh' ? '你' : 'You');
+        } else {
+          pName = game.turn === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
+        }
         sb.className = "bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200";
-        if(!isAITurn() || !sb.innerHTML.includes('推演中')) sb.innerHTML = `現在輪到：<span class="text-xl mx-1">${pName}</span>`;
-        mb.innerText = isAITurn() ? "AI 決定中..." : "送出算式";
+        if (!isAITurn() || !sb.innerHTML.includes(t('ai_thinking_easy').slice(0, 4))) sb.innerHTML = `${t('turn_label')}<span class="text-xl mx-1">${pName}</span>`;
+        mb.innerText = isAITurn() ? t('ai_thinking_btn') : t('send_eq');
         mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${isAITurn() ? 'bg-slate-300 text-slate-500 cursor-not-allowed hidden' : 'bg-blue-600 text-white active:scale-[0.98]'}`;
-        if(isAITurn()) gb.classList.add('hidden'); else gb.classList.remove('hidden');
+        if (isAITurn()) gb.classList.add('hidden'); else gb.classList.remove('hidden');
         og.classList.remove('hidden');
+        gb.innerText = t('give_up');
       }
       // 渲染歷史紀錄
       renderHistory();
@@ -362,17 +697,11 @@
     function renderHistory() {
       const area = document.getElementById('history-area');
       if (!game.lastMove) {
-        area.innerHTML = '<div class="text-[10px] text-slate-300 font-bold uppercase tracking-wider">等待第一手...</div>';
+        area.innerHTML = `<div class="text-[10px] text-slate-300 font-bold uppercase tracking-wider">${t('waiting_first')}</div>`;
         return;
       }
 
-      const { handCards, centerCards, op, turn } = game.lastMove;
-      
-      // 分組手牌 (A op B)
-      let cardsA, cardsB;
-      if (handCards.length === 2) { cardsA = [handCards[0]]; cardsB = [handCards[1]]; }
-      else if (handCards.length === 3) { cardsA = [handCards[0]]; cardsB = [handCards[1], handCards[2]]; }
-      else { cardsA = [handCards[0], handCards[1]]; cardsB = [handCards[2], handCards[3]]; }
+      const { cardsA, cardsB, centerCards, op, turn } = game.lastMove;
 
       const cardToHtml = (c) => {
         const isBlack = c.color === 'b';
@@ -381,22 +710,48 @@
         return `<div class="${base} ${colors}">${c.val}</div>`;
       };
 
-      const opChar = op === '*' ? '×' : (op === '/' ? '÷' : op);
-      const turnLabel = turn === 'BLACK' ? '黑方上回' : '白方上回';
+      const turnLabel = turn === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
       const turnColor = turn === 'BLACK' ? 'text-slate-500' : 'text-blue-400';
+      const opChar = op === '*' ? '×' : (op === '/' ? '÷' : op);
 
       area.innerHTML = `
         <div class="flex items-center gap-1.5 opacity-40 scale-90 transition-opacity hover:opacity-100">
-          <span class="text-[9px] font-black ${turnColor} mr-1">${turnLabel}</span>
+          <span class="text-[9px] font-black ${turnColor} mr-0.5 whitespace-nowrap">${turnLabel}</span>
           <div class="flex gap-0.5">${cardsA.map(cardToHtml).join('')}</div>
-          <span class="text-xs font-black text-slate-400">${opChar}</span>
+          <span class="text-xs font-bold text-slate-400">${opChar}</span>
           <div class="flex gap-0.5">${cardsB.map(cardToHtml).join('')}</div>
-          <span class="text-xs font-black text-slate-400">=</span>
+          <span class="text-xs font-bold text-slate-400">=</span>
           <div class="flex gap-0.5">${centerCards.map(cardToHtml).join('')}</div>
         </div>
       `;
     }
-    render(); if (isAITurn() && game.state === 'PLAYING') endTurn();
+
+    function toggleRules(show) {
+      const modal = document.getElementById('rules-modal');
+      const content = modal.querySelector('div');
+      if (show) {
+        document.getElementById('modal-rules-title').innerText = t('rules_title');
+        document.getElementById('rule-1').innerText = t('rules_init');
+        document.getElementById('rule-2').innerText = t('rules_action');
+        document.getElementById('rule-3').innerText = t('rules_limit');
+        document.getElementById('rule-4').innerText = t('rules_special');
+        document.getElementById('rule-5').innerText = t('rules_win');
+        document.getElementById('modal-close-btn').innerText = t('close');
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          modal.classList.remove('opacity-0');
+          content.classList.remove('scale-95');
+        }, 10);
+      } else {
+        modal.classList.add('opacity-0');
+        content.classList.add('scale-95');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+      }
+    }
+
+    render(); checkAITurn();
   </script>
 </body>
+
 </html>

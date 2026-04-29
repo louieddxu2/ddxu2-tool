@@ -31,9 +31,9 @@ function getCombinations(arr, size) {
 }
 
 function checkEquation(handCards, op, targetCards) {
-  let targets = [];
+  let targetVals = [];
   const targetPerms = getPermutations(targetCards);
-  for (let p of targetPerms) targets = targets.concat(getValues(p));
+  for (let p of targetPerms) targetVals = targetVals.concat(getValues(p));
 
   const perms = getPermutations(handCards);
   for (let p of perms) {
@@ -47,15 +47,21 @@ function checkEquation(handCards, op, targetCards) {
       let valsB = getValues(split.B);
       for (let a of valsA) {
         for (let b of valsB) {
-          if (op === '+' && targets.includes(a + b)) return true;
-          if (op === '-' && targets.includes(a - b)) return true;
-          if (op === '*' && targets.includes(a * b)) return true;
-          if (op === '/' && targets.includes(a / b)) return true;
+          let res;
+          if (op === '+') res = a + b;
+          else if (op === '-') res = a - b;
+          else if (op === '*') res = a * b;
+          else if (op === '/') res = a / b;
+
+          if (targetVals.includes(res)) {
+            const opChar = op === '*' ? '×' : (op === '/' ? '÷' : op);
+            return { success: true, eq: `${a} ${opChar} ${b} = ${res}`, cardsA: split.A, cardsB: split.B };
+          }
         }
       }
     }
   }
-  return false;
+  return { success: false };
 }
 
 function isPrime(num) {
@@ -84,23 +90,28 @@ function evaluateCenterDifficulty(cards) {
 }
 
 // --- 盤面狀態評估 ---
-// AI 扮演白方，目標是手牌全變黑；黑方玩家目標是手牌全變白
-function evaluateState(state) {
-  const whiteHandBlacks = state.whiteHand.filter(c => c.color === 'b').length;
-  const whiteHandWhites = state.whiteHand.filter(c => c.color === 'w').length;
-  const blackHandWhites = state.blackHand.filter(c => c.color === 'w').length;
-  const blackHandBlacks = state.blackHand.filter(c => c.color === 'b').length;
+// AI 的目標是讓自己的手牌全變成「對手的顏色」
+function evaluateState(state, aiColor) {
+  const oppColor = aiColor === 'w' ? 'b' : 'w';
+
+  // AI 側 (在 Worker 內部固定為 whiteHand)
+  const aiHandOppCount = state.whiteHand.filter(c => c.color === oppColor).length;
+  const aiHandOwnCount = state.whiteHand.filter(c => c.color === aiColor).length;
+  
+  // 玩家側 (在 Worker 內部固定為 blackHand)
+  const oppHandAiCount = state.blackHand.filter(c => c.color === aiColor).length;
+  const oppHandOwnCount = state.blackHand.filter(c => c.color === oppColor).length;
 
   // 檢查勝負條件
-  if (state.whiteHand.length > 0 && whiteHandWhites === 0) return 999999; // AI 贏了
-  if (state.blackHand.length > 0 && blackHandBlacks === 0) return -999999; // 玩家贏了
+  if (state.whiteHand.length > 0 && aiHandOwnCount === 0) return 999999; // AI 贏了
+  if (state.blackHand.length > 0 && oppHandOwnCount === 0) return -999999; // 玩家贏了
 
   let score = 0;
-  // AI 自己的利益 (手牌黑多白少)
-  score += (whiteHandBlacks * 30) - (whiteHandWhites * 40);
+  // AI 自己的利益 (目標顏色的牌越多越好，起始顏色的牌越少越好)
+  score += (aiHandOppCount * 30) - (aiHandOwnCount * 40);
   
-  // 打擊對手利益 (減少對方手牌的白牌)
-  score -= (blackHandWhites * 30);
+  // 打擊對手利益 (減少對方手中屬於 AI 顏色的牌)
+  score -= (oppHandAiCount * 30);
   
   score += evaluateCenterDifficulty(state.centerCards);
   return score;
@@ -115,18 +126,19 @@ function generateValidMoves(activeHand, centerCards) {
   let centerCombos = [];
   for(let i=1; i<=2; i++) centerCombos = centerCombos.concat(getCombinations(centerCards, i));
 
-  for (let hCombo of handCombos) {
+    for (let hCombo of handCombos) {
     for (let cCombo of centerCombos) {
       for (let op of ops) {
-        if (checkEquation(hCombo, op, cCombo)) {
+        const result = checkEquation(hCombo, op, cCombo);
+        if (result.success) {
           let tempCenter = centerCards.filter(c => !cCombo.includes(c)).concat(hCombo);
           if (tempCenter.length > 2) {
             let keepCombos = getCombinations(tempCenter, 2);
             for (let keep of keepCombos) {
-              moves.push({ hand: hCombo, center: cCombo, op: op, discard: keep });
+              moves.push({ hand: hCombo, center: cCombo, op: op, discard: keep, eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB });
             }
           } else {
-            moves.push({ hand: hCombo, center: cCombo, op: op, discard: [] });
+            moves.push({ hand: hCombo, center: cCombo, op: op, discard: [], eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB });
           }
         }
       }
@@ -151,33 +163,23 @@ function applyMove(state, move, isWhiteTurn) {
   return newState;
 }
 
-// --- Minimax 演算法大腦 ---
 // --- Minimax 演算法大腦 (升級 Beam Search 剪枝) ---
-function minimax(state, depth, alpha, beta, isMaximizing) {
-  if (depth === 0) return evaluateState(state);
-  const evalScore = evaluateState(state);
-  if (Math.abs(evalScore) > 900000) return evalScore; 
+function minimax(state, depth, alpha, beta, isMaximizing, aiColor) {
+  const evalScore = evaluateState(state, aiColor);
+  if (depth === 0 || Math.abs(evalScore) > 900000) return evalScore; 
 
   const activeHand = isMaximizing ? state.whiteHand : state.blackHand;
   let moves = generateValidMoves(activeHand, state.centerCards);
 
-  // 如果無牌可出，對手獲勝
   if (moves.length === 0) return isMaximizing ? -999999 : 999999;
 
-  // 🌟 核心進化：啟發式排序與剪枝 (Beam Search)
-  // 當推演深度還很深時，不要每一步都算，先「憑直覺打分數」，只保留最強的 4 條路線！
   if (depth > 1) {
     moves.forEach(m => {
       let childState = applyMove(state, m, isMaximizing);
-      m.heuristic = evaluateState(childState);
+      m.heuristic = evaluateState(childState, aiColor);
     });
-    
-    if (isMaximizing) {
-      moves.sort((a, b) => b.heuristic - a.heuristic); // 對 AI 最好
-    } else {
-      moves.sort((a, b) => a.heuristic - b.heuristic); // 對玩家最好
-    }
-    // 🔪 殘酷剪枝：只保留前 4 名，把運算量從 27,000 暴降到不到 500！
+    if (isMaximizing) moves.sort((a, b) => b.heuristic - a.heuristic);
+    else moves.sort((a, b) => a.heuristic - b.heuristic);
     moves = moves.slice(0, 4); 
   }
 
@@ -185,30 +187,36 @@ function minimax(state, depth, alpha, beta, isMaximizing) {
     let maxEval = -Infinity;
     for (let move of moves) {
       let childState = applyMove(state, move, true);
-      let ev = minimax(childState, depth - 1, alpha, beta, false);
+      let ev = minimax(childState, depth - 1, alpha, beta, false, aiColor);
       maxEval = Math.max(maxEval, ev);
       alpha = Math.max(alpha, ev);
-      if (beta <= alpha) break; // Alpha-Beta 剪枝
+      if (beta <= alpha) break;
     }
     return maxEval;
   } else {
     let minEval = Infinity;
     for (let move of moves) {
       let childState = applyMove(state, move, false);
-      let ev = minimax(childState, depth - 1, alpha, beta, true);
+      let ev = minimax(childState, depth - 1, alpha, beta, true, aiColor);
       minEval = Math.min(minEval, ev);
       beta = Math.min(beta, ev);
-      if (beta <= alpha) break; // Alpha-Beta 剪枝
+      if (beta <= alpha) break;
     }
     return minEval;
   }
 }
 
 self.onmessage = function(e) {
-  const { difficulty, whiteHand, blackHand, centerCards } = e.data;
-  const isHard = difficulty === 'hard';
+  const { difficulty, aiHand, opponentHand, centerCards } = e.data;
+  if (!aiHand || aiHand.length === 0) return self.postMessage(null);
+
+  // 取得 AI 目前的顏色與對手顏色
+  const aiColor = aiHand[0].color;
   
-  // 恢復深度 3！因為有了 Beam Search，現在它算得動了！
+  // 在 Worker 內部，whiteHand 統一代表「發起計算的 AI」，blackHand 代表「對手」
+  const whiteHand = aiHand;
+  const blackHand = opponentHand;
+  const isHard = difficulty === 'hard';
   const depth = isHard ? 3 : 1; 
   const initialState = { whiteHand, blackHand, centerCards };
   const moves = generateValidMoves(whiteHand, centerCards);
@@ -216,18 +224,20 @@ self.onmessage = function(e) {
   let bestMove = null;
   let bestScore = -Infinity;
 
+  if (moves.length === 0) return self.postMessage(null);
+
   for (let move of moves) {
     let childState = applyMove(initialState, move, true);
     
-    // 秒殺判定
-    const whiteHandWhites = childState.whiteHand.filter(c => c.color === 'w').length;
-    if (childState.whiteHand.length > 0 && whiteHandWhites === 0) {
+    // 秒殺判定：如果這次行動能讓 AI 手上的起始色牌清零
+    const ownColorCardsCount = childState.whiteHand.filter(c => c.color === aiColor).length;
+    if (childState.whiteHand.length > 0 && ownColorCardsCount === 0) {
       bestMove = move;
       break;
     }
 
-    let score = minimax(childState, depth - 1, -Infinity, Infinity, false);
-    score += Math.random() * 0.1; // 隨機擾動
+    let score = minimax(childState, depth - 1, -Infinity, Infinity, false, aiColor);
+    score += Math.random() * 0.1; 
 
     if (score > bestScore) {
       bestScore = score;
@@ -240,7 +250,10 @@ self.onmessage = function(e) {
       hand: bestMove.hand.map(c => c.id),
       center: bestMove.center.map(c => c.id),
       op: bestMove.op,
-      discard: bestMove.discard.length > 0 ? bestMove.discard.map(c => c.id) : []
+      discard: bestMove.discard.length > 0 ? bestMove.discard.map(c => c.id) : [],
+      eq: bestMove.eq,
+      cardsA: bestMove.cardsA,
+      cardsB: bestMove.cardsB
     });
   } else {
     self.postMessage(null); 
