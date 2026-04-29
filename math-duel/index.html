@@ -4,103 +4,65 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>黑白算術對決</title>
-
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.300.0"></script>
-
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
   <style>
     ::-webkit-scrollbar { width: 0; background: transparent; }
     body { -webkit-tap-highlight-color: transparent; }
     .card-enter { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    @keyframes popIn {
-      0% { transform: scale(0.8); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    .ai-thinking {
-      animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: .5; }
-    }
+    @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .ai-thinking { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
 
   <script>
-    /* 自動註冊邏輯 */
+    // 自動註冊邏輯
     (function autoRegister() {
       let appPath = window.location.pathname;
       if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
       if (!appPath.endsWith('/')) appPath += '/';
       if (appPath === '/') return;
-
-      try {
-        localStorage.setItem('myAppLauncherLastPath', appPath);
-        localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
-      } catch {}
-
-      const launcherPath = appPath.replace(/[^/]+\/$/, '');
-      const normalizedLauncherPath = launcherPath || '/';
-
-      function configureHomeLinkAndProbe() {
-        const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
-        const homeHref = normalizedLauncherPath.includes('?') ? `${normalizedLauncherPath}&home=1` : `${normalizedLauncherPath}?home=1`;
-        homeLinks.forEach(el => el.setAttribute('href', homeHref));
-
-        if (window.location.protocol === 'file:') return;
-
-        const probeUrl = normalizedLauncherPath.endsWith('/') ? `${normalizedLauncherPath}index.html` : `${normalizedLauncherPath}/index.html`;
-        const revealHome = () => { homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none')); };
-
-        fetch(probeUrl, { method: 'HEAD' }).then(res => {
-            if (res.ok) { revealHome(); return; }
-            if (res.status === 405) { return fetch(probeUrl, { method: 'GET' }).then(r => { if (r.ok) revealHome(); }); }
-          }).catch(() => {});
-      }
-
-      if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true }); }
-      else { configureHomeLinkAndProbe(); }
-
+      try { localStorage.setItem('myAppLauncherLastPath', appPath); } catch {}
+      const launcherPath = appPath.replace(/[^/]+\/$/, '') || '/';
+      const homeHref = launcherPath.includes('?') ? `${launcherPath}&home=1` : `${launcherPath}?home=1`;
+      window.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-home-link]').forEach(el => { el.setAttribute('href', homeHref); el.classList.remove('invisible', 'pointer-events-none'); });
+      });
       const appMeta = { id: 'math-duel', name: '黑白算術對決', nameZh: '黑白算術對決', nameEn: 'Math Duel', path: appPath, icon: 'swords', color: 'slate' };
       const storageKey = 'myAppLauncherStorage';
       const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
-      if (existingIndex === -1) launcherData.push(appMeta);
-      else launcherData[existingIndex] = { ...launcherData[existingIndex], ...appMeta };
+      const idx = launcherData.findIndex(a => a.path === appMeta.path);
+      if (idx === -1) launcherData.push(appMeta); else launcherData[idx] = { ...launcherData[idx], ...appMeta };
       localStorage.setItem(storageKey, JSON.stringify(launcherData));
     })();
   </script>
 
-  <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-20">
-    <div class="max-w-md mx-auto flex items-center justify-between">
-      <div class="flex items-center gap-2 -ml-2">
-        <a href="/" data-home-link class="p-2 hover:bg-slate-700 rounded-full transition-colors invisible pointer-events-none" aria-label="返回目錄">
-          <i data-lucide="home" class="w-5 h-5"></i>
-        </a>
-        <button onclick="toggleMode()" id="mode-btn" class="text-xs bg-slate-700 px-3 py-1.5 rounded-full font-semibold border border-slate-600 hover:bg-slate-600 transition-colors flex items-center gap-1">
-          <i data-lucide="bot" class="w-4 h-4"></i> AI 模式
-        </button>
-      </div>
+  <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-20 flex flex-col gap-2">
+    <div class="max-w-md mx-auto w-full flex items-center justify-between">
+      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-slate-700 rounded-full transition-colors invisible pointer-events-none">
+        <i data-lucide="home" class="w-5 h-5"></i>
+      </a>
       <h1 class="text-lg font-bold tracking-tight">黑白算術對決</h1>
-      <button onclick="resetGame(true)" class="p-2 -mr-2 hover:bg-slate-700 rounded-full transition-colors" aria-label="重新開始">
-        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
-      </button>
+      <button onclick="resetGame(true)" class="p-2 -mr-2 hover:bg-slate-700 rounded-full transition-colors"><i data-lucide="rotate-ccw" class="w-5 h-5"></i></button>
+    </div>
+    <div class="max-w-md mx-auto w-full flex justify-center">
+      <select id="mode-select" onchange="changeMode(this.value)" class="bg-slate-700 text-sm text-white px-3 py-1.5 rounded-full border border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
+        <option value="PVP">🎮 雙人同機對戰</option>
+        <option value="AI_EASY">🤖 單人打 AI (新手)</option>
+        <option value="AI_HARD">💀 單人打 AI (大師)</option>
+      </select>
     </div>
   </header>
 
   <main class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4">
-    <div id="status-banner" class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200 transition-all">載入中...</div>
+    <div id="status-banner" class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200">載入中...</div>
 
     <section id="white-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors">
-      <div class="flex justify-between items-center mb-3">
-        <h2 class="text-sm font-bold text-slate-500" id="white-label">白方手牌</h2>
-      </div>
+      <div class="flex justify-between items-center mb-3"><h2 class="text-sm font-bold text-slate-500" id="white-label">白方手牌</h2></div>
       <div id="white-hand" class="flex flex-wrap gap-2 min-h-[4.5rem]"></div>
     </section>
 
@@ -112,202 +74,31 @@
 
       <div id="action-panel" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
         <div id="operator-group" class="flex justify-center gap-2">
-          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border border-slate-300 text-xl font-bold hover:bg-slate-200" data-op="+">+</button>
-          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border border-slate-300 text-xl font-bold hover:bg-slate-200" data-op="-">-</button>
-          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border border-slate-300 text-xl font-bold hover:bg-slate-200" data-op="*">×</button>
-          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border border-slate-300 text-xl font-bold hover:bg-slate-200" data-op="/">÷</button>
+          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="+">+</button>
+          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="-">-</button>
+          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="*">×</button>
+          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="/">÷</button>
         </div>
-        <button id="main-btn" onclick="handleMainAction()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98] transition-transform">送出算式</button>
-        <button id="giveup-btn" onclick="giveUp()" class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border border-rose-200 active:scale-[0.98] transition-transform">無法湊出 (對手獲勝)</button>
+        <button id="main-btn" onclick="handleMainAction()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md">送出算式</button>
+        <button id="giveup-btn" onclick="giveUp()" class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border">無法湊出 (對手獲勝)</button>
       </div>
     </section>
 
     <section id="black-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4">
-      <div class="flex justify-between items-center mb-3">
-        <h2 class="text-sm font-bold text-slate-500">黑方手牌 (你)</h2>
-      </div>
+      <div class="flex justify-between items-center mb-3"><h2 class="text-sm font-bold text-slate-500" id="black-label">黑方手牌 (你)</h2></div>
       <div id="black-hand" class="flex flex-wrap gap-2 min-h-[4.5rem]"></div>
     </section>
   </main>
 
-  <script id="ai-worker-code" type="javascript/worker">
-    // --- 數學核心 (Worker內複製一份以供背景運算) ---
-    function getPermutations(arr) {
-      if (arr.length <= 1) return [arr];
-      let result = [];
-      for (let i = 0; i < arr.length; i++) {
-        let current = arr[i];
-        let remaining = arr.slice(0, i).concat(arr.slice(i + 1));
-        let remainingPerms = getPermutations(remaining);
-        for (let perm of remainingPerms) result.push([current].concat(perm));
-      }
-      return result;
-    }
-
-    function getValues(cards) {
-      if (cards.length === 1) {
-        let v = cards[0].val;
-        return (v === 6 || v === 9) ? [6, 9] : [v];
-      } else if (cards.length === 2) {
-        let v1_opts = (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
-        let v2_opts = (cards[1].val === 6 || cards[1].val === 9) ? [6, 9] : [cards[1].val];
-        let vals = [];
-        for (let v1 of v1_opts) for (let v2 of v2_opts) vals.push(v1 * 10 + v2);
-        return vals;
-      }
-      return [];
-    }
-
-    function checkEquation(handCards, op, targetCards) {
-      // 修正：必須將場中目標卡牌也進行全排列，才能支援如 9, 5 顛倒變成 59, 56 的情況
-      let targets = [];
-      const targetPerms = getPermutations(targetCards);
-      for (let p of targetPerms) {
-        targets = targets.concat(getValues(p));
-      }
-
-      const perms = getPermutations(handCards);
-      for (let p of perms) {
-        let splits = [];
-        if (p.length === 2) splits.push({A: [p[0]], B: [p[1]]});
-        if (p.length === 3) { 
-          splits.push({A: [p[0]], B: [p[1], p[2]]}); 
-          splits.push({A: [p[0], p[1]], B: [p[2]]}); 
-        }
-        if (p.length === 4) { 
-          splits.push({A: [p[0], p[1]], B: [p[2], p[3]]}); 
-        }
-        for (let split of splits) {
-          let valsA = getValues(split.A);
-          let valsB = getValues(split.B);
-          for (let a of valsA) {
-            for (let b of valsB) {
-              let res;
-              if (op === '+') res = a + b;
-              if (op === '-') res = a - b;
-              if (op === '*') res = a * b;
-              if (op === '/') res = a / b;
-              if (targets.includes(res)) return true;
-            }
-          }
-        }
-      }
-      return false;
-    }
-
-
-    function getCombinations(arr, size) {
-      if (size === 0) return [[]];
-      if (arr.length === 0) return [];
-      const first = arr[0];
-      const rest = arr.slice(1);
-      const combosWithFirst = getCombinations(rest, size - 1).map(c => [first, ...c]);
-      const combosWithoutFirst = getCombinations(rest, size);
-      return combosWithFirst.concat(combosWithoutFirst);
-    }
-
-    // 質數判斷
-    function isPrime(num) {
-      if (num <= 1) return false;
-      if (num <= 3) return true;
-      if (num % 2 === 0 || num % 3 === 0) return false;
-      for (let i = 5; i * i <= num; i += 6) {
-        if (num % i === 0 || num % (i + 2) === 0) return false;
-      }
-      return true;
-    }
-
-    // 評估場中央數字難度
-    function evaluateCenterDifficulty(cards) {
-      const possibleVals = getValues(cards);
-      let score = 0;
-      for (let v of possibleVals) {
-        if (isPrime(v)) {
-          score += (v > 20) ? 50 : 30; // 大型質數極難
-        } else {
-          // 高度合成數好算
-          let divisors = 0;
-          for(let i=1; i<=Math.min(v, 20); i++) if(v % i === 0) divisors++;
-          if (divisors > 4) score -= 20;
-        }
-      }
-      return score / possibleVals.length; // 平均難度
-    }
-
-    self.onmessage = function(e) {
-      const { aiHand, centerCards } = e.data;
-      let bestMove = null;
-      let bestScore = -Infinity;
-
-      const ops = ['+', '-', '*', '/'];
-      let handCombos = [];
-      for(let i=2; i<=4; i++) handCombos = handCombos.concat(getCombinations(aiHand, i));
-      
-      let centerCombos = [];
-      for(let i=1; i<=2; i++) centerCombos = centerCombos.concat(getCombinations(centerCards, i));
-
-      // 暴力窮舉所有可能步數
-      for (let hCombo of handCombos) {
-        for (let cCombo of centerCombos) {
-          for (let op of ops) {
-            if (checkEquation(hCombo, op, cCombo)) {
-              
-              // 若合法，模擬盤面
-              let newAiHand = aiHand.filter(c => !hCombo.includes(c)).concat(cCombo);
-              let tempCenter = centerCards.filter(c => !cCombo.includes(c)).concat(hCombo);
-
-              // 如果場中大於兩張，還要窮舉所有保留兩張的選項
-              let keepCombos = tempCenter.length > 2 ? getCombinations(tempCenter, 2) : [tempCenter];
-
-              for (let keep of keepCombos) {
-                // --- 核心評估函數 (AI 是白方，想要滿手黑牌) ---
-                let score = 0;
-                
-                // 1. 顏色純度 (手中黑牌越多越好，白牌越少越好)
-                const blackCount = newAiHand.filter(c => c.color === 'b').length;
-                const whiteCount = newAiHand.filter(c => c.color === 'w').length;
-                score += (blackCount * 30) - (whiteCount * 40);
-
-                // 勝利條件判斷
-                if (whiteCount === 0 && blackCount > 0) score += 99999;
-                
-                // 2. 場中刁難度 (留難算的牌給對手)
-                score += evaluateCenterDifficulty(keep);
-
-                if (score > bestScore) {
-                  bestScore = score;
-                  bestMove = {
-                    hand: hCombo.map(c => c.id),
-                    center: cCombo.map(c => c.id),
-                    op: op,
-                    discard: tempCenter.length > 2 ? keep.map(c => c.id) : []
-                  };
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // 回傳最佳解 (若 null 代表無解認輸)
-      self.postMessage(bestMove);
-    };
-  </script>
-
   <script>
-    lucide.createIcons();
-    const SAVE_KEY = 'mathDuelState';
+    // --- 載入外部 Worker 檔案 ---
+    const worker = new Worker('ai-worker.js');
 
-    // 初始化 Worker
-    const blob = new Blob([document.getElementById('ai-worker-code').textContent], { type: 'text/javascript' });
-    const worker = new Worker(URL.createObjectURL(blob));
-
-    function createInitialState(isAI = true) {
+    const SAVE_KEY = 'mathDuelState_v2';
+    function createInitialState(mode = 'PVP') {
       return {
-        mode: isAI ? 'AI' : 'PVP',
-        turn: 'BLACK',
-        state: 'PLAYING',
-        winner: null,
+        mode: mode,
+        turn: 'BLACK', state: 'PLAYING', winner: null,
         blackHand: Array.from({length: 9}, (_, i) => ({ id: `b${i+1}`, val: i+1, color: 'b' })),
         whiteHand: Array.from({length: 8}, (_, i) => ({ id: `w${i+1}`, val: i+1, color: 'w' })),
         center: [{ id: 'w9', val: 9, color: 'w' }],
@@ -316,94 +107,78 @@
       };
     }
 
-    let game = loadState() || createInitialState(true);
+    let game = loadState() || createInitialState('PVP');
+    document.getElementById('mode-select').value = game.mode;
 
     function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(game)); }
-    function loadState() {
-      try { const saved = localStorage.getItem(SAVE_KEY); return saved ? JSON.parse(saved) : null; } 
-      catch (e) { return null; }
-    }
+    function loadState() { try { const saved = localStorage.getItem(SAVE_KEY); return saved ? JSON.parse(saved) : null; } catch(e) { return null; } }
 
-    function toggleMode() {
-      if(confirm(`確定要切換到 ${game.mode === 'AI' ? '雙人對戰' : '單人打 AI'} 模式並重新開始嗎？`)) {
-        game = createInitialState(game.mode !== 'AI');
+    function changeMode(newMode) {
+      if(confirm(`確定要切換模式並重新開始嗎？`)) {
+        game = createInitialState(newMode);
         saveState(); render();
+      } else {
+        document.getElementById('mode-select').value = game.mode;
       }
     }
 
     function resetGame(force = false) {
       if (force && !confirm('確定要重新開始遊戲嗎？')) return;
-      game = createInitialState(game.mode === 'AI');
+      game = createInitialState(game.mode);
       saveState(); render();
     }
 
-    // --- 共用數學驗證 ---
+    // --- 前端運算共用區 ---
     function getPermutations(arr) {
       if (arr.length <= 1) return [arr];
-      let result = [];
-      for (let i = 0; i < arr.length; i++) {
-        let current = arr[i];
-        let remaining = arr.slice(0, i).concat(arr.slice(i + 1));
-        for (let perm of getPermutations(remaining)) result.push([current].concat(perm));
+      let res = [];
+      for (let i=0; i<arr.length; i++) {
+        let cur = arr[i], rem = arr.slice(0,i).concat(arr.slice(i+1));
+        for (let p of getPermutations(rem)) res.push([cur].concat(p));
       }
-      return result;
+      return res;
     }
-
     function getValues(cards) {
-      if (cards.length === 1) { return (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val]; }
+      if (cards.length === 1) return (cards[0].val===6 || cards[0].val===9) ? [6,9] : [cards[0].val];
       if (cards.length === 2) {
-        let v1_opts = (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
-        let v2_opts = (cards[1].val === 6 || cards[1].val === 9) ? [6, 9] : [cards[1].val];
+        let v1_opts = (cards[0].val===6 || cards[0].val===9) ? [6,9] : [cards[0].val];
+        let v2_opts = (cards[1].val===6 || cards[1].val===9) ? [6,9] : [cards[1].val];
         let vals = [];
-        for (let v1 of v1_opts) for (let v2 of v2_opts) vals.push(v1 * 10 + v2);
+        for (let v1 of v1_opts) for (let v2 of v2_opts) vals.push(v1*10+v2);
         return vals;
       }
       return [];
     }
-
-     function checkEquation(handCards, op, targetCards) {
-      // 修正：必須將場中目標卡牌也進行全排列，才能支援如 9, 5 顛倒變成 59, 56 的情況
+    function checkEquation(handCards, op, targetCards) {
       let targets = [];
       const targetPerms = getPermutations(targetCards);
-      for (let p of targetPerms) {
-        targets = targets.concat(getValues(p));
-      }
+      for (let p of targetPerms) targets = targets.concat(getValues(p));
 
       const perms = getPermutations(handCards);
       for (let p of perms) {
         let splits = [];
         if (p.length === 2) splits.push({A: [p[0]], B: [p[1]]});
-        if (p.length === 3) { 
-          splits.push({A: [p[0]], B: [p[1], p[2]]}); 
-          splits.push({A: [p[0], p[1]], B: [p[2]]}); 
-        }
-        if (p.length === 4) { 
-          splits.push({A: [p[0], p[1]], B: [p[2], p[3]]}); 
-        }
+        if (p.length === 3) { splits.push({A: [p[0]], B: [p[1], p[2]]}); splits.push({A: [p[0], p[1]], B: [p[2]]}); }
+        if (p.length === 4) { splits.push({A: [p[0], p[1]], B: [p[2], p[3]]}); }
         for (let split of splits) {
-          let valsA = getValues(split.A);
-          let valsB = getValues(split.B);
+          let valsA = getValues(split.A), valsB = getValues(split.B);
           for (let a of valsA) {
             for (let b of valsB) {
-              let res;
-              if (op === '+') res = a + b;
-              if (op === '-') res = a - b;
-              if (op === '*') res = a * b;
-              if (op === '/') res = a / b;
-              if (targets.includes(res)) return true;
+              if (op==='+' && targets.includes(a+b)) return true;
+              if (op==='-' && targets.includes(a-b)) return true;
+              if (op==='*' && targets.includes(a*b)) return true;
+              if (op==='/' && targets.includes(a/b)) return true;
             }
           }
         }
-      }
-      return false;
+      } return false;
     }
 
+    // --- UI 邏輯 ---
+    function isAITurn() { return game.mode.startsWith('AI') && game.turn === 'WHITE'; }
 
-    // --- UI 互動 ---
     function toggleSelect(id, location) {
-      if (game.state === 'GAMEOVER') return;
-      if (game.mode === 'AI' && game.turn === 'WHITE') return; // AI 回合鎖定玩家操作
-
+      if (game.state === 'GAMEOVER' || isAITurn()) return;
       if (game.state === 'DISCARDING') {
         if (location !== 'center') return;
         const idx = game.discardSelections.indexOf(id);
@@ -419,13 +194,12 @@
         const idx = game.selections.center.indexOf(id);
         if (idx > -1) game.selections.center.splice(idx, 1);
         else if (game.selections.center.length < 2) game.selections.center.push(id);
-      }
-      render();
+      } render();
     }
 
     document.querySelectorAll('.op-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        if (game.state !== 'PLAYING' || (game.mode === 'AI' && game.turn === 'WHITE')) return;
+        if (game.state !== 'PLAYING' || isAITurn()) return;
         game.selections.operator = e.target.dataset.op;
         render();
       });
@@ -452,159 +226,114 @@
       if (checkEquation(hCards, op, cCards)) {
         if (game.turn === 'BLACK') game.blackHand = game.blackHand.filter(c => !game.selections.hand.includes(c.id)).concat(cCards);
         else game.whiteHand = game.whiteHand.filter(c => !game.selections.hand.includes(c.id)).concat(cCards);
-        
         game.center = game.center.filter(c => !game.selections.center.includes(c.id)).concat(hCards);
         game.selections = { hand: [], center: [], operator: null };
 
         if (game.center.length > 2) {
           game.state = 'DISCARDING';
-          if (game.mode === 'AI' && game.turn === 'WHITE') {
-             // 讓 AI 自動執行剛剛在 worker 算好的 discard 選擇
-             handleMainAction(); 
-          } else {
-             render();
-          }
-        } else { endTurn(); }
-      } else { alert("無法湊出這個結果！確認一下數字或符號是否有誤？"); }
+          if (isAITurn()) handleMainAction(); // AI 自動丟牌
+          else render();
+        } else endTurn();
+      } else alert("無法湊出這個結果！確認一下數字或符號是否有誤？");
     }
 
     function endTurn() {
       const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
       const targetColor = game.turn === 'BLACK' ? 'w' : 'b';
       if (activeHand.length > 0 && activeHand.every(c => c.color === targetColor)) {
-        game.winner = game.turn;
-        game.state = 'GAMEOVER';
+        game.winner = game.turn; game.state = 'GAMEOVER';
       } else {
         game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
         game.state = 'PLAYING';
       }
       saveState(); render();
 
-      // 觸發 AI 回合
-      if (game.mode === 'AI' && game.turn === 'WHITE' && game.state === 'PLAYING') {
-        document.getElementById('status-banner').innerHTML = `<span class="ai-thinking">🧠 大師級 AI 推演中...</span>`;
-        worker.postMessage({ aiHand: game.whiteHand, centerCards: game.center });
+      if (isAITurn() && game.state === 'PLAYING') {
+        const difficulty = game.mode === 'AI_HARD' ? 'hard' : 'easy';
+        document.getElementById('status-banner').innerHTML = `<span class="ai-thinking">🧠 ${difficulty==='hard'?'大師級推演中 (深度 3)':'新手 AI 思考中...'}</span>`;
+        // 把雙方手牌都傳給 AI，讓它能推演你的可能反擊
+        worker.postMessage({ difficulty, whiteHand: game.whiteHand, blackHand: game.blackHand, centerCards: game.center });
       }
     }
 
-    // 接收 AI 運算結果
     worker.onmessage = function(e) {
       const move = e.data;
-      if (!move) {
-         // AI 算不出結果，直接宣告投降
-         setTimeout(() => { giveUp(); }, 1500);
-         return;
-      }
-         // 延遲展示 AI 動作，讓玩家看得清楚
+      if (!move) { setTimeout(() => giveUp(), 1500); return; }
       setTimeout(() => {
         game.selections.hand = move.hand;
         game.selections.center = move.center;
         game.selections.operator = move.op;
-        if (move.discard && move.discard.length === 2) {
-           game.discardSelections = move.discard; // 預先塞入丟棄選擇
-        }
-        render();
-        setTimeout(() => handleMainAction(), 800);
-      }, 1000);
+        if (move.discard && move.discard.length === 2) game.discardSelections = move.discard;
+        render(); setTimeout(() => handleMainAction(), 800);
+      }, 500);
     };
 
     function giveUp() {
-      const player = game.turn === 'BLACK' ? (game.mode==='AI'?'你':'黑方') : (game.mode==='AI'?'AI':'白方');
-      if (game.turn === 'BLACK' || game.mode === 'PVP') {
-         if (!confirm(`確定無法湊出算式嗎？對手將直接獲勝！`)) return;
-      }
+      if (game.turn === 'BLACK' || game.mode === 'PVP') if (!confirm(`確定無法湊出算式嗎？對手將直接獲勝！`)) return;
       game.winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
-      game.state = 'GAMEOVER';
-      saveState(); render();
+      game.state = 'GAMEOVER'; saveState(); render();
     }
 
     function generateCardHTML(card, location) {
       const isBlack = card.color === 'b';
       const isSelectable = (game.state === 'PLAYING' && (location === 'center' || (game.turn === 'BLACK' && location === 'black') || (game.turn === 'WHITE' && location === 'white'))) ||
                            (game.state === 'DISCARDING' && location === 'center');
-      
       let isSelected = (game.state === 'PLAYING') ? (game.selections.hand.includes(card.id) || game.selections.center.includes(card.id)) :
                        (game.state === 'DISCARDING') ? game.discardSelections.includes(card.id) : false;
 
       const baseClasses = "w-12 h-16 flex items-center justify-center text-2xl font-bold font-mono rounded-lg border-2 shadow-sm transition-all select-none card-enter";
       const colorClasses = isBlack ? "bg-slate-800 text-white border-slate-900" : "bg-white text-slate-800 border-slate-300";
-      
       let interactiveClasses = "opacity-60";
-      if (game.mode === 'AI' && game.turn === 'WHITE' && location !== 'center' && !isSelected) {
-         // AI回合，鎖定卡牌樣式
-         interactiveClasses = "opacity-40";
-      } else if (isSelectable) {
-        interactiveClasses = isSelected ? "ring-4 ring-blue-500 scale-105 opacity-100 cursor-pointer" : "cursor-pointer hover:-translate-y-1 opacity-100";
-      } else if (isSelected) {
-         interactiveClasses = "opacity-100 ring-2 ring-slate-400";
-      }
+      
+      if (isAITurn() && location !== 'center' && !isSelected) interactiveClasses = "opacity-40";
+      else if (isSelectable) interactiveClasses = isSelected ? "ring-4 ring-blue-500 scale-105 opacity-100 cursor-pointer" : "cursor-pointer hover:-translate-y-1 opacity-100";
+      else if (isSelected) interactiveClasses = "opacity-100 ring-2 ring-slate-400";
 
-      const targetLoc = location === 'center' ? 'center' : 'hand';
-      return `<div class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${targetLoc}')` : ''}">${card.val}</div>`;
+      return `<div class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${location==='center'?'center':'hand'}')` : ''}">${card.val}</div>`;
     }
 
     function render() {
+      lucide.createIcons();
       document.getElementById('white-hand').innerHTML = game.whiteHand.map(c => generateCardHTML(c, 'white')).join('');
       document.getElementById('black-hand').innerHTML = game.blackHand.map(c => generateCardHTML(c, 'black')).join('');
       document.getElementById('center-cards').innerHTML = game.center.map(c => generateCardHTML(c, 'center')).join('');
 
-      document.getElementById('white-label').innerText = game.mode === 'AI' ? '白方手牌 (AI)' : '白方手牌';
-      document.getElementById('mode-btn').innerHTML = game.mode === 'AI' ? `<i data-lucide="bot" class="w-4 h-4"></i> 單人 AI` : `<i data-lucide="users" class="w-4 h-4"></i> 雙人對戰`;
-      lucide.createIcons();
+      document.getElementById('white-label').innerText = game.mode.startsWith('AI') ? '白方手牌 (AI)' : '白方手牌';
+      document.getElementById('black-label').innerText = game.mode === 'PVP' ? '黑方手牌' : '黑方手牌 (你)';
 
-      const whiteArea = document.getElementById('white-area');
-      const blackArea = document.getElementById('black-area');
-      whiteArea.className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors ${game.turn === 'WHITE' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
-      blackArea.className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4 ${game.turn === 'BLACK' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
+      document.getElementById('white-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors ${game.turn === 'WHITE' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
+      document.getElementById('black-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4 ${game.turn === 'BLACK' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
 
       document.querySelectorAll('.op-btn').forEach(btn => {
-        const isSelected = game.selections.operator === btn.dataset.op;
-        btn.className = `op-btn w-12 h-12 rounded-lg border text-xl font-bold transition-colors ${
-          isSelected ? 'bg-blue-600 text-white border-blue-700 shadow-md scale-105' : 'bg-slate-100 text-slate-700 border-slate-300'
-        } ${game.state !== 'PLAYING' || (game.mode === 'AI' && game.turn === 'WHITE' && !isSelected) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200'}`;
+        const isSel = game.selections.operator === btn.dataset.op;
+        btn.className = `op-btn w-12 h-12 rounded-lg border text-xl font-bold transition-colors ${isSel ? 'bg-blue-600 text-white border-blue-700 shadow-md scale-105' : 'bg-slate-100 text-slate-700 border-slate-300'} ${game.state !== 'PLAYING' || (isAITurn() && !isSel) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-slate-200'}`;
       });
 
-      const statusBanner = document.getElementById('status-banner');
-      const mainBtn = document.getElementById('main-btn');
-      const giveupBtn = document.getElementById('giveup-btn');
-      const opGroup = document.getElementById('operator-group');
-
+      const sb = document.getElementById('status-banner'), mb = document.getElementById('main-btn'), gb = document.getElementById('giveup-btn'), og = document.getElementById('operator-group');
       if (game.state === 'GAMEOVER') {
-        const winnerName = game.winner === 'BLACK' ? (game.mode==='AI'?'🎉 你':'黑方') : (game.mode==='AI'?'🤖 AI':'白方');
-        statusBanner.className = "bg-amber-100 text-amber-800 p-3 rounded-xl text-center font-bold shadow-sm border border-amber-200";
-        statusBanner.innerHTML = `遊戲結束！ ${winnerName} 獲得勝利！`;
-        mainBtn.innerText = "再玩一局"; mainBtn.className = "w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98] transition-transform";
-        giveupBtn.classList.add('hidden'); opGroup.classList.add('hidden');
-
+        const winnerName = game.winner === 'BLACK' ? (game.mode.startsWith('AI')?'🎉 你':'黑方') : (game.mode.startsWith('AI')?'🤖 AI':'白方');
+        sb.className = "bg-amber-100 text-amber-800 p-3 rounded-xl text-center font-bold shadow-sm border border-amber-200";
+        sb.innerHTML = `遊戲結束！ ${winnerName} 獲得勝利！`;
+        mb.innerText = "再玩一局"; mb.className = "w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98]";
+        gb.classList.add('hidden'); og.classList.add('hidden');
       } else if (game.state === 'DISCARDING') {
-        const isAI = game.mode === 'AI' && game.turn === 'WHITE';
-        statusBanner.className = "bg-rose-100 text-rose-800 p-3 rounded-xl text-center font-bold shadow-sm border border-rose-200";
-        statusBanner.innerHTML = isAI ? `AI 正在丟棄多餘卡牌...` : `⚠️ 場中央超過兩張，請選擇 2 張保留`;
-        mainBtn.innerText = `確認保留 (${game.discardSelections.length}/2)`;
-        mainBtn.className = `w-full py-3 rounded-xl font-bold shadow-md transition-transform ${game.discardSelections.length === 2 ? 'bg-rose-600 text-white active:scale-[0.98]' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`;
-        if(isAI) mainBtn.className += " hidden";
-        giveupBtn.classList.add('hidden'); opGroup.classList.add('hidden');
-
+        sb.className = "bg-rose-100 text-rose-800 p-3 rounded-xl text-center font-bold shadow-sm border border-rose-200";
+        sb.innerHTML = isAITurn() ? `AI 正在丟棄多餘卡牌...` : `⚠️ 場中央超過兩張，請選擇 2 張保留`;
+        mb.innerText = `確認保留 (${game.discardSelections.length}/2)`;
+        mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${game.discardSelections.length === 2 ? 'bg-rose-600 text-white active:scale-[0.98]' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`;
+        if(isAITurn()) mb.className += " hidden";
+        gb.classList.add('hidden'); og.classList.add('hidden');
       } else {
-        const isAI = game.mode === 'AI' && game.turn === 'WHITE';
-        const player = game.turn === 'BLACK' ? '黑方 (你)' : (game.mode==='AI'?'大師級 AI':'白方');
-        statusBanner.className = "bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200";
-        
-        // 避免覆蓋正在閃爍的 AI 思考狀態
-        if(!isAI || !statusBanner.innerHTML.includes('推演中')) {
-           statusBanner.innerHTML = `現在輪到：<span class="text-xl mx-1">${player}</span> 行動`;
-        }
-        
-        mainBtn.innerText = isAI ? "AI 決定中..." : "送出算式";
-        mainBtn.className = `w-full py-3 rounded-xl font-bold shadow-md transition-transform ${isAI ? 'bg-slate-300 text-slate-500 cursor-not-allowed hidden' : 'bg-blue-600 text-white active:scale-[0.98]'}`;
-        
-        if(isAI) { giveupBtn.classList.add('hidden'); } else { giveupBtn.classList.remove('hidden'); }
-        opGroup.classList.remove('hidden');
+        const pName = game.turn === 'BLACK' ? '黑方 (你)' : (game.mode==='AI_HARD'?'大師級 AI':(game.mode==='AI_EASY'?'新手 AI':'白方'));
+        sb.className = "bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200";
+        if(!isAITurn() || !sb.innerHTML.includes('推演中')) sb.innerHTML = `現在輪到：<span class="text-xl mx-1">${pName}</span>`;
+        mb.innerText = isAITurn() ? "AI 決定中..." : "送出算式";
+        mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${isAITurn() ? 'bg-slate-300 text-slate-500 cursor-not-allowed hidden' : 'bg-blue-600 text-white active:scale-[0.98]'}`;
+        if(isAITurn()) gb.classList.add('hidden'); else gb.classList.remove('hidden');
+        og.classList.remove('hidden');
       }
     }
-
-    render();
-    if (game.mode === 'AI' && game.turn === 'WHITE' && game.state === 'PLAYING') endTurn(); // 處理重整時剛好是AI回合
+    render(); if (isAITurn() && game.state === 'PLAYING') endTurn();
   </script>
 </body>
 </html>
