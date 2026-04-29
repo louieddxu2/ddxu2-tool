@@ -191,21 +191,31 @@ self.onmessage = function(e) {
   const { difficulty, whiteHand, blackHand, centerCards } = e.data;
   const isHard = difficulty === 'hard';
   
-  // 決定推演深度：新手 1 步 (只顧自己)，大師 3 步 (AI -> 玩家 -> AI)
-  const depth = isHard ? 3 : 1;
+  // 【關鍵修正】：將大師難度的推演深度改為 2。
+  // 深度 3 在瀏覽器純 JS 運算中會引發組合爆炸導致超時。
+  // 深度 2 (AI 出牌 -> 玩家反擊) 已經足以展現強大的陷阱佈局能力。
+  const depth = isHard ? 2 : 1;
   const initialState = { whiteHand, blackHand, centerCards };
+  
+  // 取得 AI 第一步的所有可能
   const moves = generateValidMoves(whiteHand, centerCards);
 
   let bestMove = null;
   let bestScore = -Infinity;
 
-  // 尋找最佳第一步
   for (let move of moves) {
     let childState = applyMove(initialState, move, true);
-    // 進入遞迴評估後續局勢
+    
+    // 如果這一步走完直接獲勝，就不用再往下算了，直接採用！
+    const whiteHandWhites = childState.whiteHand.filter(c => c.color === 'w').length;
+    if (childState.whiteHand.length > 0 && whiteHandWhites === 0) {
+      bestMove = move;
+      break;
+    }
+
     let score = minimax(childState, depth - 1, -Infinity, Infinity, false);
 
-    // 隨機擾動：如果分數一樣，加入微小隨機避免 AI 永遠走同一條死板路線
+    // 隨機擾動避免死板
     score += Math.random() * 0.1;
 
     if (score > bestScore) {
@@ -214,7 +224,6 @@ self.onmessage = function(e) {
     }
   }
 
-  // 整理回傳格式給 UI
   if (bestMove) {
     self.postMessage({
       hand: bestMove.hand.map(c => c.id),
@@ -223,6 +232,6 @@ self.onmessage = function(e) {
       discard: bestMove.discard.length > 0 ? bestMove.discard.map(c => c.id) : []
     });
   } else {
-    self.postMessage(null); // 無路可走，投降
+    self.postMessage(null); 
   }
 };
