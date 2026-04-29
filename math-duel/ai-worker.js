@@ -194,7 +194,7 @@ self.onmessage = function(e) {
   // 【關鍵修正】：將大師難度的推演深度改為 2。
   // 深度 3 在瀏覽器純 JS 運算中會引發組合爆炸導致超時。
   // 深度 2 (AI 出牌 -> 玩家反擊) 已經足以展現強大的陷阱佈局能力。
-  const depth = isHard ? 2 : 1;
+  const depth = isHard ? 3 : 1;
   const initialState = { whiteHand, blackHand, centerCards };
   
   // 取得 AI 第一步的所有可能
