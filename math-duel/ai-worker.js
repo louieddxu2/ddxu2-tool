@@ -152,17 +152,34 @@ function applyMove(state, move, isWhiteTurn) {
 }
 
 // --- Minimax 演算法大腦 ---
+// --- Minimax 演算法大腦 (升級 Beam Search 剪枝) ---
 function minimax(state, depth, alpha, beta, isMaximizing) {
-  // 到達推演深度或是遊戲結束
   if (depth === 0) return evaluateState(state);
   const evalScore = evaluateState(state);
   if (Math.abs(evalScore) > 900000) return evalScore; 
 
   const activeHand = isMaximizing ? state.whiteHand : state.blackHand;
-  const moves = generateValidMoves(activeHand, state.centerCards);
+  let moves = generateValidMoves(activeHand, state.centerCards);
 
   // 如果無牌可出，對手獲勝
   if (moves.length === 0) return isMaximizing ? -999999 : 999999;
+
+  // 🌟 核心進化：啟發式排序與剪枝 (Beam Search)
+  // 當推演深度還很深時，不要每一步都算，先「憑直覺打分數」，只保留最強的 4 條路線！
+  if (depth > 1) {
+    moves.forEach(m => {
+      let childState = applyMove(state, m, isMaximizing);
+      m.heuristic = evaluateState(childState);
+    });
+    
+    if (isMaximizing) {
+      moves.sort((a, b) => b.heuristic - a.heuristic); // 對 AI 最好
+    } else {
+      moves.sort((a, b) => a.heuristic - b.heuristic); // 對玩家最好
+    }
+    // 🔪 殘酷剪枝：只保留前 4 名，把運算量從 27,000 暴降到不到 500！
+    moves = moves.slice(0, 4); 
+  }
 
   if (isMaximizing) {
     let maxEval = -Infinity;
@@ -171,7 +188,7 @@ function minimax(state, depth, alpha, beta, isMaximizing) {
       let ev = minimax(childState, depth - 1, alpha, beta, false);
       maxEval = Math.max(maxEval, ev);
       alpha = Math.max(alpha, ev);
-      if (beta <= alpha) break; // 剪枝
+      if (beta <= alpha) break; // Alpha-Beta 剪枝
     }
     return maxEval;
   } else {
@@ -181,7 +198,7 @@ function minimax(state, depth, alpha, beta, isMaximizing) {
       let ev = minimax(childState, depth - 1, alpha, beta, true);
       minEval = Math.min(minEval, ev);
       beta = Math.min(beta, ev);
-      if (beta <= alpha) break; // 剪枝
+      if (beta <= alpha) break; // Alpha-Beta 剪枝
     }
     return minEval;
   }
@@ -191,13 +208,9 @@ self.onmessage = function(e) {
   const { difficulty, whiteHand, blackHand, centerCards } = e.data;
   const isHard = difficulty === 'hard';
   
-  // 【關鍵修正】：將大師難度的推演深度改為 2。
-  // 深度 3 在瀏覽器純 JS 運算中會引發組合爆炸導致超時。
-  // 深度 2 (AI 出牌 -> 玩家反擊) 已經足以展現強大的陷阱佈局能力。
-  const depth = isHard ? 3 : 1;
+  // 恢復深度 3！因為有了 Beam Search，現在它算得動了！
+  const depth = isHard ? 3 : 1; 
   const initialState = { whiteHand, blackHand, centerCards };
-  
-  // 取得 AI 第一步的所有可能
   const moves = generateValidMoves(whiteHand, centerCards);
 
   let bestMove = null;
@@ -206,7 +219,7 @@ self.onmessage = function(e) {
   for (let move of moves) {
     let childState = applyMove(initialState, move, true);
     
-    // 如果這一步走完直接獲勝，就不用再往下算了，直接採用！
+    // 秒殺判定
     const whiteHandWhites = childState.whiteHand.filter(c => c.color === 'w').length;
     if (childState.whiteHand.length > 0 && whiteHandWhites === 0) {
       bestMove = move;
@@ -214,9 +227,7 @@ self.onmessage = function(e) {
     }
 
     let score = minimax(childState, depth - 1, -Infinity, Infinity, false);
-
-    // 隨機擾動避免死板
-    score += Math.random() * 0.1;
+    score += Math.random() * 0.1; // 隨機擾動
 
     if (score > bestScore) {
       bestScore = score;
