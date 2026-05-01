@@ -25,11 +25,10 @@ const renderGallery = () => {
 
   if (filtered.length === 0) {
     emptyState.classList.remove("hidden");
-    footer.classList.add("translate-y-full", "opacity-0");
+    footer.innerHTML = "";
     return;
   } else {
     emptyState.classList.add("hidden");
-    footer.classList.remove("translate-y-full", "opacity-0");
   }
 
   displayed.forEach((c, index) => {
@@ -68,6 +67,12 @@ const renderGallery = () => {
   document.querySelectorAll("#gallery-grid > div").forEach((card) => {
     currentObserver.observe(card);
   });
+
+  // Manually trigger initial footer content for the first card
+  const firstCard = grid.firstElementChild;
+  if (firstCard) {
+    updateStationaryFooter(firstCard);
+  }
 
   lucide.createIcons();
 };
