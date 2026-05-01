@@ -122,19 +122,19 @@
         <p class="text-xs">目前無搜尋結果</p>
       </div>
     </div>
+
+    <!-- Stationary Info Bar: Now located at the bottom of the search/header section -->
+    <div id="gallery-footer"
+      class="h-16 md:h-14 shrink-0 bg-white border-t border-slate-200 shadow-sm flex items-center px-4 z-30">
+      <!-- Content injected by JS -->
+    </div>
   </aside>
 
   <!-- Gallery Main (Scroll Snapping) -->
-  <main id="view-main" class="relative grid grid-rows-[1fr_auto] bg-slate-50 overflow-hidden min-h-0">
+  <main id="view-main" class="flex-grow md:h-full min-h-0 relative flex flex-col bg-slate-50 overflow-hidden">
     <!-- Scrolling Images -->
-    <div id="gallery-container" class="overflow-y-auto scroll-smooth snap-y snap-mandatory min-h-0">
+    <div id="gallery-container" class="flex-grow min-h-0 overflow-y-auto scroll-smooth snap-y snap-mandatory">
       <div id="gallery-grid" class="grid grid-cols-1 h-full" style="grid-auto-rows: 100%;"></div>
-    </div>
-
-    <!-- Stationary Footer: Always stays at the bottom -->
-    <div id="gallery-footer"
-      class="h-16 md:h-14 bg-white border-t border-slate-200 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] flex items-center px-4 z-50">
-      <!-- Content injected by JS -->
     </div>
   </main>
 
