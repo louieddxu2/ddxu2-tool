@@ -21,8 +21,34 @@
 
 <body class="bg-slate-50 text-slate-800 h-screen md:h-screen flex flex-col md:flex-row overflow-hidden relative">
   <!-- Sidebar (Desktop) / Header (Mobile) -->
-  <aside class="w-full md:w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl md:shadow-none">
-    <header class="bg-emerald-600 text-white p-4 shadow-md shrink-0">
+  <aside
+    class="w-full md:w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl md:shadow-none">
+    
+    <!-- Compact Mode Bar (Hidden by default) -->
+    <div id="compact-bar" class="hidden bg-emerald-600 text-white p-1 flex items-center gap-1 shadow-md z-30">
+      <div class="relative flex-[2] min-w-0">
+        <input type="text" id="compact-inp-game" placeholder="遊戲" class="bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 w-full outline-none placeholder:text-emerald-200" readonly />
+        <div id="compact-drop-game" class="hidden"></div>
+      </div>
+      <div class="relative flex-[2] min-w-0">
+        <input type="text" id="compact-inp-type" placeholder="類型" class="bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 w-full outline-none placeholder:text-emerald-200" readonly />
+        <div id="compact-drop-type" class="hidden"></div>
+      </div>
+      <input type="text" id="compact-inp-number" placeholder="搜尋..." class="flex-[3] min-w-0 bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 outline-none placeholder:text-emerald-200" />
+      
+      <div class="flex items-center gap-0.5 shrink-0 ml-1">
+        <a href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images" target="_blank" class="p-1.5 hover:bg-emerald-700 rounded-lg" title="Google 翻譯">
+          <i data-lucide="languages" class="w-4 h-4"></i>
+        </a>
+        <button onclick="document.getElementById('file-upload').click()" class="p-1.5 hover:bg-emerald-700 rounded-lg" title="匯入圖片">
+          <i data-lucide="image-plus" class="w-4 h-4"></i>
+        </button>
+        <button onclick="toggleCompactMode()" class="p-1.5 hover:bg-emerald-700 rounded-lg" title="結束簡潔模式">
+          <i data-lucide="maximize-2" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+    <header id="sidebar-header-normal" class="bg-emerald-600 text-white p-4 shadow-md shrink-0 relative">
       <div class="flex items-center justify-between w-full">
         <a href="/" data-home-link
           class="p-2 -ml-2 hover:bg-emerald-700 rounded-full transition-colors invisible pointer-events-none"
@@ -31,6 +57,9 @@
         </a>
         <h1 class="text-lg font-bold tracking-tight">卡牌翻譯圖庫</h1>
         <div class="flex items-center gap-1 -mr-2">
+          <button onclick="toggleCompactMode()" class="p-2 hover:bg-emerald-700 rounded-full transition-colors mr-1" title="進入簡潔模式">
+            <i data-lucide="minimize-2" class="w-5 h-5"></i>
+          </button>
           <button onclick="openImportModal()"
             class="p-2 hover:bg-emerald-700 rounded-full cursor-pointer transition-colors" title="匯入資料">
             <i data-lucide="upload" class="w-5 h-5"></i>
@@ -42,7 +71,7 @@
       </div>
     </header>
 
-    <div class="p-4 flex flex-col gap-4 overflow-y-auto max-h-[40vh] md:max-h-none">
+    <div id="search-section-normal" class="p-4 flex flex-col gap-4 overflow-y-auto max-h-[40vh] md:max-h-none">
       <section class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-3">
         <div class="grid grid-cols-2 gap-2">
           <div class="relative w-full" id="wrap-game">
@@ -87,7 +116,7 @@
           </button>
         </div>
       </section>
-      
+
       <div id="empty-state" class="text-center py-6 text-slate-400 hidden">
         <i data-lucide="image" class="w-8 h-8 mx-auto mb-2 opacity-30"></i>
         <p class="text-xs">目前無搜尋結果</p>
@@ -101,7 +130,7 @@
     <div id="gallery-container" class="flex-grow overflow-y-auto scroll-smooth snap-y snap-mandatory">
       <div id="gallery-grid" class="grid grid-cols-1 h-full" style="grid-auto-rows: 100%;"></div>
     </div>
-    
+
     <!-- Stationary Footer: Always stays at the bottom -->
     <div id="gallery-footer"
       class="h-16 md:h-14 shrink-0 bg-white border-t border-slate-200 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] flex items-center px-4 z-30 transition-all duration-300 transform translate-y-full opacity-0">
@@ -247,7 +276,8 @@
   <div id="modal-import"
     class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm"
     onclick="closeImportModal()">
-    <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl flex flex-col gap-4" onclick="event.stopPropagation()">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl flex flex-col gap-4"
+      onclick="event.stopPropagation()">
       <h3 class="text-xl font-bold mb-2">資料匯入</h3>
 
       <label
@@ -304,7 +334,8 @@
   <div id="modal-import-config"
     class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm"
     onclick="cancelImportConfig()">
-    <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl flex flex-col gap-4" onclick="event.stopPropagation()">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl flex flex-col gap-4"
+      onclick="event.stopPropagation()">
       <h3 class="text-xl font-bold mb-2">匯入分類設定</h3>
       <p class="text-sm text-slate-500" id="import-config-count">
         找到圖片，請決定如何分類：
@@ -357,44 +388,57 @@
     </div>
   </div>
 
+  <div id="modal-edit-overlay" class="fixed inset-0 z-[55] hidden bg-transparent" onclick="closeEditModal()"></div>
   <div id="modal-edit"
-    class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm"
-    onclick="closeEditModal()">
-    <div class="bg-white rounded-3xl w-full max-w-xs p-6 shadow-xl" onclick="event.stopPropagation()">
-      <h3 class="text-lg font-bold mb-4">編輯卡牌資訊</h3>
-      <div class="flex flex-col gap-3 mb-6">
-        <div class="relative w-full" id="wrap-edit-game">
-          <input type="text" id="edit-game" placeholder="遊戲"
-            class="bg-slate-50 border p-3 rounded-xl w-full outline-none focus:border-emerald-500 cursor-pointer truncate pr-8"
-            readonly />
-          <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
-            <i data-lucide="chevron-down" class="w-4 h-4"></i>
-          </div>
-          <div id="drop-edit-game"
-            class="absolute z-50 mt-1 w-full flex-col bg-white shadow-lg overflow-y-auto max-h-48 rounded-lg border border-slate-200 hidden divide-y divide-slate-100">
-          </div>
-        </div>
-        <div class="relative w-full" id="wrap-edit-type">
-          <input type="text" id="edit-type" placeholder="類型"
-            class="bg-slate-50 border p-3 rounded-xl w-full outline-none focus:border-emerald-500 cursor-pointer truncate pr-8"
-            readonly />
-          <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
-            <i data-lucide="chevron-down" class="w-4 h-4"></i>
-          </div>
-          <div id="drop-edit-type"
-            class="absolute z-50 mt-1 w-full flex-col bg-white shadow-lg overflow-y-auto max-h-48 rounded-lg border border-slate-200 hidden divide-y divide-slate-100">
-          </div>
-        </div>
-        <input type="text" id="edit-number" placeholder="編號/名稱"
-          class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500" />
-        <input type="text" id="edit-memo" placeholder="備註 (選填)"
-          class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500" />
+    class="fixed z-[60] hidden bg-white shadow-2xl border-slate-200 overflow-y-auto left-0 top-0 w-full md:w-80 h-auto md:h-full border-b md:border-b-0 md:border-r flex-col"
+    onclick="event.stopPropagation()">
+    <div class="p-4 flex flex-col h-full gap-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-emerald-700">編輯卡牌</h3>
+        <button onclick="closeEditModal()"
+          class="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
       </div>
-      <div class="flex gap-2">
-        <button onclick="closeEditModal()" class="flex-1 py-3 text-slate-500 font-medium">
+
+      <div class="flex flex-col gap-3">
+        <div class="grid grid-cols-2 gap-2">
+          <div class="relative w-full" id="wrap-edit-game">
+            <input type="text" id="edit-game" placeholder="遊戲名稱"
+              class="bg-slate-50 border border-slate-200 text-xs rounded-lg pl-3 pr-8 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer truncate"
+              readonly />
+            <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="chevron-down" class="w-3 h-3"></i>
+            </div>
+            <div id="drop-edit-game" class="hidden"></div>
+          </div>
+          <div class="relative w-full" id="wrap-edit-type">
+            <input type="text" id="edit-type" placeholder="卡牌類型"
+              class="bg-slate-50 border border-slate-200 text-xs rounded-lg pl-3 pr-8 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer truncate"
+              readonly />
+            <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="chevron-down" class="w-3 h-3"></i>
+            </div>
+            <div id="drop-edit-type" class="hidden"></div>
+          </div>
+        </div>
+
+        <input type="text" id="edit-number" placeholder="編號或名稱"
+          class="bg-white border border-slate-200 text-xs rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500" />
+
+        <textarea id="edit-memo" placeholder="備註 (選填)..."
+          class="bg-white border border-slate-200 text-xs rounded-lg px-3 py-2 w-full h-8 min-h-[32px] outline-none focus:ring-2 focus:ring-emerald-500 resize-none transition-all duration-200"
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+          onfocus="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+      </div>
+
+      <div class="flex gap-2 mt-2 pt-3 border-t border-slate-100">
+        <button onclick="closeEditModal()"
+          class="flex-1 py-2 text-slate-500 text-xs font-bold hover:bg-slate-50 rounded-lg transition-colors">
           取消
         </button>
-        <button onclick="saveEdit()" class="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold">
+        <button onclick="saveEdit()"
+          class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95">
           儲存
         </button>
       </div>
@@ -415,12 +459,12 @@
 
   <canvas id="canvas-processing" class="hidden"></canvas>
 
-  <script src="js/db.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/gallery.js"></script>
-  <script src="js/io.js"></script>
-  <script src="js/cropper.js"></script>
+  <script src="js/db.js?v=20260502"></script>
+  <script src="js/utils.js?v=20260502"></script>
+  <script src="js/ui.js?v=20260502"></script>
+  <script src="js/gallery.js?v=20260502"></script>
+  <script src="js/io.js?v=20260502"></script>
+  <script src="js/cropper.js?v=20260502"></script>
 </body>
 
 </html>

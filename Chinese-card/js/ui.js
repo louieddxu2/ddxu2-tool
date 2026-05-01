@@ -4,8 +4,8 @@ let editingId = null;
 
 // Initialization
 document.addEventListener("DOMContentLoaded", () => {
-  lucide.createIcons();
-  
+  try { lucide.createIcons(); } catch (e) { }
+
   const els = ["inp-game", "inp-type", "inp-number"];
   els.forEach((id) => {
     const el = document.getElementById(id);
@@ -14,25 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
     el.addEventListener("input", () =>
       localStorage.setItem("bg_last_" + id, el.value),
     );
-    el.addEventListener("change", () =>
-      localStorage.setItem("bg_last_" + id, el.value),
-    );
   });
 
-  setTimeout(() => {
-    const lastLandscape = localStorage.getItem("bg_last_landscape") === "true";
-    if (lastLandscape) {
-      isLandscapeMode = true;
-      document.getElementById("icon-portrait").classList.add("hidden");
-      document.getElementById("icon-landscape").classList.remove("hidden");
-    }
-
-    const lastRatio = localStorage.getItem("bg_last_ratio");
-    if (lastRatio) {
-      applyRatioValue(lastRatio);
-    }
-  }, 0);
-  
   setupSmartDropdown("inp-game", "drop-game", () =>
     [...new Set(dbCards.map((c) => c.game))].filter(Boolean),
   );
@@ -54,18 +37,145 @@ document.addEventListener("DOMContentLoaded", () => {
       : dbCards.map((c) => c.type);
     return [...new Set(ts)].filter(Boolean);
   });
+
+  setupSmartDropdown("import-game", "drop-import-game", () =>
+    [...new Set(dbCards.map((c) => c.game))].filter(Boolean),
+  );
+  setupSmartDropdown("import-type", "drop-import-type", () => {
+    const game = document.getElementById("import-game").value;
+    const ts = game
+      ? dbCards.filter((c) => c.game === game).map((c) => c.type)
+      : dbCards.map((c) => c.type);
+    return [...new Set(ts)].filter(Boolean);
+  });
 });
 
+function setupSmartDropdown(inputId, dropId, keyGetter) {
+  const inp = document.getElementById(inputId);
+  const drop = document.getElementById(dropId);
+  if (!inp || !drop) return;
+  const wrap = inp.parentElement;
+  let isOpen = false;
+  let isSearchingMode = false;
+
+  const updatePosition = () => {
+    const rect = inp.getBoundingClientRect();
+    drop.style.position = "fixed";
+    drop.style.top = `${rect.bottom + 4}px`;
+    drop.style.left = `${rect.left}px`;
+    drop.style.width = `${rect.width}px`;
+    drop.style.zIndex = "9999";
+  };
+
+  const populate = () => {
+    drop.innerHTML = "";
+    const val = isSearchingMode ? inp.value.toLowerCase().trim() : "";
+    const items = keyGetter().filter(item => !val || item.toLowerCase().includes(val));
+
+    if (items.length === 0) {
+      drop.innerHTML = `<div class="px-4 py-3 text-sm text-slate-400 text-center bg-white">無符合項目</div>`;
+    } else {
+      items.forEach((itemVal) => {
+        const d = document.createElement("div");
+        d.className = "px-4 py-2.5 text-xs hover:bg-emerald-50 cursor-pointer text-slate-700 active:bg-emerald-100 font-medium truncate bg-white";
+        d.textContent = itemVal;
+        d.onmousedown = (e) => {
+          e.preventDefault();
+          inp.value = itemVal;
+          inp.dispatchEvent(new Event("input"));
+          inp.dispatchEvent(new Event("change"));
+          close();
+        };
+        drop.appendChild(d);
+      });
+    }
+    const newBtn = document.createElement("div");
+    newBtn.className = "px-4 py-2.5 text-xs text-emerald-600 font-bold hover:bg-emerald-50 cursor-pointer bg-slate-50 text-center border-t border-slate-100 sticky bottom-0";
+    newBtn.innerHTML = isSearchingMode ? `✅ 完成輸入` : `✏️ 搜尋或手動輸入`;
+    newBtn.onmousedown = (e) => {
+      e.preventDefault();
+      if (isSearchingMode) close();
+      else enterEditMode();
+    };
+    drop.appendChild(newBtn);
+
+    if (isOpen) {
+      updatePosition();
+      drop.classList.remove("hidden");
+      drop.classList.add("flex", "flex-col", "bg-white", "shadow-xl", "border", "border-slate-200", "rounded-lg", "overflow-hidden");
+    }
+  };
+
+  const open = () => {
+    isSearchingMode = false;
+    isOpen = true;
+    populate();
+    inp.setAttribute("readonly", "true");
+    inp.classList.add("cursor-pointer");
+  };
+
+  const close = () => {
+    drop.classList.add("hidden");
+    drop.classList.remove("flex", "flex-col");
+    isOpen = false;
+    isSearchingMode = false;
+    inp.setAttribute("readonly", "true");
+    inp.blur();
+    inp.classList.add("cursor-pointer");
+  };
+
+  const enterEditMode = () => {
+    isSearchingMode = true;
+    inp.removeAttribute("readonly");
+    inp.classList.remove("cursor-pointer");
+    isOpen = true;
+    populate();
+    setTimeout(() => {
+      inp.focus();
+      if (inp.value) inp.select();
+    }, 10);
+  };
+
+  inp.addEventListener("click", (e) => {
+    if (inp.hasAttribute("readonly")) {
+      if (!isOpen) open();
+      else enterEditMode();
+    }
+  });
+
+  inp.addEventListener("input", () => {
+    if (!inp.hasAttribute("readonly")) {
+      isSearchingMode = true;
+      populate();
+    }
+  });
+
+  inp.addEventListener("blur", () => {
+    setTimeout(() => {
+      if (!isOpen) {
+        inp.setAttribute("readonly", "true");
+        inp.classList.add("cursor-pointer");
+      }
+    }, 150);
+  });
+
+  window.addEventListener("resize", () => { if (isOpen) updatePosition(); });
+  window.addEventListener("scroll", () => { if (isOpen) updatePosition(); }, true);
+
+  document.addEventListener("mousedown", (e) => {
+    if (!wrap.contains(e.target) && !drop.contains(e.target) && isOpen) close();
+  });
+}
+
+// Global functions
 window.toggleOrientation = () => {
   isLandscapeMode = !isLandscapeMode;
-  if (isLandscapeMode) {
-    document.getElementById("icon-portrait").classList.add("hidden");
-    document.getElementById("icon-landscape").classList.remove("hidden");
-  } else {
-    document.getElementById("icon-portrait").classList.remove("hidden");
-    document.getElementById("icon-landscape").classList.add("hidden");
+  const p = document.getElementById("icon-portrait");
+  const l = document.getElementById("icon-landscape");
+  if (p && l) {
+    if (isLandscapeMode) { p.classList.add("hidden"); l.classList.remove("hidden"); }
+    else { p.classList.remove("hidden"); l.classList.add("hidden"); }
   }
-
   const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
   if (activeBtn) {
     const ratioStr = activeBtn.getAttribute("data-ratio").split(":");
@@ -76,61 +186,15 @@ window.toggleOrientation = () => {
     setRatioAndCenter(w / h);
   }
 };
-
-const ratioContainer = document.getElementById("ratio-buttons");
-const scrollBtnToCenter = (el) => {
-  if (!ratioContainer.contains(el)) return;
-  const containerRect = ratioContainer.getBoundingClientRect();
-  const elRect = el.getBoundingClientRect();
-  const scrollLeft =
-    ratioContainer.scrollLeft +
-    (elRect.left - containerRect.left) -
-    containerRect.width / 2 +
-    elRect.width / 2;
-  ratioContainer.scrollTo({ left: scrollLeft, behavior: "smooth" });
-};
-
-window.setCustomActive = () => {
-  document.getElementById("custom-w").focus();
-  document.getElementById("custom-w").select();
-  updateCustomRatio();
-};
-
-function setRatioValue(val) {
-  if (!val) return;
-  if (val.startsWith("custom:")) {
-    const parts = val.split(":");
-    document.getElementById("custom-w").value = parts[1] || 1;
-    document.getElementById("custom-h").value = parts[2] || 2;
-    updateCustomRatio();
-    return;
-  }
-  const btn = document.querySelector(`.ratio-btn[data-ratio="${val}"]`);
-  if (btn) btn.click();
-}
-
-function applyRatioValue(val) {
-  setRatioValue(val);
-  setTimeout(() => {
-    if (!val.startsWith("custom:")) {
-      const btn = document.querySelector(`.ratio-btn[data-ratio="${val}"]`);
-      if (btn) scrollBtnToCenter(btn);
-    }
-  }, 50);
-}
-
 window.openFullPreview = (url) => {
   const modal = document.getElementById("modal-preview");
   const img = document.getElementById("preview-img");
-  img.src = url;
-  modal.classList.replace("hidden", "flex");
+  if (modal && img) { img.src = url; modal.classList.remove("hidden"); modal.classList.add("flex"); }
 };
-
 window.closeFullPreview = () => {
-  const modal = document.getElementById("modal-preview");
-  modal.classList.replace("flex", "hidden");
+  const m = document.getElementById("modal-preview");
+  if (m) { m.classList.remove("flex"); m.classList.add("hidden"); }
 };
-
 window.openEditModal = (id) => {
   const c = dbCards.find((x) => x.id === id);
   if (!c) return;
@@ -139,12 +203,24 @@ window.openEditModal = (id) => {
   document.getElementById("edit-type").value = c.type;
   document.getElementById("edit-number").value = c.number;
   document.getElementById("edit-memo").value = c.memo || "";
-  document.getElementById("modal-edit").classList.replace("hidden", "flex");
+  const m = document.getElementById("modal-edit");
+  const o = document.getElementById("modal-edit-overlay");
+  if (m) {
+    m.classList.remove("hidden");
+    m.classList.add("flex");
+    if (o) o.classList.remove("hidden");
+    try { lucide.createIcons(); } catch (e) { }
+  }
 };
-
-window.closeEditModal = () =>
-  document.getElementById("modal-edit").classList.replace("flex", "hidden");
-
+window.closeEditModal = () => {
+  const m = document.getElementById("modal-edit");
+  const o = document.getElementById("modal-edit-overlay");
+  if (m) {
+    m.classList.remove("flex");
+    m.classList.add("hidden");
+  }
+  if (o) o.classList.add("hidden");
+};
 window.saveEdit = async () => {
   const idx = dbCards.findIndex((c) => c.id === editingId);
   if (idx > -1) {
@@ -159,171 +235,60 @@ window.saveEdit = async () => {
   closeEditModal();
 };
 
-function setupSmartDropdown(inputId, dropId, keyGetter) {
-  const inp = document.getElementById(inputId);
-  const drop = document.getElementById(dropId);
-  if (!inp || !drop) return;
-  const wrap = inp.parentElement;
-  let isOpen = false;
+// Global UI state and logic updated.
+window.toggleCompactMode = () => {
+  const normalHeader = document.getElementById("sidebar-header-normal");
+  const normalSearch = document.getElementById("search-section-normal");
+  const compactBar = document.getElementById("compact-bar");
+  if (!normalHeader || !normalSearch || !compactBar) return;
 
-  const populate = () => {
-    drop.innerHTML = "";
-    const isEditing = !inp.hasAttribute("readonly");
-    const val = isEditing ? inp.value.toLowerCase().trim() : "";
-    const items = keyGetter().filter(item => !val || item.toLowerCase().includes(val));
+  const isEnteringCompact = compactBar.classList.contains("hidden");
+  localStorage.setItem("bg_compact_mode", isEnteringCompact ? "1" : "0");
 
-    if (items.length === 0) {
-      drop.innerHTML = `<div class="px-4 py-3 text-sm text-slate-400 text-center">無符合項目</div>`;
-    } else {
-      items.forEach((itemVal) => {
-        const d = document.createElement("div");
-        d.className =
-          "px-4 py-3 text-sm hover:bg-emerald-50 cursor-pointer text-slate-700 active:bg-emerald-100 font-medium truncate";
-        d.textContent = itemVal;
-        d.onmousedown = (e) => {
-          e.preventDefault();
-          inp.value = itemVal;
-          inp.dispatchEvent(new Event("input"));
-          inp.dispatchEvent(new Event("change"));
-          close();
-        };
-        drop.appendChild(d);
-      });
-    }
-    const newBtn = document.createElement("div");
-    newBtn.className =
-      "px-4 py-3 text-sm text-emerald-600 font-bold hover:bg-emerald-50 cursor-pointer bg-slate-50 text-center border-t border-slate-100";
-    newBtn.innerHTML = isEditing ? `✅ 完成輸入` : `✏️ 搜尋或手動輸入`;
-    newBtn.onmousedown = (e) => {
-      e.preventDefault();
-      if (isEditing) close();
-      else enterEditMode();
+  if (isEnteringCompact) {
+    normalHeader.classList.add("hidden");
+    normalSearch.classList.add("hidden");
+    compactBar.classList.remove("hidden");
+    compactBar.classList.add("flex");
+    
+    document.getElementById("compact-inp-game").value = document.getElementById("inp-game").value;
+    document.getElementById("compact-inp-type").value = document.getElementById("inp-type").value;
+    document.getElementById("compact-inp-number").value = document.getElementById("inp-number").value;
+  } else {
+    normalHeader.classList.remove("hidden");
+    normalSearch.classList.remove("hidden");
+    compactBar.classList.add("hidden");
+    compactBar.classList.remove("flex");
+    
+    document.getElementById("inp-game").value = document.getElementById("compact-inp-game").value;
+    document.getElementById("inp-type").value = document.getElementById("compact-inp-type").value;
+    document.getElementById("inp-number").value = document.getElementById("compact-inp-number").value;
+  }
+  renderGallery();
+  try { lucide.createIcons(); } catch(e) {}
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  setupSmartDropdown("compact-inp-game", "compact-drop-game", () =>
+    [...new Set(dbCards.map((c) => c.game))].filter(Boolean),
+  );
+  setupSmartDropdown("compact-inp-type", "compact-drop-type", () => {
+    const game = document.getElementById("compact-inp-game").value;
+    const ts = game
+      ? dbCards.filter((c) => c.game === game).map((c) => c.type)
+      : dbCards.map((c) => c.type);
+    return [...new Set(ts)].filter(Boolean);
+  });
+  
+  const compNum = document.getElementById("compact-inp-number");
+  if (compNum) {
+    compNum.oninput = () => {
+      document.getElementById("inp-number").value = compNum.value;
+      renderGallery();
     };
-    drop.appendChild(newBtn);
-  };
+  }
 
-  const open = () => {
-    populate();
-    drop.classList.remove("hidden");
-    drop.classList.add("flex", "flex-col");
-    isOpen = true;
-    inp.setAttribute("readonly", "true");
-    inp.classList.add("cursor-pointer");
-  };
-
-  const close = () => {
-    drop.classList.add("hidden");
-    drop.classList.remove("flex", "flex-col");
-    isOpen = false;
-    inp.setAttribute("readonly", "true");
-    inp.blur();
-    inp.classList.add("cursor-pointer");
-  };
-
-  const enterEditMode = () => {
-    inp.removeAttribute("readonly");
-    inp.classList.remove("cursor-pointer");
-    inp.focus();
-    inp.select();
-    populate();
-    if (!isOpen) {
-      drop.classList.remove("hidden");
-      drop.classList.add("flex", "flex-col");
-      isOpen = true;
-    }
-  };
-
-  inp.addEventListener("click", (e) => {
-    if (inp.hasAttribute("readonly")) {
-      if (!isOpen) {
-        open();
-      } else {
-        enterEditMode();
-      }
-    }
-  });
-
-  inp.addEventListener("input", () => {
-    if (!inp.hasAttribute("readonly")) populate();
-  });
-
-  inp.addEventListener("blur", () => {
-    setTimeout(() => {
-      if (!isOpen) {
-        inp.setAttribute("readonly", "true");
-        inp.classList.add("cursor-pointer");
-      }
-    }, 150);
-  });
-
-  document.addEventListener("mousedown", (e) => {
-    if (!wrap.contains(e.target) && isOpen) close();
-  });
-}
-
-function updateCustomRatio() {
-  const w = parseInt(document.getElementById("custom-w").value) || 1;
-  const h = parseInt(document.getElementById("custom-h").value) || 1;
-
-  document.querySelectorAll(".ratio-btn").forEach((b) => {
-    b.classList.remove("bg-emerald-600", "text-white");
-    b.classList.add("bg-slate-800", "text-slate-300");
-  });
-
-  const box = document.getElementById("custom-ratio-box");
-  box.classList.replace("border-slate-700", "border-emerald-600");
-  box.classList.remove("bg-slate-800");
-  box.classList.add("bg-slate-800", "border", "border-emerald-600", "ring-1", "ring-emerald-600");
-
-  setRatioAndCenter(w / h);
-}
-
-document.querySelectorAll(".ratio-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".ratio-btn").forEach((b) => {
-      b.classList.remove("bg-emerald-600", "text-white");
-      b.classList.add("bg-slate-800", "text-slate-300");
-    });
-    btn.classList.add("bg-emerald-600", "text-white");
-    btn.classList.remove("bg-slate-800", "text-slate-300");
-
-    const box = document.getElementById("custom-ratio-box");
-    box.classList.replace("border-emerald-600", "border-slate-700");
-    box.classList.remove("ring-1", "ring-emerald-600");
-
-    const ratioStr = btn.getAttribute("data-ratio").split(":");
-    const newCropRatio = parseInt(ratioStr[0]) / parseInt(ratioStr[1]);
-    setRatioAndCenter(newCropRatio);
-
-    scrollBtnToCenter(btn);
-  });
+  if (localStorage.getItem("bg_compact_mode") === "1") {
+    setTimeout(window.toggleCompactMode, 50);
+  }
 });
-
-let scrollTimeout;
-ratioContainer.addEventListener("scroll", () => {
-  clearTimeout(scrollTimeout);
-  scrollTimeout = setTimeout(() => {
-    const containerCenter = ratioContainer.getBoundingClientRect().left + ratioContainer.clientWidth / 2;
-    let closestEl = null;
-    let minDiff = Infinity;
-
-    document.querySelectorAll(".ratio-btn").forEach((btn) => {
-      const rect = btn.getBoundingClientRect();
-      const btnCenter = rect.left + rect.width / 2;
-      const diff = Math.abs(containerCenter - btnCenter);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestEl = btn;
-      }
-    });
-
-    if (closestEl && minDiff < 50) {
-      if (!closestEl.classList.contains("bg-emerald-600")) {
-        closestEl.click();
-      }
-    }
-  }, 150);
-});
-
-document.getElementById("custom-w").addEventListener("input", updateCustomRatio);
-document.getElementById("custom-h").addEventListener("input", updateCustomRatio);

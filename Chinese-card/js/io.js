@@ -49,8 +49,14 @@ window.exportData = async () => {
   a.click();
 };
 
-window.openImportModal = () => document.getElementById("modal-import").classList.replace("hidden", "flex");
-window.closeImportModal = () => document.getElementById("modal-import").classList.replace("flex", "hidden");
+window.openImportModal = () => {
+  const m = document.getElementById("modal-import");
+  if (m) { m.classList.remove("hidden"); m.classList.add("flex"); }
+};
+window.closeImportModal = () => {
+  const m = document.getElementById("modal-import");
+  if (m) { m.classList.remove("flex"); m.classList.add("hidden"); }
+};
 
 window.toggleImportManual = (isManual) => {
   const inputs = document.getElementById("import-manual-inputs");
@@ -59,13 +65,15 @@ window.toggleImportManual = (isManual) => {
 };
 
 window.cancelImportConfig = () => {
-  document.getElementById("modal-import-config").classList.replace("flex", "hidden");
+  const m = document.getElementById("modal-import-config");
+  if (m) { m.classList.remove("flex"); m.classList.add("hidden"); }
   pendingImagesToImport = [];
   renderGallery();
 };
 
 window.confirmImportConfig = async () => {
-  document.getElementById("modal-import-config").classList.replace("flex", "hidden");
+  const m = document.getElementById("modal-import-config");
+  if (m) { m.classList.remove("flex"); m.classList.add("hidden"); }
   const mode = document.querySelector('input[name="import_mode"]:checked').value;
   if (mode === "manual") {
     const mGame = document.getElementById("import-game").value.trim();
@@ -88,7 +96,8 @@ const showImportConfig = (images) => {
   document.getElementById("import-type").value = document.getElementById("inp-type").value;
   document.querySelector('input[name="import_mode"][value="auto"]').checked = true;
   toggleImportManual(false);
-  document.getElementById("modal-import-config").classList.replace("hidden", "flex");
+  const m = document.getElementById("modal-import-config");
+  if (m) { m.classList.remove("hidden"); m.classList.add("flex"); }
 };
 
 const extractInfoFromPath = (pathStr) => {
