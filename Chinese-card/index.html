@@ -19,10 +19,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 
-<body class="bg-slate-50 text-slate-800 h-screen h-[100svh] flex flex-col md:flex-row overflow-hidden relative">
+<body class="bg-slate-50 text-slate-800 h-[100dvh] grid grid-rows-[auto_1fr] md:flex md:flex-row overflow-hidden relative">
   <!-- Sidebar (Desktop) / Header (Mobile) -->
   <aside
-    class="w-full md:w-80 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl md:shadow-none">
+    class="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl md:shadow-none">
     
     <!-- Compact Mode Bar (Hidden by default) -->
     <div id="compact-bar" class="hidden bg-emerald-600 text-white p-1 flex items-center gap-1 shadow-md z-30">
@@ -125,15 +125,15 @@
   </aside>
 
   <!-- Gallery Main (Scroll Snapping) -->
-  <main id="view-main" class="flex-grow md:h-full min-h-0 relative flex flex-col bg-slate-50 overflow-hidden">
+  <main id="view-main" class="relative grid grid-rows-[1fr_auto] bg-slate-50 overflow-hidden min-h-0">
     <!-- Scrolling Images -->
-    <div id="gallery-container" class="flex-grow min-h-0 overflow-y-auto scroll-smooth snap-y snap-mandatory">
+    <div id="gallery-container" class="overflow-y-auto scroll-smooth snap-y snap-mandatory min-h-0">
       <div id="gallery-grid" class="grid grid-cols-1 h-full" style="grid-auto-rows: 100%;"></div>
     </div>
 
     <!-- Stationary Footer: Always stays at the bottom -->
     <div id="gallery-footer"
-      class="h-16 md:h-14 shrink-0 bg-white border-t border-slate-200 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] flex items-center px-4 z-30">
+      class="h-16 md:h-14 bg-white border-t border-slate-200 shadow-[0_-10px_20px_rgba(0,0,0,0.02)] flex items-center px-4 z-50">
       <!-- Content injected by JS -->
     </div>
   </main>
