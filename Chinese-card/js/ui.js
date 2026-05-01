@@ -168,18 +168,21 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
 
   const populate = () => {
     drop.innerHTML = "";
-    const items = keyGetter();
+    const isEditing = !inp.hasAttribute("readonly");
+    const val = isEditing ? inp.value.toLowerCase().trim() : "";
+    const items = keyGetter().filter(item => !val || item.toLowerCase().includes(val));
+
     if (items.length === 0) {
-      drop.innerHTML = `<div class="px-4 py-3 text-sm text-slate-400 text-center">暫無紀錄，請點擊輸入</div>`;
+      drop.innerHTML = `<div class="px-4 py-3 text-sm text-slate-400 text-center">無符合項目</div>`;
     } else {
-      items.forEach((val) => {
+      items.forEach((itemVal) => {
         const d = document.createElement("div");
         d.className =
           "px-4 py-3 text-sm hover:bg-emerald-50 cursor-pointer text-slate-700 active:bg-emerald-100 font-medium truncate";
-        d.textContent = val;
+        d.textContent = itemVal;
         d.onmousedown = (e) => {
           e.preventDefault();
-          inp.value = val;
+          inp.value = itemVal;
           inp.dispatchEvent(new Event("input"));
           inp.dispatchEvent(new Event("change"));
           close();
@@ -190,10 +193,11 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
     const newBtn = document.createElement("div");
     newBtn.className =
       "px-4 py-3 text-sm text-emerald-600 font-bold hover:bg-emerald-50 cursor-pointer bg-slate-50 text-center border-t border-slate-100";
-    newBtn.innerHTML = `✏️ 點此手動打字輸入`;
+    newBtn.innerHTML = isEditing ? `✅ 完成輸入` : `✏️ 搜尋或手動輸入`;
     newBtn.onmousedown = (e) => {
       e.preventDefault();
-      enterEditMode();
+      if (isEditing) close();
+      else enterEditMode();
     };
     drop.appendChild(newBtn);
   };
@@ -217,13 +221,16 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
   };
 
   const enterEditMode = () => {
-    drop.classList.add("hidden");
-    drop.classList.remove("flex", "flex-col");
-    isOpen = false;
     inp.removeAttribute("readonly");
     inp.classList.remove("cursor-pointer");
     inp.focus();
     inp.select();
+    populate();
+    if (!isOpen) {
+      drop.classList.remove("hidden");
+      drop.classList.add("flex", "flex-col");
+      isOpen = true;
+    }
   };
 
   inp.addEventListener("click", (e) => {
@@ -234,6 +241,10 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
         enterEditMode();
       }
     }
+  });
+
+  inp.addEventListener("input", () => {
+    if (!inp.hasAttribute("readonly")) populate();
   });
 
   inp.addEventListener("blur", () => {
