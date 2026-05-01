@@ -48,38 +48,38 @@
         </button>
       </div>
     </div>
-    <header id="sidebar-header-normal" class="bg-emerald-600 text-white p-2 px-4 shadow-md shrink-0 relative">
+    <header id="sidebar-header-normal" class="bg-emerald-600 text-white p-1.5 px-3 shadow-md shrink-0 relative">
       <div class="flex items-center justify-between w-full">
         <a href="/" data-home-link
-          class="p-2 -ml-2 hover:bg-emerald-700 rounded-full transition-colors invisible pointer-events-none"
+          class="p-1.5 -ml-1.5 hover:bg-emerald-700 rounded-full transition-colors invisible pointer-events-none"
           aria-label="返回目錄">
-          <i data-lucide="home" class="w-5 h-5"></i>
+          <i data-lucide="home" class="w-4 h-4"></i>
         </a>
-        <h1 class="text-base font-bold tracking-tight">卡牌翻譯圖庫</h1>
-        <div class="flex items-center gap-1 -mr-1">
-          <button onclick="toggleCompactMode()" class="p-2 hover:bg-emerald-700 rounded-full transition-colors" title="進入簡潔模式">
+        <h1 class="text-sm font-bold tracking-tight">卡牌翻譯圖庫</h1>
+        <div class="flex items-center gap-0.5 -mr-1">
+          <button onclick="toggleCompactMode()" class="p-1.5 hover:bg-emerald-700 rounded-full transition-colors" title="進入簡潔模式">
             <i data-lucide="minimize-2" class="w-4 h-4"></i>
           </button>
           <button onclick="openImportModal()"
-            class="p-2 hover:bg-emerald-700 rounded-full cursor-pointer transition-colors" title="匯入資料">
+            class="p-1.5 hover:bg-emerald-700 rounded-full cursor-pointer transition-colors" title="匯入資料">
             <i data-lucide="upload" class="w-4 h-4"></i>
           </button>
-          <button onclick="exportData()" class="p-2 hover:bg-emerald-700 rounded-full transition-colors" title="匯出資料">
+          <button onclick="exportData()" class="p-1.5 hover:bg-emerald-700 rounded-full transition-colors" title="匯出資料">
             <i data-lucide="download" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
     </header>
 
-    <div id="search-section-normal" class="p-3 flex flex-col gap-3 overflow-y-auto max-h-[40vh] md:max-h-none">
-      <section class="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col gap-2">
-        <div class="grid grid-cols-2 gap-2">
+    <div id="search-section-normal" class="p-2 flex flex-col gap-2 overflow-y-auto max-h-[40vh] md:max-h-none">
+      <section class="bg-slate-50 rounded-xl p-2 border border-slate-100 flex flex-col gap-1.5">
+        <div class="grid grid-cols-2 gap-1.5">
           <div class="relative w-full" id="wrap-game">
             <input type="text" id="inp-game" placeholder="遊戲名稱"
-              class="bg-white border border-slate-200 text-sm rounded-lg pl-3 pr-8 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer truncate"
+              class="bg-white border border-slate-200 text-xs rounded-lg pl-2 pr-7 py-1.5 w-full outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer truncate"
               readonly />
-            <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-slate-400">
-              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            <div class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
             </div>
             <div id="drop-game"
               class="absolute z-50 mt-1 w-full flex-col bg-white shadow-lg overflow-y-auto max-h-48 rounded-lg border border-slate-200 hidden divide-y divide-slate-100">
@@ -87,10 +87,10 @@
           </div>
           <div class="relative w-full" id="wrap-type">
             <input type="text" id="inp-type" placeholder="卡牌類型"
-              class="bg-white border border-slate-200 text-sm rounded-lg pl-3 pr-8 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer truncate"
+              class="bg-white border border-slate-200 text-xs rounded-lg pl-2 pr-7 py-1.5 w-full outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer truncate"
               readonly />
-            <div class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-slate-400">
-              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            <div class="absolute inset-y-0 right-1.5 flex items-center pointer-events-none text-slate-400">
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
             </div>
             <div id="drop-type"
               class="absolute z-50 mt-1 w-full flex-col bg-white shadow-lg overflow-y-auto max-h-48 rounded-lg border border-slate-200 hidden divide-y divide-slate-100">
@@ -98,34 +98,34 @@
           </div>
         </div>
         <input type="text" id="inp-number" placeholder="編號或名稱"
-          class="bg-white border border-slate-200 text-sm rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500" />
+          class="bg-white border border-slate-200 text-xs rounded-lg px-2 py-1.5 w-full outline-none focus:ring-2 focus:ring-emerald-500" />
 
-        <div class="mt-1 flex gap-2 h-12">
+        <div class="mt-0.5 flex gap-1.5 h-10">
           <a href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images" target="_blank"
-            class="flex-[3] bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl flex items-center gap-3 px-3 transition-colors active:scale-95 shadow-sm">
+            class="flex-[3] bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-2 px-2 transition-colors active:scale-95 shadow-sm">
             <i data-lucide="languages" class="w-4 h-4 shrink-0"></i>
-            <div class="flex flex-col items-start leading-none gap-1">
+            <div class="flex flex-col items-start leading-none gap-0.5">
               <span class="text-[10px] font-bold">Google 翻譯</span>
-              <span class="text-[8px] opacity-70 text-left">分享回 App 即可匯入</span>
+              <span class="text-[8px] opacity-70">截圖分享回此 App</span>
             </div>
           </a>
           <button onclick="document.getElementById('file-upload').click()"
-            class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl flex items-center justify-center transition-all active:scale-90"
+            class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg flex items-center justify-center transition-all active:scale-90"
             title="從相簿匯入圖片">
             <i data-lucide="image-plus" class="w-4 h-4"></i>
           </button>
         </div>
       </section>
 
-      <div id="empty-state" class="text-center py-4 text-slate-400 hidden">
-        <i data-lucide="image" class="w-6 h-6 mx-auto mb-1 opacity-30"></i>
-        <p class="text-[10px]">目前無搜尋結果</p>
+      <div id="empty-state" class="text-center py-2 text-slate-400 hidden">
+        <i data-lucide="image" class="w-5 h-5 mx-auto mb-1 opacity-30"></i>
+        <p class="text-[9px]">目前無搜尋結果</p>
       </div>
     </div>
 
     <!-- Stationary Info Bar: Now located at the bottom of the search/header section -->
     <div id="gallery-footer"
-      class="h-14 md:h-12 shrink-0 bg-white border-t border-slate-200 shadow-sm flex items-center px-4 z-30">
+      class="h-12 shrink-0 bg-white border-t border-slate-200 shadow-sm flex items-center px-4 z-30">
       <!-- Content injected by JS -->
     </div>
   </aside>
