@@ -1,479 +1,2107 @@
-<!DOCTYPE html><html lang="zh-TW"><head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>卡牌翻譯圖庫 (終極抗干擾版)</title>
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>卡牌翻譯圖庫 (終極抗干擾版)</title>
 
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/lucide@0.542.0"></script>
-  <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@0.542.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2310b981' d='M2 3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3zm2-1v10h8V2H4z'/%3E%3C/svg%3E">
-  <meta name="theme-color" content="#10b981">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2310b981' d='M2 3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3zm2-1v10h8V2H4z'/%3E%3C/svg%3E"
+    />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
 
-  <style>
-    ::-webkit-scrollbar { width: 0; background: transparent; }
-    body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
-    .crop-handle {
-      width: 28px; height: 28px; background: rgba(16, 185, 129, 0.9);
-      border: 3px solid white; border-radius: 50%; position: absolute;
-      transform: translate(-50%, -50%); cursor: grab; touch-action: none; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    .crop-handle:active { cursor: grabbing; transform: translate(-50%, -50%) scale(1.3); }
-    svg.crop-lines { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-    .loader { border-top-color: #10b981; -webkit-animation: spinner 1s linear infinite; animation: spinner 1s linear infinite; }
-    @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-  </style></head><body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
-
-  <script>
-    (function autoRegister() {
-      let appPath = window.location.pathname;
-      if (appPath.endsWith('index.html')) appPath = appPath.replace('index.html', '');
-      if (!appPath.endsWith('/')) appPath += '/';
-      if (appPath === '/') return;
-      try {
-        localStorage.setItem('myAppLauncherLastPath', appPath);
-        localStorage.setItem('myAppLauncherLastSeenAt', String(Date.now()));
-      } catch {}
-      const launcherPath = appPath.replace(/[^/]+\/$/, '');
-      const normalizedLauncherPath = launcherPath || '/';
-      function configureHomeLinkAndProbe() {
-        const homeLinks = Array.from(document.querySelectorAll('[data-home-link]'));
-        const homeHref = normalizedLauncherPath.includes('?') ? `${normalizedLauncherPath}&home=1` : `${normalizedLauncherPath}?home=1`;
-        homeLinks.forEach(el => el.setAttribute('href', homeHref));
-        if (window.location.protocol === 'file:') return;
-        const probeUrl = normalizedLauncherPath.endsWith('/') ? `${normalizedLauncherPath}index.html` : `${normalizedLauncherPath}/index.html`;
-        fetch(probeUrl, { method: 'HEAD' }).then(res => {
-          if (res.ok) homeLinks.forEach(el => el.classList.remove('invisible', 'pointer-events-none'));
-        }).catch(() => {});
+    <style>
+      ::-webkit-scrollbar {
+        width: 0;
+        background: transparent;
       }
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', configureHomeLinkAndProbe, { once: true });
-      else configureHomeLinkAndProbe();
+      body {
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: none;
+      }
+      #canvas-wrapper {
+        touch-action: none;
+        cursor: crosshair;
+      }
+      svg.crop-lines {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 5;
+      }
+      .indicator-point {
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        background: #10b981;
+        border: 2px solid white;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        pointer-events: none;
+        z-index: 10;
+      }
+      .loader {
+        border-top-color: #10b981;
+        -webkit-animation: spinner 1s linear infinite;
+        animation: spinner 1s linear infinite;
+      }
+      @keyframes spinner {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
+    <script>
+      (function autoRegister() {
+        let appPath = window.location.pathname;
+        if (appPath.endsWith("index.html"))
+          appPath = appPath.replace("index.html", "");
+        if (!appPath.endsWith("/")) appPath += "/";
+        if (appPath === "/") return;
+        try {
+          localStorage.setItem("myAppLauncherLastPath", appPath);
+          localStorage.setItem("myAppLauncherLastSeenAt", String(Date.now()));
+        } catch {}
+        const launcherPath = appPath.replace(/[^/]+\/$/, "");
+        const normalizedLauncherPath = launcherPath || "/";
+        function configureHomeLinkAndProbe() {
+          const homeLinks = Array.from(
+            document.querySelectorAll("[data-home-link]"),
+          );
+          const homeHref = normalizedLauncherPath.includes("?")
+            ? `${normalizedLauncherPath}&home=1`
+            : `${normalizedLauncherPath}?home=1`;
+          homeLinks.forEach((el) => el.setAttribute("href", homeHref));
+          if (window.location.protocol === "file:") return;
+          const probeUrl = normalizedLauncherPath.endsWith("/")
+            ? `${normalizedLauncherPath}index.html`
+            : `${normalizedLauncherPath}/index.html`;
+          fetch(probeUrl, { method: "HEAD" })
+            .then((res) => {
+              if (res.ok)
+                homeLinks.forEach((el) =>
+                  el.classList.remove("invisible", "pointer-events-none"),
+                );
+            })
+            .catch(() => {});
+        }
+        if (document.readyState === "loading")
+          document.addEventListener(
+            "DOMContentLoaded",
+            configureHomeLinkAndProbe,
+            { once: true },
+          );
+        else configureHomeLinkAndProbe();
 
-      const appMeta = { id: 'bg-card-cropper-v4', name: '卡牌翻譯圖庫', nameZh: '卡牌翻譯圖庫', nameEn: 'Card Cropper', path: appPath, icon: 'scan-text', color: 'emerald' };
-      const storageKey = 'myAppLauncherStorage';
-      const launcherData = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const existingIndex = launcherData.findIndex(app => app.path === appMeta.path);
-      if (existingIndex === -1) launcherData.push(appMeta);
-      else launcherData[existingIndex] = { ...launcherData[existingIndex], ...appMeta };
-      localStorage.setItem(storageKey, JSON.stringify(launcherData));
-    })();
-  </script>
+        const appMeta = {
+          id: "bg-card-cropper-v4",
+          name: "卡牌翻譯圖庫",
+          nameZh: "卡牌翻譯圖庫",
+          nameEn: "Card Cropper",
+          path: appPath,
+          icon: "scan-text",
+          color: "emerald",
+        };
+        const storageKey = "myAppLauncherStorage";
+        const launcherData = JSON.parse(
+          localStorage.getItem(storageKey) || "[]",
+        );
+        const existingIndex = launcherData.findIndex(
+          (app) => app.path === appMeta.path,
+        );
+        if (existingIndex === -1) launcherData.push(appMeta);
+        else
+          launcherData[existingIndex] = {
+            ...launcherData[existingIndex],
+            ...appMeta,
+          };
+        localStorage.setItem(storageKey, JSON.stringify(launcherData));
+      })();
 
-  <header class="bg-emerald-600 text-white p-4 shadow-md sticky top-0 z-20">
-    <div class="max-w-md mx-auto flex items-center justify-between">
-      <a href="/" data-home-link class="p-2 -ml-2 hover:bg-emerald-700 rounded-full transition-colors invisible pointer-events-none" aria-label="返回目錄">
-        <i data-lucide="home" class="w-5 h-5"></i>
-      </a>
-      <h1 class="text-lg font-bold tracking-tight">卡牌翻譯圖庫</h1>
-      <button onclick="exportData()" class="p-2 -mr-2 hover:bg-emerald-700 rounded-full transition-colors">
-        <i data-lucide="download" class="w-5 h-5"></i>
-      </button>
-    </div>
-  </header>
+      // Check for cached shared image
+      window.addEventListener("load", async () => {
+        if (window.location.search.includes("shared=1") && "caches" in window) {
+          try {
+            const cache = await caches.open("share-target-cache");
+            const res = await cache.match("/_shared_image");
+            if (res) {
+              const blob = await res.blob();
+              const file = new File([blob], "shared_image.jpg", {
+                type: blob.type || "image/jpeg",
+              });
+              handleSharedImage(file);
+              await cache.delete("/_shared_image");
+              // Clean up URL
+              window.history.replaceState(
+                {},
+                document.title,
+                window.location.pathname,
+              );
+            }
+          } catch (e) {
+            console.error("Failed to load shared image", e);
+          }
+        }
+      });
 
-  <main id="view-main" class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4 pb-24">
-    <section class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col gap-3">
-      <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">檢索與建檔</h2>
-      <div class="grid grid-cols-2 gap-2">
-        <input type="text" id="inp-game" list="list-games" placeholder="遊戲名稱" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500">
-        <datalist id="list-games"></datalist>
-        <input type="text" id="inp-type" list="list-types" placeholder="卡牌類型" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500">
-        <datalist id="list-types"></datalist>
-      </div>
-      <input type="text" id="inp-number" placeholder="編號或名稱" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500">
-      
-      <div class="mt-1 flex gap-2">
-        <button onclick="document.getElementById('file-upload').click()" class="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-transform">
-          <i data-lucide="camera" class="w-4 h-4"></i> 新增圖片
-        </button>
-        <a href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images" target="_blank" class="px-4 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center">
-          <i data-lucide="languages" class="w-4 h-4"></i>
+      function handleSharedImage(file) {
+        if (file && file.type.startsWith("image/")) {
+          const url = URL.createObjectURL(file);
+          if (typeof openCropView === "function") {
+            openCropView(url);
+          } else {
+            // If openCropView is not defined yet, wait for DOMContentLoaded
+            window.addEventListener(
+              "DOMContentLoaded",
+              () => openCropView(url),
+              { once: true },
+            );
+          }
+        }
+      }
+    </script>
+
+    <header class="bg-emerald-600 text-white p-4 shadow-md sticky top-0 z-20">
+      <div class="max-w-md mx-auto flex items-center justify-between">
+        <a
+          href="/"
+          data-home-link
+          class="p-2 -ml-2 hover:bg-emerald-700 rounded-full transition-colors invisible pointer-events-none"
+          aria-label="返回目錄"
+        >
+          <i data-lucide="home" class="w-5 h-5"></i>
         </a>
+        <h1 class="text-lg font-bold tracking-tight">卡牌翻譯圖庫</h1>
+        <div class="flex items-center gap-1 -mr-2">
+          <button
+            onclick="openImportModal()"
+            class="p-2 hover:bg-emerald-700 rounded-full cursor-pointer transition-colors"
+            title="匯入資料"
+          >
+            <i data-lucide="upload" class="w-5 h-5"></i>
+          </button>
+          <button
+            onclick="exportData()"
+            class="p-2 hover:bg-emerald-700 rounded-full transition-colors"
+            title="匯出資料"
+          >
+            <i data-lucide="download" class="w-5 h-5"></i>
+          </button>
+        </div>
       </div>
-    </section>
-
-    <section id="gallery-grid" class="flex flex-col gap-4"></section>
-    <div id="empty-state" class="text-center py-10 text-slate-400 hidden">
-      <i data-lucide="image" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
-      <p class="text-sm">尚未建立卡牌</p>
-    </div>
-  </main>
-
-  <input type="file" id="file-upload" accept="image/*" class="hidden">
-
-  <div id="view-crop" class="fixed inset-0 bg-slate-900 z-50 hidden flex flex-col">
-    <header class="bg-slate-900 text-white p-4 flex items-center justify-between">
-      <button onclick="cancelCrop()" class="text-slate-400">取消</button>
-      <select id="sel-ratio" class="bg-slate-800 text-white text-sm rounded-lg px-2 py-1 outline-none border border-slate-700">
-        <option value="63:88">標準 (63x88)</option>
-        <option value="44:68">迷你 (44x68)</option>
-        <option value="70:120">塔羅 (70x120)</option>
-        <option value="1:1">正方形 (1:1)</option>
-      </select>
-      <button onclick="processCrop()" class="text-emerald-400 font-bold">完成裁切</button>
     </header>
-    <div class="flex-grow relative overflow-hidden bg-black flex items-center justify-center" id="crop-container">
-      <div id="crop-loading" class="absolute inset-0 bg-black/80 z-30 flex flex-col items-center justify-center text-white hidden">
-        <div class="loader rounded-full border-4 border-slate-700 h-10 w-10 mb-4"></div>
-        <p class="text-sm" id="crop-loading-text">處理中...</p>
+
+    <main
+      id="view-main"
+      class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4 pb-24"
+    >
+      <section
+        class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col gap-3"
+      >
+        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+          檢索與建檔
+        </h2>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="relative w-full" id="wrap-game">
+            <input
+              type="text"
+              id="inp-game"
+              placeholder="遊戲名稱"
+              class="bg-slate-50 border border-slate-200 text-sm rounded-lg pl-3 pr-8 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer truncate"
+              readonly
+            />
+            <div
+              class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-slate-400"
+            >
+              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            </div>
+            <div
+              id="drop-game"
+              class="absolute z-50 mt-1 w-full flex-col bg-white shadow-lg overflow-y-auto max-h-48 rounded-lg border border-slate-200 hidden divide-y divide-slate-100"
+            ></div>
+          </div>
+          <div class="relative w-full" id="wrap-type">
+            <input
+              type="text"
+              id="inp-type"
+              placeholder="卡牌類型"
+              class="bg-slate-50 border border-slate-200 text-sm rounded-lg pl-3 pr-8 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer truncate"
+              readonly
+            />
+            <div
+              class="absolute inset-y-0 right-2 flex items-center pointer-events-none text-slate-400"
+            >
+              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            </div>
+            <div
+              id="drop-type"
+              class="absolute z-50 mt-1 w-full flex-col bg-white shadow-lg overflow-y-auto max-h-48 rounded-lg border border-slate-200 hidden divide-y divide-slate-100"
+            ></div>
+          </div>
+        </div>
+        <input
+          type="text"
+          id="inp-number"
+          placeholder="編號或名稱"
+          class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500"
+        />
+
+        <div class="mt-1 flex gap-2">
+          <button
+            onclick="document.getElementById('file-upload').click()"
+            class="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-transform"
+          >
+            <i data-lucide="camera" class="w-4 h-4"></i> 新增圖片
+          </button>
+          <a
+            href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images"
+            target="_blank"
+            class="px-4 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center"
+          >
+            <i data-lucide="languages" class="w-4 h-4"></i>
+          </a>
+        </div>
+      </section>
+
+      <section id="gallery-grid" class="flex flex-col gap-4"></section>
+      <div id="empty-state" class="text-center py-10 text-slate-400 hidden">
+        <i data-lucide="image" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+        <p class="text-sm">尚未建立卡牌</p>
       </div>
-      <div class="relative" id="canvas-wrapper">
-        <canvas id="canvas-source" class="block max-w-full max-h-full"></canvas>
-        <svg class="crop-lines" id="crop-svg"><polygon id="crop-polygon" points="" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" stroke-width="2" stroke-dasharray="4" /></svg>
+    </main>
+
+    <input type="file" id="file-upload" accept="image/*" class="hidden" />
+
+    <div
+      id="view-crop"
+      class="fixed inset-0 bg-slate-900 z-50 hidden flex flex-col"
+    >
+      <header
+        class="bg-slate-900 text-white flex flex-col w-full z-10 shrink-0 border-b border-slate-800"
+      >
+        <div class="px-4 py-3 flex items-center justify-between w-full">
+          <button
+            onclick="cancelCrop()"
+            class="text-slate-400 font-medium shrink-0"
+          >
+            取消
+          </button>
+
+          <div class="text-xs font-bold text-slate-300">裁切與比例</div>
+          <button
+            onclick="processCrop()"
+            class="text-emerald-400 font-bold shrink-0"
+          >
+            完成裁切
+          </button>
+        </div>
+      </header>
+      <div
+        class="flex-grow relative overflow-hidden bg-black flex items-center justify-center"
+        id="crop-container"
+      >
+        <div
+          id="crop-loading"
+          class="absolute inset-0 bg-black/80 z-30 flex flex-col items-center justify-center text-white hidden"
+        >
+          <div
+            class="loader rounded-full border-4 border-slate-700 h-10 w-10 mb-4"
+          ></div>
+          <p class="text-sm" id="crop-loading-text">處理中...</p>
+        </div>
+        <div class="relative" id="canvas-wrapper">
+          <canvas
+            id="canvas-source"
+            class="block max-w-full max-h-full"
+          ></canvas>
+          <svg class="crop-lines" id="crop-svg">
+            <polygon
+              id="crop-polygon"
+              points=""
+              fill="rgba(16, 185, 129, 0.2)"
+              stroke="#10b981"
+              stroke-width="2"
+              stroke-dasharray="4"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Bottom Ratio Bar -->
+      <footer
+        class="bg-slate-900 border-t border-slate-800 z-10 shrink-0 pb-safe"
+      >
+        <div class="px-2 py-3 w-full">
+          <div
+            class="flex items-stretch gap-2 w-full max-w-lg mx-auto h-[60px]"
+          >
+            <!-- Left: Orientation toggle (1 part) -->
+            <button
+              id="btn-orientation"
+              onclick="toggleOrientation()"
+              class="flex-1 flex flex-col items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-xl transition-colors active:enabled:bg-slate-700"
+              title="切換直/橫向"
+            >
+              <i
+                data-lucide="smartphone"
+                id="icon-portrait"
+                class="w-5 h-5"
+              ></i>
+              <i
+                data-lucide="smartphone"
+                id="icon-landscape"
+                class="w-5 h-5 hidden"
+                style="transform: rotate(90deg)"
+              ></i>
+              <span class="text-[10px] font-bold" id="text-orientation"
+                >預設 (直)</span
+              >
+            </button>
+
+            <!-- Middle: Preset ratios scroll (3 parts) -->
+            <div
+              class="flex-[3] relative overflow-hidden flex rounded-xl border border-slate-800 min-w-0 bg-slate-800/50"
+            >
+              <div
+                style="
+                  mask-image: linear-gradient(
+                    to right,
+                    transparent,
+                    black 16px,
+                    black calc(100% - 16px),
+                    transparent
+                  );
+                  -webkit-mask-image: linear-gradient(
+                    to right,
+                    transparent,
+                    black 16px,
+                    black calc(100% - 16px),
+                    transparent
+                  );
+                "
+                class="w-full h-full"
+              >
+                <div
+                  class="flex gap-2 h-full overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-center smooth-scroll px-[calc(50%-2.75rem)]"
+                  id="ratio-buttons"
+                >
+                  <button
+                    type="button"
+                    class="ratio-btn snap-center shrink-0 w-[5.5rem] py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 bg-emerald-600 text-white transition-colors"
+                    data-ratio="63:88"
+                  >
+                    <span class="text-sm font-medium leading-none">標準</span>
+                    <span class="text-[10px] opacity-80 leading-none"
+                      >(63x88)</span
+                    >
+                  </button>
+                  <button
+                    type="button"
+                    class="ratio-btn snap-center shrink-0 w-[5.5rem] py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 bg-slate-800 text-slate-300 transition-colors"
+                    data-ratio="59:92"
+                  >
+                    <span class="text-sm font-medium leading-none">歐式</span>
+                    <span class="text-[10px] opacity-80 leading-none"
+                      >(59x92)</span
+                    >
+                  </button>
+                  <button
+                    type="button"
+                    class="ratio-btn snap-center shrink-0 w-[5.5rem] py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 bg-slate-800 text-slate-300 transition-colors"
+                    data-ratio="59:86"
+                  >
+                    <span class="text-sm font-medium leading-none">日式</span>
+                    <span class="text-[10px] opacity-80 leading-none"
+                      >(59x86)</span
+                    >
+                  </button>
+                  <button
+                    type="button"
+                    class="ratio-btn snap-center shrink-0 w-[5.5rem] py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 bg-slate-800 text-slate-300 transition-colors"
+                    data-ratio="70:120"
+                  >
+                    <span class="text-sm font-medium leading-none">塔羅</span>
+                    <span class="text-[10px] opacity-80 leading-none"
+                      >(70x120)</span
+                    >
+                  </button>
+                  <button
+                    type="button"
+                    class="ratio-btn snap-center shrink-0 w-[5.5rem] py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 bg-slate-800 text-slate-300 transition-colors"
+                    data-ratio="41:63"
+                  >
+                    <span class="text-sm font-medium leading-none"
+                      >美式迷你</span
+                    >
+                    <span class="text-[10px] opacity-80 leading-none"
+                      >(41x63)</span
+                    >
+                  </button>
+                  <button
+                    type="button"
+                    class="ratio-btn snap-center shrink-0 w-[5.5rem] py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 bg-slate-800 text-slate-300 transition-colors"
+                    data-ratio="44:68"
+                  >
+                    <span class="text-sm font-medium leading-none"
+                      >迷你歐式</span
+                    >
+                    <span class="text-[10px] opacity-80 leading-none"
+                      >(44x68)</span
+                    >
+                  </button>
+                  <button
+                    type="button"
+                    class="ratio-btn snap-center shrink-0 w-[5.5rem] py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 bg-slate-800 text-slate-300 transition-colors"
+                    data-ratio="80:120"
+                  >
+                    <span class="text-sm font-medium leading-none">大尺寸</span>
+                    <span class="text-[10px] opacity-80 leading-none"
+                      >(80x120)</span
+                    >
+                  </button>
+                  <button
+                    type="button"
+                    class="ratio-btn snap-center shrink-0 w-[5.5rem] py-1.5 rounded-xl flex flex-col items-center justify-center gap-0.5 bg-slate-800 text-slate-300 transition-colors"
+                    data-ratio="1:1"
+                  >
+                    <span class="text-sm font-medium leading-none">正方</span>
+                    <span class="text-[10px] opacity-80 leading-none"
+                      >(1:1)</span
+                    >
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Custom ratio (1 part) -->
+            <div
+              class="flex-1 bg-slate-800 rounded-xl flex flex-col items-center justify-center gap-1 p-1 border border-slate-700 active:bg-slate-700 transition-colors cursor-pointer"
+              id="custom-ratio-box"
+              onclick="setCustomActive()"
+            >
+              <span
+                class="text-[10px] text-slate-400 font-bold leading-none mt-0.5"
+                >自訂比例</span
+              >
+              <div
+                class="flex items-center justify-center leading-none w-full px-1"
+              >
+                <input
+                  type="number"
+                  id="custom-w"
+                  value="1"
+                  min="1"
+                  class="w-full min-w-0 bg-slate-900 rounded outline-none text-center h-5 text-xs font-medium text-slate-200 p-0 shadow-inner"
+                />
+                <span class="text-slate-500 text-[10px] mx-0.5">:</span>
+                <input
+                  type="number"
+                  id="custom-h"
+                  value="2"
+                  min="1"
+                  class="w-full min-w-0 bg-slate-900 rounded outline-none text-center h-5 text-xs font-medium text-slate-200 p-0 shadow-inner"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <div
+      id="modal-import"
+      class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl flex flex-col gap-4"
+      >
+        <h3 class="text-xl font-bold mb-2">資料匯入</h3>
+
+        <label
+          class="flex items-center gap-4 p-4 bg-slate-50 hover:bg-emerald-50 rounded-2xl cursor-pointer transition-colors border border-slate-200"
+        >
+          <i data-lucide="file-archive" class="w-6 h-6 text-emerald-600"></i>
+          <div class="flex-1">
+            <div class="font-bold">匯入備份檔 (.zip)</div>
+            <div class="text-xs text-slate-500">從本系統匯出的備份包裹</div>
+          </div>
+          <input
+            type="file"
+            accept=".zip"
+            class="hidden"
+            onchange="
+              closeImportModal();
+              processZipFile(this.files[0]);
+              this.value = '';
+            "
+          />
+        </label>
+
+        <label
+          class="flex items-center gap-4 p-4 bg-slate-50 hover:bg-emerald-50 rounded-2xl cursor-pointer transition-colors border border-slate-200"
+        >
+          <i data-lucide="folder-tree" class="w-6 h-6 text-emerald-600"></i>
+          <div class="flex-1">
+            <div class="font-bold">匯入圖片資料夾</div>
+            <div class="text-xs text-slate-500">
+              支援 /遊戲/類型/編號.png 結構
+            </div>
+          </div>
+          <input
+            type="file"
+            webkitdirectory
+            directory
+            class="hidden"
+            onchange="
+              closeImportModal();
+              processBrowserFiles(this.files);
+              this.value = '';
+            "
+          />
+        </label>
+
+        <label
+          class="flex items-center gap-4 p-4 bg-slate-50 hover:bg-emerald-50 rounded-2xl cursor-pointer transition-colors border border-slate-200"
+        >
+          <i data-lucide="images" class="w-6 h-6 text-emerald-600"></i>
+          <div class="flex-1">
+            <div class="font-bold">匯入單/多張圖片</div>
+            <div class="text-xs text-slate-500">直接選取圖檔批量匯入</div>
+          </div>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            class="hidden"
+            onchange="
+              closeImportModal();
+              processBrowserFiles(this.files);
+              this.value = '';
+            "
+          />
+        </label>
+
+        <button
+          onclick="closeImportModal()"
+          class="mt-2 w-full py-3 text-slate-500 font-medium bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+        >
+          取消
+        </button>
       </div>
     </div>
-  </div>
 
-  <div id="modal-edit" class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-3xl w-full max-w-xs p-6 shadow-xl">
-      <h3 class="text-lg font-bold mb-4">編輯卡牌資訊</h3>
-      <div class="flex flex-col gap-3 mb-6">
-        <input type="text" id="edit-game" placeholder="遊戲" class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500">
-        <input type="text" id="edit-type" placeholder="類型" class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500">
-        <input type="text" id="edit-number" placeholder="編號/名稱" class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500">
-      </div>
-      <div class="flex gap-2">
-        <button onclick="closeEditModal()" class="flex-1 py-3 text-slate-500 font-medium">取消</button>
-        <button onclick="saveEdit()" class="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold">儲存</button>
+    <div
+      id="modal-import-config"
+      class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm"
+    >
+      <div
+        class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl flex flex-col gap-4"
+      >
+        <h3 class="text-xl font-bold mb-2">匯入分類設定</h3>
+        <p class="text-sm text-slate-500" id="import-config-count">
+          找到圖片，請決定如何分類：
+        </p>
+
+        <div class="flex flex-col gap-3">
+          <label
+            class="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer"
+          >
+            <input
+              type="radio"
+              name="import_mode"
+              value="auto"
+              checked
+              class="text-emerald-600 focus:ring-emerald-500"
+              onchange="toggleImportManual(false)"
+            />
+            從資料夾結構自動推斷 (遊戲/類型)
+          </label>
+
+          <label
+            class="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer"
+          >
+            <input
+              type="radio"
+              name="import_mode"
+              value="manual"
+              class="text-emerald-600 focus:ring-emerald-500"
+              onchange="toggleImportManual(true)"
+            />
+            全部統一指定：
+          </label>
+
+          <div
+            class="pl-6 flex flex-col gap-2 opacity-50 pointer-events-none transition-opacity"
+            id="import-manual-inputs"
+          >
+            <input
+              type="text"
+              id="import-game"
+              placeholder="遊戲名稱"
+              class="bg-slate-50 border p-2 rounded-lg outline-none focus:border-emerald-500 text-sm"
+            />
+            <input
+              type="text"
+              id="import-type"
+              placeholder="卡牌類型"
+              class="bg-slate-50 border p-2 rounded-lg outline-none focus:border-emerald-500 text-sm"
+            />
+          </div>
+        </div>
+
+        <div class="flex gap-2 mt-2">
+          <button
+            onclick="cancelImportConfig()"
+            class="flex-1 py-3 text-slate-500 font-medium bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onclick="confirmImportConfig()"
+            class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors"
+          >
+            開始匯入
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <canvas id="canvas-processing" class="hidden"></canvas>
+    <div
+      id="modal-edit"
+      class="fixed inset-0 bg-slate-900/60 z-50 hidden items-center justify-center p-4 backdrop-blur-sm"
+    >
+      <div class="bg-white rounded-3xl w-full max-w-xs p-6 shadow-xl">
+        <h3 class="text-lg font-bold mb-4">編輯卡牌資訊</h3>
+        <div class="flex flex-col gap-3 mb-6">
+          <div class="relative w-full" id="wrap-edit-game">
+            <input
+              type="text"
+              id="edit-game"
+              placeholder="遊戲"
+              class="bg-slate-50 border p-3 rounded-xl w-full outline-none focus:border-emerald-500 cursor-pointer truncate pr-8"
+              readonly
+            />
+            <div
+              class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400"
+            >
+              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            </div>
+            <div
+              id="drop-edit-game"
+              class="absolute z-50 mt-1 w-full flex-col bg-white shadow-lg overflow-y-auto max-h-48 rounded-lg border border-slate-200 hidden divide-y divide-slate-100"
+            ></div>
+          </div>
+          <div class="relative w-full" id="wrap-edit-type">
+            <input
+              type="text"
+              id="edit-type"
+              placeholder="類型"
+              class="bg-slate-50 border p-3 rounded-xl w-full outline-none focus:border-emerald-500 cursor-pointer truncate pr-8"
+              readonly
+            />
+            <div
+              class="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400"
+            >
+              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            </div>
+            <div
+              id="drop-edit-type"
+              class="absolute z-50 mt-1 w-full flex-col bg-white shadow-lg overflow-y-auto max-h-48 rounded-lg border border-slate-200 hidden divide-y divide-slate-100"
+            ></div>
+          </div>
+          <input
+            type="text"
+            id="edit-number"
+            placeholder="編號/名稱"
+            class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500"
+          />
+          <input
+            type="text"
+            id="edit-memo"
+            placeholder="備註 (選填)"
+            class="bg-slate-50 border p-3 rounded-xl outline-none focus:border-emerald-500"
+          />
+        </div>
+        <div class="flex gap-2">
+          <button
+            onclick="closeEditModal()"
+            class="flex-1 py-3 text-slate-500 font-medium"
+          >
+            取消
+          </button>
+          <button
+            onclick="saveEdit()"
+            class="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold"
+          >
+            儲存
+          </button>
+        </div>
+      </div>
+    </div>
 
-  <script>
-    lucide.createIcons();
-    let dbCards = [];
-    let points = []; 
-    let originalImgWidth, originalImgHeight, displayRatio;
-    let cvReady = false;
-    let editingId = null;
+    <canvas id="canvas-processing" class="hidden"></canvas>
 
-    const loadCV = () => {
-      const s = document.createElement('script');
-      s.src = 'https://docs.opencv.org/4.8.0/opencv.js';
-      s.async = true; s.onload = () => { cvReady = true; };
-      document.head.appendChild(s);
-    };
-    loadCV();
+    <script>
+      lucide.createIcons();
+      let dbCards = [];
+      let p1 = { x: 0, y: 0 },
+        p2 = { x: 0, y: 0 },
+        cropRatio = 63 / 88;
+      let isLandscapeMode = false;
+      let originalImgWidth, originalImgHeight, displayRatio;
+      let editingId = null;
 
-    const els = ['inp-game', 'inp-type', 'sel-ratio'];
-    els.forEach(id => {
-      const el = document.getElementById(id);
-      el.value = localStorage.getItem('bg_last_' + id) || el.value;
-      el.addEventListener('change', () => localStorage.setItem('bg_last_' + id, el.value));
-    });
+      window.toggleOrientation = () => {
+        isLandscapeMode = !isLandscapeMode;
+        if (isLandscapeMode) {
+          document.getElementById("icon-portrait").classList.add("hidden");
+          document.getElementById("icon-landscape").classList.remove("hidden");
+        } else {
+          document.getElementById("icon-portrait").classList.remove("hidden");
+          document.getElementById("icon-landscape").classList.add("hidden");
+        }
 
-    const renderGallery = () => {
-      const gQ = document.getElementById('inp-game').value.toLowerCase();
-      const tQ = document.getElementById('inp-type').value.toLowerCase();
-      const nQ = document.getElementById('inp-number').value.toLowerCase();
+        const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
+        if (activeBtn) {
+          const ratioStr = activeBtn.getAttribute("data-ratio").split(":");
+          setRatioAndCenter(parseInt(ratioStr[0]) / parseInt(ratioStr[1]));
+        } else {
+          const w = parseInt(document.getElementById("custom-w").value) || 1;
+          const h = parseInt(document.getElementById("custom-h").value) || 1;
+          setRatioAndCenter(w / h);
+        }
+      };
 
-      const filtered = dbCards.filter(c => 
-        c.game.toLowerCase().includes(gQ) && c.type.toLowerCase().includes(tQ) && c.number.toLowerCase().includes(nQ)
-      ).sort((a,b) => b.timestamp - a.timestamp);
+      const els = ["inp-game", "inp-type", "inp-number"];
+      els.forEach((id) => {
+        const el = document.getElementById(id);
+        el.value = localStorage.getItem("bg_last_" + id) || el.value;
+        el.addEventListener("input", () =>
+          localStorage.setItem("bg_last_" + id, el.value),
+        );
+        el.addEventListener("change", () =>
+          localStorage.setItem("bg_last_" + id, el.value),
+        );
+      });
 
-      const grid = document.getElementById('gallery-grid');
-      grid.innerHTML = '';
-      document.getElementById('empty-state').classList.toggle('hidden', filtered.length > 0);
+      // State tracking
 
-      filtered.forEach(c => {
-        const url = URL.createObjectURL(c.blob);
-        const div = document.createElement('div');
-        div.className = 'bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm relative';
-        div.innerHTML = `
-          <img src="${url}" class="w-full h-auto block" onload="URL.revokeObjectURL('${url}')">
+      const getRatioValue = () => {
+        const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
+        if (activeBtn) {
+          return activeBtn.getAttribute("data-ratio");
+        }
+        return `custom:${document.getElementById("custom-w").value}:${document.getElementById("custom-h").value}`;
+      };
+
+      const ratioContainer = document.getElementById("ratio-buttons");
+
+      const scrollBtnToCenter = (el) => {
+        if (!ratioContainer.contains(el)) return;
+        const containerRect = ratioContainer.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const scrollLeft =
+          ratioContainer.scrollLeft +
+          (elRect.left - containerRect.left) -
+          containerRect.width / 2 +
+          elRect.width / 2;
+        ratioContainer.scrollTo({ left: scrollLeft, behavior: "smooth" });
+      };
+
+      window.setCustomActive = () => {
+        document.getElementById("custom-w").focus();
+        document.getElementById("custom-w").select();
+        updateCustomRatio();
+      };
+
+      const setRatioValue = (val) => {
+        if (!val) return;
+        if (val.startsWith("custom:")) {
+          const parts = val.split(":");
+          document.getElementById("custom-w").value = parts[1] || 1;
+          document.getElementById("custom-h").value = parts[2] || 2;
+          updateCustomRatio(); // Need to ensure it's defined or we just reset buttons
+          return;
+        }
+        const btn = document.querySelector(`.ratio-btn[data-ratio="${val}"]`);
+        if (btn) btn.click();
+      };
+
+      const applyRatioValue = (val) => {
+        setRatioValue(val);
+        setTimeout(() => {
+          if (!val.startsWith("custom:")) {
+            const btn = document.querySelector(
+              `.ratio-btn[data-ratio="${val}"]`,
+            );
+            if (btn) scrollBtnToCenter(btn);
+          }
+        }, 50);
+      };
+
+      setTimeout(() => {
+        const lastLandscape =
+          localStorage.getItem("bg_last_landscape") === "true";
+        if (lastLandscape) {
+          isLandscapeMode = true;
+          document.getElementById("icon-portrait").classList.add("hidden");
+          document.getElementById("icon-landscape").classList.remove("hidden");
+        }
+
+        const lastRatio = localStorage.getItem("bg_last_ratio");
+        if (lastRatio) {
+          applyRatioValue(lastRatio);
+        }
+      }, 0);
+
+      const renderGallery = () => {
+        const gQ = document.getElementById("inp-game").value.toLowerCase();
+        const tQ = document.getElementById("inp-type").value.toLowerCase();
+        const nQ = document.getElementById("inp-number").value.toLowerCase();
+
+        const filtered = dbCards
+          .filter(
+            (c) =>
+              c.game.toLowerCase().includes(gQ) &&
+              c.type.toLowerCase().includes(tQ) &&
+              (c.number.toLowerCase().includes(nQ) ||
+                (c.memo && c.memo.toLowerCase().includes(nQ))),
+          )
+          .sort((a, b) => b.timestamp - a.timestamp);
+
+        const displayed = filtered.slice(0, 20);
+
+        const grid = document.getElementById("gallery-grid");
+        grid.innerHTML = "";
+
+        let emptyState = document.getElementById("empty-state");
+
+        if (filtered.length > 20) {
+          emptyState.innerHTML = `<p class="text-sm text-slate-500">找到 ${filtered.length} 筆，僅顯示最新 20 筆結果。</p>`;
+          emptyState.classList.remove("hidden");
+          emptyState.classList.add("my-4"); // Add margin to hint text
+        } else if (filtered.length === 0) {
+          emptyState.innerHTML =
+            '<i data-lucide="image" class="w-12 h-12 text-emerald-200 mx-auto mb-2"></i><p class="text-slate-400">目前沒有卡牌資料</p>';
+          emptyState.classList.remove("hidden");
+        } else {
+          emptyState.classList.add("hidden");
+        }
+
+        displayed.forEach((c) => {
+          const url = URL.createObjectURL(c.blob);
+          const div = document.createElement("div");
+          div.className =
+            "bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm relative";
+          div.innerHTML = `
+          <img src="${url}" class="w-full h-auto block" onload="window.URL.revokeObjectURL(this.src)">
           <div class="absolute top-3 right-3 flex gap-2">
             <button onclick="openEditModal('${c.id}')" class="p-2 bg-white/90 rounded-full shadow-lg text-slate-600"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
             <button onclick="deleteCard('${c.id}')" class="p-2 bg-white/90 rounded-full shadow-lg text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
           </div>
           <div class="p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent absolute bottom-0 inset-x-0 text-white">
             <div class="text-xs opacity-70 mb-1">${c.game} · ${c.type}</div>
-            <div class="font-bold text-lg">${c.number || '未命名'}</div>
+            <div class="font-bold text-lg">${c.number || "未命名"}</div>
+            ${c.memo ? `<div class="text-xs opacity-75 mt-1 truncate">${c.memo}</div>` : ""}
           </div>
         `;
-        grid.appendChild(div);
-      });
-      lucide.createIcons();
-      updateDatalists();
-    };
+          grid.appendChild(div);
+        });
+        lucide.createIcons();
+      };
 
-    const updateDatalists = () => {
-      const gs = [...new Set(dbCards.map(c => c.game))].filter(Boolean);
-      document.getElementById('list-games').innerHTML = gs.map(g => `<option value="${g}">`).join('');
-      const ts = [...new Set(dbCards.filter(c => c.game === document.getElementById('inp-game').value).map(c => c.type))].filter(Boolean);
-      document.getElementById('list-types').innerHTML = ts.map(t => `<option value="${t}">`).join('');
-    };
+      window.openEditModal = (id) => {
+        const c = dbCards.find((x) => x.id === id);
+        if (!c) return;
+        editingId = id;
+        document.getElementById("edit-game").value = c.game;
+        document.getElementById("edit-type").value = c.type;
+        document.getElementById("edit-number").value = c.number;
+        document.getElementById("edit-memo").value = c.memo || "";
+        document
+          .getElementById("modal-edit")
+          .classList.replace("hidden", "flex");
+      };
+      window.closeEditModal = () =>
+        document
+          .getElementById("modal-edit")
+          .classList.replace("flex", "hidden");
+      window.saveEdit = async () => {
+        const idx = dbCards.findIndex((c) => c.id === editingId);
+        if (idx > -1) {
+          dbCards[idx].game = document.getElementById("edit-game").value;
+          dbCards[idx].type = document.getElementById("edit-type").value;
+          dbCards[idx].number = document.getElementById("edit-number").value;
+          dbCards[idx].memo = document.getElementById("edit-memo").value;
+          dbCards[idx].timestamp = Date.now();
+          await idbKeyval.set("bgCards", dbCards);
+          renderGallery();
+        }
+        closeEditModal();
+      };
 
-    window.openEditModal = (id) => {
-      const c = dbCards.find(x => x.id === id);
-      if(!c) return;
-      editingId = id;
-      document.getElementById('edit-game').value = c.game;
-      document.getElementById('edit-type').value = c.type;
-      document.getElementById('edit-number').value = c.number;
-      document.getElementById('modal-edit').classList.replace('hidden', 'flex');
-    };
-    window.closeEditModal = () => document.getElementById('modal-edit').classList.replace('flex', 'hidden');
-    window.saveEdit = async () => {
-      const idx = dbCards.findIndex(c => c.id === editingId);
-      if(idx > -1) {
-        dbCards[idx].game = document.getElementById('edit-game').value;
-        dbCards[idx].type = document.getElementById('edit-type').value;
-        dbCards[idx].number = document.getElementById('edit-number').value;
-        await idbKeyval.set('bgCards', dbCards);
-        renderGallery();
-      }
-      closeEditModal();
-    };
+      const initCropState = (w, h) => {
+        const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
+        if (activeBtn) {
+          const ratioStr = activeBtn.getAttribute("data-ratio").split(":");
+          cropRatio = parseInt(ratioStr[0]) / parseInt(ratioStr[1]);
+        } else {
+          const cw = parseInt(document.getElementById("custom-w").value) || 1;
+          const ch = parseInt(document.getElementById("custom-h").value) || 1;
+          cropRatio = cw / ch;
+        }
 
-    // 終極防錯邊緣偵測：手動三角函數 + 線段長度篩選
-    const autoDetect = (w, h) => {
-      let foundPts = null;
-      if (cvReady) {
+        const savedWidthPct =
+          parseFloat(localStorage.getItem("bg_crop_widthPct")) || 0.8;
+        const savedCenterYPct =
+          parseFloat(localStorage.getItem("bg_crop_centerYPct")) || 0.85;
+        const savedAngle =
+          parseFloat(localStorage.getItem("bg_crop_angle")) || 0;
+
+        const cx = w / 2;
+        const cy = h * savedCenterYPct;
+        const width = w * savedWidthPct;
+
+        p1.x = cx - (width / 2) * Math.cos(savedAngle);
+        p1.y = cy - (width / 2) * Math.sin(savedAngle);
+        p2.x = cx + (width / 2) * Math.cos(savedAngle);
+        p2.y = cy + (width / 2) * Math.sin(savedAngle);
+      };
+
+      const snapToEdge = (w, h) => {
+        const cx = (p1.x + p2.x) / 2;
+        const cy = (p1.y + p2.y) / 2;
+        const ctx = document
+          .getElementById("canvas-source")
+          .getContext("2d", { willReadFrequently: true });
+        const scanRange = 30;
+        const scanX = Math.max(0, Math.min(w - 1, Math.floor(cx)));
+        const startY = Math.max(0, Math.floor(cy - scanRange));
+        const endY = Math.min(h - 1, Math.floor(cy + scanRange));
+        const scanH = endY - startY;
+
+        if (scanH <= 1) return;
         try {
-          const src = cv.imread('canvas-source');
-          const gray = new cv.Mat();
-          cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-          
-          // 1. 強化對比度
-          cv.equalizeHist(gray, gray);
-          
-          // 2. 加重模糊 (9x9) 來抹除綠色絨布桌墊的纖維紋理
-          cv.GaussianBlur(gray, gray, new cv.Size(9, 9), 0);
-          
-          // 3. 邊緣檢測
-          const edges = new cv.Mat();
-          cv.Canny(gray, edges, 30, 100);
-          
-          // 4. 膨脹黏合斷裂的線條
-          const kernel = cv.Mat.ones(5, 5, cv.CV_8U);
-          cv.dilate(edges, edges, kernel, new cv.Point(-1, -1), 1);
-          
-          const contours = new cv.MatVector();
-          const hier = new cv.Mat();
-          cv.findContours(edges, contours, hier, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+          const imgData = ctx.getImageData(scanX, startY, 1, scanH).data;
+          let maxDiff = 0,
+            bestY = cy;
+          for (let i = 0; i < scanH - 1; i++) {
+            const l1 =
+              0.299 * imgData[i * 4] +
+              0.587 * imgData[i * 4 + 1] +
+              0.114 * imgData[i * 4 + 2];
+            const l2 =
+              0.299 * imgData[(i + 1) * 4] +
+              0.587 * imgData[(i + 1) * 4 + 1] +
+              0.114 * imgData[(i + 1) * 4 + 2];
+            const diff = Math.abs(l1 - l2);
+            if (diff > maxDiff && diff > 15) {
+              maxDiff = diff;
+              bestY = startY + i;
+            }
+          }
+          if (maxDiff > 15) {
+            const diffY = bestY - cy;
+            p1.y += diffY;
+            p2.y += diffY;
+          }
+        } catch (e) {}
+      };
 
-          let allPoints = [];
-          // 關鍵修正：用「長度」而不是「面積」來篩選。長度大於畫面的 5% 才計入
-          const minLength = Math.min(w, h) * 0.05;
-          const maxArea = w * h * 0.98; // 避免把整張照片的最外框算進去
+      const calculatePolygon = () => {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const width = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        const height = (width / cropRatio) * 1.05;
 
-          for (let i = 0; i < contours.size(); i++) {
-            const cnt = contours.get(i);
-            const len = cv.arcLength(cnt, false);
-            
-            if (len > minLength) {
-              const boundingRect = cv.boundingRect(cnt);
-              const rectArea = boundingRect.width * boundingRect.height;
-              
-              // 排除剛好貼齊照片邊緣的巨大雜訊框
-              if (rectArea < maxArea) {
-                for (let j = 0; j < cnt.rows; j++) {
-                  let px = cnt.data32S[j * 2];
-                  let py = cnt.data32S[j * 2 + 1];
-                  // 排除緊貼著圖片最邊界 2 pixel 的點
-                  if (px > 2 && px < w - 2 && py > 2 && py < h - 2) {
-                    allPoints.push(px, py);
-                  }
-                }
-              }
+        const upAngle = angle - Math.PI / 2;
+        const dxUp = Math.cos(upAngle) * height;
+        const dyUp = Math.sin(upAngle) * height;
+
+        const p4 = { x: p1.x + dxUp, y: p1.y + dyUp };
+        const p3 = { x: p2.x + dxUp, y: p2.y + dyUp };
+        return [p4, p3, p2, p1];
+      };
+
+      const drawLines = () => {
+        const pts = calculatePolygon();
+        const s = pts
+          .map((p) => `${p.x * displayRatio},${p.y * displayRatio}`)
+          .join(" ");
+        document.getElementById("crop-polygon").setAttribute("points", s);
+
+        const wrap = document.getElementById("canvas-wrapper");
+        let h1 = document.getElementById("ind-p1");
+        if (!h1) {
+          h1 = document.createElement("div");
+          h1.id = "ind-p1";
+          h1.className = "indicator-point";
+          wrap.appendChild(h1);
+        }
+        let h2 = document.getElementById("ind-p2");
+        if (!h2) {
+          h2 = document.createElement("div");
+          h2.id = "ind-p2";
+          h2.className = "indicator-point";
+          wrap.appendChild(h2);
+        }
+        h1.style.left = p1.x * displayRatio + "px";
+        h1.style.top = p1.y * displayRatio + "px";
+        h2.style.left = p2.x * displayRatio + "px";
+        h2.style.top = p2.y * displayRatio + "px";
+      };
+
+      let pointerDownSrc = null;
+      document.addEventListener("DOMContentLoaded", () => {
+        const wrap = document.getElementById("canvas-wrapper");
+        const container = document.getElementById("crop-container");
+
+        container.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          container.setPointerCapture(e.pointerId);
+          const rect = wrap.getBoundingClientRect();
+          const ptX = e.clientX - rect.left;
+          const ptY = e.clientY - rect.top;
+
+          const scrP1x = p1.x * displayRatio;
+          const scrP1y = p1.y * displayRatio;
+          const scrP2x = p2.x * displayRatio;
+          const scrP2y = p2.y * displayRatio;
+
+          let dragTarget = null;
+          if (Math.hypot(ptX - scrP1x, ptY - scrP1y) < 25) dragTarget = "p1";
+          else if (Math.hypot(ptX - scrP2x, ptY - scrP2y) < 25)
+            dragTarget = "p2";
+
+          pointerDownSrc = {
+            x: ptX / displayRatio,
+            y: ptY / displayRatio,
+            clientX: e.clientX,
+            clientY: e.clientY,
+            dragTarget: dragTarget,
+          };
+        });
+
+        container.addEventListener("pointermove", (e) => {
+          if (!pointerDownSrc) return;
+          e.preventDefault();
+          const rect = wrap.getBoundingClientRect();
+          const currX = Math.max(
+            0,
+            Math.min(originalImgWidth, (e.clientX - rect.left) / displayRatio),
+          );
+          const currY = Math.max(
+            0,
+            Math.min(originalImgHeight, (e.clientY - rect.top) / displayRatio),
+          );
+          const dist = Math.hypot(
+            e.clientX - pointerDownSrc.clientX,
+            e.clientY - pointerDownSrc.clientY,
+          );
+
+          if (pointerDownSrc.dragTarget) {
+            if (pointerDownSrc.dragTarget === "p1") {
+              p1.x = currX;
+              p1.y = currY;
+            } else {
+              p2.x = currX;
+              p2.y = currY;
+            }
+            drawLines();
+          } else if (dist >= 15) {
+            let nx1 = Math.max(0, Math.min(originalImgWidth, pointerDownSrc.x));
+            let ny1 = Math.max(
+              0,
+              Math.min(originalImgHeight, pointerDownSrc.y),
+            );
+            let nx2 = currX,
+              ny2 = currY;
+            if (nx1 > nx2) {
+              let tx = nx1,
+                ty = ny1;
+              nx1 = nx2;
+              ny1 = ny2;
+              nx2 = tx;
+              ny2 = ty;
+            }
+
+            const dx = nx2 - nx1;
+            const dy = ny2 - ny1;
+            const width = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+            const height = (width / cropRatio) * 1.05;
+            const upAngle = angle - Math.PI / 2;
+            const pts = [
+              {
+                x: nx1 + Math.cos(upAngle) * height,
+                y: ny1 + Math.sin(upAngle) * height,
+              },
+              {
+                x: nx2 + Math.cos(upAngle) * height,
+                y: ny2 + Math.sin(upAngle) * height,
+              },
+              { x: nx2, y: ny2 },
+              { x: nx1, y: ny1 },
+            ];
+
+            let h1 = document.getElementById("ind-p1");
+            let h2 = document.getElementById("ind-p2");
+            if (h1 && h2) {
+              h1.style.display = "none";
+              h2.style.display = "none";
+            }
+
+            document
+              .getElementById("crop-polygon")
+              .setAttribute(
+                "points",
+                pts
+                  .map((p) => `${p.x * displayRatio},${p.y * displayRatio}`)
+                  .join(" "),
+              );
+          }
+        });
+
+        container.addEventListener("pointerup", (e) => {
+          if (!pointerDownSrc) return;
+          e.preventDefault();
+          container.releasePointerCapture(e.pointerId);
+          let h1 = document.getElementById("ind-p1");
+          let h2 = document.getElementById("ind-p2");
+          if (h1 && h2) {
+            h1.style.display = "block";
+            h2.style.display = "block";
+          }
+
+          const rect = wrap.getBoundingClientRect();
+          const upX = Math.max(
+            0,
+            Math.min(originalImgWidth, (e.clientX - rect.left) / displayRatio),
+          );
+          const upY = Math.max(
+            0,
+            Math.min(originalImgHeight, (e.clientY - rect.top) / displayRatio),
+          );
+          const dist = Math.hypot(
+            e.clientX - pointerDownSrc.clientX,
+            e.clientY - pointerDownSrc.clientY,
+          );
+
+          if (pointerDownSrc.dragTarget) {
+            if (pointerDownSrc.dragTarget === "p1") {
+              p1.x = upX;
+              p1.y = upY;
+            } else {
+              p2.x = upX;
+              p2.y = upY;
+            }
+          } else if (dist < 15) {
+            const d1 = Math.hypot(upX - p1.x, upY - p1.y);
+            const d2 = Math.hypot(upX - p2.x, upY - p2.y);
+            if (d1 < d2) {
+              p1.x = upX;
+              p1.y = upY;
+            } else {
+              p2.x = upX;
+              p2.y = upY;
+            }
+          } else {
+            let nx1 = Math.max(0, Math.min(originalImgWidth, pointerDownSrc.x));
+            let ny1 = Math.max(
+              0,
+              Math.min(originalImgHeight, pointerDownSrc.y),
+            );
+            let nx2 = upX,
+              ny2 = upY;
+            if (nx1 > nx2) {
+              let tx = nx1,
+                ty = ny1;
+              nx1 = nx2;
+              ny1 = ny2;
+              nx2 = tx;
+              ny2 = ty;
+            }
+            p1.x = nx1;
+            p1.y = ny1;
+            p2.x = nx2;
+            p2.y = ny2;
+          }
+
+          if (p1.x > p2.x) {
+            let tx = p1.x,
+              ty = p1.y;
+            p1.x = p2.x;
+            p1.y = p2.y;
+            p2.x = tx;
+            p2.y = ty;
+          }
+
+          pointerDownSrc = null;
+          drawLines();
+        });
+        container.addEventListener("pointercancel", (e) => {
+          container.releasePointerCapture(e.pointerId);
+          pointerDownSrc = null;
+          drawLines();
+        });
+      });
+
+      const openCropView = (src) => {
+        document.getElementById("view-crop").classList.remove("hidden");
+        document.getElementById("crop-loading").classList.remove("hidden");
+        document.getElementById("crop-loading-text").innerText = "定位中...";
+
+        const curGame = document.getElementById("inp-game").value;
+        const curType = document.getElementById("inp-type").value;
+        const lastMatchedCard = dbCards
+          .slice()
+          .reverse()
+          .find((c) => c.game === curGame && c.type === curType && c.ratio);
+        if (lastMatchedCard) {
+          applyRatioValue(lastMatchedCard.ratio);
+        }
+
+        const img = new Image();
+        img.onload = () => {
+          if (src.startsWith("blob:")) window.URL.revokeObjectURL(src);
+          const w = img.width > 1200 ? 1200 : img.width;
+          const h = Math.round(img.height * (w / img.width));
+          const canvas = document.getElementById("canvas-source");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          ctx.drawImage(img, 0, 0, w, h);
+
+          originalImgWidth = w;
+          originalImgHeight = h;
+          displayRatio = Math.min(
+            (window.innerWidth - 32) / w,
+            (window.innerHeight - 160) / h,
+          );
+          canvas.style.width = w * displayRatio + "px";
+          canvas.style.height = h * displayRatio + "px";
+
+          initCropState(w, h);
+          setTimeout(() => {
+            snapToEdge(w, h);
+            drawLines();
+            document.getElementById("crop-loading").classList.add("hidden");
+          }, 50);
+        };
+        img.src = src;
+      };
+
+      window.cancelCrop = () =>
+        document.getElementById("view-crop").classList.add("hidden");
+
+      window.processCrop = async () => {
+        document.getElementById("crop-loading").classList.remove("hidden");
+        document.getElementById("crop-loading-text").innerText = "儲存中...";
+
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const width = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        const height = (width / cropRatio) * 1.05;
+
+        const cx = (p1.x + p2.x) / 2;
+        const cy = (p1.y + p2.y) / 2;
+        localStorage.setItem("bg_crop_widthPct", width / originalImgWidth);
+        localStorage.setItem("bg_crop_centerYPct", cy / originalImgHeight);
+        localStorage.setItem("bg_crop_angle", angle);
+
+        const outW = 800;
+        const outH = Math.round(outW / cropRatio);
+        const outCvs = document.getElementById("canvas-processing");
+        outCvs.width = outW;
+        outCvs.height = outH;
+        const ctx = outCvs.getContext("2d");
+
+        const scale = outW / width;
+        const upAngle = angle - Math.PI / 2;
+        const p4x = p1.x + Math.cos(upAngle) * height;
+        const p4y = p1.y + Math.sin(upAngle) * height;
+
+        ctx.save();
+        ctx.scale(scale, scale);
+        ctx.rotate(-angle);
+        ctx.translate(-p4x, -p4y);
+
+        ctx.drawImage(document.getElementById("canvas-source"), 0, 0);
+        ctx.restore();
+
+        outCvs.toBlob(
+          async (b) => {
+            const c = {
+              id: crypto.randomUUID(),
+              game: document.getElementById("inp-game").value,
+              type: document.getElementById("inp-type").value,
+              number: document.getElementById("inp-number").value,
+              ratio: getRatioValue(),
+              blob: b,
+              timestamp: Date.now(),
+            };
+            dbCards.push(c);
+            await idbKeyval.set("bgCards", dbCards);
+            document.getElementById("inp-number").value = "";
+            localStorage.removeItem("bg_last_inp-number");
+            renderGallery();
+            document.getElementById("view-crop").classList.add("hidden");
+            document.getElementById("crop-loading").classList.add("hidden");
+          },
+          "image/webp",
+          0.85,
+        );
+      };
+
+      document.getElementById("file-upload").onchange = (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        openCropView(URL.createObjectURL(f));
+        e.target.value = "";
+      };
+
+      window.addEventListener("paste", (e) => {
+        const item = e.clipboardData.items[0];
+        if (item && item.type.indexOf("image") === 0) {
+          openCropView(URL.createObjectURL(item.getAsFile()));
+        }
+      });
+
+      window.deleteCard = async (id) => {
+        if (!confirm("確定刪除？")) return;
+        dbCards = dbCards.filter((c) => c.id !== id);
+        await idbKeyval.set("bgCards", dbCards);
+        renderGallery();
+      };
+
+      window.exportData = async () => {
+        if (dbCards.length === 0) return alert("無資料可匯出");
+
+        const zip = new JSZip();
+        const metadata = [];
+        const usedFilenames = new Set();
+
+        const sanitize = (str) =>
+          (str || "")
+            .toString()
+            .trim()
+            .replace(/[\/\\?%*:|"<>]/g, "-");
+
+        for (let i = 0; i < dbCards.length; i++) {
+          const c = dbCards[i];
+          const ext =
+            c.blob.type === "image/webp"
+              ? "webp"
+              : c.blob.type === "image/jpeg"
+                ? "jpg"
+                : "png";
+
+          const gameStr = sanitize(c.game) || "未命名項目";
+          const typeStr = sanitize(c.type) || "未分類";
+          const numStr = sanitize(c.number) || "未命名";
+
+          let shortId = c.id.toString().split("-")[0];
+          if (shortId.length > 8) shortId = shortId.slice(-6);
+
+          let filename = `${gameStr}/${typeStr}/${numStr}_${shortId}.${ext}`;
+          if (usedFilenames.has(filename)) {
+            filename = `${gameStr}/${typeStr}/${numStr}_${c.id}.${ext}`;
+          }
+          usedFilenames.add(filename);
+
+          zip.file(filename, c.blob);
+          metadata.push({
+            id: c.id,
+            game: c.game || "",
+            type: c.type || "",
+            number: c.number || "",
+            memo: c.memo || "",
+            ratio: c.ratio || "",
+            filename: filename,
+            timestamp: c.timestamp,
+          });
+        }
+
+        const keys = [
+          "id",
+          "game",
+          "type",
+          "number",
+          "memo",
+          "ratio",
+          "filename",
+          "timestamp",
+        ];
+        const rows = [keys.join(",")];
+        for (const row of metadata) {
+          const values = keys.map((k) => {
+            let val =
+              row[k] === undefined || row[k] === null ? "" : String(row[k]);
+            if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+              val = `"${val.replace(/"/g, '""')}"`;
+            }
+            return val;
+          });
+          rows.push(values.join(","));
+        }
+        const csvStr = "\uFEFF" + rows.join("\n"); // Add BOM
+
+        zip.file("db.csv", csvStr);
+        zip.file("metadata.json", JSON.stringify(metadata, null, 2));
+
+        const content = await zip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = `cards_export_${Date.now()}.zip`;
+        a.click();
+      };
+
+      window.openImportModal = () =>
+        document
+          .getElementById("modal-import")
+          .classList.replace("hidden", "flex");
+      window.closeImportModal = () =>
+        document
+          .getElementById("modal-import")
+          .classList.replace("flex", "hidden");
+
+      let pendingImagesToImport = [];
+
+      window.toggleImportManual = (isManual) => {
+        const inputs = document.getElementById("import-manual-inputs");
+        if (isManual) {
+          inputs.classList.remove("opacity-50", "pointer-events-none");
+        } else {
+          inputs.classList.add("opacity-50", "pointer-events-none");
+        }
+      };
+
+      window.cancelImportConfig = () => {
+        document
+          .getElementById("modal-import-config")
+          .classList.replace("flex", "hidden");
+        pendingImagesToImport = [];
+        document.getElementById("empty-state").classList.add("hidden");
+        renderGallery();
+      };
+
+      window.confirmImportConfig = async () => {
+        document
+          .getElementById("modal-import-config")
+          .classList.replace("flex", "hidden");
+        document.getElementById("empty-state").classList.remove("hidden");
+
+        const mode = document.querySelector(
+          'input[name="import_mode"]:checked',
+        ).value;
+        if (mode === "manual") {
+          const mGame = document.getElementById("import-game").value.trim();
+          const mType = document.getElementById("import-type").value.trim();
+          for (let i = 0; i < pendingImagesToImport.length; i++) {
+            pendingImagesToImport[i].game = mGame;
+            pendingImagesToImport[i].type = mType;
+          }
+        }
+
+        await commitImport(pendingImagesToImport);
+        pendingImagesToImport = [];
+      };
+
+      const showImportConfig = (images) => {
+        if (images.length === 0) {
+          alert("沒有找到可匯入的圖片。");
+          document.getElementById("empty-state").classList.add("hidden");
+          renderGallery();
+          return;
+        }
+        pendingImagesToImport = images;
+        document.getElementById("import-config-count").innerText =
+          `找到 ${images.length} 張無分類元資料的圖片，請選擇分類方式：`;
+        document.getElementById("import-game").value =
+          document.getElementById("inp-game").value;
+        document.getElementById("import-type").value =
+          document.getElementById("inp-type").value;
+
+        document.querySelector(
+          'input[name="import_mode"][value="auto"]',
+        ).checked = true;
+        toggleImportManual(false);
+
+        document
+          .getElementById("modal-import-config")
+          .classList.replace("hidden", "flex");
+        document.getElementById("empty-state").classList.add("hidden");
+      };
+
+      const extractInfoFromPath = (pathStr) => {
+        const parts = pathStr.split("/").filter(Boolean);
+        const fileName = parts.pop() || "";
+        const nameTokens = fileName.split(".");
+        const ext = nameTokens.length > 1 ? nameTokens.pop() : "";
+        let numPart = nameTokens.join(".");
+
+        // If matches something like numStr_shortUUID, omit the shortUUID from number
+        let idMatch = numPart.match(/^(.*)_([a-zA-Z0-9-]{6,36})$/);
+        let number = numPart;
+        let inferredId = crypto.randomUUID();
+        if (idMatch && idMatch[2].length >= 6) {
+          number = idMatch[1];
+        }
+        if (!number) number = inferredId.slice(0, 8);
+
+        let type = "",
+          game = "";
+        if (parts.length > 0) type = parts.pop();
+        if (parts.length > 0) game = parts.pop();
+
+        return { game, type, number, ext, id: inferredId };
+      };
+
+      let sharedCanvas = null;
+
+      const convertToWebP = async (blob, quality = 0.8) => {
+        // Yield to main thread briefly so UI can update the progress text
+        await new Promise((r) => setTimeout(r, 10));
+
+        return new Promise((resolve) => {
+          // If already webp and reasonably small (e.g., < 500KB), maybe skip?
+          // But actually we might still want to downscale huge WebP images.
+          const img = new Image();
+          const url = URL.createObjectURL(blob);
+          img.onload = () => {
+            let w = img.width;
+            let h = img.height;
+
+            // Limit max dimension to 1600px to save storage/memory
+            const MAX_SIZE = 1600;
+            if (w > MAX_SIZE || h > MAX_SIZE) {
+              const ratio = Math.min(MAX_SIZE / w, MAX_SIZE / h);
+              w = Math.round(w * ratio);
+              h = Math.round(h * ratio);
+            }
+
+            if (!sharedCanvas) sharedCanvas = document.createElement("canvas");
+            sharedCanvas.width = w;
+            sharedCanvas.height = h;
+            const ctx = sharedCanvas.getContext("2d");
+
+            // Draw image. If dimensions are downscaled, drawImage handles it
+            ctx.drawImage(img, 0, 0, w, h);
+
+            sharedCanvas.toBlob(
+              (b) => {
+                URL.revokeObjectURL(url);
+                resolve(b || blob);
+              },
+              "image/webp",
+              quality,
+            );
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(blob);
+          };
+          img.src = url;
+        });
+      };
+
+      const commitImport = async (imagesToImport) => {
+        if (imagesToImport.length === 0) {
+          alert("沒有找到可匯入的圖片或資料。");
+          document.getElementById("empty-state").classList.add("hidden");
+          renderGallery();
+          return;
+        }
+
+        document.getElementById("empty-state").innerHTML =
+          '<div class="loader rounded-full border-4 border-emerald-500 h-10 w-10 mx-auto my-4 border-t-transparent animate-spin"></div><p class="text-sm" id="import-progress">資料匯入中，請稍候...</p>';
+        document.getElementById("empty-state").classList.remove("hidden");
+
+        let importCount = 0;
+        let updateCount = 0;
+
+        for (let i = 0; i < imagesToImport.length; i++) {
+          const item = imagesToImport[i];
+          const prog = document.getElementById("import-progress");
+          if (prog)
+            prog.innerText = `處理轉檔與資料寫入中 (${i + 1}/${imagesToImport.length})...`;
+
+          item.blob = await convertToWebP(item.blob, 0.8);
+
+          let existingIdx = dbCards.findIndex((c) => c.id === item.id);
+          if (existingIdx === -1 && item.game && item.type && item.number) {
+            existingIdx = dbCards.findIndex(
+              (c) =>
+                c.game === item.game &&
+                c.type === item.type &&
+                c.number === item.number,
+            );
+            if (existingIdx > -1) item.id = dbCards[existingIdx].id;
+          }
+
+          if (existingIdx > -1) {
+            if (item.timestamp >= (dbCards[existingIdx].timestamp || 0)) {
+              dbCards[existingIdx] = {
+                ...dbCards[existingIdx],
+                ...item,
+                id: dbCards[existingIdx].id,
+              };
+              updateCount++;
+            }
+          } else {
+            dbCards.push(item);
+            importCount++;
+          }
+        }
+        await idbKeyval.set("bgCards", dbCards);
+        renderGallery();
+        document.getElementById("empty-state").classList.add("hidden");
+        alert(`成功匯入 ${importCount} 筆，更新 ${updateCount} 筆卡牌資料！`);
+      };
+
+      const parseCSV = (csvText) => {
+        const lines = [];
+        let cur = "",
+          inQuote = false;
+        let row = [];
+        for (let i = 0; i < csvText.length; i++) {
+          let char = csvText[i];
+          if (inQuote) {
+            if (char === '"' && csvText[i + 1] === '"') {
+              cur += '"';
+              i++;
+            } else if (char === '"') inQuote = false;
+            else cur += char;
+          } else {
+            if (char === '"') inQuote = true;
+            else if (char === ",") {
+              row.push(cur);
+              cur = "";
+            } else if (char === "\n") {
+              row.push(cur);
+              cur = "";
+              lines.push(row);
+              row = [];
+            } else if (char !== "\r") cur += char;
+          }
+        }
+        if (cur !== "" || row.length > 0) {
+          row.push(cur);
+          lines.push(row);
+        }
+        if (
+          lines.length > 1 &&
+          lines[0][0].replace(/^\uFEFF/, "").trim() === "id"
+        ) {
+          const headers = lines[0].map((h) => h.replace(/^\uFEFF/, "").trim());
+          return lines.slice(1).map((r) => {
+            const obj = {};
+            headers.forEach((h, idx) => (obj[h] = r[idx]));
+            return obj;
+          });
+        }
+        return null;
+      };
+
+      window.processZipFile = async (file) => {
+        if (!file) return;
+        document.getElementById("empty-state").innerHTML =
+          '<div class="loader rounded-full border-4 border-emerald-500 h-10 w-10 mx-auto my-4 border-t-transparent animate-spin"></div><p class="text-sm">資料匯入中，請稍候...</p>';
+        document.getElementById("empty-state").classList.remove("hidden");
+        document.getElementById("gallery-grid").innerHTML = "";
+
+        try {
+          const zip = await JSZip.loadAsync(file);
+          let metadata = null;
+          const csvFile = zip.file("db.csv");
+          if (csvFile) metadata = parseCSV(await csvFile.async("string"));
+          if (!metadata) {
+            const jsonFile = zip.file("metadata.json");
+            if (jsonFile) metadata = JSON.parse(await jsonFile.async("string"));
+          }
+
+          let imagesToImport = [];
+          if (metadata) {
+            for (const item of metadata) {
+              if (!item.id || !item.filename) continue;
+              const zf = zip.file(item.filename);
+              if (!zf) continue;
+              const blob = await zf.async("blob");
+              imagesToImport.push({
+                id: item.id,
+                game: item.game || "",
+                type: item.type || "",
+                number: item.number || "",
+                memo: item.memo || "",
+                ratio: item.ratio || "",
+                blob: blob,
+                timestamp: parseInt(item.timestamp) || Date.now(),
+              });
+            }
+            await commitImport(imagesToImport);
+          } else {
+            for (const [path, zf] of Object.entries(zip.files)) {
+              if (zf.dir) continue;
+              const ext = path.split(".").pop().toLowerCase();
+              if (!["png", "jpg", "jpeg", "webp"].includes(ext)) continue;
+              const info = extractInfoFromPath(path);
+              const blob = await zf.async("blob");
+              imagesToImport.push({
+                id: info.id,
+                game: info.game,
+                type: info.type,
+                number: info.number,
+                memo: "",
+                ratio: "",
+                blob: blob,
+                timestamp: Date.now(),
+              });
+            }
+            showImportConfig(imagesToImport);
+          }
+        } catch (err) {
+          console.error(err);
+          alert("匯入失敗：" + (err.message || "檔案格式錯誤"));
+          document.getElementById("empty-state").classList.add("hidden");
+          renderGallery();
+        }
+      };
+
+      window.processBrowserFiles = async (fileList) => {
+        if (!fileList || fileList.length === 0) return;
+        document.getElementById("empty-state").innerHTML =
+          '<div class="loader rounded-full border-4 border-emerald-500 h-10 w-10 mx-auto my-4 border-t-transparent animate-spin"></div><p class="text-sm">資料匯入中，請稍候...</p>';
+        document.getElementById("empty-state").classList.remove("hidden");
+        document.getElementById("gallery-grid").innerHTML = "";
+
+        try {
+          let metadata = null;
+          for (let i = 0; i < fileList.length; i++) {
+            const f = fileList[i];
+            if (f.name === "db.csv") {
+              metadata = parseCSV(await f.text());
+            } else if (f.name === "metadata.json") {
+              metadata = JSON.parse(await f.text());
             }
           }
 
-          if (allPoints.length > 0) {
-            // 將所有收集到的點融合成一個大集合
-            const combinedContour = cv.matFromArray(allPoints.length / 2, 1, cv.CV_32SC2, allPoints);
-            const hull = new cv.Mat();
-            
-            // 用橡皮筋把所有點包起來
-            cv.convexHull(combinedContour, hull, false, true);
+          let imagesToImport = [];
+          for (let i = 0; i < fileList.length; i++) {
+            const f = fileList[i];
+            if (!f.type.startsWith("image/")) continue;
 
-            // 求出包住這個橡皮筋形狀的「最小旋轉矩形」
-            const rect = cv.minAreaRect(hull);
-            
-            // 關鍵修正 2：手動計算四個角落，徹底避開 cv.boxPoints 導致的閃退當機
-            const cx = rect.center.x;
-            const cy = rect.center.y;
-            const rectW = rect.size.width / 2;
-            const rectH = rect.size.height / 2;
-            const angle = rect.angle * Math.PI / 180.0;
+            const path = f.webkitRelativePath || f.name;
+            const info = extractInfoFromPath(path);
 
-            const cosA = Math.cos(angle);
-            const sinA = Math.sin(angle);
+            let metaItem = null;
+            if (metadata) {
+              metaItem = metadata.find((m) => path.endsWith(m.filename));
+            }
 
-            // 根據中心點、寬高向量、角度推算四個角的完美座標
-            let ptsArr = [
-              { x: cx - rectW * cosA + rectH * sinA, y: cy - rectW * sinA - rectH * cosA },
-              { x: cx + rectW * cosA + rectH * sinA, y: cy + rectW * sinA - rectH * cosA },
-              { x: cx + rectW * cosA - rectH * sinA, y: cy + rectW * sinA + rectH * cosA },
-              { x: cx - rectW * cosA - rectH * sinA, y: cy - rectW * sinA + rectH * cosA }
-            ];
-            
-            // 確保座標不超出畫面範圍
-            ptsArr.forEach(pt => {
-              pt.x = Math.max(0, Math.min(w, pt.x));
-              pt.y = Math.max(0, Math.min(h, pt.y));
+            imagesToImport.push({
+              id: metaItem ? metaItem.id : info.id,
+              game: metaItem ? metaItem.game || "" : info.game,
+              type: metaItem ? metaItem.type || "" : info.type,
+              number: metaItem ? metaItem.number || "" : info.number,
+              memo: metaItem ? metaItem.memo || "" : "",
+              ratio: metaItem ? metaItem.ratio || "" : "",
+              blob: f,
+              timestamp: metaItem
+                ? parseInt(metaItem.timestamp) || Date.now()
+                : Date.now(),
             });
-
-            foundPts = ptsArr;
-            combinedContour.delete();
-            hull.delete();
           }
 
-          src.delete(); gray.delete(); edges.delete(); kernel.delete(); contours.delete(); hier.delete();
-        } catch(e) { 
-          console.error("CV 演算錯誤，啟動備援:", e); 
-        }
-      }
-      
-      if (!foundPts) {
-        const px = w * 0.1, py = h * 0.1;
-        foundPts = [{x:px, y:py}, {x:w-px, y:py}, {x:w-px, y:h-py}, {x:px, y:h-py}];
-      }
-      
-      points = sortPoints(foundPts);
-      setupHandles();
-    };
-
-    // 排序四個點：左上、右上、右下、左下，避免線條交叉
-    const sortPoints = (pts) => {
-      const c = { x: pts.reduce((a,b)=>a+b.x,0)/4, y: pts.reduce((a,b)=>a+b.y,0)/4 };
-      return pts.sort((a,b) => Math.atan2(a.y-c.y, a.x-c.x) - Math.atan2(b.y-c.y, b.x-c.x));
-    };
-
-    const setupHandles = () => {
-      document.querySelectorAll('.crop-handle').forEach(h => h.remove());
-      points.forEach((pt, i) => {
-        const h = document.createElement('div');
-        h.className = 'crop-handle';
-        h.style.left = pt.x * displayRatio + 'px';
-        h.style.top = pt.y * displayRatio + 'px';
-        const move = (e) => {
-          const r = document.getElementById('canvas-wrapper').getBoundingClientRect();
-          const touch = e.touches ? e.touches[0] : e;
-          points[i].x = Math.max(0, Math.min(originalImgWidth, (touch.clientX - r.left) / displayRatio));
-          points[i].y = Math.max(0, Math.min(originalImgHeight, (touch.clientY - r.top) / displayRatio));
-          h.style.left = points[i].x * displayRatio + 'px';
-          h.style.top = points[i].y * displayRatio + 'px';
-          drawLines();
-        };
-        h.addEventListener('mousedown', () => { window.addEventListener('mousemove', move); });
-        h.addEventListener('touchstart', (e) => { e.preventDefault(); window.addEventListener('touchmove', move); });
-        window.addEventListener('mouseup', () => window.removeEventListener('mousemove', move));
-        window.addEventListener('touchend', () => window.removeEventListener('touchmove', move));
-        document.getElementById('canvas-wrapper').appendChild(h);
-      });
-      drawLines();
-    };
-
-    const drawLines = () => {
-      const s = points.map(p => `${p.x * displayRatio},${p.y * displayRatio}`).join(' ');
-      document.getElementById('crop-polygon').setAttribute('points', s);
-    };
-
-    const openCropView = (src) => {
-      document.getElementById('view-crop').classList.remove('hidden');
-      document.getElementById('crop-loading').classList.remove('hidden');
-      document.getElementById('crop-loading-text').innerText = "定位中...";
-      
-      const img = new Image();
-      img.onload = () => {
-        const w = img.width > 1200 ? 1200 : img.width;
-        const h = Math.round(img.height * (w / img.width));
-        const canvas = document.getElementById('canvas-source');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        originalImgWidth = w; originalImgHeight = h;
-        displayRatio = Math.min((window.innerWidth-32)/w, (window.innerHeight-160)/h);
-        canvas.style.width = w * displayRatio + 'px';
-        canvas.style.height = h * displayRatio + 'px';
-        
-        const attemptDetect = () => {
-          if(cvReady) {
-            autoDetect(w, h);
-            document.getElementById('crop-loading').classList.add('hidden');
+          if (metadata) {
+            await commitImport(imagesToImport);
           } else {
-            setTimeout(attemptDetect, 200);
+            showImportConfig(imagesToImport);
           }
-        };
-        attemptDetect();
-      };
-      img.src = src;
-    };
-
-    window.cancelCrop = () => document.getElementById('view-crop').classList.add('hidden');
-    
-    window.processCrop = async () => {
-      document.getElementById('crop-loading').classList.remove('hidden');
-      document.getElementById('crop-loading-text').innerText = "儲存中...";
-      
-      const ratio = document.getElementById('sel-ratio').value.split(':');
-      const outW = 800; 
-      const outH = Math.round(outW * (parseInt(ratio[1])/parseInt(ratio[0])));
-      const outCvs = document.getElementById('canvas-processing');
-      outCvs.width = outW; outCvs.height = outH;
-
-      if(cvReady) {
-        try {
-          const src = cv.imread('canvas-source');
-          const dst = new cv.Mat();
-          const sT = cv.matFromArray(4, 1, cv.CV_32FC2, [points[0].x, points[0].y, points[1].x, points[1].y, points[2].x, points[2].y, points[3].x, points[3].y]);
-          const dT = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, outW, 0, outW, outH, 0, outH]);
-          const M = cv.getPerspectiveTransform(sT, dT);
-          cv.warpPerspective(src, dst, M, new cv.Size(outW, outH));
-          cv.imshow(outCvs, dst);
-          src.delete(); dst.delete(); sT.delete(); dT.delete(); M.delete();
-        } catch(e) {
-          outCvs.getContext('2d').drawImage(document.getElementById('canvas-source'), 0, 0, outW, outH);
+        } catch (err) {
+          console.error(err);
+          alert("匯入失敗：" + err.message);
+          document.getElementById("empty-state").classList.add("hidden");
+          renderGallery();
         }
+      };
+
+      function setupSmartDropdown(inputId, dropId, keyGetter) {
+        const inp = document.getElementById(inputId);
+        const drop = document.getElementById(dropId);
+        const wrap = inp.parentElement;
+        let isOpen = false;
+
+        const populate = () => {
+          drop.innerHTML = "";
+          const items = keyGetter();
+          if (items.length === 0) {
+            drop.innerHTML = `<div class="px-4 py-3 text-sm text-slate-400 text-center">暫無紀錄，請點擊輸入</div>`;
+          } else {
+            items.forEach((val) => {
+              const d = document.createElement("div");
+              d.className =
+                "px-4 py-3 text-sm hover:bg-emerald-50 cursor-pointer text-slate-700 active:bg-emerald-100 font-medium truncate";
+              d.textContent = val;
+              d.onmousedown = (e) => {
+                e.preventDefault();
+                inp.value = val;
+                inp.dispatchEvent(new Event("input"));
+                inp.dispatchEvent(new Event("change"));
+                close();
+              };
+              drop.appendChild(d);
+            });
+          }
+          const newBtn = document.createElement("div");
+          newBtn.className =
+            "px-4 py-3 text-sm text-emerald-600 font-bold hover:bg-emerald-50 cursor-pointer bg-slate-50 text-center border-t border-slate-100";
+          newBtn.innerHTML = `✏️ 點此手動打字輸入`;
+          newBtn.onmousedown = (e) => {
+            e.preventDefault();
+            enterEditMode();
+          };
+          drop.appendChild(newBtn);
+        };
+
+        const open = () => {
+          populate();
+          drop.classList.remove("hidden");
+          drop.classList.add("flex", "flex-col");
+          isOpen = true;
+          inp.setAttribute("readonly", "true");
+          inp.classList.add("cursor-pointer");
+        };
+
+        const close = () => {
+          drop.classList.add("hidden");
+          drop.classList.remove("flex", "flex-col");
+          isOpen = false;
+          inp.setAttribute("readonly", "true");
+          inp.blur();
+          inp.classList.add("cursor-pointer");
+        };
+
+        const enterEditMode = () => {
+          drop.classList.add("hidden");
+          drop.classList.remove("flex", "flex-col");
+          isOpen = false;
+          inp.removeAttribute("readonly");
+          inp.classList.remove("cursor-pointer");
+          inp.focus();
+          inp.select();
+        };
+
+        inp.addEventListener("click", (e) => {
+          if (inp.hasAttribute("readonly")) {
+            if (!isOpen) {
+              open();
+            } else {
+              enterEditMode();
+            }
+          }
+        });
+
+        inp.addEventListener("blur", () => {
+          setTimeout(() => {
+            if (!isOpen) {
+              inp.setAttribute("readonly", "true");
+              inp.classList.add("cursor-pointer");
+            }
+          }, 150);
+        });
+
+        document.addEventListener("mousedown", (e) => {
+          if (!wrap.contains(e.target) && isOpen) close();
+        });
       }
-      
-      outCvs.toBlob(async (b) => {
-        const c = { id: Date.now().toString(), game: document.getElementById('inp-game').value, type: document.getElementById('inp-type').value, number: document.getElementById('inp-number').value, blob: b, timestamp: Date.now() };
-        dbCards.push(c);
-        await idbKeyval.set('bgCards', dbCards);
-        document.getElementById('inp-number').value = '';
+
+      setupSmartDropdown("inp-game", "drop-game", () =>
+        [...new Set(dbCards.map((c) => c.game))].filter(Boolean),
+      );
+      setupSmartDropdown("inp-type", "drop-type", () => {
+        const game = document.getElementById("inp-game").value;
+        const ts = game
+          ? dbCards.filter((c) => c.game === game).map((c) => c.type)
+          : dbCards.map((c) => c.type);
+        return [...new Set(ts)].filter(Boolean);
+      });
+
+      setupSmartDropdown("edit-game", "drop-edit-game", () =>
+        [...new Set(dbCards.map((c) => c.game))].filter(Boolean),
+      );
+      setupSmartDropdown("edit-type", "drop-edit-type", () => {
+        const game = document.getElementById("edit-game").value;
+        const ts = game
+          ? dbCards.filter((c) => c.game === game).map((c) => c.type)
+          : dbCards.map((c) => c.type);
+        return [...new Set(ts)].filter(Boolean);
+      });
+
+      idbKeyval.get("bgCards").then((d) => {
+        dbCards = d || [];
         renderGallery();
-        document.getElementById('view-crop').classList.add('hidden');
-      }, 'image/webp', 0.7); 
-    };
+      });
+      document.getElementById("inp-game").oninput = renderGallery;
+      document.getElementById("inp-type").oninput = renderGallery;
+      document.getElementById("inp-number").oninput = renderGallery;
+      document.getElementById("inp-number").onfocus = function () {
+        this.select();
+      };
+      document.getElementById("edit-number").onfocus = function () {
+        this.select();
+      };
 
-    document.getElementById('file-upload').onchange = (e) => {
-      const f = e.target.files[0]; if(!f) return;
-      const r = new FileReader(); r.onload = (ev) => openCropView(ev.target.result); r.readAsDataURL(f);
-      e.target.value = '';
-    };
+      const storeRatio = () => {
+        localStorage.setItem("bg_last_ratio", getRatioValue());
+        localStorage.setItem("bg_last_landscape", isLandscapeMode);
+      };
 
-    window.addEventListener('paste', e => {
-      const item = e.clipboardData.items[0];
-      if (item && item.type.indexOf('image') === 0) {
-        const r = new FileReader(); r.onload = (ev) => openCropView(ev.target.result); r.readAsDataURL(item.getAsFile());
+      const setRatioAndCenter = (baseCropRatio) => {
+        const newCropRatio = isLandscapeMode
+          ? 1 / baseCropRatio
+          : baseCropRatio;
+        if (
+          !document.getElementById("view-crop").classList.contains("hidden")
+        ) {
+          // Adjust p1 and p2 so the box stays centered when ratio changes
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const width = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx);
+          const upAngle = angle - Math.PI / 2;
+
+          const oldHeight = (width / cropRatio) * 1.05;
+          const newHeight = (width / newCropRatio) * 1.05;
+
+          const shiftX = Math.cos(upAngle) * ((oldHeight - newHeight) / 2);
+          const shiftY = Math.sin(upAngle) * ((oldHeight - newHeight) / 2);
+
+          p1.x += shiftX;
+          p1.y += shiftY;
+          p2.x += shiftX;
+          p2.y += shiftY;
+
+          cropRatio = newCropRatio;
+          drawLines();
+        } else {
+          cropRatio = newCropRatio;
+        }
+        storeRatio();
+      };
+
+      document.querySelectorAll(".ratio-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".ratio-btn").forEach((b) => {
+            b.classList.remove("bg-emerald-600", "text-white");
+            b.classList.add("bg-slate-800", "text-slate-300");
+          });
+          btn.classList.add("bg-emerald-600", "text-white");
+          btn.classList.remove("bg-slate-800", "text-slate-300");
+
+          document
+            .getElementById("custom-ratio-box")
+            .classList.replace("border-emerald-600", "border-slate-700");
+          document
+            .getElementById("custom-ratio-box")
+            .classList.remove("ring-1", "ring-emerald-600");
+
+          const ratioStr = btn.getAttribute("data-ratio").split(":");
+          const newCropRatio = parseInt(ratioStr[0]) / parseInt(ratioStr[1]);
+          setRatioAndCenter(newCropRatio);
+
+          scrollBtnToCenter(btn);
+        });
+      });
+
+      function updateCustomRatio() {
+        const w = parseInt(document.getElementById("custom-w").value) || 1;
+        const h = parseInt(document.getElementById("custom-h").value) || 1;
+
+        document.querySelectorAll(".ratio-btn").forEach((b) => {
+          b.classList.remove("bg-emerald-600", "text-white");
+          b.classList.add("bg-slate-800", "text-slate-300");
+        });
+
+        document
+          .getElementById("custom-ratio-box")
+          .classList.replace("border-slate-700", "border-emerald-600");
+        document
+          .getElementById("custom-ratio-box")
+          .classList.remove("bg-slate-800");
+        document
+          .getElementById("custom-ratio-box")
+          .classList.add(
+            "bg-slate-800",
+            "border",
+            "border-emerald-600",
+            "ring-1",
+            "ring-emerald-600",
+          );
+
+        setRatioAndCenter(w / h);
       }
-    });
 
-    window.deleteCard = async (id) => {
-      if(!confirm('確定刪除？')) return;
-      dbCards = dbCards.filter(c => c.id !== id);
-      await idbKeyval.set('bgCards', dbCards);
-      renderGallery();
-    };
+      // Update UI on scroll
+      let scrollTimeout;
+      ratioContainer.addEventListener("scroll", () => {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          const containerCenter =
+            ratioContainer.getBoundingClientRect().left +
+            ratioContainer.clientWidth / 2;
+          let closestEl = null;
+          let minDiff = Infinity;
 
-    window.exportData = async () => {
-      if(dbCards.length === 0) return alert('無資料可匯出');
-      const data = await Promise.all(dbCards.map(async c => {
-        const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(c.blob); });
-        return { ...c, base64: b64, blob: null };
-      }));
-      const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `cards_${Date.now()}.json`; a.click();
-    };
+          // Check ratio buttons
+          document.querySelectorAll(".ratio-btn").forEach((btn) => {
+            const rect = btn.getBoundingClientRect();
+            const btnCenter = rect.left + rect.width / 2;
+            const diff = Math.abs(containerCenter - btnCenter);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestEl = btn;
+            }
+          });
 
-    idbKeyval.get('bgCards').then(d => { dbCards = d || []; renderGallery(); });
-    document.getElementById('inp-game').oninput = renderGallery;
-    document.getElementById('inp-type').oninput = renderGallery;
-    document.getElementById('inp-number').oninput = renderGallery;
-    document.getElementById('sel-ratio').onchange = () => { if(!document.getElementById('view-crop').classList.contains('hidden')) autoDetect(originalImgWidth, originalImgHeight); };
-  </script></body></html>
+          if (closestEl && minDiff < 50) {
+            if (!closestEl.classList.contains("bg-emerald-600")) {
+              closestEl.click();
+            }
+          }
+        }, 150);
+      });
+
+      document
+        .getElementById("custom-w")
+        .addEventListener("input", updateCustomRatio);
+      document
+        .getElementById("custom-h")
+        .addEventListener("input", updateCustomRatio);
+    </script>
+  </body>
+</html>

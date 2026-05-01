@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -40,6 +40,22 @@
             <i data-lucide="download" class="w-5 h-5"></i>
         </button>
     </header>
+
+    <!-- 開發者環境專用的網址輸入通道 (僅在雲端開發或本地環境顯示，不影響正式環境架構) -->
+    <script>
+        if (window.location.hostname.includes('run.app') || window.location.hostname === 'localhost') {
+            window.addEventListener('DOMContentLoaded', () => {
+                const devNav = document.createElement('div');
+                devNav.className = 'bg-yellow-50 border-b border-yellow-200 p-2 text-center text-xs flex justify-center items-center gap-2 relative z-10';
+                devNav.innerHTML = `
+                    <span class="text-yellow-800 font-bold">開發跳轉:</span>
+                    <input type="text" id="dev-path-input" placeholder="例如 /voice-sum/" class="border border-yellow-300 px-2 py-1 rounded w-32 shadow-inner focus:outline-none focus:border-yellow-500">
+                    <button onclick="let v=document.getElementById('dev-path-input').value; if(v) window.location.href=v;" class="bg-yellow-400 font-bold px-3 py-1 rounded text-yellow-900 hover:bg-yellow-500 transition-colors shadow-sm focus:outline-none">前往</button>
+                `;
+                document.body.insertBefore(devNav, document.body.firstChild);
+            });
+        }
+    </script>
 
     <!-- 主要內容區 (與工具一致的居中容器) -->
     <main class="flex-grow flex flex-col max-w-md w-full mx-auto bg-slate-50 shadow-sm overflow-hidden relative">

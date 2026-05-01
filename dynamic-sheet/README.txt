@@ -1,4 +1,4 @@
-﻿Dynamic Sheet README (更新於 2026-03-05)
+Dynamic Sheet README (更新於 2026-03-05)
 
 1. 專案定位
 

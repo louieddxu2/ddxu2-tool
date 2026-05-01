@@ -1,4 +1,4 @@
-﻿function assertOk(response, message) {
+function assertOk(response, message) {
   if (response.ok) return;
   throw new Error(`${message} (${response.status})`);
 }

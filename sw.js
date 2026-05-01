@@ -24,6 +24,29 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  const url = new URL(req.url);
+
+  if (req.method === 'POST' && url.pathname === '/_share-target/chinese-card') {
+    event.respondWith((async () => {
+      try {
+        const formData = await req.formData();
+        const imageFile = formData.get('image');
+        
+        if (imageFile) {
+          const cache = await caches.open('share-target-cache');
+          await cache.put('/_shared_image', new Response(imageFile, {
+            headers: { 'Content-Type': imageFile.type }
+          }));
+        }
+        
+        return Response.redirect('/Chinese-card/index.html?shared=1', 303);
+      } catch (e) {
+        return Response.redirect('/Chinese-card/index.html', 303);
+      }
+    })());
+    return;
+  }
+
   if (req.method !== 'GET') return;
 
   // HTML 導航：以網路為主（拿最新），失敗才回快取

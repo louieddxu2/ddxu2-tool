@@ -1,4 +1,4 @@
-﻿# AGENTS.md instructions for C:\code\ddxu2-tool
+# AGENTS.md instructions for C:\code\ddxu2-tool
 
 ## Git workflow override (user preference)
 

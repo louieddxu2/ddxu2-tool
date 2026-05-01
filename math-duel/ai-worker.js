@@ -91,29 +91,41 @@ function evaluateCenterDifficulty(cards) {
 
 // --- 盤面狀態評估 ---
 // AI 的目標是讓自己的手牌全變成「對手的顏色」
-function evaluateState(state, aiColor) {
+function evaluateState(state, aiColor, isAiTurnEnd) {
   const oppColor = aiColor === 'w' ? 'b' : 'w';
 
   // AI 側 (在 Worker 內部固定為 whiteHand)
-  const aiHandOppCount = state.whiteHand.filter(c => c.color === oppColor).length;
-  const aiHandOwnCount = state.whiteHand.filter(c => c.color === aiColor).length;
+  const aiHand = state.whiteHand;
+  const aiHandOwnCount = aiHand.filter(c => c.color === aiColor).length;
   
   // 玩家側 (在 Worker 內部固定為 blackHand)
-  const oppHandAiCount = state.blackHand.filter(c => c.color === aiColor).length;
-  const oppHandOwnCount = state.blackHand.filter(c => c.color === oppColor).length;
+  const oppHand = state.blackHand;
+  const oppHandOwnCount = oppHand.filter(c => c.color === oppColor).length;
 
   // 檢查勝負條件
-  if (state.whiteHand.length > 0 && aiHandOwnCount === 0) return 999999; // AI 贏了
-  if (state.blackHand.length > 0 && oppHandOwnCount === 0) return -999999; // 玩家贏了
+  const aiWins = aiHand.length > 0 && aiHandOwnCount === 0;
+  const oppWins = oppHand.length > 0 && oppHandOwnCount === 0;
+
+  if (aiWins) return 9999999;
+  if (oppWins) return -9999999;
+
+  // 必敗條件判斷 (手牌少於2張絕對無法發動攻擊)
+  // 如果是 AI 剛下完，但 AI 沒贏且手牌少於 2 張 -> 輪回 AI 時一定死
+  if (isAiTurnEnd && aiHand.length < 2) return -9000000;
+  // 如果是對手剛下完，對手沒贏且手牌少於 2 張 -> 輪回對手時一定死
+  if (!isAiTurnEnd && oppHand.length < 2) return 9000000;
 
   let score = 0;
-  // AI 自己的利益 (目標顏色的牌越多越好，起始顏色的牌越少越好)
-  score += (aiHandOppCount * 30) - (aiHandOwnCount * 40);
+  // AI 自己的利益 (強烈要求減少自己顏色的牌)
+  score -= (aiHandOwnCount * 1000);
   
-  // 打擊對手利益 (減少對方手中屬於 AI 顏色的牌)
-  score -= (oppHandAiCount * 30);
+  // 打擊對手利益 (讓對手自己顏色的牌越多越好)
+  score += (oppHandOwnCount * 800);
   
-  score += evaluateCenterDifficulty(state.centerCards);
+  const centerDiff = evaluateCenterDifficulty(state.centerCards);
+  if (isAiTurnEnd) score += centerDiff * 2; // 留給對手的難題
+  else score -= centerDiff * 2; // 對手留給我的難題
+
   return score;
 }
 
@@ -126,7 +138,7 @@ function generateValidMoves(activeHand, centerCards) {
   let centerCombos = [];
   for(let i=1; i<=2; i++) centerCombos = centerCombos.concat(getCombinations(centerCards, i));
 
-    for (let hCombo of handCombos) {
+  for (let hCombo of handCombos) {
     for (let cCombo of centerCombos) {
       for (let op of ops) {
         const result = checkEquation(hCombo, op, cCombo);
@@ -134,6 +146,10 @@ function generateValidMoves(activeHand, centerCards) {
           let tempCenter = centerCards.filter(c => !cCombo.includes(c)).concat(hCombo);
           if (tempCenter.length > 2) {
             let keepCombos = getCombinations(tempCenter, 2);
+            // 隨機打亂 discard 的選擇，避免前段全都是同一算式
+            keepCombos.sort(() => 0.5 - Math.random());
+            // 限制同一算式最多加入 2 種 discarding 結果，精簡樹狀結構
+            keepCombos = keepCombos.slice(0, 2);
             for (let keep of keepCombos) {
               moves.push({ hand: hCombo, center: cCombo, op: op, discard: keep, eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB });
             }
@@ -163,47 +179,129 @@ function applyMove(state, move, isWhiteTurn) {
   return newState;
 }
 
-// --- Minimax 演算法大腦 (升級 Beam Search 剪枝) ---
-function minimax(state, depth, alpha, beta, isMaximizing, aiColor) {
-  const evalScore = evaluateState(state, aiColor);
-  if (depth === 0 || Math.abs(evalScore) > 900000) return evalScore; 
+// --- 蒙地卡羅樹搜尋 (MCTS) 相關函數 ---
 
-  const activeHand = isMaximizing ? state.whiteHand : state.blackHand;
-  let moves = generateValidMoves(activeHand, state.centerCards);
+// 快速隨機產生一個合法步 (用於模擬，避免生成全部步數導致卡頓)
+function getRandomValidMove(activeHand, centerCards, maxAttempts = 20) {
+  const ops = ['+', '-', '*', '/'];
+  for (let i = 0; i < maxAttempts; i++) {
+    // 隨機選 2-4 張手牌
+    const hCount = Math.floor(Math.random() * 3) + 2; 
+    if (hCount > activeHand.length) continue;
+    
+    let shuffledHand = [...activeHand].sort(() => 0.5 - Math.random());
+    let hCombo = shuffledHand.slice(0, hCount);
 
-  if (moves.length === 0) return isMaximizing ? -999999 : 999999;
+    // 隨機選 1-2 張場中牌
+    const cCount = Math.floor(Math.random() * 2) + 1;
+    if (cCount > centerCards.length) continue;
 
-  if (depth > 1) {
-    moves.forEach(m => {
-      let childState = applyMove(state, m, isMaximizing);
-      m.heuristic = evaluateState(childState, aiColor);
-    });
-    if (isMaximizing) moves.sort((a, b) => b.heuristic - a.heuristic);
-    else moves.sort((a, b) => a.heuristic - b.heuristic);
-    moves = moves.slice(0, 4); 
+    let shuffledCenter = [...centerCards].sort(() => 0.5 - Math.random());
+    let cCombo = shuffledCenter.slice(0, cCount);
+
+    const op = ops[Math.floor(Math.random() * ops.length)];
+
+    const result = checkEquation(hCombo, op, cCombo);
+    if (result.success) {
+       let tempCenter = centerCards.filter(c => !cCombo.includes(c)).concat(hCombo);
+       let discard = [];
+       if (tempCenter.length > 2) {
+         let shuffledTemp = [...tempCenter].sort(() => 0.5 - Math.random());
+         discard = shuffledTemp.slice(0, 2);
+       }
+       return { hand: hCombo, center: cCombo, op: op, discard: discard, eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB };
+    }
+  }
+  return null; // 嘗試多次找不到就算放棄
+}
+
+// 模擬單局遊戲到底
+function simulatePlayout(state, isWhiteTurn, aiColor, maxDepth = 12) {
+  let currentState = state;
+  let currentTurn = isWhiteTurn; // true = AI turn, false = Player turn
+  const oppColor = aiColor === 'w' ? 'b' : 'w';
+
+  for (let d = 0; d < maxDepth; d++) {
+    const aiHand = currentState.whiteHand;
+    const oppHand = currentState.blackHand;
+    
+    const aiOwnCount = aiHand.filter(c => c.color === aiColor).length;
+    const oppOwnCount = oppHand.filter(c => c.color === oppColor).length;
+
+    // 檢查勝負條件
+    if (aiHand.length > 0 && aiOwnCount === 0) return 1.0; // AI 獲勝
+    if (oppHand.length > 0 && oppOwnCount === 0) return 0.0; // 玩家獲勝
+
+    // 必敗檢查
+    if (currentTurn && aiHand.length < 2) return 0.0; 
+    if (!currentTurn && oppHand.length < 2) return 1.0; 
+
+    const activeHand = currentTurn ? aiHand : oppHand;
+    let randomMove = getRandomValidMove(activeHand, currentState.centerCards, 25);
+
+    // 若隨機嘗試失敗，再退向全面生成
+    if (!randomMove) {
+      const allMoves = generateValidMoves(activeHand, currentState.centerCards);
+      if (allMoves.length === 0) return currentTurn ? 0.0 : 1.0;
+      randomMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+    }
+
+    currentState = applyMove(currentState, randomMove, currentTurn);
+    currentTurn = !currentTurn; 
   }
 
-  if (isMaximizing) {
-    let maxEval = -Infinity;
-    for (let move of moves) {
-      let childState = applyMove(state, move, true);
-      let ev = minimax(childState, depth - 1, alpha, beta, false, aiColor);
-      maxEval = Math.max(maxEval, ev);
-      alpha = Math.max(alpha, ev);
-      if (beta <= alpha) break;
+  // 若模擬達到最大深度未分勝負，則估算剩餘優勢 (自身原顏色越少越好)
+  const finalAiOwn = currentState.whiteHand.filter(c => c.color === aiColor).length;
+  const finalOppOwn = currentState.blackHand.filter(c => c.color === oppColor).length;
+  
+  if (finalAiOwn < finalOppOwn) return 0.8;
+  if (finalAiOwn > finalOppOwn) return 0.2;
+  return 0.5;
+}
+
+// 時間預算型蒙地卡羅搜尋
+function timeBudgetedMCTS(initialState, validMoves, aiColor, timeBudgetMs = 1500) {
+  const endTime = Date.now() + timeBudgetMs;
+  let stats = validMoves.map(m => ({ move: m, wins: 0, plays: 0 }));
+
+  // 秒殺首輪檢查
+  for (let s of stats) {
+    let childState = applyMove(initialState, s.move, true);
+    const aiOwnCount = childState.whiteHand.filter(c => c.color === aiColor).length;
+    if (childState.whiteHand.length > 0 && aiOwnCount === 0) {
+      return s.move; 
     }
-    return maxEval;
-  } else {
-    let minEval = Infinity;
-    for (let move of moves) {
-      let childState = applyMove(state, move, false);
-      let ev = minimax(childState, depth - 1, alpha, beta, true, aiColor);
-      minEval = Math.min(minEval, ev);
-      beta = Math.min(beta, ev);
-      if (beta <= alpha) break;
-    }
-    return minEval;
   }
+
+  // 打亂順序，避免如果時間提早結束，始終只有前幾個被測到
+  stats.sort(() => 0.5 - Math.random());
+
+  let passes = 0;
+  while (Date.now() < endTime) {
+    for (let i = 0; i < stats.length; i++) {
+        if (Date.now() >= endTime) break;
+        let childState = applyMove(initialState, stats[i].move, true);
+        let score = simulatePlayout(childState, false, aiColor);
+        stats[i].wins += score;
+        stats[i].plays++;
+    }
+    passes++;
+  }
+
+  let bestMove = null;
+  let bestWinRate = -1;
+  
+  for (let s of stats) {
+    if (s.plays === 0) continue;
+    let winRate = s.wins / s.plays;
+    winRate += Math.random() * 0.001; // 微量雜訊避免平局固化
+    
+    if (winRate > bestWinRate) {
+      bestWinRate = winRate;
+      bestMove = s.move;
+    }
+  }
+  return bestMove || stats[0].move;
 }
 
 self.onmessage = function(e) {
@@ -222,27 +320,15 @@ self.onmessage = function(e) {
   const moves = generateValidMoves(whiteHand, centerCards);
 
   let bestMove = null;
-  let bestScore = -Infinity;
 
   if (moves.length === 0) return self.postMessage(null);
 
-  for (let move of moves) {
-    let childState = applyMove(initialState, move, true);
-    
-    // 秒殺判定：如果這次行動能讓 AI 手上的起始色牌清零
-    const ownColorCardsCount = childState.whiteHand.filter(c => c.color === aiColor).length;
-    if (childState.whiteHand.length > 0 && ownColorCardsCount === 0) {
-      bestMove = move;
-      break;
-    }
-
-    let score = minimax(childState, depth - 1, -Infinity, Infinity, false, aiColor);
-    score += Math.random() * 0.1; 
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestMove = move;
-    }
+  if (isHard) {
+    // 困難模式：使用 MCTS (時間預算 1.5 秒)
+    bestMove = timeBudgetedMCTS(initialState, moves, aiColor, 1500);
+  } else {
+    // 普通模式：也用 MCTS，但時間極短、思考粗糙 (或純隨機)
+    bestMove = timeBudgetedMCTS(initialState, moves, aiColor, 100); 
   }
 
   if (bestMove) {
