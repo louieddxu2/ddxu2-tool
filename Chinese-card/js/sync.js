@@ -2,6 +2,9 @@ let peer = null;
 let conn = null;
 let qrcode = null;
 
+const CHUNK_SIZE = 16384; // 16KB per chunk for maximum compatibility
+let incomingChunks = {}; // { cardId: { chunks: [], total: 0, received: 0, metadata: {} } }
+
 // UI Helpers
 window.openSyncModal = () => {
   const m = document.getElementById("modal-sync");
@@ -33,45 +36,28 @@ function updateSyncUI(state) {
 // Host Logic
 window.startHost = () => {
   if (peer) peer.destroy();
-  
   peer = new Peer();
   peer.on('open', (id) => {
     document.getElementById("sync-my-id").innerText = id;
     const url = `${window.location.origin}${window.location.pathname}?room=${id}`;
-    
     const qrEl = document.getElementById("sync-qrcode");
     qrEl.innerHTML = "";
     qrcode = new QRCode(qrEl, {
-      text: url,
-      width: 192,
-      height: 192,
-      colorDark: "#059669",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.H
+      text: url, width: 192, height: 192, colorDark: "#059669", colorLight: "#ffffff",
+      correctLevel: QRCode.Level ? QRCode.Level.H : 2
     });
-    
     updateSyncUI("hosting");
   });
-
-  peer.on('connection', (c) => {
-    setupConnection(c);
-  });
-
+  peer.on('connection', (c) => setupConnection(c));
   peer.on('error', (err) => {
-    console.error("Peer Error:", err);
-    if (err.type === 'peer-unavailable') {
-        alert("找不到目標房號，請確認輸入是否正確。");
-    } else {
-        alert("連線發生錯誤: " + err.type);
-    }
+    alert("連線發生錯誤: " + err.type);
     updateSyncUI("initial");
   });
 };
 
 window.stopHost = () => {
   if (peer) peer.destroy();
-  peer = null;
-  conn = null;
+  peer = null; conn = null;
   updateSyncUI("initial");
 };
 
@@ -88,29 +74,54 @@ window.joinRoomManually = () => {
 
 function startJoin(id) {
   if (peer) peer.destroy();
-  
   peer = new Peer();
-  peer.on('open', () => {
-    const c = peer.connect(id);
-    setupConnection(c);
-  });
-
+  peer.on('open', () => setupConnection(peer.connect(id)));
   peer.on('error', (err) => {
-    console.error("Join Error:", err);
     alert("連線失敗: " + err.type);
     updateSyncUI("initial");
   });
 }
 
+// Data Transfer with Chunking
+async function sendCardChunked(card) {
+  if (!conn || !conn.open) return;
+  
+  const buffer = await card.blob.arrayBuffer();
+  const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE);
+  const cardId = card.id;
+
+  // Send Metadata first
+  conn.send({
+    type: 'CARD_START',
+    cardId: cardId,
+    totalChunks: totalChunks,
+    metadata: { ...card, blob: null } // Exclude blob from meta
+  });
+
+  // Send Chunks
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, buffer.byteLength);
+    const chunk = buffer.slice(start, end);
+    
+    conn.send({
+      type: 'CARD_CHUNK',
+      cardId: cardId,
+      index: i,
+      chunk: chunk
+    });
+    
+    // Tiny delay to prevent buffer overflow on slow devices
+    if (i % 5 === 0) await new Promise(r => setTimeout(r, 10));
+  }
+}
+
 // Connection Setup
 function setupConnection(c) {
   conn = c;
-  
   conn.on('open', () => {
     updateSyncUI("connected");
-    document.getElementById("sync-status-text").innerText = "已連線，正在比對資料庫...";
-    
-    // Step 1: Send my latest timestamp
+    document.getElementById("sync-status-text").innerText = "已連線，正在同步...";
     const maxTs = dbCards.length > 0 ? Math.max(...dbCards.map(x => x.timestamp || 0)) : 0;
     conn.send({ type: 'HELLO', latestTimestamp: maxTs });
   });
@@ -119,14 +130,10 @@ function setupConnection(c) {
     if (data.type === 'HELLO') {
       const missing = dbCards.filter(c => (c.timestamp || 0) > data.latestTimestamp);
       if (missing.length > 0) {
-        document.getElementById("sync-status-text").innerText = `正在傳送 ${missing.length} 筆差額資料...`;
-        for (const card of missing) {
-          // Convert Blob to ArrayBuffer for stable P2P transfer
-          const cardToSend = { ...card };
-          const buffer = await card.blob.arrayBuffer();
-          cardToSend.blob = buffer;
-          cardToSend.blobType = card.blob.type;
-          conn.send({ type: 'CARD', card: cardToSend });
+        document.getElementById("sync-status-text").innerText = `發送中 (0/${missing.length})`;
+        for (let i=0; i<missing.length; i++) {
+            await sendCardChunked(missing[i]);
+            document.getElementById("sync-status-text").innerText = `發送中 (${i+1}/${missing.length})`;
         }
       }
       const myTs = dbCards.length > 0 ? Math.max(...dbCards.map(x => x.timestamp || 0)) : 0;
@@ -135,36 +142,42 @@ function setupConnection(c) {
     
     if (data.type === 'REQUEST_DIFF') {
       const missing = dbCards.filter(c => (c.timestamp || 0) > data.latestTimestamp);
-      for (const card of missing) {
-        const cardToSend = { ...card };
-        const buffer = await card.blob.arrayBuffer();
-        cardToSend.blob = buffer;
-        cardToSend.blobType = card.blob.type;
-        conn.send({ type: 'CARD', card: cardToSend });
-      }
+      for (const card of missing) { await sendCardChunked(card); }
     }
 
-    if (data.type === 'CARD') {
-      const card = data.card;
-      
-      // Enhanced binary detection: ArrayBuffer or TypedArray
-      if (card.blob && (card.blob instanceof ArrayBuffer || ArrayBuffer.isView(card.blob))) {
-        // Handle cases where the blob might be wrapped in a view
-        const buffer = card.blob.buffer || card.blob;
-        card.blob = new Blob([buffer], { type: card.blobType || 'image/webp' });
-      }
+    if (data.type === 'CARD_START') {
+      incomingChunks[data.cardId] = {
+        chunks: new Array(data.totalChunks),
+        received: 0,
+        total: data.totalChunks,
+        metadata: data.metadata
+      };
+      document.getElementById("sync-status-text").innerText = `接收新卡片中...`;
+    }
 
-      const idx = dbCards.findIndex(x => x.id === card.id);
-      if (idx === -1) {
-        dbCards.push(card);
-        await window.idbKeyval.set("bgCards", dbCards, true); // True flag means "don't broadcast back"
-        renderGallery();
-        document.getElementById("sync-status-text").innerText = `同步成功：${card.number || '新卡片'}`;
-      } else if (card.timestamp > (dbCards[idx].timestamp || 0)) {
-        dbCards[idx] = card;
-        await window.idbKeyval.set("bgCards", dbCards, true);
-        renderGallery();
-        document.getElementById("sync-status-text").innerText = `更新成功：${card.number || '卡片已更新'}`;
+    if (data.type === 'CARD_CHUNK') {
+      const state = incomingChunks[data.cardId];
+      if (!state) return;
+      state.chunks[data.index] = data.chunk;
+      state.received++;
+
+      if (state.received === state.total) {
+        // Reconstruct
+        const finalBuffer = new Blob(state.chunks);
+        const card = { ...state.metadata, blob: finalBuffer };
+        delete incomingChunks[data.cardId];
+
+        const idx = dbCards.findIndex(x => x.id === card.id);
+        if (idx === -1) {
+          dbCards.push(card);
+          await window.idbKeyval.set("bgCards", dbCards, true);
+          renderGallery();
+          document.getElementById("sync-status-text").innerText = `同步成功：${card.number || '新項目'}`;
+        } else if (card.timestamp > (dbCards[idx].timestamp || 0)) {
+          dbCards[idx] = card;
+          await window.idbKeyval.set("bgCards", dbCards, true);
+          renderGallery();
+        }
       }
     }
   });
@@ -179,15 +192,10 @@ function setupConnection(c) {
 const originalIdbSet = window.idbKeyval.set;
 window.idbKeyval.set = async function(key, value, isFromSync = false) {
   const res = await originalIdbSet.apply(this, [key, value]);
-  
   if (key === "bgCards" && !isFromSync && conn && conn.open) {
     const mostRecent = [...value].sort((a,b) => (b.timestamp||0) - (a.timestamp||0))[0];
     if (mostRecent && mostRecent.blob instanceof Blob) {
-      const cardToSend = { ...mostRecent };
-      const buffer = await mostRecent.blob.arrayBuffer();
-      cardToSend.blob = buffer;
-      cardToSend.blobType = mostRecent.blob.type;
-      conn.send({ type: 'CARD', card: cardToSend });
+      await sendCardChunked(mostRecent);
     }
   }
   return res;
@@ -198,9 +206,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const urlParams = new URLSearchParams(window.location.search);
   const roomId = urlParams.get('room');
   if (roomId) {
-    setTimeout(() => {
-      openSyncModal();
-      startJoin(roomId);
-    }, 1500);
+    setTimeout(() => { openSyncModal(); startJoin(roomId); }, 1500);
   }
 });
