@@ -1,6 +1,7 @@
 let currentObserver = null;
 
 const renderGallery = () => {
+  if (isCropViewOpen) return;
   const gQ = document.getElementById("inp-game").value.toLowerCase();
   const tQ = document.getElementById("inp-type").value.toLowerCase();
   const nQ = document.getElementById("inp-number").value.toLowerCase();
@@ -73,8 +74,6 @@ const renderGallery = () => {
   if (firstCard) {
     updateStationaryFooter(firstCard);
   }
-
-  lucide.createIcons();
 };
 
 const updateStationaryFooter = (target) => {
@@ -109,7 +108,7 @@ const updateStationaryFooter = (target) => {
       </div>
     </div>
   `;
-  lucide.createIcons();
+  try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch(e) {}
 };
 
 document.addEventListener("DOMContentLoaded", () => {

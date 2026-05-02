@@ -50,13 +50,3 @@ svg.crop-lines {
     transform: rotate(360deg);
   }
 }
-
-/* Native classes to bypass Tailwind CDN monitoring during high-frequency updates */
-.ratio-btn-active {
-  background-color: #10b981 !important;
-  color: #ffffff !important;
-}
-.custom-ratio-active {
-  border-color: #10b981 !important;
-  outline: 2px solid #10b981 !important;
-}

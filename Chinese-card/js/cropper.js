@@ -4,7 +4,7 @@ let p1 = { x: 0, y: 0 },
 let originalImgWidth, originalImgHeight, displayRatio;
 
 const initCropState = (w, h) => {
-  const activeBtn = document.querySelector(".ratio-btn.ratio-btn-active");
+  const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
   if (activeBtn) {
     const ratioStr = activeBtn.getAttribute("data-ratio").split(":");
     cropRatio = parseInt(ratioStr[0]) / parseInt(ratioStr[1]);
@@ -243,6 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.openCropView = (src) => {
+  isCropViewOpen = true;
   document.getElementById("view-crop").classList.remove("hidden");
   document.getElementById("crop-loading").classList.remove("hidden");
   document.getElementById("crop-loading-text").innerText = "定位中...";
@@ -281,7 +282,10 @@ window.openCropView = (src) => {
   img.src = src;
 };
 
-window.cancelCrop = () => document.getElementById("view-crop").classList.add("hidden");
+window.cancelCrop = () => {
+  isCropViewOpen = false;
+  document.getElementById("view-crop").classList.add("hidden");
+};
 
 window.processCrop = async () => {
   document.getElementById("crop-loading").classList.remove("hidden");
@@ -334,6 +338,7 @@ window.processCrop = async () => {
       await idbKeyval.set("bgCards", dbCards);
       document.getElementById("inp-number").value = "";
       localStorage.removeItem("bg_last_inp-number");
+      isCropViewOpen = false;
       renderGallery();
       document.getElementById("view-crop").classList.add("hidden");
       document.getElementById("crop-loading").classList.add("hidden");
@@ -344,7 +349,7 @@ window.processCrop = async () => {
 };
 
 function getRatioValue() {
-  const activeBtn = document.querySelector(".ratio-btn.ratio-btn-active");
+  const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
   if (activeBtn) {
     return activeBtn.getAttribute("data-ratio");
   }

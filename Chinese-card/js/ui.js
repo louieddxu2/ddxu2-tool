@@ -1,6 +1,6 @@
-// Global UI State
 let isLandscapeMode = false;
 let editingId = null;
+let isCropViewOpen = false;
 
 // Initialization
 document.addEventListener("DOMContentLoaded", () => {
@@ -189,13 +189,17 @@ window.toggleOrientation = () => {
 };
 
 window.setCustomActive = () => {
-  const activeBtn = document.querySelector(".ratio-btn.ratio-btn-active");
+  const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
   if (activeBtn) {
-    activeBtn.classList.remove("ratio-btn-active");
+    activeBtn.style.backgroundColor = "";
+    activeBtn.style.color = "";
+    activeBtn.classList.remove("bg-emerald-600", "text-white");
+    activeBtn.classList.add("bg-slate-800", "text-slate-300");
   }
   const box = document.getElementById("custom-ratio-box");
   if (box) {
-    box.classList.add("custom-ratio-active");
+    box.style.borderColor = "#10b981";
+    box.style.boxShadow = "0 0 0 1px #10b981";
   }
   const w = parseInt(document.getElementById("custom-w").value) || 1;
   const h = parseInt(document.getElementById("custom-h").value) || 1;
@@ -208,17 +212,35 @@ function initRatioButtons() {
   if (!container) return;
   const buttons = container.querySelectorAll(".ratio-btn");
   const customBox = document.getElementById("custom-ratio-box");
-  let lastActiveBtn = container.querySelector(".ratio-btn.ratio-btn-active");
+  let lastActiveBtn = container.querySelector(".ratio-btn.bg-emerald-600");
+
+  // Pre-calculate button centers relative to container content
+  let btnCenters = [];
+  const refreshCenters = () => {
+    btnCenters = Array.from(buttons).map(btn => ({
+      btn,
+      center: btn.offsetLeft + btn.offsetWidth / 2
+    }));
+  };
+  refreshCenters();
+  window.addEventListener("resize", refreshCenters);
 
   const setActive = (btn) => {
     if (btn === lastActiveBtn) return;
     if (lastActiveBtn) {
-      lastActiveBtn.classList.remove("ratio-btn-active");
+      lastActiveBtn.style.backgroundColor = "";
+      lastActiveBtn.style.color = "";
+      lastActiveBtn.classList.remove("bg-emerald-600", "text-white");
+      lastActiveBtn.classList.add("bg-slate-800", "text-slate-300");
     }
     if (customBox) {
-      customBox.classList.remove("custom-ratio-active");
+      customBox.style.borderColor = "";
+      customBox.style.boxShadow = "";
     }
-    btn.classList.add("ratio-btn-active");
+    btn.style.backgroundColor = "#059669"; 
+    btn.style.color = "#ffffff";
+    btn.classList.add("bg-emerald-600", "text-white");
+    btn.classList.remove("bg-slate-800", "text-slate-300");
     lastActiveBtn = btn;
 
     const ratioStr = btn.getAttribute("data-ratio");
@@ -238,35 +260,27 @@ function initRatioButtons() {
     });
   });
 
-  let ticking = false;
   let saveTimeout;
   container.addEventListener("scroll", () => {
-    if (!ticking) {
-      window.requestAnimationFrame(() => {
-        const scrollCenterX = container.scrollLeft + container.offsetWidth / 2;
-        let closestBtn = null;
-        let minDistance = Infinity;
+    const scrollCenterX = container.scrollLeft + container.offsetWidth / 2;
+    let closestBtn = null;
+    let minDistance = Infinity;
 
-        for (let i = 0; i < buttons.length; i++) {
-          const btn = buttons[i];
-          const btnCenterX = btn.offsetLeft + btn.offsetWidth / 2;
-          const dist = Math.abs(scrollCenterX - btnCenterX);
-          if (dist < minDistance) {
-            minDistance = dist;
-            closestBtn = btn;
-          }
-        }
+    // Fast loop over pre-calculated centers
+    for (let i = 0; i < btnCenters.length; i++) {
+      const dist = Math.abs(scrollCenterX - btnCenters[i].center);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestBtn = btnCenters[i].btn;
+      }
+    }
 
-        if (closestBtn) {
-          setActive(closestBtn);
-          clearTimeout(saveTimeout);
-          saveTimeout = setTimeout(() => {
-            if (window.saveLastRatio) window.saveLastRatio();
-          }, 500);
-        }
-        ticking = false;
-      });
-      ticking = true;
+    if (closestBtn) {
+      setActive(closestBtn);
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        if (window.saveLastRatio) window.saveLastRatio();
+      }, 500);
     }
   }, { passive: true });
 }
