@@ -217,18 +217,18 @@ function initRatioButtons() {
   const setActive = (btn) => {
     if (btn === lastActiveBtn) return;
     
-    // Reset previous button style directly
+    // Immediate style reset for previous button
     if (lastActiveBtn) {
-      lastActiveBtn.style.backgroundColor = "#1e293b"; // bg-slate-800
-      lastActiveBtn.style.color = "#cbd5e1"; // text-slate-300
+      lastActiveBtn.style.backgroundColor = "#1e293b";
+      lastActiveBtn.style.color = "#cbd5e1";
     }
     if (customBox) {
-      customBox.style.borderColor = "#334155"; // border-slate-700
+      customBox.style.borderColor = "#334155";
       customBox.style.boxShadow = "none";
     }
     
-    // Set active button style directly
-    btn.style.backgroundColor = "#059669"; // bg-emerald-600
+    // Immediate style set for active button
+    btn.style.backgroundColor = "#059669";
     btn.style.color = "#ffffff";
     lastActiveBtn = btn;
 
@@ -249,24 +249,26 @@ function initRatioButtons() {
     });
   });
 
-  // Use IntersectionObserver for browser-native center detection
-  // rootMargin: '0px -50% 0px -50%' focuses the observer on the exact center line
   let saveTimeout;
   const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        setActive(entry.target);
-        
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => {
-          if (window.saveLastRatio) window.saveLastRatio();
-        }, 500);
-      }
-    });
+    // Find the entry that is most visible in our 20% center window
+    const intersecting = entries.filter(e => e.isIntersecting);
+    if (intersecting.length > 0) {
+      // If multiple are intersecting, pick the one closest to center
+      const best = intersecting.reduce((prev, current) => 
+        (current.intersectionRatio > prev.intersectionRatio) ? current : prev
+      );
+      setActive(best.target);
+      
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        if (window.saveLastRatio) window.saveLastRatio();
+      }, 500);
+    }
   }, {
     root: container,
-    rootMargin: '0px -50% 0px -50%',
-    threshold: 0
+    rootMargin: '0px -40% 0px -40%', // 20% width center detection window
+    threshold: [0, 0.5, 1]
   });
 
   buttons.forEach(btn => observer.observe(btn));

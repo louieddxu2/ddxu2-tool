@@ -1,15 +1,6 @@
-const CACHE_NAME = 'ddxu2-launcher-v7';
+const CACHE_NAME = 'ddxu2-launcher-v8';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll([
-      '/',
-      '/index.html',
-      '/manifest.webmanifest',
-      '/pwa-icon.svg',
-      '/pwa-maskable.svg',
-    ]))
-  );
   self.skipWaiting();
 });
 
@@ -55,8 +46,8 @@ self.addEventListener('fetch', (event) => {
 
   if (req.method !== 'GET') return;
 
-  // HTML 導航：以網路為主（拿最新），失敗才回快取
-  if (req.mode === 'navigate') {
+  // Network-First for same-origin requests
+  if (url.origin === location.origin) {
     event.respondWith(
       fetch(req)
         .then((res) => {
@@ -64,20 +55,13 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match(req).then((m) => m || caches.match('/index.html')))
+        .catch(() => caches.match(req).then((m) => m || (req.mode === 'navigate' ? caches.match('/index.html') : null)))
     );
     return;
   }
 
-  // 其他靜態：快取優先，沒有再走網路並寫回快取
+  // Fallback for cross-origin
   event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
-        return res;
-      });
-    })
+    caches.match(req).then((cached) => cached || fetch(req))
   );
 });
