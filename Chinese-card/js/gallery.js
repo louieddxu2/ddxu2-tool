@@ -47,13 +47,21 @@ const renderGallery = () => {
   const container = document.getElementById("gallery-container");
   
   if (window.isGridViewMode) {
-      container.classList.remove("snap-y", "snap-mandatory");
+      container.classList.remove("snap-y", "snap-mandatory", "snap-x");
       grid.className = "grid grid-cols-3 md:grid-cols-5 gap-2 p-2 h-auto";
       grid.style.gridAutoRows = "";
   } else {
-      container.classList.add("snap-y", "snap-mandatory");
-      grid.className = "grid grid-cols-1 h-full";
-      grid.style.gridAutoRows = "100%";
+      if (typeof isLandscapeMode !== "undefined" && isLandscapeMode) {
+          container.classList.remove("snap-y");
+          container.classList.add("snap-x", "snap-mandatory");
+          grid.className = "flex flex-row h-full";
+          grid.style.gridAutoRows = "";
+      } else {
+          container.classList.remove("snap-x");
+          container.classList.add("snap-y", "snap-mandatory");
+          grid.className = "grid grid-cols-1 h-full";
+          grid.style.gridAutoRows = "100%";
+      }
   }
 
   displayed.forEach((c, index) => {
@@ -72,35 +80,58 @@ const renderGallery = () => {
         const isSelected = window.selectedCardIds.has(c.id);
         const overlayClass = isSelected ? "opacity-100" : "opacity-0";
         const borderClass = isSelected ? "border-4 border-emerald-500" : "border-0";
+        const scaleClass = isSelected ? "scale-90" : "";
         
         div.innerHTML = `
-          <img src="${url}" class="w-full h-full object-cover transition-transform duration-200 ${isSelected ? 'scale-90' : ''} ${borderClass}" onload="window.URL.revokeObjectURL(this.src)">
-          <div class="absolute inset-0 bg-emerald-500/20 transition-opacity duration-200 ${overlayClass}"></div>
-          <div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center transition-opacity duration-200 ${overlayClass}">
+          <img src="${url}" class="w-full h-full object-cover transition-transform duration-200 ${scaleClass} ${borderClass}" onload="window.URL.revokeObjectURL(this.src)">
+          <div class="selection-overlay absolute inset-0 bg-emerald-500/20 transition-opacity duration-200 ${overlayClass}"></div>
+          <div class="selection-badge absolute top-2 right-2 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center transition-opacity duration-200 ${overlayClass}">
              <i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>
           </div>
         `;
         
         div.onclick = () => {
             if (window.isSelectionMode) {
+                const img = div.querySelector('img');
+                const overlay = div.querySelector('.selection-overlay');
+                const badge = div.querySelector('.selection-badge');
+                
                 if (window.selectedCardIds.has(c.id)) {
                     window.selectedCardIds.delete(c.id);
+                    img.classList.remove('scale-90', 'border-4', 'border-emerald-500');
+                    overlay.classList.remove('opacity-100'); overlay.classList.add('opacity-0');
+                    badge.classList.remove('opacity-100'); badge.classList.add('opacity-0');
                 } else {
                     window.selectedCardIds.add(c.id);
+                    img.classList.add('scale-90', 'border-4', 'border-emerald-500');
+                    overlay.classList.remove('opacity-0'); overlay.classList.add('opacity-100');
+                    badge.classList.remove('opacity-0'); badge.classList.add('opacity-100');
                 }
-                renderGallery();
+                
+                // Update footer counter dynamically
+                const counter = document.getElementById("selection-counter");
+                if (counter) counter.innerText = `已選取 ${window.selectedCardIds.size} 張`;
+                
             } else {
                 window.isGridViewMode = false;
                 renderGallery();
-                // Scroll to this card
+                // Disable smooth scroll temporarily for an instant jump
                 setTimeout(() => {
                     const target = document.querySelector(`div[data-id="${c.id}"]`);
-                    if (target) target.scrollIntoView();
+                    if (target) {
+                        const container = document.getElementById("gallery-container");
+                        container.classList.remove("scroll-smooth");
+                        target.scrollIntoView({ behavior: 'auto', block: 'start' });
+                        setTimeout(() => container.classList.add("scroll-smooth"), 50);
+                    }
                 }, 50);
             }
         };
     } else {
-        div.className = "snap-start flex items-center justify-center w-full h-full p-2 md:p-6 overflow-hidden";
+        div.className = "snap-start flex items-center justify-center w-full h-full p-2 md:p-6 overflow-hidden shrink-0";
+        if (typeof isLandscapeMode !== "undefined" && isLandscapeMode) {
+            div.classList.add("w-screen"); // Ensure full width in landscape row mode
+        }
         div.innerHTML = `
           <div class="w-full h-full flex items-center justify-center">
              <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onload="window.URL.revokeObjectURL(this.src)">
@@ -149,7 +180,7 @@ const updateStationaryFooter = (target) => {
       footer.innerHTML = `
         <div class="max-w-4xl mx-auto w-full flex items-center justify-between gap-3">
           <div class="flex-grow min-w-0 flex items-center justify-between">
-             <span class="text-sm font-bold text-slate-700">已選取 ${window.selectedCardIds.size} 張</span>
+             <span id="selection-counter" class="text-sm font-bold text-slate-700">已選取 ${window.selectedCardIds.size} 張</span>
              <button onclick="toggleSelectionMode()" class="text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-2">取消</button>
           </div>
           <div class="flex gap-1.5 shrink-0">
