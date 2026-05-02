@@ -214,33 +214,22 @@ function initRatioButtons() {
   const customBox = document.getElementById("custom-ratio-box");
   let lastActiveBtn = container.querySelector(".ratio-btn.bg-emerald-600");
 
-  // Pre-calculate button centers relative to container content
-  let btnCenters = [];
-  const refreshCenters = () => {
-    btnCenters = Array.from(buttons).map(btn => ({
-      btn,
-      center: btn.offsetLeft + btn.offsetWidth / 2
-    }));
-  };
-  refreshCenters();
-  window.addEventListener("resize", refreshCenters);
-
   const setActive = (btn) => {
     if (btn === lastActiveBtn) return;
+    
+    // Reset previous button style directly
     if (lastActiveBtn) {
-      lastActiveBtn.style.backgroundColor = "";
-      lastActiveBtn.style.color = "";
-      lastActiveBtn.classList.remove("bg-emerald-600", "text-white");
-      lastActiveBtn.classList.add("bg-slate-800", "text-slate-300");
+      lastActiveBtn.style.backgroundColor = "#1e293b"; // bg-slate-800
+      lastActiveBtn.style.color = "#cbd5e1"; // text-slate-300
     }
     if (customBox) {
-      customBox.style.borderColor = "";
-      customBox.style.boxShadow = "";
+      customBox.style.borderColor = "#334155"; // border-slate-700
+      customBox.style.boxShadow = "none";
     }
-    btn.style.backgroundColor = "#059669";
+    
+    // Set active button style directly
+    btn.style.backgroundColor = "#059669"; // bg-emerald-600
     btn.style.color = "#ffffff";
-    btn.classList.add("bg-emerald-600", "text-white");
-    btn.classList.remove("bg-slate-800", "text-slate-300");
     lastActiveBtn = btn;
 
     const ratioStr = btn.getAttribute("data-ratio");
@@ -260,29 +249,27 @@ function initRatioButtons() {
     });
   });
 
+  // Use IntersectionObserver for browser-native center detection
+  // rootMargin: '0px -50% 0px -50%' focuses the observer on the exact center line
   let saveTimeout;
-  container.addEventListener("scroll", () => {
-    const scrollCenterX = container.scrollLeft + container.offsetWidth / 2;
-    let closestBtn = null;
-    let minDistance = Infinity;
-
-    // Fast loop over pre-calculated centers
-    for (let i = 0; i < btnCenters.length; i++) {
-      const dist = Math.abs(scrollCenterX - btnCenters[i].center);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestBtn = btnCenters[i].btn;
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        setActive(entry.target);
+        
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+          if (window.saveLastRatio) window.saveLastRatio();
+        }, 500);
       }
-    }
+    });
+  }, {
+    root: container,
+    rootMargin: '0px -50% 0px -50%',
+    threshold: 0
+  });
 
-    if (closestBtn) {
-      setActive(closestBtn);
-      clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(() => {
-        if (window.saveLastRatio) window.saveLastRatio();
-      }, 500);
-    }
-  }, { passive: true });
+  buttons.forEach(btn => observer.observe(btn));
 }
 window.openFullPreview = (url) => {
   const modal = document.getElementById("modal-preview");
