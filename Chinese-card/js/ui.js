@@ -236,30 +236,26 @@ function initRatioButtons() {
     });
   });
 
-  let scrollTimeout;
   container.addEventListener("scroll", () => {
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      const containerRect = container.getBoundingClientRect();
-      const centerX = containerRect.left + containerRect.width / 2;
-      let closestBtn = null;
-      let minDistance = Infinity;
+    const containerRect = container.getBoundingClientRect();
+    const centerX = containerRect.left + containerRect.width / 2;
+    let closestBtn = null;
+    let minDistance = Infinity;
 
-      buttons.forEach(btn => {
-        const rect = btn.getBoundingClientRect();
-        const btnCenter = rect.left + rect.width / 2;
-        const dist = Math.abs(centerX - btnCenter);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestBtn = btn;
-        }
-      });
-
-      if (closestBtn && !closestBtn.classList.contains("bg-emerald-600")) {
-        setActive(closestBtn);
+    buttons.forEach(btn => {
+      const rect = btn.getBoundingClientRect();
+      const btnCenter = rect.left + rect.width / 2;
+      const dist = Math.abs(centerX - btnCenter);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestBtn = btn;
       }
-    }, 150);
-  });
+    });
+
+    if (closestBtn && !closestBtn.classList.contains("bg-emerald-600")) {
+      setActive(closestBtn);
+    }
+  }, { passive: true });
 }
 window.openFullPreview = (url) => {
   const modal = document.getElementById("modal-preview");
