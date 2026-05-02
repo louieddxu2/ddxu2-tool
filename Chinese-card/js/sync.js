@@ -55,12 +55,12 @@ function updateSyncUI(state) {
 // Host Logic
 window.startHost = () => {
   if (peer) peer.destroy();
-  const savedId = sessionStorage.getItem('bg_last_peer_id');
+  const savedId = localStorage.getItem('bg_last_peer_id');
   peer = new Peer(savedId || undefined);
   
   peer.on('open', (id) => {
-    sessionStorage.setItem('bg_last_peer_id', id);
-    sessionStorage.setItem('bg_sync_role', 'host');
+    localStorage.setItem('bg_last_peer_id', id);
+    localStorage.setItem('bg_sync_role', 'host');
     document.getElementById("sync-my-id").innerText = id;
     const url = `${window.location.origin}${window.location.pathname}?room=${id}`;
     const qrEl = document.getElementById("sync-qrcode");
@@ -72,7 +72,7 @@ window.startHost = () => {
 
   peer.on('connection', (c) => setupConnection(c));
   peer.on('error', (err) => {
-    if (err.type === 'unavailable-id') { sessionStorage.removeItem('bg_last_peer_id'); return startHost(); }
+    if (err.type === 'unavailable-id') { localStorage.removeItem('bg_last_peer_id'); return startHost(); }
     logSync(`Peer 錯誤: ${err.type}`);
     updateSyncUI("initial");
   });
@@ -83,8 +83,8 @@ window.stopHost = () => {
   peer = null;
   connections.forEach(c => c.close());
   connections.clear();
-  sessionStorage.removeItem('bg_last_peer_id');
-  sessionStorage.removeItem('bg_sync_role');
+  localStorage.removeItem('bg_last_peer_id');
+  localStorage.removeItem('bg_sync_role');
   updateSyncUI("initial");
   logSync("房間已關閉");
 };
@@ -101,8 +101,8 @@ function startJoin(id) {
   
   peer = new Peer();
   peer.on('open', () => {
-    sessionStorage.setItem('bg_last_joined_id', id);
-    sessionStorage.setItem('bg_sync_role', 'client');
+    localStorage.setItem('bg_last_joined_id', id);
+    localStorage.setItem('bg_sync_role', 'client');
     setupConnection(peer.connect(id));
   });
   peer.on('error', (err) => {
@@ -167,7 +167,7 @@ function setupConnection(c) {
   const removeConn = () => {
     connections.delete(c);
     if (connections.size > 0) document.getElementById("sync-status-text").innerText = `已連線 (共 ${connections.size} 人)`;
-    else { document.getElementById("sync-status-text").innerText = "連線已關閉"; setTimeout(() => { if (connections.size === 0 && peer && !peer.destroyed) updateSyncUI(sessionStorage.getItem('bg_sync_role') === 'host' ? 'hosting' : 'initial'); }, 3000); }
+    else { document.getElementById("sync-status-text").innerText = "連線已關閉"; setTimeout(() => { if (connections.size === 0 && peer && !peer.destroyed) updateSyncUI(localStorage.getItem('bg_sync_role') === 'host' ? 'hosting' : 'initial'); }, 3000); }
   };
   c.on('close', removeConn);
   c.on('error', removeConn);
@@ -188,12 +188,12 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
 
 // Persistence & Auto-reconnect Logic
 function handleAutoReconnect() {
-  const role = sessionStorage.getItem('bg_sync_role');
+  const role = localStorage.getItem('bg_sync_role');
   if (role === 'host') {
     logSync("嘗試重新開啟房間...");
     startHost();
   } else if (role === 'client') {
-    const lastId = sessionStorage.getItem('bg_last_joined_id');
+    const lastId = localStorage.getItem('bg_last_joined_id');
     if (lastId) {
       logSync("嘗試重新連回房間...");
       startJoin(lastId);
@@ -204,7 +204,7 @@ function handleAutoReconnect() {
 // Listen for tab focus
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
-    const isDisconnected = !peer || peer.destroyed || (sessionStorage.getItem('bg_sync_role') === 'client' && connections.size === 0);
+    const isDisconnected = !peer || peer.destroyed || (localStorage.getItem('bg_sync_role') === 'client' && connections.size === 0);
     if (isDisconnected) {
       handleAutoReconnect();
     }
@@ -219,7 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => { openSyncModal(); startJoin(roomId); }, 1500);
   } else {
     // If no URL param, check if we should auto-reconnect
-    if (sessionStorage.getItem('bg_sync_role')) {
+    if (localStorage.getItem('bg_sync_role')) {
         handleAutoReconnect();
     }
   }
