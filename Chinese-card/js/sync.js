@@ -117,15 +117,18 @@ function setupConnection(c) {
 
   conn.on('data', async (data) => {
     if (data.type === 'HELLO') {
-      // Opponent sent their latest timestamp, I send cards they miss
       const missing = dbCards.filter(c => (c.timestamp || 0) > data.latestTimestamp);
       if (missing.length > 0) {
         document.getElementById("sync-status-text").innerText = `正在傳送 ${missing.length} 筆差額資料...`;
         for (const card of missing) {
-          conn.send({ type: 'CARD', card });
+          // Convert Blob to ArrayBuffer for stable P2P transfer
+          const cardToSend = { ...card };
+          const buffer = await card.blob.arrayBuffer();
+          cardToSend.blob = buffer;
+          cardToSend.blobType = card.blob.type;
+          conn.send({ type: 'CARD', card: cardToSend });
         }
       }
-      // Also request their missing cards
       const myTs = dbCards.length > 0 ? Math.max(...dbCards.map(x => x.timestamp || 0)) : 0;
       conn.send({ type: 'REQUEST_DIFF', latestTimestamp: myTs });
     }
@@ -133,12 +136,22 @@ function setupConnection(c) {
     if (data.type === 'REQUEST_DIFF') {
       const missing = dbCards.filter(c => (c.timestamp || 0) > data.latestTimestamp);
       for (const card of missing) {
-        conn.send({ type: 'CARD', card });
+        const cardToSend = { ...card };
+        const buffer = await card.blob.arrayBuffer();
+        cardToSend.blob = buffer;
+        cardToSend.blobType = card.blob.type;
+        conn.send({ type: 'CARD', card: cardToSend });
       }
     }
 
     if (data.type === 'CARD') {
       const card = data.card;
+      
+      // Convert ArrayBuffer back to Blob
+      if (card.blob && card.blob instanceof ArrayBuffer) {
+        card.blob = new Blob([card.blob], { type: card.blobType || 'image/webp' });
+      }
+
       const idx = dbCards.findIndex(x => x.id === card.id);
       if (idx === -1) {
         dbCards.push(card);
@@ -166,13 +179,13 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
   const res = await originalIdbSet.apply(this, [key, value]);
   
   if (key === "bgCards" && !isFromSync && conn && conn.open) {
-    // If it's a save/edit, we might not know which one changed easily.
-    // For single new card (cropper.js), it's the last one.
-    // For edits (ui.js), we need a better way. 
-    // Let's just broadcast the most recently modified card.
     const mostRecent = [...value].sort((a,b) => (b.timestamp||0) - (a.timestamp||0))[0];
-    if (mostRecent) {
-      conn.send({ type: 'CARD', card: mostRecent });
+    if (mostRecent && mostRecent.blob instanceof Blob) {
+      const cardToSend = { ...mostRecent };
+      const buffer = await mostRecent.blob.arrayBuffer();
+      cardToSend.blob = buffer;
+      cardToSend.blobType = mostRecent.blob.type;
+      conn.send({ type: 'CARD', card: cardToSend });
     }
   }
   return res;

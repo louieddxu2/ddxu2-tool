@@ -33,6 +33,11 @@ const renderGallery = () => {
   }
 
   displayed.forEach((c, index) => {
+    // Safety check: skip corrupted records to prevent UI crash
+    if (!c.blob || !(c.blob instanceof Blob)) {
+      console.warn("Skipping invalid card blob:", c.id);
+      return;
+    }
     const url = URL.createObjectURL(c.blob);
     const div = document.createElement("div");
     div.className = "snap-start flex items-center justify-center w-full h-full p-2 md:p-6 overflow-hidden";
