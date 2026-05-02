@@ -376,6 +376,9 @@ window.setRatioAndCenter = (baseCropRatio) => {
   } else {
     cropRatio = newCropRatio;
   }
+};
+
+window.saveLastRatio = () => {
   localStorage.setItem("bg_last_ratio", getRatioValue());
   localStorage.setItem("bg_last_landscape", isLandscapeMode);
 };

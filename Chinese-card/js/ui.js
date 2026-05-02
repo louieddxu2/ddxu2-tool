@@ -185,6 +185,7 @@ window.toggleOrientation = () => {
     const h = parseInt(document.getElementById("custom-h").value) || 1;
     setRatioAndCenter(w / h);
   }
+  if (window.saveLastRatio) window.saveLastRatio();
 };
 
 window.setCustomActive = () => {
@@ -200,6 +201,7 @@ window.setCustomActive = () => {
   const w = parseInt(document.getElementById("custom-w").value) || 1;
   const h = parseInt(document.getElementById("custom-h").value) || 1;
   if (window.setRatioAndCenter) window.setRatioAndCenter(w / h);
+  if (window.saveLastRatio) window.saveLastRatio();
 };
 
 function initRatioButtons() {
@@ -232,10 +234,12 @@ function initRatioButtons() {
   buttons.forEach(btn => {
     btn.addEventListener("click", () => {
       setActive(btn);
+      if (window.saveLastRatio) window.saveLastRatio();
       btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
     });
   });
 
+  let saveTimeout;
   container.addEventListener("scroll", () => {
     const scrollCenterX = container.scrollLeft + container.offsetWidth / 2;
     let closestBtn = null;
@@ -252,6 +256,12 @@ function initRatioButtons() {
 
     if (closestBtn && !closestBtn.classList.contains("bg-emerald-600")) {
       setActive(closestBtn);
+      
+      // Debounce saving to localStorage
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => {
+        if (window.saveLastRatio) window.saveLastRatio();
+      }, 500);
     }
   }, { passive: true });
 }
