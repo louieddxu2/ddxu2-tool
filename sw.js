@@ -17,25 +17,16 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
+  // 1. Share Target logic
   if (req.method === 'POST' && url.pathname === '/_share-target/chinese-card') {
     event.respondWith((async () => {
       try {
         const formData = await req.formData();
         const imageFile = formData.get('image');
         const zipFile = formData.get('file');
-        
         const cache = await caches.open('share-target-cache');
-        if (imageFile) {
-          await cache.put('/_shared_image', new Response(imageFile, {
-            headers: { 'Content-Type': imageFile.type }
-          }));
-        }
-        if (zipFile) {
-          await cache.put('/_shared_zip', new Response(zipFile, {
-            headers: { 'Content-Type': zipFile.type || 'application/zip' }
-          }));
-        }
-        
+        if (imageFile) await cache.put('/_shared_image', new Response(imageFile, { headers: { 'Content-Type': imageFile.type } }));
+        if (zipFile) await cache.put('/_shared_zip', new Response(zipFile, { headers: { 'Content-Type': zipFile.type || 'application/zip' } }));
         return Response.redirect('/Chinese-card/index.html?shared=1', 303);
       } catch (e) {
         return Response.redirect('/Chinese-card/index.html', 303);
@@ -46,8 +37,8 @@ self.addEventListener('fetch', (event) => {
 
   if (req.method !== 'GET') return;
 
-  // Network-First for same-origin requests
-  if (url.origin === location.origin) {
+  // 2. HTML: Network-First (Ensure versioning info is fresh, fallback to cache)
+  if (req.mode === 'navigate' || url.pathname.endsWith('.html')) {
     event.respondWith(
       fetch(req)
         .then((res) => {
@@ -55,13 +46,21 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match(req).then((m) => m || (req.mode === 'navigate' ? caches.match('/index.html') : null)))
+        .catch(() => caches.match(req).then((m) => m || caches.match('/Chinese-card/index.html')))
     );
     return;
   }
 
-  // Fallback for cross-origin
+  // 3. Versioned Assets (JS/CSS/Img): Cache-First (Fastest, no network if cached)
+  // Because we use ?v= query strings, the URL will change if the content changes.
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req))
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
+        return res;
+      });
+    })
   );
 });
