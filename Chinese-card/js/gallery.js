@@ -9,12 +9,12 @@ const renderGallery = () => {
   const filtered = dbCards
     .filter(
       (c) =>
-        c.game.toLowerCase().includes(gQ) &&
-        c.type.toLowerCase().includes(tQ) &&
-        (c.number.toLowerCase().includes(nQ) ||
+        (c.game || "").toLowerCase().includes(gQ) &&
+        (c.type || "").toLowerCase().includes(tQ) &&
+        ((c.number || "").toLowerCase().includes(nQ) ||
           (c.memo && c.memo.toLowerCase().includes(nQ))),
     )
-    .sort((a, b) => b.timestamp - a.timestamp);
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
   const displayed = filtered.slice(0, 50);
 

@@ -5,12 +5,17 @@ let dbCards = [];
 idbKeyval.get("bgCards").then((d) => {
   dbCards = d || [];
   
-  // Initial Data Recovery: Clean up corrupted records on startup
-  const validCards = dbCards.filter(c => c.blob && (c.blob instanceof Blob));
+  // Initial Data Recovery: Clean up corrupted or incomplete records on startup
+  const validCards = dbCards.filter(c => {
+    return c && c.id && (c.blob instanceof Blob) && 
+           typeof (c.game || "") === "string" && 
+           typeof (c.type || "") === "string";
+  });
+  
   if (validCards.length !== dbCards.length) {
     console.warn(`Startup Recovery: Cleaned up ${dbCards.length - validCards.length} invalid records.`);
     dbCards = validCards;
-    saveCardsToDB(); // Sync the cleaned version back to storage
+    saveCardsToDB();
   }
 
   if (typeof renderGallery === "function") {

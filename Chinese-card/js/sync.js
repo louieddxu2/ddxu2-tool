@@ -147,9 +147,11 @@ function setupConnection(c) {
     if (data.type === 'CARD') {
       const card = data.card;
       
-      // Convert ArrayBuffer back to Blob
-      if (card.blob && card.blob instanceof ArrayBuffer) {
-        card.blob = new Blob([card.blob], { type: card.blobType || 'image/webp' });
+      // Enhanced binary detection: ArrayBuffer or TypedArray
+      if (card.blob && (card.blob instanceof ArrayBuffer || ArrayBuffer.isView(card.blob))) {
+        // Handle cases where the blob might be wrapped in a view
+        const buffer = card.blob.buffer || card.blob;
+        card.blob = new Blob([buffer], { type: card.blobType || 'image/webp' });
       }
 
       const idx = dbCards.findIndex(x => x.id === card.id);
