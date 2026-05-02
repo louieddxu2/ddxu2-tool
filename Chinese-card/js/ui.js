@@ -189,15 +189,13 @@ window.toggleOrientation = () => {
 };
 
 window.setCustomActive = () => {
-  const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
+  const activeBtn = document.querySelector(".ratio-btn.ratio-btn-active");
   if (activeBtn) {
-    activeBtn.classList.remove("bg-emerald-600", "text-white");
-    activeBtn.classList.add("bg-slate-800", "text-slate-300");
+    activeBtn.classList.remove("ratio-btn-active");
   }
   const box = document.getElementById("custom-ratio-box");
   if (box) {
-    box.classList.add("border-emerald-500", "ring-1", "ring-emerald-500");
-    box.classList.remove("border-slate-700");
+    box.classList.add("custom-ratio-active");
   }
   const w = parseInt(document.getElementById("custom-w").value) || 1;
   const h = parseInt(document.getElementById("custom-h").value) || 1;
@@ -210,20 +208,17 @@ function initRatioButtons() {
   if (!container) return;
   const buttons = container.querySelectorAll(".ratio-btn");
   const customBox = document.getElementById("custom-ratio-box");
-  let lastActiveBtn = container.querySelector(".ratio-btn.bg-emerald-600");
+  let lastActiveBtn = container.querySelector(".ratio-btn.ratio-btn-active");
 
   const setActive = (btn) => {
     if (btn === lastActiveBtn) return;
     if (lastActiveBtn) {
-      lastActiveBtn.classList.remove("bg-emerald-600", "text-white");
-      lastActiveBtn.classList.add("bg-slate-800", "text-slate-300");
+      lastActiveBtn.classList.remove("ratio-btn-active");
     }
     if (customBox) {
-      customBox.classList.remove("border-emerald-500", "ring-1", "ring-emerald-500");
-      customBox.classList.add("border-slate-700");
+      customBox.classList.remove("custom-ratio-active");
     }
-    btn.classList.add("bg-emerald-600", "text-white");
-    btn.classList.remove("bg-slate-800", "text-slate-300");
+    btn.classList.add("ratio-btn-active");
     lastActiveBtn = btn;
 
     const ratioStr = btn.getAttribute("data-ratio");

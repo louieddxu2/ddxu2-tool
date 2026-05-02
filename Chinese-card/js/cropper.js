@@ -4,7 +4,7 @@ let p1 = { x: 0, y: 0 },
 let originalImgWidth, originalImgHeight, displayRatio;
 
 const initCropState = (w, h) => {
-  const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
+  const activeBtn = document.querySelector(".ratio-btn.ratio-btn-active");
   if (activeBtn) {
     const ratioStr = activeBtn.getAttribute("data-ratio").split(":");
     cropRatio = parseInt(ratioStr[0]) / parseInt(ratioStr[1]);
@@ -344,7 +344,7 @@ window.processCrop = async () => {
 };
 
 function getRatioValue() {
-  const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
+  const activeBtn = document.querySelector(".ratio-btn.ratio-btn-active");
   if (activeBtn) {
     return activeBtn.getAttribute("data-ratio");
   }
