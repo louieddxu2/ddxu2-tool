@@ -64,6 +64,7 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
     drop.style.top = `${rect.bottom + 4}px`;
     drop.style.left = `${rect.left}px`;
     drop.style.width = `${rect.width}px`;
+    drop.style.minWidth = "200px";
     drop.style.zIndex = "9999";
   };
 
@@ -373,7 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("inp-number").value = compNum.value;
       renderGallery();
     };
-    compNum.onfocus = function () { this.select(); };
+    compNum.onfocus = function () { setTimeout(() => this.select(), 10); };
   }
 
   initRatioButtons();

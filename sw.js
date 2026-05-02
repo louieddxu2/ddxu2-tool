@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ddxu2-launcher-v1';
+const CACHE_NAME = 'ddxu2-launcher-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -37,13 +37,12 @@ self.addEventListener('fetch', (event) => {
 
   if (req.method !== 'GET') return;
 
-  // 2. HTML Sentinel: Network-First
-  // Matches navigation (folders) or explicit .html files
+  // 2. HTML Sentinel: Force network, bypass browser cache
   const isHtml = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/');
   
   if (isHtml) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'reload' }) // <--- Force browser to ignore its cache
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
@@ -54,7 +53,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Assets: Cache-First (Fastest, 0 network if cached)
+  // 3. Assets: Cache-First
   event.respondWith(
     caches.match(req).then((cached) => {
       return cached || fetch(req).then((res) => {
