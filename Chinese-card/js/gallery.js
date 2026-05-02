@@ -1,4 +1,7 @@
 let currentObserver = null;
+window.isGridViewMode = false;
+window.isSelectionMode = false;
+window.selectedCardIds = new Set();
 
 const renderGallery = () => {
   if (isCropViewOpen) return;
@@ -41,26 +44,70 @@ const renderGallery = () => {
     emptyState.classList.add("hidden");
   }
 
+  const container = document.getElementById("gallery-container");
+  
+  if (window.isGridViewMode) {
+      container.classList.remove("snap-y", "snap-mandatory");
+      grid.className = "grid grid-cols-3 md:grid-cols-5 gap-2 p-2 h-auto";
+      grid.style.gridAutoRows = "";
+  } else {
+      container.classList.add("snap-y", "snap-mandatory");
+      grid.className = "grid grid-cols-1 h-full";
+      grid.style.gridAutoRows = "100%";
+  }
+
   displayed.forEach((c, index) => {
-    // Safety check: skip corrupted records to prevent UI crash
-    if (!c.blob || !(c.blob instanceof Blob)) {
-      console.warn("Skipping invalid card blob:", c.id);
-      return;
-    }
+    if (!c.blob || !(c.blob instanceof Blob)) return;
     const url = URL.createObjectURL(c.blob);
     const div = document.createElement("div");
-    div.className = "snap-start flex items-center justify-center w-full h-full p-2 md:p-6 overflow-hidden";
+    
     div.setAttribute("data-id", c.id);
     div.setAttribute("data-game", c.game);
     div.setAttribute("data-type", c.type);
     div.setAttribute("data-number", c.number || "未命名");
     div.setAttribute("data-memo", c.memo || "");
     
-    div.innerHTML = `
-      <div class="w-full h-full flex items-center justify-center">
-         <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onload="window.URL.revokeObjectURL(this.src)">
-      </div>
-    `;
+    if (window.isGridViewMode) {
+        div.className = "relative aspect-square bg-slate-200 rounded-lg overflow-hidden cursor-pointer shadow-sm";
+        const isSelected = window.selectedCardIds.has(c.id);
+        const overlayClass = isSelected ? "opacity-100" : "opacity-0";
+        const borderClass = isSelected ? "border-4 border-emerald-500" : "border-0";
+        
+        div.innerHTML = `
+          <img src="${url}" class="w-full h-full object-cover transition-transform duration-200 ${isSelected ? 'scale-90' : ''} ${borderClass}" onload="window.URL.revokeObjectURL(this.src)">
+          <div class="absolute inset-0 bg-emerald-500/20 transition-opacity duration-200 ${overlayClass}"></div>
+          <div class="absolute top-2 right-2 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center transition-opacity duration-200 ${overlayClass}">
+             <i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>
+          </div>
+        `;
+        
+        div.onclick = () => {
+            if (window.isSelectionMode) {
+                if (window.selectedCardIds.has(c.id)) {
+                    window.selectedCardIds.delete(c.id);
+                } else {
+                    window.selectedCardIds.add(c.id);
+                }
+                renderGallery();
+            } else {
+                window.isGridViewMode = false;
+                renderGallery();
+                // Scroll to this card
+                setTimeout(() => {
+                    const target = document.querySelector(`div[data-id="${c.id}"]`);
+                    if (target) target.scrollIntoView();
+                }, 50);
+            }
+        };
+    } else {
+        div.className = "snap-start flex items-center justify-center w-full h-full p-2 md:p-6 overflow-hidden";
+        div.innerHTML = `
+          <div class="w-full h-full flex items-center justify-center">
+             <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onload="window.URL.revokeObjectURL(this.src)">
+          </div>
+        `;
+    }
+    
     grid.appendChild(div);
   });
 
@@ -83,14 +130,62 @@ const renderGallery = () => {
     currentObserver.observe(card);
   });
 
-  // Manually trigger initial footer content for the first card
-  const firstCard = grid.firstElementChild;
-  if (firstCard) {
-    updateStationaryFooter(firstCard);
+  // If in Grid view, we don't need the observer tracking a specific card
+  if (window.isGridViewMode) {
+      updateStationaryFooter(null);
+  } else {
+      // Manually trigger initial footer content for the first card
+      const firstCard = grid.firstElementChild;
+      if (firstCard) {
+        updateStationaryFooter(firstCard);
+      }
   }
 };
 
 const updateStationaryFooter = (target) => {
+  const footer = document.getElementById("gallery-footer");
+  
+  if (window.isSelectionMode) {
+      footer.innerHTML = `
+        <div class="max-w-4xl mx-auto w-full flex items-center justify-between gap-3">
+          <div class="flex-grow min-w-0 flex items-center justify-between">
+             <span class="text-sm font-bold text-slate-700">已選取 ${window.selectedCardIds.size} 張</span>
+             <button onclick="toggleSelectionMode()" class="text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-2">取消</button>
+          </div>
+          <div class="flex gap-1.5 shrink-0">
+            <button onclick="confirmBatchDelete()" class="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all active:scale-95 shadow-sm">
+              刪除
+            </button>
+          </div>
+        </div>
+      `;
+      try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch(e) {}
+      return;
+  }
+  
+  if (window.isGridViewMode) {
+      footer.innerHTML = `
+        <div class="max-w-4xl mx-auto w-full flex items-center justify-between gap-3">
+          <div class="flex-grow min-w-0">
+             <span class="text-sm font-bold text-slate-500">目錄檢視</span>
+          </div>
+          <div class="flex gap-1.5 shrink-0">
+            <button onclick="toggleSelectionMode()" class="px-4 py-2 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 font-bold rounded-lg transition-all active:scale-95 border border-slate-100 flex items-center gap-2">
+              <i data-lucide="check-square" class="w-4 h-4"></i> 選取刪除
+            </button>
+            <button onclick="toggleGridView()" class="p-2.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-600 hover:text-white rounded-lg transition-all active:scale-90 border border-emerald-100">
+              <i data-lucide="monitor" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      `;
+      try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch(e) {}
+      return;
+  }
+
+  // Single View (requires target)
+  if (!target) return;
+  
   const id = target.getAttribute("data-id");
   const game = target.getAttribute("data-game");
   const type = target.getAttribute("data-type");
@@ -104,7 +199,6 @@ const updateStationaryFooter = (target) => {
   const showType = !tQ;
   const metaStr = [showGame ? game : "", showType ? type : ""].filter(Boolean).join(" | ");
 
-  const footer = document.getElementById("gallery-footer");
   footer.innerHTML = `
     <div class="max-w-4xl mx-auto w-full flex items-center justify-between gap-3">
       <div class="flex-grow min-w-0">
@@ -119,10 +213,39 @@ const updateStationaryFooter = (target) => {
         <button onclick="deleteCard('${id}')" class="p-2.5 bg-slate-50 hover:bg-red-600 text-slate-400 hover:text-white rounded-lg transition-all active:scale-90 border border-slate-100">
           <i data-lucide="trash-2" class="w-4 h-4"></i>
         </button>
+        <button onclick="toggleGridView()" class="p-2.5 bg-slate-50 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-lg transition-all active:scale-90 border border-slate-100">
+          <i data-lucide="layout-grid" class="w-4 h-4"></i>
+        </button>
       </div>
     </div>
   `;
   try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch(e) {}
+};
+
+window.toggleGridView = () => {
+    window.isGridViewMode = !window.isGridViewMode;
+    window.isSelectionMode = false;
+    window.selectedCardIds.clear();
+    renderGallery();
+};
+
+window.toggleSelectionMode = () => {
+    window.isSelectionMode = !window.isSelectionMode;
+    window.selectedCardIds.clear();
+    renderGallery();
+};
+
+window.confirmBatchDelete = async () => {
+    if (window.selectedCardIds.size === 0) return;
+    if (!confirm(`確定要刪除選取的 ${window.selectedCardIds.size} 張照片嗎？這項操作無法復原。`)) return;
+    
+    const idsToDelete = Array.from(window.selectedCardIds);
+    dbCards = dbCards.filter(c => !idsToDelete.includes(c.id));
+    await window.idbKeyval.set("bgCards", dbCards);
+    
+    window.isSelectionMode = false;
+    window.selectedCardIds.clear();
+    renderGallery();
 };
 
 document.addEventListener("DOMContentLoaded", () => {
