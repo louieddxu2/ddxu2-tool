@@ -22,7 +22,7 @@
 <body
   class="bg-slate-50 text-slate-800 h-[100dvh] grid grid-rows-[auto_1fr] md:flex md:flex-row overflow-hidden relative">
   <!-- Sidebar (Desktop) / Header (Mobile) -->
-  <aside class="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl md:shadow-none">
+  <aside class="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl md:shadow-none shrink-0">
 
     <!-- Compact Mode Bar (Hidden by default) -->
     <div id="compact-bar" class="hidden bg-emerald-600 text-white p-1 flex items-center gap-1 shadow-md z-30">
@@ -143,7 +143,7 @@
   </aside>
 
   <!-- Gallery Main (Scroll Snapping) -->
-  <main id="view-main" class="flex-grow md:h-full min-h-0 relative flex flex-col bg-slate-50 overflow-hidden">
+  <main id="view-main" class="flex-grow md:h-full min-h-0 min-w-0 relative flex flex-col bg-slate-50 overflow-hidden">
     <!-- Scrolling Images -->
     <div id="gallery-container" class="flex-grow min-h-0 overflow-y-auto scroll-smooth snap-y snap-mandatory">
       <div id="gallery-grid" class="grid grid-cols-1 h-full" style="grid-auto-rows: 100%;"></div>
@@ -540,13 +540,13 @@
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="js/db.js?v=15"></script>
-  <script src="js/sync.js?v=15"></script>
-  <script src="js/utils.js?v=15"></script>
-  <script src="js/ui.js?v=15"></script>
-  <script src="js/gallery.js?v=15"></script>
-  <script src="js/io.js?v=15"></script>
-  <script src="js/cropper.js?v=15"></script>
+  <script src="js/db.js?v=16"></script>
+  <script src="js/sync.js?v=16"></script>
+  <script src="js/utils.js?v=16"></script>
+  <script src="js/ui.js?v=16"></script>
+  <script src="js/gallery.js?v=16"></script>
+  <script src="js/io.js?v=16"></script>
+  <script src="js/cropper.js?v=16"></script>
 </body>
 
 </html>
