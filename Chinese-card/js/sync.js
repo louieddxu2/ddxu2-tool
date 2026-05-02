@@ -175,9 +175,18 @@ async function sendCardChunked(targetConn, card) {
 function setupConnection(c) {
   connections.add(c);
     c.on('open', () => {
-      updateSyncUI("connected");
-      const count = connections.size;
-      document.getElementById("sync-status-text").innerText = count > 1 ? `已連線 (共 ${count} 人)` : "已連線，正在對帳...";
+      const role = localStorage.getItem('bg_sync_role');
+      if (role === 'host') {
+          updateSyncUI("hosting");
+          const hs = document.getElementById("sync-host-status");
+          if (hs) { hs.classList.remove("hidden"); hs.classList.add("flex"); }
+          const hc = document.getElementById("sync-host-count");
+          if (hc) hc.innerText = `已連線 (${connections.size}人)`;
+      } else {
+          updateSyncUI("connected");
+          setTimeout(() => { window.closeSyncModal(); }, 3000); // Auto-close for client after 3s
+      }
+      
       logSync(`連線成功: ${c.peer.slice(0,6)}`);
       
       const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
@@ -265,8 +274,20 @@ function setupConnection(c) {
 
   const removeConn = () => {
     connections.delete(c);
-    if (connections.size > 0) document.getElementById("sync-status-text").innerText = `已連線 (共 ${connections.size} 人)`;
-    else { document.getElementById("sync-status-text").innerText = "連線已關閉"; setTimeout(() => { if (connections.size === 0 && peer && !peer.destroyed) updateSyncUI(localStorage.getItem('bg_sync_role') === 'host' ? 'hosting' : 'initial'); }, 3000); }
+    const role = localStorage.getItem('bg_sync_role');
+    if (role === 'host') {
+        if (connections.size > 0) {
+            const hc = document.getElementById("sync-host-count");
+            if (hc) hc.innerText = `已連線 (${connections.size}人)`;
+        } else {
+            const hs = document.getElementById("sync-host-status");
+            if(hs) { hs.classList.add("hidden"); hs.classList.remove("flex"); }
+        }
+    } else {
+        if (connections.size === 0 && peer && !peer.destroyed) {
+            setTimeout(() => { updateSyncUI('initial'); }, 3000);
+        }
+    }
   };
   c.on('close', removeConn);
   c.on('error', removeConn);

@@ -470,9 +470,9 @@
   </div>
 
   <!-- Sync Modal -->
-  <div id="modal-sync" class="hidden fixed inset-0 z-[200000] items-center justify-center p-4">
-    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeSyncModal()"></div>
-    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm relative z-10 overflow-hidden animate-in zoom-in-95 duration-200">
+  <div id="modal-sync" class="hidden fixed inset-0 z-[200000] items-end sm:items-center justify-center p-4 pb-safe pointer-events-none">
+    <div class="fixed inset-0 bg-transparent pointer-events-auto" onclick="closeSyncModal()"></div>
+    <div class="bg-white rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.2)] w-full max-w-sm relative z-10 overflow-hidden animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300 pointer-events-auto border border-slate-100 mb-4 sm:mb-0">
       <div class="p-6">
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-xl font-black text-slate-800">即時同步房間</h3>
@@ -496,34 +496,41 @@
           </div>
         </div>
 
-        <div id="sync-hosting" class="hidden flex flex-col items-center space-y-4">
-          <div id="qrcode-container" class="p-4 bg-white border-4 border-emerald-50 rounded-2xl shadow-inner">
-            <div id="sync-qrcode" class="w-48 h-48"></div>
+        <!-- Host View (Always shows QR) -->
+        <div id="sync-hosting" class="hidden flex flex-col items-center space-y-5">
+          <div class="p-3 bg-white border-2 border-slate-100 rounded-[2rem] shadow-sm">
+            <div id="sync-qrcode" class="w-48 h-48 rounded-xl overflow-hidden"></div>
           </div>
-          <div class="text-center">
-            <p class="text-xs text-slate-400 mb-1">請另一台手機掃描此 QR Code</p>
-            <div class="flex items-center justify-center gap-2">
-              <span id="sync-my-id" class="text-lg font-mono font-bold text-emerald-600 tracking-wider"></span>
-              <button onclick="copyMyId()" class="p-1 hover:bg-slate-100 rounded text-slate-400"><i data-lucide="copy" class="w-3 h-3"></i></button>
+          <div class="text-center w-full">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">房間 ID</p>
+            <div class="flex items-center justify-center gap-2 bg-slate-50 py-2 rounded-xl border border-slate-100">
+              <span id="sync-my-id" class="text-lg font-mono font-black text-emerald-600 tracking-widest"></span>
+            </div>
+            <!-- Connection Status for Host -->
+            <div id="sync-host-status" class="mt-4 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hidden">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="sync-host-count">已連線 (1人)</span>
             </div>
           </div>
-          <button onclick="stopHost()" class="text-sm text-red-500 font-bold hover:bg-red-50 px-4 py-2 rounded-lg">關閉房間</button>
+          <button onclick="stopHost()" class="w-full py-3 bg-red-50 text-red-600 font-bold hover:bg-red-100 rounded-xl transition-colors active:scale-95">關閉並銷毀房間</button>
         </div>
 
-        <div id="sync-connected" class="hidden flex flex-col items-center py-6 space-y-4 text-center">
-          <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center animate-pulse">
-            <i data-lucide="zap" class="w-8 h-8"></i>
+        <!-- Client View (Toast-like success) -->
+        <div id="sync-connected" class="hidden flex flex-col items-center py-8 space-y-4 text-center">
+          <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center animate-bounce shadow-lg shadow-emerald-100">
+            <i data-lucide="check" class="w-10 h-10"></i>
           </div>
           <div>
-            <h4 class="text-lg font-bold text-slate-800">同步房間已建立</h4>
-            <p id="sync-status-text" class="text-sm text-slate-500 mt-1">正在等待新卡片...</p>
+            <h4 class="text-xl font-black text-slate-800">連線成功！</h4>
+            <p id="sync-status-text" class="text-sm font-medium text-slate-500 mt-2">即將自動返回...</p>
           </div>
-          <div id="sync-progress-bar" class="hidden w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+          <div id="sync-progress-bar" class="hidden w-full bg-slate-100 rounded-full h-1.5 overflow-hidden mt-4">
             <div id="sync-progress-inner" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
           </div>
-          <div id="sync-log" class="w-full mt-4 text-[10px] font-mono text-slate-400 max-h-24 overflow-y-auto space-y-1 bg-slate-50 p-2 rounded-lg border border-slate-100 hidden">
-            <!-- Sync logs will appear here -->
-          </div>
+        </div>
+        
+        <div id="sync-log" class="w-full mt-6 text-[10px] font-mono text-slate-400 max-h-24 overflow-y-auto space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100 hidden">
+          <!-- Sync logs will appear here -->
         </div>
       </div>
     </div>
@@ -533,13 +540,13 @@
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="js/db.js?v=10"></script>
-  <script src="js/sync.js?v=10"></script>
-  <script src="js/utils.js?v=10"></script>
-  <script src="js/ui.js?v=10"></script>
-  <script src="js/gallery.js?v=10"></script>
-  <script src="js/io.js?v=10"></script>
-  <script src="js/cropper.js?v=10"></script>
+  <script src="js/db.js?v=11"></script>
+  <script src="js/sync.js?v=11"></script>
+  <script src="js/utils.js?v=11"></script>
+  <script src="js/ui.js?v=11"></script>
+  <script src="js/gallery.js?v=11"></script>
+  <script src="js/io.js?v=11"></script>
+  <script src="js/cropper.js?v=11"></script>
 </body>
 
 </html>
