@@ -6,15 +6,24 @@ const renderGallery = () => {
   const tQ = document.getElementById("inp-type").value.toLowerCase();
   const nQ = document.getElementById("inp-number").value.toLowerCase();
 
-  const filtered = dbCards
-    .filter(
-      (c) =>
-        (c.game || "").toLowerCase().includes(gQ) &&
-        (c.type || "").toLowerCase().includes(tQ) &&
-        ((c.number || "").toLowerCase().includes(nQ) ||
-          (c.memo && c.memo.toLowerCase().includes(nQ))),
-    )
-    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  let filtered = [];
+  try {
+    filtered = dbCards
+      .filter((c) => {
+        try {
+          return (
+            (c.game || "").toLowerCase().includes(gQ) &&
+            (c.type || "").toLowerCase().includes(tQ) &&
+            ((c.number || "").toLowerCase().includes(nQ) ||
+              (c.memo && (c.memo || "").toLowerCase().includes(nQ)))
+          );
+        } catch (e) { return false; }
+      })
+      .sort((a, b) => ((b && b.timestamp) || 0) - ((a && a.timestamp) || 0));
+  } catch (e) {
+    console.error("Filtering/Sorting failed:", e);
+    filtered = dbCards.filter(c => c && c.blob instanceof Blob);
+  }
 
   const displayed = filtered.slice(0, 50);
 
