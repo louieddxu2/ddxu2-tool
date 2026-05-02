@@ -189,10 +189,11 @@ window.toggleOrientation = () => {
 };
 
 window.setCustomActive = () => {
-  document.querySelectorAll(".ratio-btn").forEach(b => {
-    b.classList.remove("bg-emerald-600", "text-white");
-    b.classList.add("bg-slate-800", "text-slate-300");
-  });
+  const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
+  if (activeBtn) {
+    activeBtn.classList.remove("bg-emerald-600", "text-white");
+    activeBtn.classList.add("bg-slate-800", "text-slate-300");
+  }
   const box = document.getElementById("custom-ratio-box");
   if (box) {
     box.classList.add("border-emerald-500", "ring-1", "ring-emerald-500");
@@ -209,18 +210,21 @@ function initRatioButtons() {
   if (!container) return;
   const buttons = container.querySelectorAll(".ratio-btn");
   const customBox = document.getElementById("custom-ratio-box");
+  let lastActiveBtn = container.querySelector(".ratio-btn.bg-emerald-600");
 
   const setActive = (btn) => {
-    buttons.forEach(b => {
-      b.classList.remove("bg-emerald-600", "text-white");
-      b.classList.add("bg-slate-800", "text-slate-300");
-    });
+    if (btn === lastActiveBtn) return;
+    if (lastActiveBtn) {
+      lastActiveBtn.classList.remove("bg-emerald-600", "text-white");
+      lastActiveBtn.classList.add("bg-slate-800", "text-slate-300");
+    }
     if (customBox) {
       customBox.classList.remove("border-emerald-500", "ring-1", "ring-emerald-500");
       customBox.classList.add("border-slate-700");
     }
     btn.classList.add("bg-emerald-600", "text-white");
     btn.classList.remove("bg-slate-800", "text-slate-300");
+    lastActiveBtn = btn;
 
     const ratioStr = btn.getAttribute("data-ratio");
     if (ratioStr) {
@@ -239,29 +243,35 @@ function initRatioButtons() {
     });
   });
 
+  let ticking = false;
   let saveTimeout;
   container.addEventListener("scroll", () => {
-    const scrollCenterX = container.scrollLeft + container.offsetWidth / 2;
-    let closestBtn = null;
-    let minDistance = Infinity;
+    if (!ticking) {
+      window.requestAnimationFrame(() => {
+        const scrollCenterX = container.scrollLeft + container.offsetWidth / 2;
+        let closestBtn = null;
+        let minDistance = Infinity;
 
-    buttons.forEach(btn => {
-      const btnCenterX = btn.offsetLeft + btn.offsetWidth / 2;
-      const dist = Math.abs(scrollCenterX - btnCenterX);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestBtn = btn;
-      }
-    });
+        for (let i = 0; i < buttons.length; i++) {
+          const btn = buttons[i];
+          const btnCenterX = btn.offsetLeft + btn.offsetWidth / 2;
+          const dist = Math.abs(scrollCenterX - btnCenterX);
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestBtn = btn;
+          }
+        }
 
-    if (closestBtn && !closestBtn.classList.contains("bg-emerald-600")) {
-      setActive(closestBtn);
-      
-      // Debounce saving to localStorage
-      clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(() => {
-        if (window.saveLastRatio) window.saveLastRatio();
-      }, 500);
+        if (closestBtn) {
+          setActive(closestBtn);
+          clearTimeout(saveTimeout);
+          saveTimeout = setTimeout(() => {
+            if (window.saveLastRatio) window.saveLastRatio();
+          }, 500);
+        }
+        ticking = false;
+      });
+      ticking = true;
     }
   }, { passive: true });
 }
