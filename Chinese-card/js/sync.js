@@ -19,8 +19,6 @@ function checkAndClearExpiredSession() {
     localStorage.removeItem('bg_last_active_time');
     localStorage.removeItem('bg_session_start_time');
     localStorage.removeItem('bg_session_game');
-    const inpGame = document.getElementById("inp-game");
-    if (inpGame) inpGame.disabled = false;
     return true;
   }
   return false;
@@ -97,7 +95,6 @@ window.startHost = () => {
     }
     if (inpGame) {
         inpGame.value = localStorage.getItem('bg_session_game');
-        inpGame.disabled = true;
     }
     
     updateActivity();
@@ -129,8 +126,6 @@ window.stopHost = () => {
   localStorage.removeItem('bg_last_active_time');
   localStorage.removeItem('bg_session_start_time');
   localStorage.removeItem('bg_session_game');
-  const inpGame = document.getElementById("inp-game");
-  if (inpGame) inpGame.disabled = false;
   updateSyncUI("initial");
   logSync("房間已關閉");
 };
@@ -209,8 +204,6 @@ function setupConnection(c) {
       const inpGame = document.getElementById("inp-game");
       if (inpGame) {
           inpGame.value = data.sessionGame;
-          inpGame.disabled = true;
-          // Trigger filter update if needed
           inpGame.dispatchEvent(new Event('input'));
       }
 

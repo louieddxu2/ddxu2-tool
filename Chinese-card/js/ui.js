@@ -142,6 +142,12 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
   };
 
   inp.addEventListener("click", (e) => {
+    // Game Name Lock Check
+    if (inputId === "inp-game" && localStorage.getItem('bg_session_game')) {
+      alert("【房間同步中】\n目前已鎖定遊戲名稱以確保資料安全隔離。\n若要更換遊戲，請先開啟右上角「即時同步」面板並關閉房間。");
+      return;
+    }
+
     if (inp.hasAttribute("readonly")) {
       if (!isOpen) open();
       else enterEditMode();
