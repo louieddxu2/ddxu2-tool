@@ -237,15 +237,13 @@ function initRatioButtons() {
   });
 
   container.addEventListener("scroll", () => {
-    const containerRect = container.getBoundingClientRect();
-    const centerX = containerRect.left + containerRect.width / 2;
+    const scrollCenterX = container.scrollLeft + container.offsetWidth / 2;
     let closestBtn = null;
     let minDistance = Infinity;
 
     buttons.forEach(btn => {
-      const rect = btn.getBoundingClientRect();
-      const btnCenter = rect.left + rect.width / 2;
-      const dist = Math.abs(centerX - btnCenter);
+      const btnCenterX = btn.offsetLeft + btn.offsetWidth / 2;
+      const dist = Math.abs(scrollCenterX - btnCenterX);
       if (dist < minDistance) {
         minDistance = dist;
         closestBtn = btn;
