@@ -60,15 +60,41 @@ function updateSyncUI(state) {
   if (state === "initial") {
       initial.classList.remove("hidden");
       if (dot) dot.classList.add("hidden");
+      updateGameInputLockUI(false);
   } else if (state === "hosting") {
       hosting.classList.remove("hidden");
       if (dot) dot.classList.remove("hidden");
+      updateGameInputLockUI(true);
   } else if (state === "connected") {
       connected.classList.remove("hidden");
       if (dot) dot.classList.remove("hidden");
+      updateGameInputLockUI(true);
   }
   
   try { lucide.createIcons(); } catch (e) {}
+}
+
+function updateGameInputLockUI(isLocked) {
+    const inpGame = document.getElementById("inp-game");
+    const iconContainer = document.getElementById("icon-game");
+    
+    if (!inpGame) return;
+
+    if (isLocked) {
+        inpGame.classList.remove("bg-white", "border-slate-200");
+        inpGame.classList.add("bg-emerald-50", "border-emerald-300", "text-emerald-800", "font-bold");
+        if (iconContainer) {
+            iconContainer.innerHTML = '<i data-lucide="lock" class="w-3 h-3 text-emerald-600"></i>';
+            try { lucide.createIcons(); } catch (e) {}
+        }
+    } else {
+        inpGame.classList.remove("bg-emerald-50", "border-emerald-300", "text-emerald-800", "font-bold");
+        inpGame.classList.add("bg-white", "border-slate-200");
+        if (iconContainer) {
+            iconContainer.innerHTML = '<i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>';
+            try { lucide.createIcons(); } catch (e) {}
+        }
+    }
 }
 
 // Host Logic
