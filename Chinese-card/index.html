@@ -19,28 +19,35 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 
-<body class="bg-slate-50 text-slate-800 h-[100dvh] grid grid-rows-[auto_1fr] md:flex md:flex-row overflow-hidden relative">
+<body
+  class="bg-slate-50 text-slate-800 h-[100dvh] grid grid-rows-[auto_1fr] md:flex md:flex-row overflow-hidden relative">
   <!-- Sidebar (Desktop) / Header (Mobile) -->
-  <aside
-    class="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl md:shadow-none">
-    
+  <aside class="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col z-20 shadow-xl md:shadow-none">
+
     <!-- Compact Mode Bar (Hidden by default) -->
     <div id="compact-bar" class="hidden bg-emerald-600 text-white p-1 flex items-center gap-1 shadow-md z-30">
       <div class="relative flex-[2] min-w-0">
-        <input type="text" id="compact-inp-game" placeholder="遊戲" class="bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 w-full outline-none placeholder:text-emerald-200" readonly />
+        <input type="text" id="compact-inp-game" placeholder="遊戲"
+          class="bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 w-full outline-none placeholder:text-emerald-200"
+          readonly />
         <div id="compact-drop-game" class="hidden"></div>
       </div>
       <div class="relative flex-[2] min-w-0">
-        <input type="text" id="compact-inp-type" placeholder="類型" class="bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 w-full outline-none placeholder:text-emerald-200" readonly />
+        <input type="text" id="compact-inp-type" placeholder="類型"
+          class="bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 w-full outline-none placeholder:text-emerald-200"
+          readonly />
         <div id="compact-drop-type" class="hidden"></div>
       </div>
-      <input type="text" id="compact-inp-number" placeholder="搜尋..." class="flex-[3] min-w-0 bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 outline-none placeholder:text-emerald-200" />
-      
+      <input type="text" id="compact-inp-number" placeholder="搜尋..."
+        class="flex-[3] min-w-0 bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 outline-none placeholder:text-emerald-200" />
+
       <div class="flex items-center gap-0.5 shrink-0 ml-1">
-        <a href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images" target="_blank" class="p-1.5 hover:bg-emerald-700 rounded-lg" title="Google 翻譯">
+        <a href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images" target="_blank"
+          class="p-1.5 hover:bg-emerald-700 rounded-lg" title="Google 翻譯">
           <i data-lucide="languages" class="w-4 h-4"></i>
         </a>
-        <button onclick="document.getElementById('file-upload').click()" class="p-1.5 hover:bg-emerald-700 rounded-lg" title="匯入圖片">
+        <button onclick="document.getElementById('file-upload').click()" class="p-1.5 hover:bg-emerald-700 rounded-lg"
+          title="匯入圖片">
           <i data-lucide="image-plus" class="w-4 h-4"></i>
         </button>
         <button onclick="toggleCompactMode()" class="p-1.5 hover:bg-emerald-700 rounded-lg" title="結束簡潔模式">
@@ -57,7 +64,8 @@
         </a>
         <h1 class="text-sm font-bold tracking-tight">卡牌翻譯圖庫</h1>
         <div class="flex items-center gap-0.5 -mr-1">
-          <button onclick="toggleCompactMode()" class="p-1.5 hover:bg-emerald-700 rounded-full transition-colors" title="進入簡潔模式">
+          <button onclick="toggleCompactMode()" class="p-1.5 hover:bg-emerald-700 rounded-full transition-colors"
+            title="進入簡潔模式">
             <i data-lucide="minimize-2" class="w-4 h-4"></i>
           </button>
           <button onclick="openImportModal()"
@@ -200,7 +208,7 @@
                     transparent
                   );
                 " class="w-full h-full">
-            <div
+              <div
                 class="flex gap-2 h-full overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-center px-[calc(50%-2.75rem)]"
                 id="ratio-buttons">
                 <button type="button"

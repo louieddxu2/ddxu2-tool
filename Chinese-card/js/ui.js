@@ -191,8 +191,8 @@ window.toggleOrientation = () => {
 window.setCustomActive = () => {
   const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
   if (activeBtn) {
-    activeBtn.style.backgroundColor = "";
-    activeBtn.style.color = "";
+    activeBtn.style.backgroundColor = "#1e293b";
+    activeBtn.style.color = "#cbd5e1";
     activeBtn.classList.remove("bg-emerald-600", "text-white");
     activeBtn.classList.add("bg-slate-800", "text-slate-300");
   }
@@ -214,7 +214,7 @@ function initRatioButtons() {
   const customBox = document.getElementById("custom-ratio-box");
   let lastActiveBtn = container.querySelector(".ratio-btn.bg-emerald-600");
 
-  // Pre-calculate button centers relative to container content
+  // Pre-calculate button centers
   let btnCenters = [];
   const refreshCenters = () => {
     btnCenters = Array.from(buttons).map(btn => ({
@@ -227,20 +227,20 @@ function initRatioButtons() {
 
   const setActive = (btn) => {
     if (btn === lastActiveBtn) return;
+    
+    // Reset previous button using style (bypasses Tailwind JIT)
     if (lastActiveBtn) {
-      lastActiveBtn.style.backgroundColor = "";
-      lastActiveBtn.style.color = "";
-      lastActiveBtn.classList.remove("bg-emerald-600", "text-white");
-      lastActiveBtn.classList.add("bg-slate-800", "text-slate-300");
+      lastActiveBtn.style.backgroundColor = "#1e293b"; // bg-slate-800
+      lastActiveBtn.style.color = "#cbd5e1"; // text-slate-300
     }
     if (customBox) {
-      customBox.style.borderColor = "";
-      customBox.style.boxShadow = "";
+      customBox.style.borderColor = "#334155"; // border-slate-700
+      customBox.style.boxShadow = "none";
     }
-    btn.style.backgroundColor = "#059669"; 
+    
+    // Set active button using style
+    btn.style.backgroundColor = "#059669"; // bg-emerald-600
     btn.style.color = "#ffffff";
-    btn.classList.add("bg-emerald-600", "text-white");
-    btn.classList.remove("bg-slate-800", "text-slate-300");
     lastActiveBtn = btn;
 
     const ratioStr = btn.getAttribute("data-ratio");
@@ -266,7 +266,6 @@ function initRatioButtons() {
     let closestBtn = null;
     let minDistance = Infinity;
 
-    // Fast loop over pre-calculated centers
     for (let i = 0; i < btnCenters.length; i++) {
       const dist = Math.abs(scrollCenterX - btnCenters[i].center);
       if (dist < minDistance) {
