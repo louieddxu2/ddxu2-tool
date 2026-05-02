@@ -17,7 +17,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Share Target
+  // 1. Share Target (Essential)
   if (req.method === 'POST' && url.pathname === '/_share-target/chinese-card') {
     event.respondWith((async () => {
       try {
@@ -37,17 +37,25 @@ self.addEventListener('fetch', (event) => {
 
   if (req.method !== 'GET') return;
 
-  // Stale-While-Revalidate: Fastest response + Background update
+  // 2. Efficient Update: Only revalidate HTML
+  // Assets are served strictly from cache unless HTML changes.
   event.respondWith(
     caches.match(req).then((cached) => {
-      const networked = fetch(req)
-        .then((res) => {
+      // If it's a navigation or HTML request, always check network (Sentinel)
+      if (req.mode === 'navigate' || url.pathname.endsWith('.html')) {
+        return fetch(req).then((res) => {
           const copy = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
           return res;
-        })
-        .catch(() => cached);
-      return cached || networked;
+        }).catch(() => cached);
+      }
+      
+      // For everything else (JS/CSS), use cache if available, otherwise fetch once
+      return cached || fetch(req).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        return res;
+      });
     })
   );
 });
