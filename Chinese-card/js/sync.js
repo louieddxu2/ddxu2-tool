@@ -17,6 +17,10 @@ function checkAndClearExpiredSession() {
     localStorage.removeItem('bg_sync_role');
     localStorage.removeItem('bg_last_joined_id');
     localStorage.removeItem('bg_last_active_time');
+    localStorage.removeItem('bg_session_start_time');
+    localStorage.removeItem('bg_session_game');
+    const inpGame = document.getElementById("inp-game");
+    if (inpGame) inpGame.disabled = false;
     return true;
   }
   return false;
@@ -71,6 +75,13 @@ function updateSyncUI(state) {
 
 // Host Logic
 window.startHost = () => {
+  const inpGame = document.getElementById("inp-game");
+  const gameName = inpGame ? inpGame.value.trim() : "";
+  if (!gameName && !localStorage.getItem('bg_session_game')) {
+      alert("請先在左上角輸入「遊戲名稱」再開啟房間，以確保同步資料正確隔離。");
+      return;
+  }
+
   if (peer) peer.destroy();
   const savedId = localStorage.getItem('bg_last_peer_id');
   peer = new Peer(savedId || undefined);
@@ -78,6 +89,17 @@ window.startHost = () => {
   peer.on('open', (id) => {
     localStorage.setItem('bg_last_peer_id', id);
     localStorage.setItem('bg_sync_role', 'host');
+    
+    // Session Scope Locking
+    if (!localStorage.getItem('bg_session_start_time')) {
+        localStorage.setItem('bg_session_start_time', Date.now().toString());
+        localStorage.setItem('bg_session_game', gameName);
+    }
+    if (inpGame) {
+        inpGame.value = localStorage.getItem('bg_session_game');
+        inpGame.disabled = true;
+    }
+    
     updateActivity();
     document.getElementById("sync-my-id").innerText = id;
     const url = `${window.location.origin}${window.location.pathname}?room=${id}`;
@@ -105,6 +127,10 @@ window.stopHost = () => {
   localStorage.removeItem('bg_sync_role');
   localStorage.removeItem('bg_last_joined_id');
   localStorage.removeItem('bg_last_active_time');
+  localStorage.removeItem('bg_session_start_time');
+  localStorage.removeItem('bg_session_game');
+  const inpGame = document.getElementById("inp-game");
+  if (inpGame) inpGame.disabled = false;
   updateSyncUI("initial");
   logSync("房間已關閉");
 };
@@ -148,26 +174,77 @@ async function sendCardChunked(targetConn, card) {
 
 function setupConnection(c) {
   connections.add(c);
-  c.on('open', () => {
-    updateSyncUI("connected");
-    const count = connections.size;
-    document.getElementById("sync-status-text").innerText = count > 1 ? `已連線 (共 ${count} 人)` : "已連線，正在對帳...";
-    logSync(`連線成功: ${c.peer.slice(0,6)}`);
-    const maxTs = dbCards.length > 0 ? Math.max(...dbCards.map(x => x.timestamp || 0)) : 0;
-    c.send({ type: 'HELLO', latestTimestamp: maxTs });
-  });
+    c.on('open', () => {
+      updateSyncUI("connected");
+      const count = connections.size;
+      document.getElementById("sync-status-text").innerText = count > 1 ? `已連線 (共 ${count} 人)` : "已連線，正在對帳...";
+      logSync(`連線成功: ${c.peer.slice(0,6)}`);
+      
+      const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
+      const sessionGame = localStorage.getItem('bg_session_game') || "";
+      
+      if (localStorage.getItem('bg_sync_role') === 'host') {
+          const sessionCards = dbCards.filter(c => c.timestamp >= sessionStart && c.game === sessionGame);
+          const metas = sessionCards.map(c => ({ id: c.id, timestamp: c.timestamp || 0 }));
+          c.send({ type: 'HELLO', sessionStart, sessionGame, metas });
+      }
+    });
 
   c.on('data', async (data) => {
-    updateActivity(); // Refresh TTL on incoming data
+    updateActivity(); 
+    
     if (data.type === 'HELLO') {
-      const missing = dbCards.filter(c => (c.timestamp || 0) > data.latestTimestamp);
-      for (const card of missing) { await sendCardChunked(c, card); }
-      c.send({ type: 'REQUEST_DIFF', latestTimestamp: dbCards.length > 0 ? Math.max(...dbCards.map(x => x.timestamp || 0)) : 0 });
+      localStorage.setItem('bg_session_start_time', data.sessionStart.toString());
+      localStorage.setItem('bg_session_game', data.sessionGame);
+      
+      const inpGame = document.getElementById("inp-game");
+      if (inpGame) {
+          inpGame.value = data.sessionGame;
+          inpGame.disabled = true;
+          // Trigger filter update if needed
+          inpGame.dispatchEvent(new Event('input'));
+      }
+
+      const myCards = dbCards.filter(c => c.timestamp >= data.sessionStart && c.game === data.sessionGame);
+      
+      const missingFromHost = data.metas.filter(m => {
+          const local = myCards.find(x => x.id === m.id);
+          return !local || (local.timestamp || 0) < m.timestamp;
+      }).map(m => m.id);
+      
+      if (missingFromHost.length > 0) {
+          logSync(`向主機索取 ${missingFromHost.length} 張卡片...`);
+          c.send({ type: 'REQUEST_CARDS', ids: missingFromHost });
+      }
+      
+      const myMetas = myCards.map(x => ({ id: x.id, timestamp: x.timestamp || 0 }));
+      c.send({ type: 'MY_METAS', metas: myMetas });
     }
-    if (data.type === 'REQUEST_DIFF') {
-      const missing = dbCards.filter(c => (c.timestamp || 0) > data.latestTimestamp);
-      for (const card of missing) { await sendCardChunked(c, card); }
+    
+    if (data.type === 'MY_METAS') {
+      const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
+      const sessionGame = localStorage.getItem('bg_session_game') || "";
+      const myCards = dbCards.filter(c => c.timestamp >= sessionStart && c.game === sessionGame);
+      
+      const missingFromClient = data.metas.filter(m => {
+          const local = myCards.find(x => x.id === m.id);
+          return !local || (local.timestamp || 0) < m.timestamp;
+      }).map(m => m.id);
+      
+      if (missingFromClient.length > 0) {
+          logSync(`向訪客索取 ${missingFromClient.length} 張卡片...`);
+          c.send({ type: 'REQUEST_CARDS', ids: missingFromClient });
+      }
     }
+
+    if (data.type === 'REQUEST_CARDS') {
+        logSync(`發送 ${data.ids.length} 張請求的卡片...`);
+        for (const id of data.ids) {
+            const card = dbCards.find(x => x.id === id);
+            if (card) await sendCardChunked(c, card);
+        }
+    }
+
     if (data.type === 'CARD_START') {
       incomingChunks[data.cardId] = { chunks: new Array(data.totalChunks), received: 0, total: data.totalChunks, metadata: data.metadata };
     }
@@ -200,9 +277,20 @@ const originalIdbSet = window.idbKeyval.set;
 window.idbKeyval.set = async function(key, value, isFromSync = false) {
   const res = await originalIdbSet.apply(this, [key, value]);
   if (key === "bgCards" && !isFromSync && connections.size > 0) {
+    const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
+    const sessionGame = localStorage.getItem('bg_session_game') || "";
+    
     const mostRecent = [...value].sort((a,b) => (b.timestamp||0) - (a.timestamp||0))[0];
-    if (mostRecent && mostRecent.blob instanceof Blob) {
-      for (const c of connections) { if (c.open) sendCardChunked(c, mostRecent); }
+    
+    // Only broadcast if the card belongs to the current locked session
+    if (mostRecent && mostRecent.blob instanceof Blob && 
+        mostRecent.timestamp >= sessionStart && 
+        mostRecent.game === sessionGame) {
+        
+      logSync(`即時廣播: ${mostRecent.number || '新卡片'}`);
+      for (const c of connections) {
+        if (c.open) sendCardChunked(c, mostRecent);
+      }
     }
   }
   return res;
