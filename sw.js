@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ddxu2-launcher-v6';
+const CACHE_NAME = 'ddxu2-launcher-v7';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -31,11 +31,17 @@ self.addEventListener('fetch', (event) => {
       try {
         const formData = await req.formData();
         const imageFile = formData.get('image');
+        const zipFile = formData.get('file');
         
+        const cache = await caches.open('share-target-cache');
         if (imageFile) {
-          const cache = await caches.open('share-target-cache');
           await cache.put('/_shared_image', new Response(imageFile, {
             headers: { 'Content-Type': imageFile.type }
+          }));
+        }
+        if (zipFile) {
+          await cache.put('/_shared_zip', new Response(zipFile, {
+            headers: { 'Content-Type': zipFile.type || 'application/zip' }
           }));
         }
         

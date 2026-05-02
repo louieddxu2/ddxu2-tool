@@ -31,6 +31,10 @@
         {
           "name": "image",
           "accept": ["image/*"]
+        },
+        {
+          "name": "file",
+          "accept": [".zip", "application/zip"]
         }
       ]
     }

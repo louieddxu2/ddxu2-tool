@@ -69,23 +69,37 @@ window.addEventListener("load", async () => {
   if (window.location.search.includes("shared=1") && "caches" in window) {
     try {
       const cache = await caches.open("share-target-cache");
-      const res = await cache.match("/_shared_image");
-      if (res) {
-        const blob = await res.blob();
+      
+      // Handle image share
+      const imgRes = await cache.match("/_shared_image");
+      if (imgRes) {
+        const blob = await imgRes.blob();
         const file = new File([blob], "shared_image.jpg", {
           type: blob.type || "image/jpeg",
         });
         handleSharedImage(file);
         await cache.delete("/_shared_image");
-        // Clean up URL
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname,
-        );
       }
+
+      // Handle zip share
+      const zipRes = await cache.match("/_shared_zip");
+      if (zipRes) {
+        const blob = await zipRes.blob();
+        const file = new File([blob], "shared_backup.zip", {
+          type: "application/zip",
+        });
+        if (typeof processZipFile === "function") {
+          processZipFile(file);
+        } else {
+          window.addEventListener("DOMContentLoaded", () => processZipFile(file), { once: true });
+        }
+        await cache.delete("/_shared_zip");
+      }
+
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
     } catch (e) {
-      console.error("Failed to load shared image", e);
+      console.error("Failed to load shared content", e);
     }
   }
 });
