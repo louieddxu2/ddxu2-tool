@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ddxu2-launcher-v8';
+const CACHE_NAME = 'ddxu2-launcher-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -7,7 +7,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.map((key) => (key === CACHE_NAME ? null : caches.delete(key)))
+      keys.map((key) => caches.delete(key))
     ))
   );
   self.clients.claim();
@@ -17,7 +17,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 1. Share Target logic
+  // Share Target
   if (req.method === 'POST' && url.pathname === '/_share-target/chinese-card') {
     event.respondWith((async () => {
       try {
@@ -37,30 +37,17 @@ self.addEventListener('fetch', (event) => {
 
   if (req.method !== 'GET') return;
 
-  // 2. HTML: Network-First (Ensure versioning info is fresh, fallback to cache)
-  if (req.mode === 'navigate' || url.pathname.endsWith('.html')) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match(req).then((m) => m || caches.match('/Chinese-card/index.html')))
-    );
-    return;
-  }
-
-  // 3. Versioned Assets (JS/CSS/Img): Cache-First (Fastest, no network if cached)
-  // Because we use ?v= query strings, the URL will change if the content changes.
+  // Stale-While-Revalidate: Fastest response + Background update
   event.respondWith(
     caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
-        return res;
-      });
+      const networked = fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          return res;
+        })
+        .catch(() => cached);
+      return cached || networked;
     })
   );
 });
