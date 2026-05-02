@@ -17,7 +17,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 1. Share Target (Essential)
+  // 1. Share Target (Essential for PWA functionality)
   if (req.method === 'POST' && url.pathname === '/_share-target/chinese-card') {
     event.respondWith((async () => {
       try {
@@ -37,20 +37,26 @@ self.addEventListener('fetch', (event) => {
 
   if (req.method !== 'GET') return;
 
-  // 2. Efficient Update: Only revalidate HTML
-  // Assets are served strictly from cache unless HTML changes.
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      // If it's a navigation or HTML request, always check network (Sentinel)
-      if (req.mode === 'navigate' || url.pathname.endsWith('.html')) {
-        return fetch(req).then((res) => {
+  // 2. HTML Sentinel: Network-First
+  // Matches navigation (folders) or explicit .html files
+  const isHtml = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/');
+  
+  if (isHtml) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
           const copy = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
           return res;
-        }).catch(() => cached);
-      }
-      
-      // For everything else (JS/CSS), use cache if available, otherwise fetch once
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // 3. Assets: Cache-First (Fastest, 0 network if cached)
+  event.respondWith(
+    caches.match(req).then((cached) => {
       return cached || fetch(req).then((res) => {
         const copy = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
