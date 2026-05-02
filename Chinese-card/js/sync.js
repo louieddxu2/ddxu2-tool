@@ -1,9 +1,9 @@
 let peer = null;
-let conn = null;
+let connections = new Set(); // Multi-player support
 let qrcode = null;
 
-const CHUNK_SIZE = 16384; // 16KB per chunk for maximum compatibility
-let incomingChunks = {}; // { cardId: { chunks: [], total: 0, received: 0, metadata: {} } }
+const CHUNK_SIZE = 16384; 
+let incomingChunks = {}; 
 
 // UI Helpers
 window.openSyncModal = () => {
@@ -57,7 +57,9 @@ window.startHost = () => {
 
 window.stopHost = () => {
   if (peer) peer.destroy();
-  peer = null; conn = null;
+  peer = null;
+  connections.forEach(c => c.close());
+  connections.clear();
   updateSyncUI("initial");
 };
 
@@ -83,66 +85,53 @@ function startJoin(id) {
 }
 
 // Data Transfer with Chunking
-async function sendCardChunked(card) {
-  if (!conn || !conn.open) return;
+async function sendCardChunked(targetConn, card) {
+  if (!targetConn || !targetConn.open) return;
   
   const buffer = await card.blob.arrayBuffer();
   const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE);
   const cardId = card.id;
 
-  // Send Metadata first
-  conn.send({
+  targetConn.send({
     type: 'CARD_START',
     cardId: cardId,
     totalChunks: totalChunks,
-    metadata: { ...card, blob: null } // Exclude blob from meta
+    metadata: { ...card, blob: null }
   });
 
-  // Send Chunks
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE;
     const end = Math.min(start + CHUNK_SIZE, buffer.byteLength);
     const chunk = buffer.slice(start, end);
-    
-    conn.send({
-      type: 'CARD_CHUNK',
-      cardId: cardId,
-      index: i,
-      chunk: chunk
-    });
-    
-    // Tiny delay to prevent buffer overflow on slow devices
+    targetConn.send({ type: 'CARD_CHUNK', cardId: cardId, index: i, chunk: chunk });
     if (i % 5 === 0) await new Promise(r => setTimeout(r, 10));
   }
 }
 
 // Connection Setup
 function setupConnection(c) {
-  conn = c;
-  conn.on('open', () => {
+  connections.add(c);
+  
+  c.on('open', () => {
     updateSyncUI("connected");
-    document.getElementById("sync-status-text").innerText = "已連線，正在同步...";
+    const count = connections.size;
+    document.getElementById("sync-status-text").innerText = count > 1 ? `已連線 (共 ${count} 人)` : "已連線，正在同步...";
+    
     const maxTs = dbCards.length > 0 ? Math.max(...dbCards.map(x => x.timestamp || 0)) : 0;
-    conn.send({ type: 'HELLO', latestTimestamp: maxTs });
+    c.send({ type: 'HELLO', latestTimestamp: maxTs });
   });
 
-  conn.on('data', async (data) => {
+  c.on('data', async (data) => {
     if (data.type === 'HELLO') {
       const missing = dbCards.filter(c => (c.timestamp || 0) > data.latestTimestamp);
-      if (missing.length > 0) {
-        document.getElementById("sync-status-text").innerText = `發送中 (0/${missing.length})`;
-        for (let i=0; i<missing.length; i++) {
-            await sendCardChunked(missing[i]);
-            document.getElementById("sync-status-text").innerText = `發送中 (${i+1}/${missing.length})`;
-        }
-      }
+      for (const card of missing) { await sendCardChunked(c, card); }
       const myTs = dbCards.length > 0 ? Math.max(...dbCards.map(x => x.timestamp || 0)) : 0;
-      conn.send({ type: 'REQUEST_DIFF', latestTimestamp: myTs });
+      c.send({ type: 'REQUEST_DIFF', latestTimestamp: myTs });
     }
     
     if (data.type === 'REQUEST_DIFF') {
       const missing = dbCards.filter(c => (c.timestamp || 0) > data.latestTimestamp);
-      for (const card of missing) { await sendCardChunked(card); }
+      for (const card of missing) { await sendCardChunked(c, card); }
     }
 
     if (data.type === 'CARD_START') {
@@ -152,7 +141,6 @@ function setupConnection(c) {
         total: data.totalChunks,
         metadata: data.metadata
       };
-      document.getElementById("sync-status-text").innerText = `接收新卡片中...`;
     }
 
     if (data.type === 'CARD_CHUNK') {
@@ -160,19 +148,15 @@ function setupConnection(c) {
       if (!state) return;
       state.chunks[data.index] = data.chunk;
       state.received++;
-
       if (state.received === state.total) {
-        // Reconstruct
         const finalBuffer = new Blob(state.chunks);
         const card = { ...state.metadata, blob: finalBuffer };
         delete incomingChunks[data.cardId];
-
         const idx = dbCards.findIndex(x => x.id === card.id);
         if (idx === -1) {
           dbCards.push(card);
           await window.idbKeyval.set("bgCards", dbCards, true);
           renderGallery();
-          document.getElementById("sync-status-text").innerText = `同步成功：${card.number || '新項目'}`;
         } else if (card.timestamp > (dbCards[idx].timestamp || 0)) {
           dbCards[idx] = card;
           await window.idbKeyval.set("bgCards", dbCards, true);
@@ -182,20 +166,32 @@ function setupConnection(c) {
     }
   });
 
-  conn.on('close', () => {
-    document.getElementById("sync-status-text").innerText = "連線已關閉";
-    setTimeout(() => { if (!conn || !conn.open) updateSyncUI("initial"); }, 3000);
-  });
+  const removeConn = () => {
+    connections.delete(c);
+    const count = connections.size;
+    if (count > 0) {
+        document.getElementById("sync-status-text").innerText = `已連線 (共 ${count} 人)`;
+    } else {
+        document.getElementById("sync-status-text").innerText = "連線已關閉";
+        setTimeout(() => { if (connections.size === 0) updateSyncUI("initial"); }, 3000);
+    }
+  };
+
+  c.on('close', removeConn);
+  c.on('error', removeConn);
 }
 
-// Hook into IDB Keyval to broadcast changes
+// Hook into IDB Keyval to broadcast changes to ALL connections
 const originalIdbSet = window.idbKeyval.set;
 window.idbKeyval.set = async function(key, value, isFromSync = false) {
   const res = await originalIdbSet.apply(this, [key, value]);
-  if (key === "bgCards" && !isFromSync && conn && conn.open) {
+  if (key === "bgCards" && !isFromSync && connections.size > 0) {
     const mostRecent = [...value].sort((a,b) => (b.timestamp||0) - (a.timestamp||0))[0];
     if (mostRecent && mostRecent.blob instanceof Blob) {
-      await sendCardChunked(mostRecent);
+      // Broadcast to all active players
+      for (const c of connections) {
+        if (c.open) sendCardChunked(c, mostRecent);
+      }
     }
   }
   return res;
