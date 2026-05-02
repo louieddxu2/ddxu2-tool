@@ -37,12 +37,12 @@ self.addEventListener('fetch', (event) => {
 
   if (req.method !== 'GET') return;
 
-  // 2. HTML Sentinel: Force network, bypass browser cache
+  // 2. HTML Sentinel: Revalidate with network (ETag/304 support)
   const isHtml = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/');
   
   if (isHtml) {
     event.respondWith(
-      fetch(req, { cache: 'reload' }) // <--- Force browser to ignore its cache
+      fetch(req, { cache: 'no-cache' }) // <--- Revalidate: Use cache only if server says 304
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
