@@ -4,6 +4,23 @@ let qrcode = null;
 
 const CHUNK_SIZE = 16384; 
 let incomingChunks = {}; 
+const TTL_MS = 60 * 60 * 1000; // 1 hour TTL for zombie session prevention
+
+function updateActivity() {
+  localStorage.setItem('bg_last_active_time', Date.now().toString());
+}
+
+function checkAndClearExpiredSession() {
+  const lastActive = localStorage.getItem('bg_last_active_time');
+  if (lastActive && (Date.now() - parseInt(lastActive, 10)) > TTL_MS) {
+    localStorage.removeItem('bg_last_peer_id');
+    localStorage.removeItem('bg_sync_role');
+    localStorage.removeItem('bg_last_joined_id');
+    localStorage.removeItem('bg_last_active_time');
+    return true;
+  }
+  return false;
+}
 
 // UI Helpers
 window.openSyncModal = () => {
@@ -61,6 +78,7 @@ window.startHost = () => {
   peer.on('open', (id) => {
     localStorage.setItem('bg_last_peer_id', id);
     localStorage.setItem('bg_sync_role', 'host');
+    updateActivity();
     document.getElementById("sync-my-id").innerText = id;
     const url = `${window.location.origin}${window.location.pathname}?room=${id}`;
     const qrEl = document.getElementById("sync-qrcode");
@@ -85,6 +103,8 @@ window.stopHost = () => {
   connections.clear();
   localStorage.removeItem('bg_last_peer_id');
   localStorage.removeItem('bg_sync_role');
+  localStorage.removeItem('bg_last_joined_id');
+  localStorage.removeItem('bg_last_active_time');
   updateSyncUI("initial");
   logSync("房間已關閉");
 };
@@ -103,6 +123,7 @@ function startJoin(id) {
   peer.on('open', () => {
     localStorage.setItem('bg_last_joined_id', id);
     localStorage.setItem('bg_sync_role', 'client');
+    updateActivity();
     setupConnection(peer.connect(id));
   });
   peer.on('error', (err) => {
@@ -137,6 +158,7 @@ function setupConnection(c) {
   });
 
   c.on('data', async (data) => {
+    updateActivity(); // Refresh TTL on incoming data
     if (data.type === 'HELLO') {
       const missing = dbCards.filter(c => (c.timestamp || 0) > data.latestTimestamp);
       for (const card of missing) { await sendCardChunked(c, card); }
@@ -188,6 +210,11 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
 
 // Persistence & Auto-reconnect Logic
 function handleAutoReconnect() {
+  if (checkAndClearExpiredSession()) {
+    logSync("連線已逾時失效，請重新建立房間。");
+    return;
+  }
+  updateActivity();
   const role = localStorage.getItem('bg_sync_role');
   if (role === 'host') {
     logSync("嘗試重新開啟房間...");
@@ -204,6 +231,14 @@ function handleAutoReconnect() {
 // Listen for tab focus
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
+    if (checkAndClearExpiredSession()) {
+      if (peer) peer.destroy();
+      peer = null;
+      connections.clear();
+      updateSyncUI("initial");
+      return;
+    }
+    updateActivity();
     const isDisconnected = !peer || peer.destroyed || (localStorage.getItem('bg_sync_role') === 'client' && connections.size === 0);
     if (isDisconnected) {
       handleAutoReconnect();
@@ -213,6 +248,7 @@ document.addEventListener("visibilitychange", () => {
 
 // Initial join or reconnect
 document.addEventListener("DOMContentLoaded", () => {
+  checkAndClearExpiredSession(); // Clean up on cold boot
   const urlParams = new URLSearchParams(window.location.search);
   const roomId = urlParams.get('room');
   if (roomId) {
