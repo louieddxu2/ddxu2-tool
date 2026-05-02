@@ -379,3 +379,21 @@ window.setRatioAndCenter = (baseCropRatio) => {
   localStorage.setItem("bg_last_ratio", getRatioValue());
   localStorage.setItem("bg_last_landscape", isLandscapeMode);
 };
+
+window.applyRatioValue = (val) => {
+  if (!val) return;
+  const buttons = document.querySelectorAll(".ratio-btn");
+  let found = false;
+  buttons.forEach((btn) => {
+    if (btn.getAttribute("data-ratio") === val) {
+      btn.click();
+      found = true;
+    }
+  });
+  if (!found && val.startsWith("custom:")) {
+    const parts = val.split(":");
+    document.getElementById("custom-w").value = parts[1];
+    document.getElementById("custom-h").value = parts[2];
+    if (window.setCustomActive) window.setCustomActive();
+  }
+};

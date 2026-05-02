@@ -186,6 +186,81 @@ window.toggleOrientation = () => {
     setRatioAndCenter(w / h);
   }
 };
+
+window.setCustomActive = () => {
+  document.querySelectorAll(".ratio-btn").forEach(b => {
+    b.classList.remove("bg-emerald-600", "text-white");
+    b.classList.add("bg-slate-800", "text-slate-300");
+  });
+  const box = document.getElementById("custom-ratio-box");
+  if (box) {
+    box.classList.add("border-emerald-500", "ring-1", "ring-emerald-500");
+    box.classList.remove("border-slate-700");
+  }
+  const w = parseInt(document.getElementById("custom-w").value) || 1;
+  const h = parseInt(document.getElementById("custom-h").value) || 1;
+  if (window.setRatioAndCenter) window.setRatioAndCenter(w / h);
+};
+
+function initRatioButtons() {
+  const container = document.getElementById("ratio-buttons");
+  if (!container) return;
+  const buttons = container.querySelectorAll(".ratio-btn");
+  const customBox = document.getElementById("custom-ratio-box");
+
+  const setActive = (btn) => {
+    buttons.forEach(b => {
+      b.classList.remove("bg-emerald-600", "text-white");
+      b.classList.add("bg-slate-800", "text-slate-300");
+    });
+    if (customBox) {
+      customBox.classList.remove("border-emerald-500", "ring-1", "ring-emerald-500");
+      customBox.classList.add("border-slate-700");
+    }
+    btn.classList.add("bg-emerald-600", "text-white");
+    btn.classList.remove("bg-slate-800", "text-slate-300");
+
+    const ratioStr = btn.getAttribute("data-ratio");
+    if (ratioStr) {
+      const r = ratioStr.split(":");
+      if (window.setRatioAndCenter) {
+        window.setRatioAndCenter(parseInt(r[0]) / parseInt(r[1]));
+      }
+    }
+  };
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      setActive(btn);
+      btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    });
+  });
+
+  let scrollTimeout;
+  container.addEventListener("scroll", () => {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      const containerRect = container.getBoundingClientRect();
+      const centerX = containerRect.left + containerRect.width / 2;
+      let closestBtn = null;
+      let minDistance = Infinity;
+
+      buttons.forEach(btn => {
+        const rect = btn.getBoundingClientRect();
+        const btnCenter = rect.left + rect.width / 2;
+        const dist = Math.abs(centerX - btnCenter);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestBtn = btn;
+        }
+      });
+
+      if (closestBtn && !closestBtn.classList.contains("bg-emerald-600")) {
+        setActive(closestBtn);
+      }
+    }, 150);
+  });
+}
 window.openFullPreview = (url) => {
   const modal = document.getElementById("modal-preview");
   const img = document.getElementById("preview-img");
@@ -286,7 +361,10 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("inp-number").value = compNum.value;
       renderGallery();
     };
+    compNum.onfocus = function () { this.select(); };
   }
+
+  initRatioButtons();
 
   if (localStorage.getItem("bg_compact_mode") === "1") {
     setTimeout(window.toggleCompactMode, 50);
