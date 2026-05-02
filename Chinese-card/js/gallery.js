@@ -76,16 +76,16 @@ const renderGallery = () => {
     div.setAttribute("data-memo", c.memo || "");
     
     if (window.isGridViewMode) {
-        div.className = "relative aspect-square bg-slate-200 rounded-lg overflow-hidden cursor-pointer shadow-sm";
+        div.className = "relative aspect-square bg-white rounded-lg overflow-hidden cursor-pointer shadow-sm p-1";
         const isSelected = window.selectedCardIds.has(c.id);
         const overlayClass = isSelected ? "opacity-100" : "opacity-0";
-        const borderClass = isSelected ? "border-4 border-emerald-500" : "border-0";
+        const borderClass = isSelected ? "border-4 border-emerald-500 rounded-lg" : "border-0";
         const scaleClass = isSelected ? "scale-90" : "";
         
         div.innerHTML = `
-          <img src="${url}" class="w-full h-full object-cover transition-transform duration-200 ${scaleClass} ${borderClass}" onload="window.URL.revokeObjectURL(this.src)">
-          <div class="selection-overlay absolute inset-0 bg-emerald-500/20 transition-opacity duration-200 ${overlayClass}"></div>
-          <div class="selection-badge absolute top-2 right-2 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center transition-opacity duration-200 ${overlayClass}">
+          <img src="${url}" class="w-full h-full object-contain transition-transform duration-200 ${scaleClass} ${borderClass}" onload="window.URL.revokeObjectURL(this.src)">
+          <div class="selection-overlay absolute inset-0 bg-emerald-500/10 transition-opacity duration-200 ${overlayClass} pointer-events-none"></div>
+          <div class="selection-badge absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-white shadow-md flex items-center justify-center transition-opacity duration-200 ${overlayClass} pointer-events-none">
              <i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>
           </div>
         `;
@@ -178,16 +178,14 @@ const updateStationaryFooter = (target) => {
   
   if (window.isSelectionMode) {
       footer.innerHTML = `
-        <div class="max-w-4xl mx-auto w-full flex items-center justify-between gap-3">
-          <div class="flex-grow min-w-0 flex items-center justify-between">
-             <span id="selection-counter" class="text-sm font-bold text-slate-700">已選取 ${window.selectedCardIds.size} 張</span>
-             <button onclick="toggleSelectionMode()" class="text-xs font-bold text-slate-500 hover:text-slate-800 px-3 py-2">取消</button>
+        <div class="w-full flex flex-wrap items-center justify-between gap-1 md:gap-2">
+          <div class="flex items-center gap-1 md:gap-2 shrink-0">
+             <span id="selection-counter" class="text-xs md:text-sm font-bold text-slate-700">已選 ${window.selectedCardIds.size} 張</span>
+             <button onclick="toggleSelectionMode()" class="text-[10px] md:text-xs font-bold text-slate-500 hover:text-slate-800 p-1 md:px-2">取消</button>
           </div>
-          <div class="flex gap-1.5 shrink-0">
-            <button onclick="confirmBatchDelete()" class="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all active:scale-95 shadow-sm">
-              刪除
-            </button>
-          </div>
+          <button onclick="confirmBatchDelete()" class="px-2 md:px-4 py-1.5 md:py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all active:scale-95 shadow-sm text-xs md:text-sm shrink-0">
+            刪除
+          </button>
         </div>
       `;
       try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch(e) {}
@@ -196,21 +194,21 @@ const updateStationaryFooter = (target) => {
   
   if (window.isGridViewMode) {
       footer.innerHTML = `
-        <div class="max-w-4xl mx-auto w-full flex items-center justify-between gap-3">
-          <div class="flex-grow min-w-0">
-             <span class="text-sm font-bold text-slate-500">目錄檢視</span>
+        <div class="w-full flex flex-wrap items-center justify-between gap-1 md:gap-2">
+          <div class="min-w-0 shrink-0">
+             <span class="text-xs md:text-sm font-bold text-slate-500">目錄檢視</span>
           </div>
-          <div class="flex gap-1.5 shrink-0">
-            <button onclick="toggleSelectionMode()" class="px-4 py-2 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 font-bold rounded-lg transition-all active:scale-95 border border-slate-100 flex items-center gap-2">
-              <i data-lucide="check-square" class="w-4 h-4"></i> 選取刪除
+          <div class="flex gap-1 md:gap-1.5 shrink-0">
+            <button onclick="toggleSelectionMode()" class="px-2 md:px-3 py-1.5 md:py-2 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 font-bold rounded-lg transition-all active:scale-95 border border-slate-100 flex items-center gap-1">
+              <i data-lucide="check-square" class="w-3.5 h-3.5 md:w-4 md:h-4"></i> <span class="text-[10px] md:text-xs">選取刪除</span>
             </button>
-            <button onclick="toggleGridView()" class="p-2.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-600 hover:text-white rounded-lg transition-all active:scale-90 border border-emerald-100">
-              <i data-lucide="monitor" class="w-4 h-4"></i>
+            <button onclick="toggleGridView()" class="p-1.5 md:p-2.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-600 hover:text-white rounded-lg transition-all active:scale-90 border border-emerald-100">
+              <i data-lucide="monitor" class="w-3.5 h-3.5 md:w-4 md:h-4"></i>
             </button>
           </div>
         </div>
       `;
-      try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch(e) {}
+      try { lucide.createIcons(); } catch(e) {}
       return;
   }
 
