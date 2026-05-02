@@ -54,18 +54,22 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
   const inp = document.getElementById(inputId);
   const drop = document.getElementById(dropId);
   if (!inp || !drop) return;
+
+  // Move dropdown to body to avoid stacking context issues
+  document.body.appendChild(drop);
+  drop.style.position = "fixed";
+  drop.classList.add("fixed", "bg-white", "border", "border-slate-200", "rounded-xl", "shadow-2xl", "overflow-y-auto", "max-h-60");
+
   const wrap = inp.parentElement;
   let isOpen = false;
   let isSearchingMode = false;
 
   const updatePosition = () => {
     const rect = inp.getBoundingClientRect();
-    drop.style.position = "fixed";
     drop.style.top = `${rect.bottom + 4}px`;
     drop.style.left = `${rect.left}px`;
-    drop.style.width = `${rect.width}px`;
-    drop.style.minWidth = "200px";
-    drop.style.zIndex = "9999";
+    drop.style.width = `${Math.max(rect.width, 200)}px`;
+    drop.style.zIndex = "100000";
   };
 
   const populate = () => {
