@@ -64,8 +64,9 @@
         </a>
         <h1 class="text-sm font-bold tracking-tight">卡牌翻譯圖庫</h1>
         <div class="flex items-center gap-0.5 -mr-1">
-          <button onclick="openSyncModal()" class="p-1.5 hover:bg-emerald-700 rounded-full transition-colors" title="即時同步">
-            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          <button onclick="openSyncModal()" class="relative p-1.5 hover:bg-emerald-700 rounded-full transition-colors" title="即時同步">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span id="sync-active-dot" class="hidden absolute top-0 right-0 w-2 h-2 bg-emerald-400 rounded-full border border-emerald-600 animate-pulse"></span>
           </button>
           <button onclick="exportData()" class="p-1.5 hover:bg-emerald-700 rounded-full transition-colors" title="匯出資料">
             <i data-lucide="download" class="w-4 h-4"></i>
@@ -520,6 +521,9 @@
           <div id="sync-progress-bar" class="hidden w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
             <div id="sync-progress-inner" class="bg-emerald-500 h-full w-0 transition-all duration-300"></div>
           </div>
+          <div id="sync-log" class="w-full mt-4 text-[10px] font-mono text-slate-400 max-h-24 overflow-y-auto space-y-1 bg-slate-50 p-2 rounded-lg border border-slate-100 hidden">
+            <!-- Sync logs will appear here -->
+          </div>
         </div>
       </div>
     </div>
@@ -529,13 +533,13 @@
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="js/db.js?v=5"></script>
-  <script src="js/sync.js?v=5"></script>
-  <script src="js/utils.js?v=5"></script>
-  <script src="js/ui.js?v=5"></script>
-  <script src="js/gallery.js?v=5"></script>
-  <script src="js/io.js?v=5"></script>
-  <script src="js/cropper.js?v=5"></script>
+  <script src="js/db.js?v=6"></script>
+  <script src="js/sync.js?v=6"></script>
+  <script src="js/utils.js?v=6"></script>
+  <script src="js/ui.js?v=6"></script>
+  <script src="js/gallery.js?v=6"></script>
+  <script src="js/io.js?v=6"></script>
+  <script src="js/cropper.js?v=6"></script>
 </body>
 
 </html>
