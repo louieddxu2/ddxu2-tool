@@ -302,38 +302,42 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-window.openCropView = (src) => {
+window.openCropView = (src, filename = "") => {
   isCropViewOpen = true;
   document.getElementById("view-crop").classList.remove("hidden");
   document.getElementById("crop-loading").classList.remove("hidden");
   document.getElementById("crop-loading-text").innerText = "定位中...";
 
+  // 1. Context Extraction: Try to predict Game/Type/Number from filename
+  if (filename && window.extractInfoFromPath) {
+    const info = window.extractInfoFromPath(filename);
+    if (info.game) {
+      document.getElementById("inp-game").value = info.game;
+      if (document.getElementById("compact-inp-game")) document.getElementById("compact-inp-game").value = info.game;
+    }
+    if (info.type) {
+      document.getElementById("inp-type").value = info.type;
+      if (document.getElementById("compact-inp-type")) document.getElementById("compact-inp-type").value = info.type;
+    }
+    if (info.number) {
+      document.getElementById("inp-number").value = info.number;
+      if (document.getElementById("compact-inp-number")) document.getElementById("compact-inp-number").value = info.number;
+    }
+  }
+
+  // 2. Ratio Prediction: Hierarchical fallback based on current inputs
   const curGame = document.getElementById("inp-game").value;
   const curType = document.getElementById("inp-type").value;
   const curNumber = document.getElementById("inp-number").value;
-
   const history = dbCards.slice().reverse();
+  
   let lastMatchedCard = history.find((c) => c.game === curGame && c.type === curType && c.number === curNumber && c.ratio);
-
-  if (!lastMatchedCard && curType) {
-    lastMatchedCard = history.find((c) => c.game === curGame && c.type === curType && c.ratio);
-  }
-
-  if (!lastMatchedCard && curGame) {
-    lastMatchedCard = history.find((c) => c.game === curGame && c.ratio);
-  }
-
-  // Final fallback: just use the latest card's ratio regardless of any field
-  if (!lastMatchedCard) {
-    lastMatchedCard = history.find((c) => c.ratio);
-  }
+  if (!lastMatchedCard && curType) lastMatchedCard = history.find((c) => c.game === curGame && c.type === curType && c.ratio);
+  if (!lastMatchedCard && curGame) lastMatchedCard = history.find((c) => c.game === curGame && c.ratio);
+  if (!lastMatchedCard) lastMatchedCard = history.find((c) => c.ratio);
 
   if (lastMatchedCard) {
-    if (lastMatchedCard.ratio === "custom") {
-      if (window.setCustomActive) window.setCustomActive();
-    } else {
-      applyRatioValue(lastMatchedCard.ratio);
-    }
+    applyRatioValue(lastMatchedCard.ratio);
   }
 
   const img = new Image();
@@ -498,6 +502,15 @@ window.applyRatioValue = (val) => {
     if (window.setCustomActive) window.setCustomActive();
     return;
   }
+  
+  // Handle numeric strings (e.g. "0.7159") by applying them as custom ratio
+  if (!isNaN(parseFloat(val)) && !val.includes(":")) {
+    cropRatio = parseFloat(val);
+    window.cropRatio = cropRatio;
+    if (window.setCustomActive) window.setCustomActive();
+    return;
+  }
+
   const buttons = document.querySelectorAll(".ratio-btn");
   buttons.forEach((btn) => {
     if (btn.getAttribute("data-ratio") === val) {

@@ -132,9 +132,12 @@ const convertToWebP = async (blob, quality = 0.8) => {
       sharedCanvas.width = w; sharedCanvas.height = h;
       const ctx = sharedCanvas.getContext("2d");
       ctx.drawImage(img, 0, 0, w, h);
-      sharedCanvas.toBlob((b) => { URL.revokeObjectURL(url); resolve(b || blob); }, "image/webp", quality);
+      sharedCanvas.toBlob((b) => { 
+        URL.revokeObjectURL(url); 
+        resolve({ blob: b || blob, w: img.width, h: img.height }); 
+      }, "image/webp", quality);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(blob); };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve({ blob, w: 0, h: 0 }); };
     img.src = url;
   });
 };
@@ -150,7 +153,29 @@ const commitImport = async (imagesToImport) => {
     const item = imagesToImport[i];
     const prog = document.getElementById("import-progress");
     if (prog) prog.innerText = `處理轉檔與資料寫入中 (${i + 1}/${imagesToImport.length})...`;
-    item.blob = await convertToWebP(item.blob, 0.8);
+    
+    const res = await convertToWebP(item.blob, 0.8);
+    item.blob = res.blob;
+    
+    // Prediction logic for ratio during bulk import
+    if (!item.ratio && res.w > 0) {
+      const ar = res.w / res.h;
+      const presets = [
+        { name: "63:88", val: 63/88 },
+        { name: "70:120", val: 70/120 },
+        { name: "1:1", val: 1 },
+        { name: "88:63", val: 88/63 },
+        { name: "120:70", val: 120/70 }
+      ];
+      let detected = presets.find(p => Math.abs(ar - p.val) < 0.03);
+      if (detected) {
+        item.ratio = detected.name;
+      } else {
+        // Record precise custom ratio for non-standard imported images
+        item.ratio = ar.toFixed(4);
+      }
+    }
+
     let idx = dbCards.findIndex((c) => c.id === item.id);
     if (idx === -1 && item.game && item.type && item.number) {
       idx = dbCards.findIndex((c) => c.game === item.game && c.type === item.type && c.number === item.number);
