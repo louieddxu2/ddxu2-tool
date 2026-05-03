@@ -1,4 +1,22 @@
 let pendingImagesToImport = [];
+let cardsToExport = [];
+
+const getFilteredCards = () => {
+  const gQ = document.getElementById("inp-game").value.toLowerCase().trim();
+  const tQ = document.getElementById("inp-type").value.toLowerCase().trim();
+  const nQ = document.getElementById("inp-number").value.toLowerCase().trim();
+  
+  return dbCards.filter((c) => {
+    try {
+      return (
+        (c.game || "").toLowerCase().includes(gQ) &&
+        (c.type || "").toLowerCase().includes(tQ) &&
+        ((c.number || "").toLowerCase().includes(nQ) ||
+          (c.memo && (c.memo || "").toLowerCase().includes(nQ)))
+      );
+    } catch (e) { return false; }
+  });
+};
 
 window.deleteCard = async (id) => {
   if (!confirm("確定刪除？")) return;
@@ -7,46 +25,120 @@ window.deleteCard = async (id) => {
   renderGallery();
 };
 
-window.exportData = async () => {
-  if (dbCards.length === 0) return alert("無資料可匯出");
-  const zip = new JSZip();
-  const metadata = [];
-  const usedFilenames = new Set();
-  const sanitize = (str) => (str || "").toString().trim().replace(/[\/\\?%*:|"<>]/g, "-");
+window.exportData = () => {
+  cardsToExport = getFilteredCards();
+  if (cardsToExport.length === 0) return alert("目前搜尋條件下無資料可匯出");
 
-  for (let i = 0; i < dbCards.length; i++) {
-    const c = dbCards[i];
-    const ext = c.blob.type === "image/webp" ? "webp" : c.blob.type === "image/jpeg" ? "jpg" : "png";
-    const gameStr = sanitize(c.game) || "未命名項目";
-    const typeStr = sanitize(c.type) || "未分類";
-    const numStr = sanitize(c.number) || "未命名";
-    let shortId = c.id.toString().split("-")[0];
-    if (shortId.length > 8) shortId = shortId.slice(-6);
-    let filename = `${gameStr}/${typeStr}/${numStr}_${shortId}.${ext}`;
-    if (usedFilenames.has(filename)) filename = `${gameStr}/${typeStr}/${numStr}_${c.id}.${ext}`;
-    usedFilenames.add(filename);
-    zip.file(filename, c.blob);
-    metadata.push({ id: c.id, game: c.game || "", type: c.type || "", number: c.number || "", memo: c.memo || "", ratio: c.ratio || "", filename: filename, timestamp: c.timestamp });
-  }
+  const gQ = document.getElementById("inp-game").value.trim();
+  const tQ = document.getElementById("inp-type").value.trim();
+  const filterText = [gQ, tQ].filter(Boolean).join(" / ") || "全部卡牌";
+  
+  document.getElementById("export-confirm-filter").innerText = filterText;
+  document.getElementById("export-confirm-count").innerText = `${cardsToExport.length} 張`;
 
-  const keys = ["id", "game", "type", "number", "memo", "ratio", "filename", "timestamp"];
-  const rows = [keys.join(",")];
-  for (const row of metadata) {
-    const values = keys.map((k) => {
-      let val = row[k] === undefined || row[k] === null ? "" : String(row[k]);
-      if (val.includes(",") || val.includes('"') || val.includes("\n")) val = `"${val.replace(/"/g, '""')}"`;
-      return val;
-    });
-    rows.push(values.join(","));
+  const m = document.getElementById("modal-export-confirm");
+  if (m) {
+    m.classList.remove("hidden");
+    m.classList.add("flex");
   }
-  const csvStr = "\uFEFF" + rows.join("\n");
-  zip.file("db.csv", csvStr);
-  zip.file("metadata.json", JSON.stringify(metadata, null, 2));
-  const content = await zip.generateAsync({ type: "blob" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(content);
-  a.download = `cards_export_${Date.now()}.zip`;
-  a.click();
+};
+
+window.closeExportConfirmModal = () => {
+  const m = document.getElementById("modal-export-confirm");
+  if (m) {
+    m.classList.remove("flex");
+    m.classList.add("hidden");
+  }
+};
+
+window.executeExport = async () => {
+  closeExportConfirmModal();
+  if (cardsToExport.length === 0) return;
+
+  // Show loading state
+  const state = document.getElementById("empty-state");
+  const originalHTML = state.innerHTML;
+  state.innerHTML = '<div class="loader rounded-full border-4 border-emerald-500 h-10 w-10 mx-auto my-4 border-t-transparent animate-spin"></div><p class="text-sm">檔案打包壓縮中，請稍候...</p>';
+  state.classList.remove("hidden");
+
+  try {
+    const zip = new JSZip();
+    const metadata = [];
+    const usedFilenames = new Set();
+    const sanitize = (str) => (str || "").toString().trim().replace(/[\/\\?%*:|"<>]/g, "-");
+
+    for (let i = 0; i < cardsToExport.length; i++) {
+      const c = cardsToExport[i];
+      const ext = c.blob.type === "image/webp" ? "webp" : c.blob.type === "image/jpeg" ? "jpg" : "png";
+      const gameStr = sanitize(c.game) || "未命名項目";
+      const typeStr = sanitize(c.type) || "未分類";
+      const numStr = sanitize(c.number) || "未命名";
+      let shortId = c.id.toString().split("-")[0];
+      if (shortId.length > 8) shortId = shortId.slice(-6);
+      let filename = `${gameStr}/${typeStr}/${numStr}_${shortId}.${ext}`;
+      if (usedFilenames.has(filename)) filename = `${gameStr}/${typeStr}/${numStr}_${c.id}.${ext}`;
+      usedFilenames.add(filename);
+      zip.file(filename, c.blob);
+      metadata.push({ id: c.id, game: c.game || "", type: c.type || "", number: c.number || "", memo: c.memo || "", ratio: c.ratio || "", filename: filename, timestamp: c.timestamp });
+    }
+
+    const keys = ["id", "game", "type", "number", "memo", "ratio", "filename", "timestamp"];
+    const rows = [keys.join(",")];
+    for (const row of metadata) {
+      const values = keys.map((k) => {
+        let val = row[k] === undefined || row[k] === null ? "" : String(row[k]);
+        if (val.includes(",") || val.includes('"') || val.includes("\n")) val = `"${val.replace(/"/g, '""')}"`;
+        return val;
+      });
+      rows.push(values.join(","));
+    }
+    const csvStr = "\uFEFF" + rows.join("\n");
+    zip.file("db.csv", csvStr);
+    zip.file("metadata.json", JSON.stringify(metadata, null, 2));
+    
+    const content = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(content);
+    
+    const btnDownload = document.getElementById("btn-download-zip");
+    if (btnDownload) {
+      btnDownload.href = url;
+      btnDownload.download = `cards_export_${new Date().toISOString().slice(0,10)}_${Date.now()}.zip`;
+    }
+
+    const m = document.getElementById("modal-export-result");
+    if (m) {
+      m.classList.remove("hidden");
+      m.classList.add("flex");
+      try { lucide.createIcons(); } catch(e) {}
+    }
+  } catch (err) {
+    alert("匯出失敗：" + (err.message || "發生未知錯誤"));
+  } finally {
+    state.classList.add("hidden");
+    state.innerHTML = originalHTML;
+    cardsToExport = [];
+  }
+};
+
+window.closeExportResultModal = () => {
+  const m = document.getElementById("modal-export-result");
+  if (m) {
+    m.classList.remove("flex");
+    m.classList.add("hidden");
+    // Revoke URL to free memory if we want, but user might want to click again. 
+    // Usually fine to leave until page reload or next export.
+  }
+};
+
+window.copyExportShareText = () => {
+  const text = document.getElementById("export-share-text").innerText.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.getElementById("copy-toast");
+    if (toast) {
+      toast.classList.replace("opacity-0", "opacity-100");
+      setTimeout(() => toast.classList.replace("opacity-100", "opacity-0"), 2000);
+    }
+  });
 };
 
 window.openImportModal = () => {

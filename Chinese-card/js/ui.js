@@ -48,6 +48,65 @@ document.addEventListener("DOMContentLoaded", () => {
       : dbCards.map((c) => c.type);
     return [...new Set(ts)].filter(Boolean);
   });
+
+  // iOS / Mobile Compatibility Optimization
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) {
+    const folderOpt = document.getElementById("import-folder-option");
+    if (folderOpt) {
+      // Option 1: Hide it
+      // folderOpt.classList.add("hidden");
+
+      // Option 2: Add a "Desktop Only" badge and disable it
+      folderOpt.classList.add("opacity-50", "grayscale", "pointer-events-none");
+      const title = folderOpt.querySelector(".font-bold");
+      if (title) title.innerHTML += ' <span class="text-[10px] bg-slate-200 px-1 rounded text-slate-500 font-normal ml-1">僅限電腦</span>';
+    }
+  }
+
+  // Mobile Environment Guidance (In-App Browser vs PWA Prompt)
+  const ua = navigator.userAgent;
+  const isInApp = /Line|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  
+  if (isMobile && !isStandalone) {
+    setTimeout(() => {
+      // 1. Priority: In-App Browser (e.g. Line, FB)
+      if (isInApp) {
+        const inAppModal = document.getElementById("modal-inapp-browser");
+        if (inAppModal) {
+          inAppModal.classList.remove("hidden");
+          inAppModal.classList.add("flex");
+          try { lucide.createIcons(); } catch(e) {}
+          return; // Don't show PWA prompt if in-app
+        }
+      }
+
+      // 2. Secondary: PWA Prompt (Suggest adding to home screen)
+      const prompt = document.getElementById("pwa-prompt");
+      if (!prompt) return;
+      
+      const isIOSPlatform = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const guideIos = document.getElementById("pwa-guide-ios");
+      const guideAndroid = document.getElementById("pwa-guide-android");
+      
+      if (isIOSPlatform) {
+        if (guideIos) {
+          guideIos.classList.remove("hidden");
+          guideIos.classList.add("flex");
+        }
+      } else {
+        if (guideAndroid) {
+          guideAndroid.classList.remove("hidden");
+          guideAndroid.classList.add("flex");
+        }
+      }
+      
+      prompt.classList.remove("hidden");
+      try { lucide.createIcons(); } catch(e) {}
+    }, 3000);
+  }
 });
 
 function setupSmartDropdown(inputId, dropId, keyGetter) {
@@ -187,7 +246,7 @@ window.clearInput = (event, id) => {
     el.value = '';
     el.dispatchEvent(new Event('input'));
     el.dispatchEvent(new Event('change'));
-    
+
     // Attempt to close dropdown if open (setupSmartDropdown relies on mousedown outside to close, 
     // or we can simulate a blur to let it handle it)
     el.blur();
@@ -223,7 +282,7 @@ window.setCustomActive = () => {
     activeBtn.classList.remove("bg-emerald-600", "text-white");
     activeBtn.classList.add("bg-slate-800", "text-slate-300");
   }
-  
+
   const box = document.getElementById("custom-ratio-box");
   if (box) {
     box.style.borderColor = "";
@@ -232,10 +291,10 @@ window.setCustomActive = () => {
     box.classList.add("bg-emerald-600");
     const t1 = document.getElementById("custom-ratio-text1");
     const t2 = document.getElementById("custom-ratio-text2");
-    if(t1) t1.classList.replace("text-slate-300", "text-white");
-    if(t2) t2.classList.replace("text-slate-300", "text-white");
+    if (t1) t1.classList.replace("text-slate-300", "text-white");
+    if (t2) t2.classList.replace("text-slate-300", "text-white");
   }
-  
+
   window.isCustomMode = true;
   const savedCustom = parseFloat(localStorage.getItem("bg_last_custom_ratio"));
   if (window.setRatioAndCenter) {
@@ -243,7 +302,7 @@ window.setCustomActive = () => {
       window.setRatioAndCenter(savedCustom);
     } else {
       // Re-trigger with current ratio to apply boundary constraints
-      window.setRatioAndCenter(window.cropRatio || (63/88));
+      window.setRatioAndCenter(window.cropRatio || (63 / 88));
     }
   }
   if (window.drawLines) window.drawLines();
@@ -262,7 +321,7 @@ function initRatioButtons() {
 
   const setActive = (btn) => {
     if (btn === lastActiveBtn) return;
-    
+
     if (lastActiveBtn) {
       lastActiveBtn.classList.remove("bg-emerald-600", "text-white");
       lastActiveBtn.classList.add("bg-slate-800", "text-slate-300");
@@ -276,11 +335,11 @@ function initRatioButtons() {
       customBox.classList.add("bg-slate-800");
       const t1 = document.getElementById("custom-ratio-text1");
       const t2 = document.getElementById("custom-ratio-text2");
-      if(t1) t1.classList.replace("text-white", "text-slate-300");
-      if(t2) t2.classList.replace("text-white", "text-slate-300");
+      if (t1) t1.classList.replace("text-white", "text-slate-300");
+      if (t2) t2.classList.replace("text-white", "text-slate-300");
     }
     window.isCustomMode = false;
-    
+
     btn.classList.remove("bg-slate-800", "text-slate-300");
     btn.classList.add("bg-emerald-600", "text-white");
     btn.style.backgroundColor = "";
@@ -300,11 +359,11 @@ function initRatioButtons() {
     btn.addEventListener("click", () => {
       isClickScrolling = true;
       clearTimeout(clickScrollTimeout);
-      
+
       setActive(btn);
       if (window.saveLastRatio) window.saveLastRatio();
       btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-      
+
       clickScrollTimeout = setTimeout(() => {
         isClickScrolling = false;
       }, 500);
@@ -314,14 +373,14 @@ function initRatioButtons() {
   let saveTimeout;
   const observer = new IntersectionObserver((entries) => {
     if (isClickScrolling) return;
-    
+
     const intersecting = entries.filter(e => e.isIntersecting);
     if (intersecting.length > 0) {
-      const best = intersecting.reduce((prev, current) => 
+      const best = intersecting.reduce((prev, current) =>
         (current.intersectionRatio > prev.intersectionRatio) ? current : prev
       );
       setActive(best.target);
-      
+
       clearTimeout(saveTimeout);
       saveTimeout = setTimeout(() => {
         if (window.saveLastRatio) window.saveLastRatio();

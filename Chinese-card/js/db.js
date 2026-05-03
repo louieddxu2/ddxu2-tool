@@ -41,4 +41,20 @@ async function saveCardsToDB() {
     dbCards = validCards;
   }
   await idbKeyval.set("bgCards", dbCards);
+  
+  // Request persistence after first successful save to increase browser approval chance
+  if (navigator.storage && navigator.storage.persist) {
+    const isPersisted = await navigator.storage.persisted();
+    if (!isPersisted) {
+      const granted = await navigator.storage.persist();
+      console.log(`Storage persistence granted: ${granted}`);
+    }
+  }
+}
+
+// Initial check on startup
+if (navigator.storage && navigator.storage.persisted) {
+  navigator.storage.persisted().then(isPersisted => {
+    if (isPersisted) console.log("Storage is already persisted.");
+  });
 }

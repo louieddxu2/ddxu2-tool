@@ -65,4 +65,55 @@ test.describe('卡牌翻譯圖庫 UI 互動測試', () => {
     // 驗證彈窗關閉
     await expect(editModal).toBeHidden();
   });
+
+  test('條件式匯出與確認流程測試', async ({ page }) => {
+    // 模擬兩張不同遊戲的卡片
+    await page.evaluate(() => {
+      window.dbCards = [
+        { id: '1', game: '遊戲A', type: '類型1', number: '001', blob: new Blob(['a'], { type: 'image/png' }), timestamp: Date.now() },
+        { id: '2', game: '遊戲B', type: '類型1', number: '002', blob: new Blob(['b'], { type: 'image/png' }), timestamp: Date.now() }
+      ];
+      renderGallery();
+    });
+
+    // 1. 測試過濾後匯出
+    await page.locator('#inp-game').evaluate(el => { el.value = '遊戲A'; el.dispatchEvent(new Event('input')); });
+    
+    const exportBtn = page.locator('button[title="匯出資料"]');
+    await exportBtn.click();
+
+    // 驗證確認彈窗
+    const confirmModal = page.locator('#modal-export-confirm');
+    await expect(confirmModal).toBeVisible();
+    await expect(page.locator('#export-confirm-count')).toHaveText('1 張');
+    await expect(page.locator('#export-confirm-filter')).toHaveText('遊戲A');
+
+    // 點擊確認並產生
+    await page.getByRole('button', { name: '確認並產生' }).click();
+
+    // 驗證結果彈窗
+    const resultModal = page.locator('#modal-export-result');
+    await expect(resultModal).toBeVisible();
+    
+    const downloadBtn = page.locator('#btn-download-zip');
+    await expect(downloadBtn).toBeVisible();
+  });
+
+  test('iOS 環境下隱藏/標註不支援功能', async ({ page }) => {
+    // 重新載入並模擬 iOS UA
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'userAgent', { value: 'iPhone' });
+      Object.defineProperty(navigator, 'platform', { value: 'iPhone' });
+    });
+    await page.reload();
+
+    const importBtn = page.locator('button[title="匯入資料"]');
+    await importBtn.click();
+
+    const folderOpt = page.locator('#import-folder-option');
+    // 驗證標籤內包含「僅限電腦」字樣，且有灰階/禁止點擊的 class
+    await expect(folderOpt).toContainText('僅限電腦');
+    await expect(folderOpt).toHaveClass(/pointer-events-none/);
+    await expect(folderOpt).toHaveClass(/grayscale/);
+  });
 });

@@ -15,7 +15,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2310b981' d='M2 3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3zm2-1v10h8V2H4z'/%3E%3C/svg%3E" />
   <meta name="theme-color" content="#10b981" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 
@@ -324,6 +324,7 @@
       </label>
 
       <label
+        id="import-folder-option"
         class="flex items-center gap-4 p-4 bg-slate-50 hover:bg-emerald-50 rounded-2xl cursor-pointer transition-colors border border-slate-200">
         <i data-lucide="folder-tree" class="w-6 h-6 text-emerald-600"></i>
         <div class="flex-1">
@@ -595,17 +596,178 @@
     </div>
   </div>
 
+  <!-- Export Confirmation Modal -->
+  <div id="modal-export-confirm"
+    class="fixed inset-0 bg-slate-900/60 z-[900] hidden items-center justify-center p-4 backdrop-blur-sm"
+    onclick="closeExportConfirmModal()">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl flex flex-col gap-4"
+      onclick="event.stopPropagation()">
+      <h3 class="text-xl font-bold mb-2">確認匯出內容</h3>
+      
+      <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-2">
+        <div class="flex justify-between items-center">
+          <span class="text-xs text-slate-500">即時過濾條件</span>
+          <span id="export-confirm-filter" class="text-xs font-bold text-emerald-600">全部</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-xs text-slate-500">預計匯出數量</span>
+          <span id="export-confirm-count" class="text-lg font-black text-slate-800">0 張</span>
+        </div>
+      </div>
+
+      <p class="text-xs text-slate-500 leading-relaxed">
+        系統將僅打包目前顯示在列表中的卡牌。若需匯出全庫，請先清除搜尋條件。
+      </p>
+
+      <div class="flex gap-2 mt-2">
+        <button onclick="closeExportConfirmModal()"
+          class="flex-1 py-3 text-slate-500 font-medium bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+          取消
+        </button>
+        <button onclick="executeExport()"
+          class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors active:scale-95 shadow-lg shadow-emerald-100">
+          確認並產生
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Result Modal -->
+  <div id="modal-export-result"
+    class="fixed inset-0 bg-slate-900/60 z-[1000] hidden items-center justify-center p-4 backdrop-blur-sm"
+    onclick="closeExportResultModal()">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-xl flex flex-col gap-4"
+      onclick="event.stopPropagation()">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+          <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-xl font-bold">檔案已準備就緒</h3>
+      </div>
+      
+      <p class="text-sm text-slate-600">
+        卡牌資料已成功打包完成，您可以點擊下方按鈕下載，或複製說明文字分享給朋友。
+      </p>
+
+      <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 relative group">
+        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">分享說明文字</div>
+        <p id="export-share-text" class="text-xs text-slate-700 leading-relaxed pr-8 whitespace-pre-line text-left">這是「卡牌翻譯圖庫」的分享檔案。
+工具網址：https://ddxu2-tool.vercel.app/Chinese-card/
+使用方式：
+1. 儲存此 ZIP 檔案。
+2. 開啟網址並點擊「匯入」載入檔案。</p>
+        <button onclick="copyExportShareText()" 
+          class="absolute top-4 right-4 p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="複製文字">
+          <i data-lucide="copy" class="w-4 h-4"></i>
+        </button>
+        <div id="copy-toast" class="absolute bottom-2 right-4 text-[10px] text-emerald-600 font-bold opacity-0 transition-opacity">已複製！</div>
+      </div>
+
+      <div class="flex flex-col gap-2 mt-2">
+        <a id="btn-download-zip" href="#" download
+          class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-100">
+          <i data-lucide="download" class="w-5 h-5"></i>
+          立即下載檔案
+        </a>
+        <button onclick="closeExportResultModal()"
+          class="w-full py-3 text-slate-500 font-medium bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
   <canvas id="canvas-processing" class="hidden"></canvas>
+
+  <!-- In-App Browser Prompt Modal -->
+  <div id="modal-inapp-browser"
+    class="fixed inset-0 bg-slate-900/40 z-[6000] hidden items-center justify-center p-6 backdrop-blur-sm">
+    <div class="bg-white rounded-[2.5rem] w-full max-w-sm p-8 shadow-2xl flex flex-col items-center gap-6 text-slate-800 border border-slate-200 animate-in zoom-in-95 duration-300 relative"
+      onclick="event.stopPropagation()">
+      
+      <div class="text-5xl mt-4 animate-bounce">🚀</div>
+      
+      <div class="text-center">
+        <h3 class="text-xl font-bold mb-2 text-slate-900">建議使用瀏覽器開啟</h3>
+        <p class="text-sm text-slate-500">支援完整拍照、分享與記錄功能。</p>
+      </div>
+
+      <div class="w-full bg-slate-50 rounded-3xl p-6 border border-slate-100 flex flex-col gap-4">
+        <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">步驟</div>
+        <div class="flex items-start gap-3">
+          <div class="text-emerald-500 font-bold">1.</div>
+          <p class="text-sm text-slate-600 leading-relaxed">點擊邊緣選單 ( <span class="font-bold text-slate-900">...</span> 、 <span class="font-bold text-slate-900">⋮</span> 或 <span class="font-bold text-slate-900">分享圖示</span> )</p>
+        </div>
+        <div class="flex items-start gap-3">
+          <div class="text-emerald-500 font-bold">2.</div>
+          <p class="text-sm text-slate-600 leading-relaxed">選擇「<span class="font-bold text-slate-900">在瀏覽器中開啟</span>」( 或 <span class="font-bold text-slate-900">Safari / Chrome</span> )</p>
+        </div>
+      </div>
+
+      <button onclick="document.getElementById('modal-inapp-browser').classList.add('hidden'); document.getElementById('modal-inapp-browser').classList.remove('flex');"
+        class="py-3 px-8 text-xs text-slate-400 hover:text-slate-600 transition-colors font-medium">
+        暫時這樣就好
+      </button>
+    </div>
+  </div>
+
+  <!-- PWA Prompt (Adaptive for iOS/Android) -->
+  <div id="pwa-prompt"
+    class="fixed bottom-6 left-4 right-4 bg-slate-900 text-white p-4 rounded-3xl shadow-2xl z-[5000] flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-10 duration-500 hidden border border-slate-700">
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex-1">
+        <h4 class="text-sm font-bold text-emerald-400 mb-1">防止資料遺失</h4>
+        <p class="text-[11px] text-slate-300 leading-relaxed">
+          瀏覽器可能會自動清理不常使用的網頁資料。將此工具「加入主畫面」可確保卡牌庫永久保存。
+        </p>
+      </div>
+      <button onclick="document.getElementById('pwa-prompt').remove()" class="p-1.5 hover:bg-white/10 rounded-full shrink-0">
+        <i data-lucide="x" class="w-4 h-4 text-slate-500"></i>
+      </button>
+    </div>
+    
+    <!-- iOS Guide -->
+    <div id="pwa-guide-ios" class="hidden items-center gap-3 bg-slate-800/50 p-3 rounded-2xl border border-slate-700">
+      <div class="flex flex-col items-center gap-1 shrink-0">
+        <div class="p-1.5 bg-slate-700 rounded-lg"><i data-lucide="share" class="w-4 h-4"></i></div>
+        <span class="text-[9px] text-slate-400">1. 點擊分享</span>
+      </div>
+      <i data-lucide="chevron-right" class="w-4 h-4 text-slate-600"></i>
+      <div class="flex flex-col items-center gap-1 shrink-0">
+        <div class="p-1.5 bg-slate-700 rounded-lg"><i data-lucide="plus-square" class="w-4 h-4"></i></div>
+        <span class="text-[9px] text-slate-400">2. 加入主畫面</span>
+      </div>
+      <div class="flex-1 text-right">
+        <button onclick="document.getElementById('pwa-prompt').remove()" class="text-xs font-bold text-emerald-500 hover:text-emerald-400 px-2 py-1">我了解了</button>
+      </div>
+    </div>
+
+    <!-- Android Guide -->
+    <div id="pwa-guide-android" class="hidden items-center gap-3 bg-slate-800/50 p-3 rounded-2xl border border-slate-700">
+      <div class="flex flex-col items-center gap-1 shrink-0">
+        <div class="p-1.5 bg-slate-700 rounded-lg"><i data-lucide="more-vertical" class="w-4 h-4"></i></div>
+        <span class="text-[9px] text-slate-400">1. 點擊選單</span>
+      </div>
+      <i data-lucide="chevron-right" class="w-4 h-4 text-slate-600"></i>
+      <div class="flex flex-col items-center gap-1 shrink-0">
+        <div class="p-1.5 bg-slate-700 rounded-lg"><i data-lucide="download" class="w-4 h-4"></i></div>
+        <span class="text-[9px] text-slate-400">2. 安裝應用程式</span>
+      </div>
+      <div class="flex-1 text-right">
+        <button onclick="document.getElementById('pwa-prompt').remove()" class="text-xs font-bold text-emerald-500 hover:text-emerald-400 px-2 py-1">我了解了</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="js/db.js?v=29"></script>
-  <script src="js/sync.js?v=29"></script>
-  <script src="js/utils.js?v=29"></script>
-  <script src="js/ui.js?v=29"></script>
-  <script src="js/gallery.js?v=29"></script>
-  <script src="js/io.js?v=29"></script>
-  <script src="js/cropper.js?v=29"></script>
+  <script src="js/db.js?v=31"></script>
+  <script src="js/sync.js?v=31"></script>
+  <script src="js/utils.js?v=31"></script>
+  <script src="js/ui.js?v=31"></script>
+  <script src="js/gallery.js?v=31"></script>
+  <script src="js/io.js?v=31"></script>
+  <script src="js/cropper.js?v=31"></script>
 </body>
 
 </html>
