@@ -155,19 +155,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const y0 = ptY / displayRatio;
       const x1 = pts[0].x, y1 = pts[0].y;
       const x2 = pts[1].x, y2 = pts[1].y;
-      
+
       // Calculate squared distance to segment
       const dx = x2 - x1;
       const dy = y2 - y1;
-      const l2 = dx*dx + dy*dy;
+      const l2 = dx * dx + dy * dy;
       if (l2 === 0) return;
-      
+
       let t = ((x0 - x1) * dx + (y0 - y1) * dy) / l2;
       t = Math.max(0, Math.min(1, t));
-      const distSq = (x0 - (x1 + t * dx))**2 + (y0 - (y1 + t * dy))**2;
-      
+      const distSq = (x0 - (x1 + t * dx)) ** 2 + (y0 - (y1 + t * dy)) ** 2;
+
       // If within 35 image pixels of the segment, start dragging
-      if (distSq < 35*35) dragTarget = "p3";
+      if (distSq < 35 * 35) dragTarget = "p3";
     }
 
     pointerDownSrc = {
@@ -197,13 +197,13 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (pointerDownSrc.dragTarget === "p3" && window.isCustomMode) {
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
-        const length = Math.sqrt(dx*dx + dy*dy);
+        const length = Math.sqrt(dx * dx + dy * dy);
         if (length > 0) {
-           const distance = Math.abs(dy * currX - dx * currY + p1.y * dx - p1.x * dy) / length;
-           if (distance > 10) {
-             cropRatio = length / (distance / 1.05);
-             window.cropRatio = cropRatio;
-           }
+          const distance = Math.abs(dy * currX - dx * currY + p1.y * dx - p1.x * dy) / length;
+          if (distance > 10) {
+            cropRatio = length / (distance / 1.05);
+            window.cropRatio = cropRatio;
+          }
         }
       }
       drawLines();
@@ -251,7 +251,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Only perform tap logic if we weren't dragging anything (p1, p2, or p3)
       const dx = p2.x - p1.x;
       const dy = p2.y - p1.y;
-      const length = Math.sqrt(dx*dx + dy*dy);
+      const length = Math.sqrt(dx * dx + dy * dy);
       let tapDistToLine = 0;
       if (length > 0) {
         tapDistToLine = Math.abs(dy * upX - dx * upY + p1.y * dx - p1.x * dy) / length;
@@ -259,7 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const d1 = Math.hypot(upX - p1.x, upY - p1.y);
       const d2 = Math.hypot(upX - p2.x, upY - p2.y);
-      
+
       // If in custom mode and not tapping very close to a bottom corner, adjust height
       if (window.isCustomMode && d1 > 60 && d2 > 60) {
         const newHeight = tapDistToLine;
@@ -310,7 +310,24 @@ window.openCropView = (src) => {
 
   const curGame = document.getElementById("inp-game").value;
   const curType = document.getElementById("inp-type").value;
-  const lastMatchedCard = dbCards.slice().reverse().find((c) => c.game === curGame && c.type === curType && c.ratio);
+  const curNumber = document.getElementById("inp-number").value;
+
+  const history = dbCards.slice().reverse();
+  let lastMatchedCard = history.find((c) => c.game === curGame && c.type === curType && c.number === curNumber && c.ratio);
+
+  if (!lastMatchedCard && curType) {
+    lastMatchedCard = history.find((c) => c.game === curGame && c.type === curType && c.ratio);
+  }
+
+  if (!lastMatchedCard && curGame) {
+    lastMatchedCard = history.find((c) => c.game === curGame && c.ratio);
+  }
+
+  // Final fallback: just use the latest card's ratio regardless of any field
+  if (!lastMatchedCard) {
+    lastMatchedCard = history.find((c) => c.ratio);
+  }
+
   if (lastMatchedCard) {
     if (lastMatchedCard.ratio === "custom") {
       if (window.setCustomActive) window.setCustomActive();
@@ -426,7 +443,7 @@ function getRatioValue() {
 
 window.setRatioAndCenter = (baseCropRatio) => {
   let newCropRatio = isLandscapeMode ? 1 / baseCropRatio : baseCropRatio;
-  
+
   // Boundary constraint for Custom mode (or any mode really)
   // If the top points go out of bounds, adjust cropRatio to fit
   const dx = p2.x - p1.x;
@@ -434,31 +451,31 @@ window.setRatioAndCenter = (baseCropRatio) => {
   const width = Math.sqrt(dx * dx + dy * dy);
   const angle = Math.atan2(dy, dx);
   const upAngle = angle - Math.PI / 2;
-  
+
   // Current height with this ratio
   let height = (width / newCropRatio) * 1.05;
-  
+
   // Calculate top point coordinates
   const p4x = p1.x + Math.cos(upAngle) * height;
   const p4y = p1.y + Math.sin(upAngle) * height;
   const p3x = p2.x + Math.cos(upAngle) * height;
   const p3y = p2.y + Math.sin(upAngle) * height;
-  
+
   // Check if any top point is outside image (y < 0 or y > h or x < 0 or x > w)
   // Most common is y < 0 (too tall)
-  const topMargin = originalImgHeight * 0.1; 
+  const topMargin = originalImgHeight * 0.1;
   let maxH = height;
-  
+
   const checkBounds = (x, y) => {
     if (y < topMargin) {
-        // Calculate the height that would put the point at topMargin
-        const hNeeded = (topMargin - p1.y) / Math.sin(upAngle);
-        if (hNeeded < maxH) maxH = hNeeded;
+      // Calculate the height that would put the point at topMargin
+      const hNeeded = (topMargin - p1.y) / Math.sin(upAngle);
+      if (hNeeded < maxH) maxH = hNeeded;
     }
   };
   checkBounds(p4x, p4y);
   checkBounds(p3x, p3y);
-  
+
   if (maxH < height) {
     newCropRatio = width / (maxH / 1.05);
   }
