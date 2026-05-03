@@ -51,17 +51,10 @@ const renderGallery = () => {
       grid.className = "grid grid-cols-3 md:grid-cols-5 gap-2 p-2 h-auto";
       grid.style.gridAutoRows = "";
   } else {
-      if (typeof isLandscapeMode !== "undefined" && isLandscapeMode) {
-          container.classList.remove("snap-y");
-          container.classList.add("snap-x", "snap-mandatory");
-          grid.className = "flex flex-row h-full";
-          grid.style.gridAutoRows = "";
-      } else {
-          container.classList.remove("snap-x");
-          container.classList.add("snap-y", "snap-mandatory");
-          grid.className = "grid grid-cols-1 h-full";
-          grid.style.gridAutoRows = "100%";
-      }
+      container.classList.remove("snap-x");
+      container.classList.add("snap-y", "snap-mandatory");
+      grid.className = "grid grid-cols-1 h-full";
+      grid.style.gridAutoRows = "100%";
   }
 
   displayed.forEach((c, index) => {
@@ -129,9 +122,6 @@ const renderGallery = () => {
         };
     } else {
         div.className = "snap-start flex items-center justify-center w-full h-full p-2 md:p-6 overflow-hidden shrink-0";
-        if (typeof isLandscapeMode !== "undefined" && isLandscapeMode) {
-            div.classList.add("w-screen"); // Ensure full width in landscape row mode
-        }
         div.innerHTML = `
           <div class="w-full h-full flex items-center justify-center">
              <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onload="window.URL.revokeObjectURL(this.src)">

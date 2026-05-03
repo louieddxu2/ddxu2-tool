@@ -179,6 +179,21 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
 }
 
 // Global functions
+window.clearInput = (event, id) => {
+  event.preventDefault();
+  event.stopPropagation();
+  const el = document.getElementById(id);
+  if (el) {
+    el.value = '';
+    el.dispatchEvent(new Event('input'));
+    el.dispatchEvent(new Event('change'));
+    
+    // Attempt to close dropdown if open (setupSmartDropdown relies on mousedown outside to close, 
+    // or we can simulate a blur to let it handle it)
+    el.blur();
+  }
+};
+
 window.toggleOrientation = () => {
   isLandscapeMode = !isLandscapeMode;
   const p = document.getElementById("icon-portrait");
@@ -191,10 +206,11 @@ window.toggleOrientation = () => {
   if (activeBtn) {
     const ratioStr = activeBtn.getAttribute("data-ratio").split(":");
     setRatioAndCenter(parseInt(ratioStr[0]) / parseInt(ratioStr[1]));
-  } else {
-    const w = parseInt(document.getElementById("custom-w").value) || 1;
-    const h = parseInt(document.getElementById("custom-h").value) || 1;
-    setRatioAndCenter(w / h);
+  } else if (window.isCustomMode) {
+    if (window.cropRatio) {
+      window.cropRatio = 1 / window.cropRatio;
+      if (window.drawLines) window.drawLines();
+    }
   }
   if (window.saveLastRatio) window.saveLastRatio();
 };
@@ -207,14 +223,30 @@ window.setCustomActive = () => {
     activeBtn.classList.remove("bg-emerald-600", "text-white");
     activeBtn.classList.add("bg-slate-800", "text-slate-300");
   }
+  
   const box = document.getElementById("custom-ratio-box");
   if (box) {
-    box.style.borderColor = "#10b981";
-    box.style.boxShadow = "0 0 0 1px #10b981";
+    box.style.borderColor = "";
+    box.style.boxShadow = "";
+    box.classList.remove("bg-slate-800");
+    box.classList.add("bg-emerald-600");
+    const t1 = document.getElementById("custom-ratio-text1");
+    const t2 = document.getElementById("custom-ratio-text2");
+    if(t1) t1.classList.replace("text-slate-300", "text-white");
+    if(t2) t2.classList.replace("text-slate-300", "text-white");
   }
-  const w = parseInt(document.getElementById("custom-w").value) || 1;
-  const h = parseInt(document.getElementById("custom-h").value) || 1;
-  if (window.setRatioAndCenter) window.setRatioAndCenter(w / h);
+  
+  window.isCustomMode = true;
+  const savedCustom = parseFloat(localStorage.getItem("bg_last_custom_ratio"));
+  if (window.setRatioAndCenter) {
+    if (savedCustom) {
+      window.setRatioAndCenter(savedCustom);
+    } else {
+      // Re-trigger with current ratio to apply boundary constraints
+      window.setRatioAndCenter(window.cropRatio || (63/88));
+    }
+  }
+  if (window.drawLines) window.drawLines();
   if (window.saveLastRatio) window.saveLastRatio();
 };
 
@@ -225,22 +257,34 @@ function initRatioButtons() {
   const customBox = document.getElementById("custom-ratio-box");
   let lastActiveBtn = container.querySelector(".ratio-btn.bg-emerald-600");
 
+  let isClickScrolling = false;
+  let clickScrollTimeout;
+
   const setActive = (btn) => {
     if (btn === lastActiveBtn) return;
     
-    // Immediate style reset for previous button
     if (lastActiveBtn) {
-      lastActiveBtn.style.backgroundColor = "#1e293b";
-      lastActiveBtn.style.color = "#cbd5e1";
+      lastActiveBtn.classList.remove("bg-emerald-600", "text-white");
+      lastActiveBtn.classList.add("bg-slate-800", "text-slate-300");
+      lastActiveBtn.style.backgroundColor = "";
+      lastActiveBtn.style.color = "";
     }
     if (customBox) {
-      customBox.style.borderColor = "#334155";
-      customBox.style.boxShadow = "none";
+      customBox.style.borderColor = "";
+      customBox.style.boxShadow = "";
+      customBox.classList.remove("bg-emerald-600");
+      customBox.classList.add("bg-slate-800");
+      const t1 = document.getElementById("custom-ratio-text1");
+      const t2 = document.getElementById("custom-ratio-text2");
+      if(t1) t1.classList.replace("text-white", "text-slate-300");
+      if(t2) t2.classList.replace("text-white", "text-slate-300");
     }
+    window.isCustomMode = false;
     
-    // Immediate style set for active button
-    btn.style.backgroundColor = "#059669";
-    btn.style.color = "#ffffff";
+    btn.classList.remove("bg-slate-800", "text-slate-300");
+    btn.classList.add("bg-emerald-600", "text-white");
+    btn.style.backgroundColor = "";
+    btn.style.color = "";
     lastActiveBtn = btn;
 
     const ratioStr = btn.getAttribute("data-ratio");
@@ -254,18 +298,25 @@ function initRatioButtons() {
 
   buttons.forEach(btn => {
     btn.addEventListener("click", () => {
+      isClickScrolling = true;
+      clearTimeout(clickScrollTimeout);
+      
       setActive(btn);
       if (window.saveLastRatio) window.saveLastRatio();
       btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      
+      clickScrollTimeout = setTimeout(() => {
+        isClickScrolling = false;
+      }, 500);
     });
   });
 
   let saveTimeout;
   const observer = new IntersectionObserver((entries) => {
-    // Find the entry that is most visible in our 20% center window
+    if (isClickScrolling) return;
+    
     const intersecting = entries.filter(e => e.isIntersecting);
     if (intersecting.length > 0) {
-      // If multiple are intersecting, pick the one closest to center
       const best = intersecting.reduce((prev, current) => 
         (current.intersectionRatio > prev.intersectionRatio) ? current : prev
       );

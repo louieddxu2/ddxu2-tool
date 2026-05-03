@@ -8,11 +8,13 @@ const initCropState = (w, h) => {
   if (activeBtn) {
     const ratioStr = activeBtn.getAttribute("data-ratio").split(":");
     cropRatio = parseInt(ratioStr[0]) / parseInt(ratioStr[1]);
+  } else if (window.isCustomMode) {
+    const savedCustom = parseFloat(localStorage.getItem("bg_last_custom_ratio"));
+    if (savedCustom) cropRatio = savedCustom;
   } else {
-    const cw = parseInt(document.getElementById("custom-w").value) || 1;
-    const ch = parseInt(document.getElementById("custom-h").value) || 1;
-    cropRatio = cw / ch;
+    cropRatio = 63 / 88;
   }
+  window.cropRatio = cropRatio;
 
   const savedWidthPct = parseFloat(localStorage.getItem("bg_crop_widthPct")) || 0.8;
   const savedCenterYPct = parseFloat(localStorage.getItem("bg_crop_centerYPct")) || 0.85;
@@ -99,7 +101,37 @@ const drawLines = () => {
   h1.style.top = p1.y * displayRatio + "px";
   h2.style.left = p2.x * displayRatio + "px";
   h2.style.top = p2.y * displayRatio + "px";
+
+  let hTop = document.getElementById("ind-top-edge");
+  if (window.isCustomMode) {
+    if (!hTop) {
+      // Use a SVG line for the top edge to make it look like a handle
+      const svg = document.getElementById("crop-svg");
+      hTop = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      hTop.id = "ind-top-edge";
+      hTop.setAttribute("stroke", "#10b981");
+      hTop.setAttribute("stroke-width", "8");
+      hTop.setAttribute("stroke-linecap", "round");
+      hTop.style.cursor = "ns-resize";
+      hTop.style.pointerEvents = "stroke"; // Important!
+      svg.appendChild(hTop);
+    }
+    hTop.style.display = "block";
+    hTop.setAttribute("x1", pts[0].x * displayRatio);
+    hTop.setAttribute("y1", pts[0].y * displayRatio);
+    hTop.setAttribute("x2", pts[1].x * displayRatio);
+    hTop.setAttribute("y2", pts[1].y * displayRatio);
+
+    // Remove old p3 dot if it exists
+    const oldP3 = document.getElementById("ind-p3");
+    if (oldP3) oldP3.remove();
+  } else {
+    if (hTop) hTop.style.display = "none";
+    const oldP3 = document.getElementById("ind-p3");
+    if (oldP3) oldP3.remove();
+  }
 };
+window.drawLines = drawLines;
 
 let pointerDownSrc = null;
 document.addEventListener("DOMContentLoaded", () => {
@@ -114,14 +146,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const ptX = e.clientX - rect.left;
     const ptY = e.clientY - rect.top;
 
-    const scrP1x = p1.x * displayRatio;
-    const scrP1y = p1.y * displayRatio;
-    const scrP2x = p2.x * displayRatio;
-    const scrP2y = p2.y * displayRatio;
-
     let dragTarget = null;
-    if (Math.hypot(ptX - scrP1x, ptY - scrP1y) < 25) dragTarget = "p1";
-    else if (Math.hypot(ptX - scrP2x, ptY - scrP2y) < 25) dragTarget = "p2";
+    if (Math.hypot(ptX - p1.x * displayRatio, ptY - p1.y * displayRatio) < 40) dragTarget = "p1";
+    else if (Math.hypot(ptX - p2.x * displayRatio, ptY - p2.y * displayRatio) < 40) dragTarget = "p2";
+    else if (window.isCustomMode) {
+      const pts = calculatePolygon();
+      const x0 = ptX / displayRatio;
+      const y0 = ptY / displayRatio;
+      const x1 = pts[0].x, y1 = pts[0].y;
+      const x2 = pts[1].x, y2 = pts[1].y;
+      
+      // Calculate squared distance to segment
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const l2 = dx*dx + dy*dy;
+      if (l2 === 0) return;
+      
+      let t = ((x0 - x1) * dx + (y0 - y1) * dy) / l2;
+      t = Math.max(0, Math.min(1, t));
+      const distSq = (x0 - (x1 + t * dx))**2 + (y0 - (y1 + t * dy))**2;
+      
+      // If within 35 image pixels of the segment, start dragging
+      if (distSq < 35*35) dragTarget = "p3";
+    }
 
     pointerDownSrc = {
       x: ptX / displayRatio,
@@ -144,9 +191,20 @@ document.addEventListener("DOMContentLoaded", () => {
       if (pointerDownSrc.dragTarget === "p1") {
         p1.x = currX;
         p1.y = currY;
-      } else {
+      } else if (pointerDownSrc.dragTarget === "p2") {
         p2.x = currX;
         p2.y = currY;
+      } else if (pointerDownSrc.dragTarget === "p3" && window.isCustomMode) {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const length = Math.sqrt(dx*dx + dy*dy);
+        if (length > 0) {
+           const distance = Math.abs(dy * currX - dx * currY + p1.y * dx - p1.x * dy) / length;
+           if (distance > 10) {
+             cropRatio = length / (distance / 1.05);
+             window.cropRatio = cropRatio;
+           }
+        }
       }
       drawLines();
     } else if (dist >= 15) {
@@ -159,27 +217,9 @@ document.addEventListener("DOMContentLoaded", () => {
         nx2 = tx; ny2 = ty;
       }
 
-      const dx = nx2 - nx1;
-      const dy = ny2 - ny1;
-      const width = Math.sqrt(dx * dx + dy * dy);
-      const angle = Math.atan2(dy, dx);
-      const height = (width / cropRatio) * 1.05;
-      const upAngle = angle - Math.PI / 2;
-      const pts = [
-        { x: nx1 + Math.cos(upAngle) * height, y: ny1 + Math.sin(upAngle) * height },
-        { x: nx2 + Math.cos(upAngle) * height, y: ny2 + Math.sin(upAngle) * height },
-        { x: nx2, y: ny2 },
-        { x: nx1, y: ny1 },
-      ];
-
-      let h1 = document.getElementById("ind-p1");
-      let h2 = document.getElementById("ind-p2");
-      if (h1 && h2) {
-        h1.style.display = "none";
-        h2.style.display = "none";
-      }
-
-      document.getElementById("crop-polygon").setAttribute("points", pts.map((p) => `${p.x * displayRatio},${p.y * displayRatio}`).join(" "));
+      p1.x = nx1; p1.y = ny1;
+      p2.x = nx2; p2.y = ny2;
+      drawLines();
     }
   });
 
@@ -189,10 +229,12 @@ document.addEventListener("DOMContentLoaded", () => {
     container.releasePointerCapture(e.pointerId);
     let h1 = document.getElementById("ind-p1");
     let h2 = document.getElementById("ind-p2");
+    let h3 = document.getElementById("ind-p3");
     if (h1 && h2) {
       h1.style.display = "block";
       h2.style.display = "block";
     }
+    if (h3 && window.isCustomMode) h3.style.display = "block";
 
     const rect = wrap.getBoundingClientRect();
     const upX = Math.max(0, Math.min(originalImgWidth, (e.clientX - rect.left) / displayRatio));
@@ -202,16 +244,34 @@ document.addEventListener("DOMContentLoaded", () => {
     if (pointerDownSrc.dragTarget) {
       if (pointerDownSrc.dragTarget === "p1") {
         p1.x = upX; p1.y = upY;
-      } else {
+      } else if (pointerDownSrc.dragTarget === "p2") {
         p2.x = upX; p2.y = upY;
       }
     } else if (dist < 15) {
+      // Only perform tap logic if we weren't dragging anything (p1, p2, or p3)
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const length = Math.sqrt(dx*dx + dy*dy);
+      let tapDistToLine = 0;
+      if (length > 0) {
+        tapDistToLine = Math.abs(dy * upX - dx * upY + p1.y * dx - p1.x * dy) / length;
+      }
+
       const d1 = Math.hypot(upX - p1.x, upY - p1.y);
       const d2 = Math.hypot(upX - p2.x, upY - p2.y);
-      if (d1 < d2) {
-        p1.x = upX; p1.y = upY;
+      
+      // If in custom mode and not tapping very close to a bottom corner, adjust height
+      if (window.isCustomMode && d1 > 60 && d2 > 60) {
+        const newHeight = tapDistToLine;
+        cropRatio = length / (newHeight / 1.05);
+        window.cropRatio = cropRatio;
       } else {
-        p2.x = upX; p2.y = upY;
+        // Move nearest corner
+        if (d1 < d2) {
+          p1.x = upX; p1.y = upY;
+        } else {
+          p2.x = upX; p2.y = upY;
+        }
       }
     } else {
       let nx1 = Math.max(0, Math.min(originalImgWidth, pointerDownSrc.x));
@@ -252,7 +312,11 @@ window.openCropView = (src) => {
   const curType = document.getElementById("inp-type").value;
   const lastMatchedCard = dbCards.slice().reverse().find((c) => c.game === curGame && c.type === curType && c.ratio);
   if (lastMatchedCard) {
-    applyRatioValue(lastMatchedCard.ratio);
+    if (lastMatchedCard.ratio === "custom") {
+      if (window.setCustomActive) window.setCustomActive();
+    } else {
+      applyRatioValue(lastMatchedCard.ratio);
+    }
   }
 
   const img = new Image();
@@ -302,6 +366,9 @@ window.processCrop = async () => {
   localStorage.setItem("bg_crop_widthPct", width / originalImgWidth);
   localStorage.setItem("bg_crop_centerYPct", cy / originalImgHeight);
   localStorage.setItem("bg_crop_angle", angle);
+  if (window.isCustomMode) {
+    localStorage.setItem("bg_last_custom_ratio", cropRatio);
+  }
 
   const outW = 800;
   const outH = Math.round(outW / cropRatio);
@@ -349,37 +416,57 @@ window.processCrop = async () => {
 };
 
 function getRatioValue() {
+  if (window.isCustomMode) return "custom";
   const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
   if (activeBtn) {
     return activeBtn.getAttribute("data-ratio");
   }
-  return `custom:${document.getElementById("custom-w").value}:${document.getElementById("custom-h").value}`;
+  return "custom";
 }
 
 window.setRatioAndCenter = (baseCropRatio) => {
-  const newCropRatio = isLandscapeMode ? 1 / baseCropRatio : baseCropRatio;
+  let newCropRatio = isLandscapeMode ? 1 / baseCropRatio : baseCropRatio;
+  
+  // Boundary constraint for Custom mode (or any mode really)
+  // If the top points go out of bounds, adjust cropRatio to fit
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const width = Math.sqrt(dx * dx + dy * dy);
+  const angle = Math.atan2(dy, dx);
+  const upAngle = angle - Math.PI / 2;
+  
+  // Current height with this ratio
+  let height = (width / newCropRatio) * 1.05;
+  
+  // Calculate top point coordinates
+  const p4x = p1.x + Math.cos(upAngle) * height;
+  const p4y = p1.y + Math.sin(upAngle) * height;
+  const p3x = p2.x + Math.cos(upAngle) * height;
+  const p3y = p2.y + Math.sin(upAngle) * height;
+  
+  // Check if any top point is outside image (y < 0 or y > h or x < 0 or x > w)
+  // Most common is y < 0 (too tall)
+  const topMargin = originalImgHeight * 0.1; 
+  let maxH = height;
+  
+  const checkBounds = (x, y) => {
+    if (y < topMargin) {
+        // Calculate the height that would put the point at topMargin
+        const hNeeded = (topMargin - p1.y) / Math.sin(upAngle);
+        if (hNeeded < maxH) maxH = hNeeded;
+    }
+  };
+  checkBounds(p4x, p4y);
+  checkBounds(p3x, p3y);
+  
+  if (maxH < height) {
+    newCropRatio = width / (maxH / 1.05);
+  }
+
+  cropRatio = newCropRatio;
+  window.cropRatio = cropRatio;
   if (!document.getElementById("view-crop").classList.contains("hidden")) {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    const width = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx);
-    const upAngle = angle - Math.PI / 2;
-
-    const oldHeight = (width / cropRatio) * 1.05;
-    const newHeight = (width / newCropRatio) * 1.05;
-
-    const shiftX = Math.cos(upAngle) * ((oldHeight - newHeight) / 2);
-    const shiftY = Math.sin(upAngle) * ((oldHeight - newHeight) / 2);
-
-    p1.x += shiftX;
-    p1.y += shiftY;
-    p2.x += shiftX;
-    p2.y += shiftY;
-
-    cropRatio = newCropRatio;
     drawLines();
-  } else {
-    cropRatio = newCropRatio;
   }
 };
 
@@ -390,18 +477,17 @@ window.saveLastRatio = () => {
 
 window.applyRatioValue = (val) => {
   if (!val) return;
+  if (val === "custom") {
+    if (window.setCustomActive) window.setCustomActive();
+    return;
+  }
   const buttons = document.querySelectorAll(".ratio-btn");
-  let found = false;
   buttons.forEach((btn) => {
     if (btn.getAttribute("data-ratio") === val) {
       btn.click();
-      found = true;
+      setTimeout(() => {
+        btn.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
+      }, 50);
     }
   });
-  if (!found && val.startsWith("custom:")) {
-    const parts = val.split(":");
-    document.getElementById("custom-w").value = parts[1];
-    document.getElementById("custom-h").value = parts[2];
-    if (window.setCustomActive) window.setCustomActive();
-  }
 };
