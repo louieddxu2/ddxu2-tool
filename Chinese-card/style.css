@@ -146,6 +146,32 @@ svg.crop-lines {
     border-color: rgba(255, 255, 255, 0.1) !important;
     color: white !important;
   }
+
+  /* Normal Landscape Optimization (Non-Compact) */
+  body:not(.compact-mode) aside {
+    width: 180px !important;
+    transition: width 0.3s ease;
+  }
+  
+  body:not(.compact-mode) #sidebar-header-normal h1 {
+    display: none !important; /* Hide text to save horizontal space */
+  }
+
+  body:not(.compact-mode) #search-section-normal .grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+  
+  body:not(.compact-mode) #gallery-footer {
+    height: auto !important;
+    padding: 8px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  
+  body:not(.compact-mode) #gallery-footer .flex.gap-1.5 {
+    justify-content: center !important;
+  }
 }
 
 /* Hide some UI elements in compact mode to maximize space */
