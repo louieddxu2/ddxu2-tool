@@ -181,5 +181,14 @@ svg.crop-lines {
   }
 }
 
-/* Hide normal header in compact mode regardless of orientation */
-body.compact-mode #sidebar-header-normal { display: none; }
+/* Hide normal header in compact mode ONLY when NOT in landscape */
+@media (orientation: portrait) {
+  body.compact-mode #sidebar-header-normal { display: none; }
+}
+
+/* Ensure header icons are visible in compact landscape mode */
+@media (orientation: landscape) {
+  body.compact-mode #sidebar-header-normal i {
+    color: #059669 !important;
+  }
+}
