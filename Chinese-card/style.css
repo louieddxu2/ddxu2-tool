@@ -47,10 +47,32 @@ svg.crop-lines {
   100% { transform: rotate(360deg); }
 }
 
-/* Landscape Mode Optimization */
+/* ============================================================
+   1. Portrait Mode (Standard)
+   ============================================================ */
+@media (orientation: portrait) {
+  /* Hide compact bar by default in normal mode */
+  #compact-bar { display: none !important; }
+
+  /* When Compact Mode is ON in Portrait */
+  body.compact-mode #compact-bar {
+    display: flex !important;
+  }
+  body.compact-mode #sidebar-header-normal,
+  body.compact-mode #search-section-normal,
+  body.compact-mode #gallery-footer {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   2. Landscape Mode (Optimization)
+   ============================================================ */
 @media (orientation: landscape) {
-  /* 1. Compact Mode (Single Top Bar) */
-  /* 1. Compact Mode (Roomy Single Top Bar) */
+  /* Compact bar is NEVER used in landscape (we use the roomy normal elements instead) */
+  #compact-bar { display: none !important; }
+
+  /* --- [A] Landscape Compact Mode (Roomy Single Top Bar) --- */
   body.compact-mode {
     flex-direction: column !important;
   }
@@ -58,7 +80,6 @@ svg.crop-lines {
     width: 100% !important;
     height: auto !important;
     min-height: 48px !important;
-    max-height: none !important;
     flex-direction: row !important;
     align-items: center !important;
     padding: 0 12px !important;
@@ -68,30 +89,27 @@ svg.crop-lines {
     background: white !important;
     z-index: 50 !important;
   }
-
   body.compact-mode #sidebar-header-normal {
     padding: 0 !important;
     background: transparent !important;
     color: #059669 !important;
     box-shadow: none !important;
     width: auto !important;
-    flex-shrink: 0 !important;
   }
-  
   body.compact-mode #sidebar-header-normal h1, 
   body.compact-mode #sidebar-header-normal a[data-home-link] {
-    display: none !important; /* Keep it clean */
+    display: none !important;
   }
-
+  body.compact-mode #sidebar-header-normal i {
+    color: #059669 !important;
+  }
   body.compact-mode #search-section-normal {
     flex: 1 !important;
     flex-direction: row !important;
     padding: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
     gap: 8px !important;
+    display: flex !important;
   }
-
   body.compact-mode #search-section-normal section {
     flex-direction: row !important;
     flex: 1 !important;
@@ -101,33 +119,27 @@ svg.crop-lines {
     align-items: center !important;
     gap: 8px !important;
   }
-
   body.compact-mode #search-section-normal .grid-cols-2 {
     display: flex !important;
     flex: 1.5 !important;
     gap: 8px !important;
   }
-  
   body.compact-mode #inp-number {
     flex: 1 !important;
     max-width: 250px !important;
     border: 1px solid #e2e8f0 !important;
   }
-
   body.compact-mode #search-section-normal .mt-0\.5.flex.gap-1\.5.h-10 {
-    display: none !important; /* Hide extra icons to keep it a single row */
+    display: none !important;
   }
-
   body.compact-mode #gallery-footer {
     border-top: none !important;
     height: 40px !important;
     padding: 0 !important;
     width: auto !important;
-    flex-shrink: 0 !important;
     background: transparent !important;
+    display: flex !important;
   }
-
-  /* Style the current card label (number) as a roomy pill */
   body.compact-mode #gallery-footer .font-black {
     font-size: 14px !important;
     background: #f1f5f9 !important;
@@ -135,15 +147,12 @@ svg.crop-lines {
     padding: 6px 16px !important;
     border-radius: 999px !important;
     margin-right: 8px !important;
-    max-width: 200px !important;
     font-weight: 800 !important;
   }
-
   body.compact-mode #gallery-footer .text-emerald-600,
   body.compact-mode #gallery-footer .text-slate-500 {
     display: none !important;
   }
-
   body.compact-mode #gallery-footer button {
     padding: 8px !important;
     background: #f8fafc !important;
@@ -151,25 +160,27 @@ svg.crop-lines {
     color: #64748b !important;
   }
 
-  body.compact-mode #gallery-footer button:hover {
-    background: #10b981 !important;
-    color: white !important;
-    border-color: #10b981 !important;
-  }
-
-  /* 2. Normal Mode (Narrow Sidebar) */
+  /* --- [B] Landscape Normal Mode (Narrow Sidebar) --- */
   body:not(.compact-mode) aside {
     width: 180px !important;
     transition: width 0.3s ease;
     flex-direction: column !important;
+    display: flex !important;
+  }
+  body:not(.compact-mode) #sidebar-header-normal {
+    display: flex !important;
   }
   body:not(.compact-mode) #sidebar-header-normal h1 {
     display: none !important;
+  }
+  body:not(.compact-mode) #search-section-normal {
+    display: flex !important;
   }
   body:not(.compact-mode) #search-section-normal .grid-cols-2 {
     grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }
   body:not(.compact-mode) #gallery-footer {
+    display: flex !important;
     height: auto !important;
     padding: 8px !important;
     flex-direction: column !important;
@@ -178,17 +189,5 @@ svg.crop-lines {
   }
   body:not(.compact-mode) #gallery-footer .flex.gap-1\.5 {
     justify-content: center !important;
-  }
-}
-
-/* Hide normal header in compact mode ONLY when NOT in landscape */
-@media (orientation: portrait) {
-  body.compact-mode #sidebar-header-normal { display: none; }
-}
-
-/* Ensure header icons are visible in compact landscape mode */
-@media (orientation: landscape) {
-  body.compact-mode #sidebar-header-normal i {
-    color: #059669 !important;
   }
 }
