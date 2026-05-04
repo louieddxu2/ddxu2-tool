@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       prompt.classList.remove("hidden");
       try { lucide.createIcons(); } catch(e) {}
-    }, 3000);
+    }, 100);
   }
 });
 
@@ -445,29 +445,16 @@ window.saveEdit = async () => {
 
 // Global UI state and logic updated.
 window.toggleCompactMode = () => {
-  const normalHeader = document.getElementById("sidebar-header-normal");
-  const normalSearch = document.getElementById("search-section-normal");
-  const compactBar = document.getElementById("compact-bar");
-  if (!normalHeader || !normalSearch || !compactBar) return;
-
-  const isEnteringCompact = compactBar.classList.contains("hidden");
+  const isEnteringCompact = !document.body.classList.contains("compact-mode");
   localStorage.setItem("bg_compact_mode", isEnteringCompact ? "1" : "0");
+  document.body.classList.toggle("compact-mode", isEnteringCompact);
 
+  // Sync input values between modes
   if (isEnteringCompact) {
-    normalHeader.classList.add("hidden");
-    normalSearch.classList.add("hidden");
-    compactBar.classList.remove("hidden");
-    compactBar.classList.add("flex");
-
     document.getElementById("compact-inp-game").value = document.getElementById("inp-game").value;
     document.getElementById("compact-inp-type").value = document.getElementById("inp-type").value;
     document.getElementById("compact-inp-number").value = document.getElementById("inp-number").value;
   } else {
-    normalHeader.classList.remove("hidden");
-    normalSearch.classList.remove("hidden");
-    compactBar.classList.add("hidden");
-    compactBar.classList.remove("flex");
-
     document.getElementById("inp-game").value = document.getElementById("compact-inp-game").value;
     document.getElementById("inp-type").value = document.getElementById("compact-inp-type").value;
     document.getElementById("inp-number").value = document.getElementById("compact-inp-number").value;

@@ -96,16 +96,13 @@ window.executeExport = async () => {
     zip.file("db.csv", csvStr);
     zip.file("metadata.json", JSON.stringify(metadata, null, 2));
     
-    const content = await zip.generateAsync({ 
-      type: "blob",
-      mimeType: "application/octet-stream" 
-    });
+    const content = await zip.generateAsync({ type: "blob" });
     const url = URL.createObjectURL(content);
     
     const btnDownload = document.getElementById("btn-download-zip");
     if (btnDownload) {
       btnDownload.href = url;
-      btnDownload.download = `cards_export_${new Date().toISOString().slice(0,10)}_${Date.now()}.ccpack`;
+      btnDownload.download = `cards_export_${new Date().toISOString().slice(0,10)}_${Date.now()}.zip`;
     }
 
     const m = document.getElementById("modal-export-result");

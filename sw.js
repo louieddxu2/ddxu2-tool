@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ddxu2-launcher-v20';
+const CACHE_NAME = 'ddxu2-launcher-v19';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -39,7 +39,7 @@ self.addEventListener('fetch', (event) => {
 
   // 2. HTML Sentinel: Revalidate with network (ETag/304 support)
   const isHtml = req.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/');
-  
+
   if (isHtml) {
     event.respondWith(
       fetch(req, { cache: 'no-cache' }) // <--- Revalidate: Use cache only if server says 304
