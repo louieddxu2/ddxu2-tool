@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Test reports
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Agent metadata
+.agents/

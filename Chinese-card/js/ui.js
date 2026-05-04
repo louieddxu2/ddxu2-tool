@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       prompt.classList.remove("hidden");
       try { lucide.createIcons(); } catch(e) {}
-    }, 3000);
+    }, 100);
   }
 });
 

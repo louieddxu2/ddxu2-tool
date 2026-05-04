@@ -531,24 +531,18 @@
           </button>
         </div>
 
-        <div id="sync-initial" class="space-y-4">
+        <div id="sync-initial" class="space-y-6">
           <button onclick="startHost()"
-            class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-emerald-200">
-            <i data-lucide="plus-circle" class="w-6 h-6"></i>
-            建立同步房間 (Host)
+            class="w-full py-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[1.5rem] font-bold flex flex-col items-center justify-center gap-2 transition-all active:scale-95 shadow-xl shadow-emerald-200">
+            <i data-lucide="plus-circle" class="w-8 h-8"></i>
+            <span class="text-lg">建立同步房間 (Host)</span>
           </button>
-          <div class="relative">
-            <div class="absolute inset-0 flex items-center">
-              <div class="w-full border-t border-slate-100"></div>
-            </div>
-            <div class="relative flex justify-center text-xs uppercase"><span
-                class="bg-white px-2 text-slate-400">或者</span></div>
-          </div>
-          <div class="flex gap-2">
-            <input type="text" id="sync-join-id" placeholder="輸入房號..."
-              class="flex-grow bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-colors">
-            <button onclick="joinRoomManually()"
-              class="bg-slate-800 text-white px-6 rounded-xl font-bold hover:bg-slate-900 active:scale-95">加入</button>
+          
+          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-center">
+            <p class="text-xs text-slate-500 leading-relaxed">
+              建立房間後，將產生的 <span class="text-emerald-600 font-bold">QR Code</span> 分享給朋友，<br>
+              對方直接掃描即可自動連線。
+            </p>
           </div>
         </div>
 

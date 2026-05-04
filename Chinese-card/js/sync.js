@@ -6,6 +6,15 @@ const CHUNK_SIZE = 16384;
 let incomingChunks = {}; 
 const TTL_MS = 60 * 60 * 1000; // 1 hour TTL for zombie session prevention
 
+let syncRenderTimeout = null;
+function throttledRenderGallery() {
+    if (syncRenderTimeout) return; 
+    syncRenderTimeout = setTimeout(() => {
+        if (typeof renderGallery === 'function') renderGallery();
+        syncRenderTimeout = null;
+    }, 300); // Wait for 300ms of quiet before redrawing
+}
+
 function updateActivity() {
   localStorage.setItem('bg_last_active_time', Date.now().toString());
 }
@@ -156,11 +165,7 @@ window.stopHost = () => {
   logSync("房間已關閉");
 };
 
-// Join Logic
-window.joinRoomManually = () => {
-  const id = document.getElementById("sync-join-id").value.trim();
-  if (id) startJoin(id);
-};
+
 
 function startJoin(id) {
   if (!id) return;
@@ -194,6 +199,18 @@ async function sendCardChunked(targetConn, card) {
 }
 
 function setupConnection(c) {
+  // 1. Environment Guard (In-App Browser detection)
+  const ua = navigator.userAgent;
+  const isInApp = /Line|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua);
+  if (isInApp) {
+      const inAppModal = document.getElementById("modal-inapp-browser");
+      if (inAppModal) {
+          inAppModal.classList.remove("hidden");
+          inAppModal.classList.add("flex");
+          try { lucide.createIcons(); } catch(e) {}
+      }
+  }
+
   connections.add(c);
     c.on('open', () => {
       const role = localStorage.getItem('bg_sync_role');
@@ -275,18 +292,77 @@ function setupConnection(c) {
 
     if (data.type === 'CARD_START') {
       incomingChunks[data.cardId] = { chunks: new Array(data.totalChunks), received: 0, total: data.totalChunks, metadata: data.metadata };
+      
+      // Update progress bar UI
+      const bar = document.getElementById("sync-progress-bar");
+      const inner = document.getElementById("sync-progress-inner");
+      if (bar && inner) {
+          bar.classList.remove("hidden");
+          inner.style.width = "0%";
+      }
     }
     if (data.type === 'CARD_CHUNK') {
       const state = incomingChunks[data.cardId];
       if (!state) return;
       state.chunks[data.index] = data.chunk;
       state.received++;
+
+      // Update progress
+      const inner = document.getElementById("sync-progress-inner");
+      if (inner) {
+          const pct = Math.floor((state.received / state.total) * 100);
+          inner.style.width = `${pct}%`;
+      }
+
       if (state.received === state.total) {
         const card = { ...state.metadata, blob: new Blob(state.chunks) };
         delete incomingChunks[data.cardId];
+        
+        // Hide progress bar with a slight delay
+        setTimeout(() => {
+            const bar = document.getElementById("sync-progress-bar");
+            if (bar) bar.classList.add("hidden");
+        }, 500);
+
         const idx = dbCards.findIndex(x => x.id === card.id);
-        if (idx === -1) { dbCards.push(card); await window.idbKeyval.set("bgCards", dbCards, true); renderGallery(); logSync(`已同步: ${card.number || '新項目'}`); }
-        else if (card.timestamp > (dbCards[idx].timestamp || 0)) { dbCards[idx] = card; await window.idbKeyval.set("bgCards", dbCards, true); renderGallery(); logSync(`已更新: ${card.number}`); }
+        const isUpdate = idx !== -1;
+        
+        if (!isUpdate) { 
+            dbCards.push(card); 
+        } else if (card.timestamp > (dbCards[idx].timestamp || 0)) { 
+            dbCards[idx] = card; 
+        } else {
+            return; // Already have newer or same version
+        }
+
+        try {
+            await window.idbKeyval.set("bgCards", dbCards, true);
+        } catch (err) {
+            console.error("Storage write failed:", err);
+            if (err.name === 'QuotaExceededError') {
+                logSync("❌ 儲存空間已滿，無法寫入新卡片", "error");
+            } else {
+                logSync(`❌ 寫入失敗: ${err.message}`, "error");
+            }
+            return;
+        }
+        
+        // Smart Refresh Logic: Only refresh if the card matches current filters
+        const gQ = document.getElementById("inp-game")?.value.toLowerCase().trim() || "";
+        const tQ = document.getElementById("inp-type")?.value.toLowerCase().trim() || "";
+        const nQ = document.getElementById("inp-number")?.value.toLowerCase().trim() || "";
+
+        const isMatch = (card.game || "").toLowerCase().includes(gQ) &&
+                        (card.type || "").toLowerCase().includes(tQ) &&
+                        ((card.number || "").toLowerCase().includes(nQ) || 
+                         (card.memo || "").toLowerCase().includes(nQ));
+
+        if (isMatch) {
+            throttledRenderGallery();
+            logSync(`${isUpdate ? '已更新' : '已同步'}: ${card.number || '新項目'}`);
+        } else {
+            logSync(`背景同步: ${card.number || '新項目'} (不符合目前搜尋)`);
+        }
       }
     }
   });
