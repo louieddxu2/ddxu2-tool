@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ddxu2-launcher-v17';
+const CACHE_NAME = 'ddxu2-launcher-v18';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
