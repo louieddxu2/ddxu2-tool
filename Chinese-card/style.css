@@ -56,7 +56,28 @@ svg.crop-lines {
   /* Only handle visibility of compact-mode elements */
   #compact-bar { display: none; }
   
-  body.compact-mode #compact-bar { display: flex !important; }
+  body.compact-mode #compact-bar { 
+    display: flex !important; 
+    flex-wrap: wrap !important; /* Allow two rows */
+    gap: 4px !important;
+    padding: 6px !important;
+  }
+  
+  /* Row 1: Inputs */
+  body.compact-mode #compact-bar > .relative,
+  body.compact-mode #compact-bar > #compact-inp-number {
+    flex: 1 1 30% !important; /* Force inputs to share the first row */
+    min-width: 80px !important;
+  }
+  
+  /* Row 2: Actions and Card Info */
+  body.compact-mode #compact-bar > .flex.items-center.shrink-0,
+  body.compact-mode #compact-card-info {
+    flex: 1 1 auto !important;
+    justify-content: space-between !important;
+    margin-top: 2px !important;
+  }
+
   body.compact-mode #sidebar-header-normal,
   body.compact-mode #search-section-normal,
   body.compact-mode #gallery-footer {
