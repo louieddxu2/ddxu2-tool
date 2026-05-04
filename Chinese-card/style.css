@@ -48,29 +48,27 @@ svg.crop-lines {
 }
 
 /* ============================================================
-   UI LAYOUT MATRIX (Architecture Reform)
-   Governs all 4 states: [Normal/Compact] x [Portrait/Landscape]
+   UI LAYOUT MATRIX (Architecture Reform - V2 Stable)
    ============================================================ */
 
-/* --- 0. Global Resets --- */
-#compact-bar, #sidebar-header-normal, #search-section-normal, #gallery-footer {
-  display: none; /* Hide everything by default, then show in matrix */
-}
-
-/* --- 1. PORTRAIT MATRIX --- */
+/* 1. PORTRAIT MODE: Keep it as original as possible (Tailwind-driven) */
 @media (orientation: portrait) {
-  /* [1A] Portrait Normal */
-  body:not(.compact-mode) #sidebar-header-normal { display: flex; }
-  body:not(.compact-mode) #search-section-normal { display: flex; }
-  body:not(.compact-mode) #gallery-footer { display: flex; }
-
-  /* [1B] Portrait Compact */
-  body.compact-mode #compact-bar { display: flex; }
+  /* Only handle visibility of compact-mode elements */
+  #compact-bar { display: none; }
+  
+  body.compact-mode #compact-bar { display: flex !important; }
+  body.compact-mode #sidebar-header-normal,
+  body.compact-mode #search-section-normal,
+  body.compact-mode #gallery-footer {
+    display: none !important;
+  }
 }
 
-/* --- 2. LANDSCAPE MATRIX --- */
+/* 2. LANDSCAPE MODE: Full Optimization Matrix */
 @media (orientation: landscape) {
-  /* [2A] Landscape Normal (Narrow Sidebar) */
+  #compact-bar { display: none !important; }
+
+  /* [A] Landscape Normal (Narrow Sidebar) */
   body:not(.compact-mode) {
     display: flex !important;
     flex-direction: row !important;
@@ -83,14 +81,11 @@ svg.crop-lines {
     border-right: 1px solid #e2e8f0 !important;
     flex-shrink: 0 !important;
   }
-  body:not(.compact-mode) #sidebar-header-normal { display: flex; }
-  body:not(.compact-mode) #sidebar-header-normal h1 { display: none; } /* Space saver */
-  body:not(.compact-mode) #search-section-normal { display: flex; }
+  body:not(.compact-mode) #sidebar-header-normal h1 { display: none; }
   body:not(.compact-mode) #search-section-normal .grid-cols-2 {
-    grid-template-columns: 1fr !important; /* Stack inputs */
+    grid-template-columns: 1fr !important;
   }
   body:not(.compact-mode) #gallery-footer {
-    display: flex;
     flex-direction: column;
     align-items: stretch;
     height: auto;
@@ -98,7 +93,7 @@ svg.crop-lines {
     gap: 8px;
   }
 
-  /* [2B] Landscape Compact (Roomy Single Row Top Bar) */
+  /* [B] Landscape Compact (Roomy Single Row Top Bar) */
   body.compact-mode {
     display: flex !important;
     flex-direction: column !important;
@@ -151,7 +146,7 @@ svg.crop-lines {
     flex: 1.5;
   }
   body.compact-mode #search-section-normal .mt-0\.5 {
-    display: none; /* Icons hidden in roomy row */
+    display: none;
   }
   body.compact-mode #gallery-footer {
     display: flex;
