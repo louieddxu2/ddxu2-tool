@@ -452,12 +452,13 @@ window.toggleCompactMode = () => {
 
   const isEnteringCompact = compactBar.classList.contains("hidden");
   localStorage.setItem("bg_compact_mode", isEnteringCompact ? "1" : "0");
+  document.body.classList.toggle("compact-mode", isEnteringCompact);
 
   if (isEnteringCompact) {
     normalHeader.classList.add("hidden");
     normalSearch.classList.add("hidden");
     compactBar.classList.remove("hidden");
-    compactBar.classList.add("flex");
+    compactBar.classList.add("flex", "flex-row", "items-center");
 
     document.getElementById("compact-inp-game").value = document.getElementById("inp-game").value;
     document.getElementById("compact-inp-type").value = document.getElementById("inp-type").value;

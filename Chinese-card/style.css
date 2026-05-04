@@ -55,12 +55,27 @@ svg.crop-lines {
   }
   body.compact-mode aside {
     width: 100% !important;
-    height: auto !important;
+    height: 44px !important; /* Fixed height for top bar */
     max-height: none !important;
     border-right: none !important;
     border-bottom: 1px solid #064e3b !important;
     background: #065f46 !important;
     padding: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+  
+  body.compact-mode #compact-bar {
+    width: 100% !important;
+    height: 100% !important;
+    flex-wrap: nowrap !important; /* Force single line */
+  }
+
+  body.compact-mode #compact-bar input {
+    max-width: 100px !important; /* Narrower inputs in top bar */
+    font-size: 11px !important;
   }
   body.compact-mode #gallery-footer {
     display: none !important; /* Hide footer in compact landscape as info is in top bar */
