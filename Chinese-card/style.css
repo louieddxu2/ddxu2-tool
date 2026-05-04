@@ -50,35 +50,111 @@ svg.crop-lines {
 /* Landscape Mode Optimization */
 @media (orientation: landscape) {
   /* 1. Compact Mode (Single Top Bar) */
+  /* 1. Compact Mode (Roomy Single Top Bar) */
   body.compact-mode {
     flex-direction: column !important;
   }
   body.compact-mode aside {
     width: 100% !important;
-    height: 44px !important; /* Fixed height for top bar */
+    height: auto !important;
+    min-height: 48px !important;
     max-height: none !important;
-    border-right: none !important;
-    border-bottom: 1px solid #064e3b !important;
-    background: #065f46 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-  }
-  
-  body.compact-mode #compact-bar {
-    width: 100% !important;
-    height: 100% !important;
-    flex-wrap: nowrap !important; /* Force single line */
+    padding: 0 12px !important;
+    gap: 12px !important;
+    border-right: none !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    background: white !important;
+    z-index: 50 !important;
   }
 
-  body.compact-mode #compact-bar input {
-    max-width: 100px !important; /* Narrower inputs in top bar */
-    font-size: 11px !important;
+  body.compact-mode #sidebar-header-normal {
+    padding: 0 !important;
+    background: transparent !important;
+    color: #059669 !important;
+    box-shadow: none !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
   }
+  
+  body.compact-mode #sidebar-header-normal h1, 
+  body.compact-mode #sidebar-header-normal a[data-home-link] {
+    display: none !important; /* Keep it clean */
+  }
+
+  body.compact-mode #search-section-normal {
+    flex: 1 !important;
+    flex-direction: row !important;
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    gap: 8px !important;
+  }
+
+  body.compact-mode #search-section-normal section {
+    flex-direction: row !important;
+    flex: 1 !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  body.compact-mode #search-section-normal .grid-cols-2 {
+    display: flex !important;
+    flex: 1.5 !important;
+    gap: 8px !important;
+  }
+  
+  body.compact-mode #inp-number {
+    flex: 1 !important;
+    max-width: 250px !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+
+  body.compact-mode #search-section-normal .mt-0\.5.flex.gap-1\.5.h-10 {
+    display: none !important; /* Hide extra icons to keep it a single row */
+  }
+
   body.compact-mode #gallery-footer {
-    display: none !important; /* Hide footer in compact landscape as info is in top bar */
+    border-top: none !important;
+    height: 40px !important;
+    padding: 0 !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
+    background: transparent !important;
+  }
+
+  /* Style the current card label (number) as a roomy pill */
+  body.compact-mode #gallery-footer .font-black {
+    font-size: 14px !important;
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+    padding: 6px 16px !important;
+    border-radius: 999px !important;
+    margin-right: 8px !important;
+    max-width: 200px !important;
+    font-weight: 800 !important;
+  }
+
+  body.compact-mode #gallery-footer .text-emerald-600,
+  body.compact-mode #gallery-footer .text-slate-500 {
+    display: none !important;
+  }
+
+  body.compact-mode #gallery-footer button {
+    padding: 8px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #64748b !important;
+  }
+
+  body.compact-mode #gallery-footer button:hover {
+    background: #10b981 !important;
+    color: white !important;
+    border-color: #10b981 !important;
   }
 
   /* 2. Normal Mode (Narrow Sidebar) */

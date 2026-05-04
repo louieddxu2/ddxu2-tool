@@ -454,12 +454,20 @@ window.toggleCompactMode = () => {
   localStorage.setItem("bg_compact_mode", isEnteringCompact ? "1" : "0");
   document.body.classList.toggle("compact-mode", isEnteringCompact);
 
-  if (isEnteringCompact) {
-    normalHeader.classList.add("hidden");
-    normalSearch.classList.add("hidden");
-    compactBar.classList.remove("hidden");
-    compactBar.classList.add("flex", "flex-row", "items-center");
+  // In Landscape, we prefer to keep the "Normal" elements and layout them as a single row via CSS
+  const isLandscape = window.innerWidth > window.innerHeight;
 
+  if (isEnteringCompact) {
+    if (!isLandscape) {
+        normalHeader.classList.add("hidden");
+        normalSearch.classList.add("hidden");
+        compactBar.classList.remove("hidden");
+        compactBar.classList.add("flex", "flex-row", "items-center");
+    } else {
+        // Landscape Roomy Single Row: Keep normal elements, CSS handles the rest
+        compactBar.classList.add("hidden");
+    }
+    
     document.getElementById("compact-inp-game").value = document.getElementById("inp-game").value;
     document.getElementById("compact-inp-type").value = document.getElementById("inp-type").value;
     document.getElementById("compact-inp-number").value = document.getElementById("inp-number").value;
