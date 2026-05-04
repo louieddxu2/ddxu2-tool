@@ -43,35 +43,16 @@ svg.crop-lines {
 }
 
 @keyframes spinner {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* ============================================================
-   UI LAYOUT MATRIX (Architecture Reform - V2 Stable)
-   ============================================================ */
-
-/* 1. PORTRAIT MODE: Keep it as original as possible (Tailwind-driven) */
-@media (orientation: portrait) {
-  /* Only handle visibility of compact-mode elements */
-  #compact-bar { display: none; }
-  
-  body.compact-mode #compact-bar { 
-    display: flex !important; 
-    flex-direction: column !important; /* Explicit vertical stacking of rows */
+  0% {
+    transform: rotate(0deg);
   }
-
-  body.compact-mode #sidebar-header-normal,
-  body.compact-mode #search-section-normal,
-  body.compact-mode #gallery-footer {
-    display: none !important;
+  100% {
+    transform: rotate(360deg);
   }
 }
 
 /* 2. LANDSCAPE MODE: Full Optimization Matrix */
 @media (orientation: landscape) {
-  #compact-bar { display: none !important; }
-
   /* [A] Landscape Normal (Narrow Sidebar) */
   body:not(.compact-mode) {
     display: flex !important;
@@ -82,91 +63,79 @@ svg.crop-lines {
     height: 100vh !important;
     display: flex !important;
     flex-direction: column !important;
-    border-right: 1px solid #e2e8f0 !important;
-    flex-shrink: 0 !important;
+    padding: 0 !important;
   }
-  body:not(.compact-mode) #sidebar-header-normal h1 { display: none; }
-  body:not(.compact-mode) #search-section-normal .grid-cols-2 {
-    grid-template-columns: 1fr !important;
+  body:not(.compact-mode) aside #sidebar-header-normal {
+    padding: 8px !important;
   }
-  body:not(.compact-mode) #gallery-footer {
-    flex-direction: column;
-    align-items: stretch;
-    height: auto;
-    padding: 8px;
-    gap: 8px;
+  body:not(.compact-mode) aside #sidebar-header-normal h1 {
+    font-size: 14px !important;
+  }
+  body:not(.compact-mode) aside #search-section-normal {
+    padding: 8px !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+  }
+  body:not(.compact-mode) main {
+    flex: 1 !important;
+    height: 100vh !important;
   }
 
-  /* [B] Landscape Compact (Roomy Single Row Top Bar) */
+  /* [B] Landscape Compact (Top Luxury Bar) */
   body.compact-mode {
-    display: flex !important;
-    flex-direction: column !important;
+    display: grid !important;
+    grid-template-rows: auto 1fr !important;
   }
   body.compact-mode aside {
     width: 100% !important;
     height: auto !important;
-    min-height: 48px !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    padding: 0 12px !important;
-    gap: 12px !important;
+    border-right: none !important;
     border-bottom: 1px solid #e2e8f0 !important;
-    background: white !important;
+    background: #059669 !important; /* emerald-600 */
+    flex-direction: row !important;
+    padding: 4px 12px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
   }
+  
+  /* Use Normal Header as Compact Bar in Landscape for better spacing */
   body.compact-mode #sidebar-header-normal {
-    display: flex;
-    padding: 0;
-    background: transparent;
-    color: #059669;
-    box-shadow: none;
-    width: auto;
-  }
-  body.compact-mode #sidebar-header-normal h1,
-  body.compact-mode #sidebar-header-normal a[data-home-link] {
-    display: none;
-  }
-  body.compact-mode #sidebar-header-normal i {
-    color: #059669 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    flex: 0 0 auto !important;
   }
   body.compact-mode #search-section-normal {
-    display: flex;
-    flex: 1;
-    flex-direction: row;
-    padding: 0;
-    gap: 8px;
+    flex: 1 !important;
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
   body.compact-mode #search-section-normal section {
-    flex-direction: row;
-    align-items: center;
-    background: transparent;
-    border: none;
-    padding: 0;
-    gap: 8px;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    flex-direction: row !important;
+    gap: 8px !important;
   }
   body.compact-mode #search-section-normal .grid-cols-2 {
-    display: flex;
-    gap: 8px;
-    flex: 1.5;
+    grid-template-columns: 1fr 1fr 0.8fr !important;
+    gap: 8px !important;
+    width: 100% !important;
   }
-  body.compact-mode #search-section-normal .mt-0\.5 {
-    display: none;
+  body.compact-mode #inp-number {
+    margin-top: 0 !important;
   }
-  body.compact-mode #gallery-footer {
-    display: flex;
-    width: auto;
-    padding: 0;
-    background: transparent;
-    border-top: none;
+  body.compact-mode #search-section-normal .h-10 {
+    display: none !important; /* Hide redundant import/trans buttons in landscape bar */
   }
-  body.compact-mode #gallery-footer .font-black {
-    font-size: 14px;
-    background: #f1f5f9;
-    padding: 6px 16px;
-    border-radius: 999px;
+  
+  /* Ensure gallery takes full space */
+  body.compact-mode main {
+    height: calc(100vh - 50px) !important;
   }
-  body.compact-mode #gallery-footer .text-emerald-600,
-  body.compact-mode #gallery-footer .text-slate-500 {
-    display: none;
-  }
+
+  /* Hide the actual #compact-bar in Landscape to use the better Normal Header */
+  #compact-bar { display: none !important; }
 }
