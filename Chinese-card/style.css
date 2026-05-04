@@ -146,7 +146,15 @@ svg.crop-lines {
   body.compact-mode #search-section-normal .grid-cols-2 {
     display: flex;
     gap: 8px;
-    flex: 1.5;
+    flex: 3; /* Increased space for inputs */
+  }
+  body.compact-mode #search-section-normal .grid-cols-2 > div {
+    flex: 1; /* Ensure both game and type share space equally */
+    min-width: 120px; /* Prevent too narrow fields */
+  }
+  body.compact-mode #inp-number {
+    flex: 1;
+    min-width: 80px;
   }
   body.compact-mode #search-section-normal .mt-0\.5 {
     display: none;
