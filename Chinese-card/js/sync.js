@@ -4,6 +4,7 @@ let qrcode = null;
 
 const CHUNK_SIZE = 16384; 
 let incomingChunks = {}; 
+let broadcastedIds = new Set(); 
 const TTL_MS = 60 * 60 * 1000; // 1 hour TTL for zombie session prevention
 
 let syncRenderTimeout = null;
@@ -139,6 +140,7 @@ window.startHost = () => {
     qrEl.innerHTML = "";
     qrcode = new QRCode(qrEl, { text: url, width: 192, height: 192, colorDark: "#059669", colorLight: "#ffffff", correctLevel: 2 });
     updateSyncUI("hosting");
+    broadcastedIds.clear(); // Reset on session start
     logSync(`房間已開啟: ${id}`);
   });
 
@@ -162,6 +164,7 @@ window.stopHost = () => {
   localStorage.removeItem('bg_session_start_time');
   localStorage.removeItem('bg_session_game');
   updateSyncUI("initial");
+  broadcastedIds.clear(); 
   logSync("房間已關閉");
 };
 
@@ -176,6 +179,7 @@ function startJoin(id) {
     localStorage.setItem('bg_last_joined_id', id);
     localStorage.setItem('bg_sync_role', 'client');
     updateActivity();
+    broadcastedIds.clear(); // Reset on join
     setupConnection(peer.connect(id));
   });
   peer.on('error', (err) => {
@@ -396,16 +400,26 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
     const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
     const sessionGame = localStorage.getItem('bg_session_game') || "";
     
-    const mostRecent = [...value].sort((a,b) => (b.timestamp||0) - (a.timestamp||0))[0];
-    
-    // Only broadcast if the card belongs to the current locked session
-    if (mostRecent && mostRecent.blob instanceof Blob && 
-        mostRecent.timestamp >= sessionStart && 
-        mostRecent.game === sessionGame) {
-        
-      logSync(`即時廣播: ${mostRecent.number || '新卡片'}`);
-      for (const c of connections) {
-        if (c.open) sendCardChunked(c, mostRecent);
+    // Find all cards added in this session that haven't been broadcasted yet
+    const pendingBroadcast = value.filter(c => 
+        c.blob instanceof Blob && 
+        c.timestamp >= sessionStart && 
+        c.game === sessionGame &&
+        !broadcastedIds.has(c.id)
+    );
+
+    if (pendingBroadcast.length > 0) {
+      if (pendingBroadcast.length > 1) {
+        logSync(`即時廣播: 批次發送 ${pendingBroadcast.length} 張卡片...`);
+      } else {
+        logSync(`即時廣播: ${pendingBroadcast[0]?.number || '新卡片'}`);
+      }
+      
+      for (const card of pendingBroadcast) {
+        broadcastedIds.add(card.id);
+        for (const c of connections) {
+          if (c.open) sendCardChunked(c, card);
+        }
       }
     }
   }
