@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=32" />
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2310b981' d='M2 3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3zm2-1v10h8V2H4z'/%3E%3C/svg%3E" />
   <meta name="theme-color" content="#10b981" />
@@ -311,12 +311,14 @@
 
       <label
         class="flex items-center gap-4 p-4 bg-slate-50 hover:bg-emerald-50 rounded-2xl cursor-pointer transition-colors border border-slate-200">
-        <i data-lucide="file-archive" class="w-6 h-6 text-emerald-600"></i>
+        <i data-lucide="package-open" class="w-6 h-6 text-emerald-600"></i>
         <div class="flex-1">
-          <div class="font-bold">匯入備份檔 (.zip)</div>
-          <div class="text-xs text-slate-500">從本系統匯出的備份包裹</div>
+          <div class="font-bold text-emerald-700">匯入卡片包 (.ccpack)</div>
+          <div class="text-[10px] text-slate-500 mt-1 leading-relaxed">
+            <span class="font-bold">💡 iOS 用戶：</span>請從「檔案」App 選取，<span class="text-red-500 font-bold">切勿</span>先點擊解壓縮。
+          </div>
         </div>
-        <input type="file" accept=".zip" class="hidden" onchange="
+        <input type="file" accept=".ccpack,.zip,application/octet-stream,application/zip" class="hidden" onchange="
               closeImportModal();
               processZipFile(this.files[0]);
               this.value = '';
@@ -755,13 +757,13 @@
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="js/db.js?v=31"></script>
-  <script src="js/sync.js?v=31"></script>
-  <script src="js/utils.js?v=31"></script>
-  <script src="js/ui.js?v=31"></script>
-  <script src="js/gallery.js?v=31"></script>
-  <script src="js/io.js?v=31"></script>
-  <script src="js/cropper.js?v=31"></script>
+  <script src="js/db.js?v=32"></script>
+  <script src="js/sync.js?v=32"></script>
+  <script src="js/utils.js?v=32"></script>
+  <script src="js/ui.js?v=32"></script>
+  <script src="js/gallery.js?v=32"></script>
+  <script src="js/io.js?v=32"></script>
+  <script src="js/cropper.js?v=32"></script>
 </body>
 
 </html>

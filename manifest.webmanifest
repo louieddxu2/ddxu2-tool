@@ -34,7 +34,7 @@
         },
         {
           "name": "file",
-          "accept": [".zip", "application/zip"]
+          "accept": [".ccpack", ".zip", "application/octet-stream", "application/zip"]
         }
       ]
     }
