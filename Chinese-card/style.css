@@ -47,120 +47,37 @@ svg.crop-lines {
   100% { transform: rotate(360deg); }
 }
 
-/* Landscape Mode Optimization: ONLY active in Compact Mode */
+/* Landscape Mode Optimization */
 @media (orientation: landscape) {
+  /* 1. Compact Mode (Single Top Bar) */
   body.compact-mode {
-    grid-template-rows: auto 1fr !important;
     flex-direction: column !important;
   }
-
   body.compact-mode aside {
     width: 100% !important;
     height: auto !important;
     max-height: none !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    padding: 0 4px !important;
-    gap: 8px !important;
     border-right: none !important;
     border-bottom: 1px solid #064e3b !important;
     background: #065f46 !important;
-  }
-
-  body.compact-mode #sidebar-header-normal {
-    display: none !important;
-  }
-
-  body.compact-mode #search-section-normal {
-    flex: 1 !important;
-    flex-direction: row !important;
     padding: 0 !important;
-    max-height: none !important;
-    overflow: visible !important;
-    gap: 4px !important;
   }
-
-  body.compact-mode #search-section-normal section {
-    flex-direction: row !important;
-    flex: 1 !important;
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    align-items: center !important;
-  }
-
-  body.compact-mode #search-section-normal .grid-cols-2 {
-    display: flex !important;
-    flex: 2 !important;
-    gap: 4px !important;
-  }
-  
-  body.compact-mode #inp-number {
-    flex: 2 !important;
-    max-width: 200px !important;
-    background: rgba(0, 0, 0, 0.15) !important;
-    border: none !important;
-    color: white !important;
-    font-weight: bold !important;
-  }
-  
-  body.compact-mode #inp-game, body.compact-mode #inp-type {
-    background: rgba(0, 0, 0, 0.15) !important;
-    border: none !important;
-    color: white !important;
-    font-weight: bold !important;
-  }
-
-  body.compact-mode #search-section-normal .mt-0\.5.flex.gap-1\.5.h-10 {
-    display: none !important;
-  }
-
   body.compact-mode #gallery-footer {
-    border-top: none !important;
-    height: 40px !important;
-    padding: 0 8px !important;
-    width: auto !important;
-    flex-shrink: 0 !important;
-    background: transparent !important;
+    display: none !important; /* Hide footer in compact landscape as info is in top bar */
   }
 
-  body.compact-mode #gallery-footer .font-black {
-    font-size: 13px !important;
-    background: rgba(255, 255, 255, 0.2) !important;
-    color: white !important;
-    padding: 4px 12px !important;
-    border-radius: 999px !important;
-    margin-right: 4px !important;
-    max-width: 150px !important;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05) !important;
-  }
-
-  body.compact-mode #gallery-footer .text-emerald-600,
-  body.compact-mode #gallery-footer .text-slate-500 {
-    display: none !important;
-  }
-
-  body.compact-mode #gallery-footer button {
-    padding: 6px !important;
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
-    color: white !important;
-  }
-
-  /* Normal Landscape Optimization (Non-Compact) */
+  /* 2. Normal Mode (Narrow Sidebar) */
   body:not(.compact-mode) aside {
     width: 180px !important;
     transition: width 0.3s ease;
+    flex-direction: column !important;
   }
-  
   body:not(.compact-mode) #sidebar-header-normal h1 {
-    display: none !important; /* Hide text to save horizontal space */
+    display: none !important;
   }
-
   body:not(.compact-mode) #search-section-normal .grid-cols-2 {
     grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }
-  
   body:not(.compact-mode) #gallery-footer {
     height: auto !important;
     padding: 8px !important;
@@ -168,11 +85,10 @@ svg.crop-lines {
     align-items: stretch !important;
     gap: 8px !important;
   }
-  
   body:not(.compact-mode) #gallery-footer .flex.gap-1\.5 {
     justify-content: center !important;
   }
 }
 
-/* Hide some UI elements in compact mode to maximize space */
+/* Hide normal header in compact mode regardless of orientation */
 body.compact-mode #sidebar-header-normal { display: none; }

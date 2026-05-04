@@ -239,6 +239,25 @@ const updateStationaryFooter = (target) => {
     </div>
   `;
   try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch(e) {}
+
+  // NEW: Also update compact-bar if it's active
+  const compactInfo = document.getElementById("compact-card-info");
+  const compactLabel = document.getElementById("compact-label");
+  const compactActions = document.getElementById("compact-actions");
+  if (compactInfo && compactLabel && compactActions) {
+    if (window.isGridViewMode) {
+      compactInfo.classList.add("hidden");
+    } else {
+      compactInfo.classList.remove("hidden");
+      compactLabel.innerText = number;
+      compactActions.innerHTML = `
+        <button onclick="openEditModal('${id}')" class="p-1 hover:bg-emerald-700 rounded-lg transition-colors"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
+        <button onclick="deleteCard('${id}')" class="p-1 hover:bg-red-600 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+        <button onclick="toggleGridView()" class="p-1 hover:bg-emerald-700 rounded-lg transition-colors"><i data-lucide="layout-grid" class="w-3.5 h-3.5"></i></button>
+      `;
+      try { lucide.createIcons({ props: { class: "w-3.5 h-3.5" }, elements: [compactActions] }); } catch(e) {}
+    }
+  }
 };
 
 window.toggleGridView = () => {
