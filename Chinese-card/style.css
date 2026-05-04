@@ -169,7 +169,7 @@ svg.crop-lines {
     gap: 8px !important;
   }
   
-  body:not(.compact-mode) #gallery-footer .flex.gap-1.5 {
+  body:not(.compact-mode) #gallery-footer .flex.gap-1\.5 {
     justify-content: center !important;
   }
 }
