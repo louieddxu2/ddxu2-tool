@@ -4,8 +4,9 @@ let qrcode = null;
 
 const CHUNK_SIZE = 16384; 
 let incomingChunks = {}; 
-let broadcastedIds = new Set(); 
+let broadcastedCardVersions = new Map(); 
 const TTL_MS = 60 * 60 * 1000; // 1 hour TTL for zombie session prevention
+const INCOMING_CHUNK_TTL_MS = 60 * 1000;
 
 let syncRenderTimeout = null;
 function throttledRenderGallery() {
@@ -140,14 +141,14 @@ window.startHost = () => {
     qrEl.innerHTML = "";
     qrcode = new QRCode(qrEl, { text: url, width: 192, height: 192, colorDark: "#059669", colorLight: "#ffffff", correctLevel: 2 });
     updateSyncUI("hosting");
-    broadcastedIds.clear(); // Reset on session start
-    logSync(`?¿é?å·²é??? ${id}`);
+    broadcastedCardVersions.clear(); // Reset on session start
+    logSync(`??™è????Œè????? ${id}`);
   });
 
   peer.on('connection', (c) => setupConnection(c));
   peer.on('error', (err) => {
     if (err.type === 'unavailable-id') { localStorage.removeItem('bg_last_peer_id'); return startHost(); }
-    logSync(`Peer ?¯èª¤: ${err.type}`);
+    logSync(`Peer ??™è³ª?? ${err.type}`);
     updateSyncUI("initial");
   });
 };
@@ -164,7 +165,7 @@ window.stopHost = () => {
   localStorage.removeItem('bg_session_start_time');
   localStorage.removeItem('bg_session_game');
   updateSyncUI("initial");
-  broadcastedIds.clear(); 
+  broadcastedCardVersions.clear(); 
   logSync("Host session stopped.");
 };
 
@@ -179,11 +180,11 @@ function startJoin(id) {
     localStorage.setItem('bg_last_joined_id', id);
     localStorage.setItem('bg_sync_role', 'client');
     updateActivity();
-    broadcastedIds.clear(); // Reset on join
+    broadcastedCardVersions.clear(); // Reset on join
     setupConnection(peer.connect(id));
   });
   peer.on('error', (err) => {
-    logSync(`? å…¥å¤±æ?: ${err.type}`);
+    logSync(`??™è³¢?¯æ†­æ¢§è•­?: ${err.type}`);
     updateSyncUI("initial");
   });
 }
@@ -200,6 +201,17 @@ async function sendCardChunked(targetConn, card) {
     targetConn.send({ type: 'CARD_CHUNK', cardId: card.id, index: i, chunk: chunk });
     if (i % 5 === 0) await new Promise(r => setTimeout(r, 10));
   }
+}
+
+function getIncomingChunkKey(peerId, cardId) {
+  return `${peerId || 'unknown'}::${cardId}`;
+}
+
+function clearIncomingChunkState(key) {
+  const state = incomingChunks[key];
+  if (!state) return;
+  if (state.timeoutId) clearTimeout(state.timeoutId);
+  delete incomingChunks[key];
 }
 
 window.setupConnection = function(c) {
@@ -223,13 +235,13 @@ window.setupConnection = function(c) {
           const hs = document.getElementById("sync-host-status");
           if (hs) { hs.classList.remove("hidden"); hs.classList.add("flex"); }
           const hc = document.getElementById("sync-host-count");
-          if (hc) hc.innerText = `å·²é€?? (${window.connections.size}äº?`;
+          if (hc) hc.innerText = `?Œè???? (${window.connections.size}??`;
       } else {
           updateSyncUI("connected");
           setTimeout(() => { window.closeSyncModal(); }, 3000); // Auto-close for client after 3s
       }
       
-      logSync(`????å?: ${c.peer.slice(0,6)}`);
+      logSync(`?????™è???: ${c.peer.slice(0,6)}`);
       
       const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
       const sessionGame = localStorage.getItem('bg_session_game') || "";
@@ -262,7 +274,7 @@ window.setupConnection = function(c) {
       }).map(m => m.id);
       
       if (missingFromHost.length > 0) {
-          logSync(`?‘ä¸»æ©Ÿç´¢??${missingFromHost.length} å¼µå¡??..`);
+          logSync(`??™è³­?“ç?î¸ƒæ£??${missingFromHost.length} ?˜è????..`);
           c.send({ type: 'REQUEST_CARDS', ids: missingFromHost });
       }
       
@@ -287,7 +299,7 @@ window.setupConnection = function(c) {
     }
 
     if (data.type === 'REQUEST_CARDS') {
-        logSync(`?¼é€?${data.ids.length} å¼µè?æ±‚ç??¡ç?...`);
+        logSync(`??™è???${data.ids.length} ?˜è????™î¿¢????™è???...`);
         for (const id of data.ids) {
             const card = window.dbCards.find(x => x.id === id);
             if (card) await sendCardChunked(c, card);
@@ -295,7 +307,18 @@ window.setupConnection = function(c) {
     }
 
     if (data.type === 'CARD_START') {
-      incomingChunks[data.cardId] = { chunks: new Array(data.totalChunks), received: 0, total: data.totalChunks, metadata: data.metadata };
+      const chunkKey = getIncomingChunkKey(c.peer, data.cardId);
+      clearIncomingChunkState(chunkKey);
+      incomingChunks[chunkKey] = {
+        chunks: new Array(data.totalChunks),
+        received: 0,
+        total: data.totalChunks,
+        metadata: data.metadata,
+        timeoutId: setTimeout(() => {
+          clearIncomingChunkState(chunkKey);
+          logSync(`Sync timeout for card ${data.cardId}.`, "error");
+        }, INCOMING_CHUNK_TTL_MS),
+      };
       
       // Update progress bar UI
       const bar = document.getElementById("sync-progress-bar");
@@ -306,7 +329,8 @@ window.setupConnection = function(c) {
       }
     }
     if (data.type === 'CARD_CHUNK') {
-      const state = incomingChunks[data.cardId];
+      const chunkKey = getIncomingChunkKey(c.peer, data.cardId);
+      const state = incomingChunks[chunkKey];
       if (!state) return;
       state.chunks[data.index] = data.chunk;
       state.received++;
@@ -320,7 +344,7 @@ window.setupConnection = function(c) {
 
       if (state.received === state.total) {
         const card = { ...state.metadata, blob: new Blob(state.chunks) };
-        delete incomingChunks[data.cardId];
+        clearIncomingChunkState(chunkKey);
         
         // Hide progress bar with a slight delay
         setTimeout(() => {
@@ -344,9 +368,9 @@ window.setupConnection = function(c) {
         } catch (err) {
             console.error("Storage write failed:", err);
             if (err.name === 'QuotaExceededError') {
-                logSync("???²å?ç©ºé?å·²æ»¿ï¼Œç„¡æ³•å¯«?¥æ–°?¡ç?", "error");
+                logSync("????™è????›ç¶½???Œè„«?›å??¼ï??œî?ç¥??™è³£î¡??™è???", "error");
             } else {
-                logSync(`??å¯«å…¥å¤±æ?: ${err.message}`, "error");
+                logSync(`???–æ€ ï…¯?­æùë??: ${err.message}`, "error");
             }
             return;
         }
@@ -372,12 +396,16 @@ window.setupConnection = function(c) {
   });
 
   const removeConn = () => {
+    const peerPrefix = `${c.peer || 'unknown'}::`;
+    Object.keys(incomingChunks).forEach((key) => {
+      if (key.startsWith(peerPrefix)) clearIncomingChunkState(key);
+    });
     window.connections.delete(c);
     const role = localStorage.getItem('bg_sync_role');
     if (role === 'host') {
         if (window.connections.size > 0) {
             const hc = document.getElementById("sync-host-count");
-            if (hc) hc.innerText = `å·²é€?? (${window.connections.size}äº?`;
+            if (hc) hc.innerText = `?Œè???? (${window.connections.size}??`;
         } else {
             const hs = document.getElementById("sync-host-status");
             if(hs) { hs.classList.add("hidden"); hs.classList.remove("flex"); }
@@ -405,23 +433,31 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
         c.blob instanceof Blob && 
         c.timestamp >= sessionStart && 
         c.game === sessionGame &&
-        !broadcastedIds.has(c.id)
+        (broadcastedCardVersions.get(c.id) || 0) < (c.timestamp || 0)
     );
 
     if (pendingBroadcast.length > 0) {
       if (pendingBroadcast.length > 1) {
-        logSync(`?³æ?å»?’­: ?¹æ¬¡?¼é€?${pendingBroadcast.length} å¼µå¡??..`);
+        logSync(`??™è??????™è??? ??™è³£æ´??™è???${pendingBroadcast.length} ?˜è????..`);
       } else {
         logSync(`Queued broadcast: ${pendingBroadcast[0]?.number || 'unknown'}`);
       }
       
       for (const card of pendingBroadcast) {
-        broadcastedIds.add(card.id);
+        let sentToAllConnections = true;
         for (const c of window.connections) {
           if (c.open) {
             // Sequential send to avoid interleaving messages on the data channel
-            await sendCardChunked(c, card);
+            try {
+              await sendCardChunked(c, card);
+            } catch (err) {
+              sentToAllConnections = false;
+              logSync(`Broadcast failed for ${card.number || card.id}: ${err.message || err}`, "error");
+            }
           }
+        }
+        if (sentToAllConnections) {
+          broadcastedCardVersions.set(card.id, card.timestamp || 0);
         }
       }
     }
@@ -438,12 +474,12 @@ function handleAutoReconnect() {
   updateActivity();
   const role = localStorage.getItem('bg_sync_role');
   if (role === 'host') {
-    logSync("?—è©¦?æ–°?‹å??¿é?...");
+    logSync("??™è³ªå²??™è³£î¡??™è?????™è???...");
     startHost();
   } else if (role === 'client') {
     const lastId = localStorage.getItem('bg_last_joined_id');
     if (lastId) {
-      logSync("?—è©¦?æ–°????¿é?...");
+      logSync("??™è³ªå²??™è³£î¡?????™è???...");
       startJoin(lastId);
     }
   }
@@ -481,6 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 });
+
 
 
 
