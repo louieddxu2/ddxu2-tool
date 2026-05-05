@@ -1,5 +1,5 @@
 let peer = null;
-let connections = new Set();
+window.connections = new Set();
 let qrcode = null;
 
 const CHUNK_SIZE = 16384; 
@@ -11,7 +11,7 @@ let syncRenderTimeout = null;
 function throttledRenderGallery() {
     if (syncRenderTimeout) return; 
     syncRenderTimeout = setTimeout(() => {
-        if (typeof renderGallery === 'function') renderGallery();
+        if (typeof window.renderGallery === 'function') window.renderGallery();
         syncRenderTimeout = null;
     }, 300); // Wait for 300ms of quiet before redrawing
 }
@@ -112,7 +112,7 @@ window.startHost = () => {
   const inpGame = document.getElementById("inp-game");
   const gameName = inpGame ? inpGame.value.trim() : "";
   if (!gameName && !localStorage.getItem('bg_session_game')) {
-      alert("請先在左上角輸入「遊戲名稱」再開啟房間，以確保同步資料正確隔離。");
+      alert("Please enter a game name before starting host sync.");
       return;
   }
 
@@ -141,13 +141,13 @@ window.startHost = () => {
     qrcode = new QRCode(qrEl, { text: url, width: 192, height: 192, colorDark: "#059669", colorLight: "#ffffff", correctLevel: 2 });
     updateSyncUI("hosting");
     broadcastedIds.clear(); // Reset on session start
-    logSync(`房間已開啟: ${id}`);
+    logSync(`?��?已�??? ${id}`);
   });
 
   peer.on('connection', (c) => setupConnection(c));
   peer.on('error', (err) => {
     if (err.type === 'unavailable-id') { localStorage.removeItem('bg_last_peer_id'); return startHost(); }
-    logSync(`Peer 錯誤: ${err.type}`);
+    logSync(`Peer ?�誤: ${err.type}`);
     updateSyncUI("initial");
   });
 };
@@ -155,8 +155,8 @@ window.startHost = () => {
 window.stopHost = () => {
   if (peer) peer.destroy();
   peer = null;
-  connections.forEach(c => c.close());
-  connections.clear();
+  window.connections.forEach(c => c.close());
+  window.connections.clear();
   localStorage.removeItem('bg_last_peer_id');
   localStorage.removeItem('bg_sync_role');
   localStorage.removeItem('bg_last_joined_id');
@@ -165,7 +165,7 @@ window.stopHost = () => {
   localStorage.removeItem('bg_session_game');
   updateSyncUI("initial");
   broadcastedIds.clear(); 
-  logSync("房間已關閉");
+  logSync("Host session stopped.");
 };
 
 
@@ -183,7 +183,7 @@ function startJoin(id) {
     setupConnection(peer.connect(id));
   });
   peer.on('error', (err) => {
-    logSync(`加入失敗: ${err.type}`);
+    logSync(`?�入失�?: ${err.type}`);
     updateSyncUI("initial");
   });
 }
@@ -202,7 +202,7 @@ async function sendCardChunked(targetConn, card) {
   }
 }
 
-function setupConnection(c) {
+window.setupConnection = function(c) {
   // 1. Environment Guard (In-App Browser detection)
   const ua = navigator.userAgent;
   const isInApp = /Line|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua);
@@ -215,7 +215,7 @@ function setupConnection(c) {
       }
   }
 
-  connections.add(c);
+  window.connections.add(c);
     c.on('open', () => {
       const role = localStorage.getItem('bg_sync_role');
       if (role === 'host') {
@@ -223,19 +223,19 @@ function setupConnection(c) {
           const hs = document.getElementById("sync-host-status");
           if (hs) { hs.classList.remove("hidden"); hs.classList.add("flex"); }
           const hc = document.getElementById("sync-host-count");
-          if (hc) hc.innerText = `已連線 (${connections.size}人)`;
+          if (hc) hc.innerText = `已�?? (${window.connections.size}�?`;
       } else {
           updateSyncUI("connected");
           setTimeout(() => { window.closeSyncModal(); }, 3000); // Auto-close for client after 3s
       }
       
-      logSync(`連線成功: ${c.peer.slice(0,6)}`);
+      logSync(`????��?: ${c.peer.slice(0,6)}`);
       
       const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
       const sessionGame = localStorage.getItem('bg_session_game') || "";
       
       if (localStorage.getItem('bg_sync_role') === 'host') {
-          const sessionCards = dbCards.filter(c => c.timestamp >= sessionStart && c.game === sessionGame);
+          const sessionCards = window.dbCards.filter(c => c.timestamp >= sessionStart && c.game === sessionGame);
           const metas = sessionCards.map(c => ({ id: c.id, timestamp: c.timestamp || 0 }));
           c.send({ type: 'HELLO', sessionStart, sessionGame, metas });
       }
@@ -254,7 +254,7 @@ function setupConnection(c) {
           inpGame.dispatchEvent(new Event('input'));
       }
 
-      const myCards = dbCards.filter(c => c.timestamp >= data.sessionStart && c.game === data.sessionGame);
+      const myCards = window.dbCards.filter(c => c.timestamp >= data.sessionStart && c.game === data.sessionGame);
       
       const missingFromHost = data.metas.filter(m => {
           const local = myCards.find(x => x.id === m.id);
@@ -262,34 +262,34 @@ function setupConnection(c) {
       }).map(m => m.id);
       
       if (missingFromHost.length > 0) {
-          logSync(`向主機索取 ${missingFromHost.length} 張卡片...`);
+          logSync(`?�主機索??${missingFromHost.length} 張卡??..`);
           c.send({ type: 'REQUEST_CARDS', ids: missingFromHost });
       }
       
       const myMetas = myCards.map(x => ({ id: x.id, timestamp: x.timestamp || 0 }));
       c.send({ type: 'MY_METAS', metas: myMetas });
     }
-    
-    if (data.type === 'MY_METAS') {
+
+    if (data.type === 'MY_METAS' && localStorage.getItem('bg_sync_role') === 'host') {
       const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
-      const sessionGame = localStorage.getItem('bg_session_game') || "";
-      const myCards = dbCards.filter(c => c.timestamp >= sessionStart && c.game === sessionGame);
-      
-      const missingFromClient = data.metas.filter(m => {
-          const local = myCards.find(x => x.id === m.id);
-          return !local || (local.timestamp || 0) < m.timestamp;
-      }).map(m => m.id);
-      
-      if (missingFromClient.length > 0) {
-          logSync(`向訪客索取 ${missingFromClient.length} 張卡片...`);
-          c.send({ type: 'REQUEST_CARDS', ids: missingFromClient });
+      const sessionGame = localStorage.getItem('bg_session_game') || '';
+      const sessionCards = window.dbCards.filter(x => x.timestamp >= sessionStart && x.game === sessionGame);
+
+      const missingOnClient = sessionCards.filter(card => {
+        const peerMeta = data.metas.find(m => m.id === card.id);
+        return !peerMeta || (peerMeta.timestamp || 0) < (card.timestamp || 0);
+      }).map(card => card.id);
+
+      if (missingOnClient.length > 0) {
+        logSync(`Client missing ${missingOnClient.length} card(s); requesting backfill send.`);
+        c.send({ type: 'REQUEST_CARDS', ids: missingOnClient });
       }
     }
 
     if (data.type === 'REQUEST_CARDS') {
-        logSync(`發送 ${data.ids.length} 張請求的卡片...`);
+        logSync(`?��?${data.ids.length} 張�?求�??��?...`);
         for (const id of data.ids) {
-            const card = dbCards.find(x => x.id === id);
+            const card = window.dbCards.find(x => x.id === id);
             if (card) await sendCardChunked(c, card);
         }
     }
@@ -328,25 +328,25 @@ function setupConnection(c) {
             if (bar) bar.classList.add("hidden");
         }, 500);
 
-        const idx = dbCards.findIndex(x => x.id === card.id);
+        const idx = window.dbCards.findIndex(x => x.id === card.id);
         const isUpdate = idx !== -1;
         
         if (!isUpdate) { 
-            dbCards.push(card); 
-        } else if (card.timestamp > (dbCards[idx].timestamp || 0)) { 
-            dbCards[idx] = card; 
+            window.dbCards.push(card); 
+        } else if (card.timestamp > (window.dbCards[idx].timestamp || 0)) { 
+            window.dbCards[idx] = card; 
         } else {
             return; // Already have newer or same version
         }
 
         try {
-            await window.idbKeyval.set("bgCards", dbCards, true);
+            await window.idbKeyval.set("bgCards", window.dbCards, true);
         } catch (err) {
             console.error("Storage write failed:", err);
             if (err.name === 'QuotaExceededError') {
-                logSync("❌ 儲存空間已滿，無法寫入新卡片", "error");
+                logSync("???��?空�?已滿，無法寫?�新?��?", "error");
             } else {
-                logSync(`❌ 寫入失敗: ${err.message}`, "error");
+                logSync(`??寫入失�?: ${err.message}`, "error");
             }
             return;
         }
@@ -363,27 +363,27 @@ function setupConnection(c) {
 
         if (isMatch) {
             throttledRenderGallery();
-            logSync(`${isUpdate ? '已更新' : '已同步'}: ${card.number || '新項目'}`);
+            logSync(`${isUpdate ? 'Card updated' : 'Card received'}: ${card.number || 'unknown'}`);
         } else {
-            logSync(`背景同步: ${card.number || '新項目'} (不符合目前搜尋)`);
+            logSync(`Synced card not in current filter: ${card.number || 'unknown'}`);
         }
       }
     }
   });
 
   const removeConn = () => {
-    connections.delete(c);
+    window.connections.delete(c);
     const role = localStorage.getItem('bg_sync_role');
     if (role === 'host') {
-        if (connections.size > 0) {
+        if (window.connections.size > 0) {
             const hc = document.getElementById("sync-host-count");
-            if (hc) hc.innerText = `已連線 (${connections.size}人)`;
+            if (hc) hc.innerText = `已�?? (${window.connections.size}�?`;
         } else {
             const hs = document.getElementById("sync-host-status");
             if(hs) { hs.classList.add("hidden"); hs.classList.remove("flex"); }
         }
     } else {
-        if (connections.size === 0 && peer && !peer.destroyed) {
+        if (window.connections.size === 0 && peer && !peer.destroyed) {
             setTimeout(() => { updateSyncUI('initial'); }, 3000);
         }
     }
@@ -396,7 +396,7 @@ function setupConnection(c) {
 const originalIdbSet = window.idbKeyval.set;
 window.idbKeyval.set = async function(key, value, isFromSync = false) {
   const res = await originalIdbSet.apply(this, [key, value]);
-  if (key === "bgCards" && !isFromSync && connections.size > 0) {
+  if (key === "bgCards" && !isFromSync && window.connections.size > 0) {
     const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
     const sessionGame = localStorage.getItem('bg_session_game') || "";
     
@@ -410,15 +410,18 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
 
     if (pendingBroadcast.length > 0) {
       if (pendingBroadcast.length > 1) {
-        logSync(`即時廣播: 批次發送 ${pendingBroadcast.length} 張卡片...`);
+        logSync(`?��?�?��: ?�次?��?${pendingBroadcast.length} 張卡??..`);
       } else {
-        logSync(`即時廣播: ${pendingBroadcast[0]?.number || '新卡片'}`);
+        logSync(`Queued broadcast: ${pendingBroadcast[0]?.number || 'unknown'}`);
       }
       
       for (const card of pendingBroadcast) {
         broadcastedIds.add(card.id);
-        for (const c of connections) {
-          if (c.open) sendCardChunked(c, card);
+        for (const c of window.connections) {
+          if (c.open) {
+            // Sequential send to avoid interleaving messages on the data channel
+            await sendCardChunked(c, card);
+          }
         }
       }
     }
@@ -429,18 +432,18 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
 // Persistence & Auto-reconnect Logic
 function handleAutoReconnect() {
   if (checkAndClearExpiredSession()) {
-    logSync("連線已逾時失效，請重新建立房間。");
+    logSync("Session expired, cleared stale state.");
     return;
   }
   updateActivity();
   const role = localStorage.getItem('bg_sync_role');
   if (role === 'host') {
-    logSync("嘗試重新開啟房間...");
+    logSync("?�試?�新?��??��?...");
     startHost();
   } else if (role === 'client') {
     const lastId = localStorage.getItem('bg_last_joined_id');
     if (lastId) {
-      logSync("嘗試重新連回房間...");
+      logSync("?�試?�新????��?...");
       startJoin(lastId);
     }
   }
@@ -452,12 +455,12 @@ document.addEventListener("visibilitychange", () => {
     if (checkAndClearExpiredSession()) {
       if (peer) peer.destroy();
       peer = null;
-      connections.clear();
+      window.connections.clear();
       updateSyncUI("initial");
       return;
     }
     updateActivity();
-    const isDisconnected = !peer || peer.destroyed || (localStorage.getItem('bg_sync_role') === 'client' && connections.size === 0);
+    const isDisconnected = !peer || peer.destroyed || (localStorage.getItem('bg_sync_role') === 'client' && window.connections.size === 0);
     if (isDisconnected) {
       handleAutoReconnect();
     }
@@ -478,3 +481,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 });
+
+
+
+
