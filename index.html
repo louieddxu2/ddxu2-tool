@@ -123,7 +123,7 @@
         // ==========================================
         // PWA（只讓目錄頁可安裝）：SW 註冊 + 安裝按鈕
         // ==========================================
-        const LAUNCHER_SW_VERSION = 'v23';
+        const LAUNCHER_SW_VERSION = 'v24';
         if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
             navigator.serviceWorker.register(`/sw.js?${LAUNCHER_SW_VERSION}`).catch(() => {});
         }

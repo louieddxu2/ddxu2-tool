@@ -1,4 +1,4 @@
-let peer = null;
+ï»¿let peer = null;
 window.connections = new Set();
 let qrcode = null;
 
@@ -142,13 +142,13 @@ window.startHost = () => {
     qrcode = new QRCode(qrEl, { text: url, width: 192, height: 192, colorDark: "#059669", colorLight: "#ffffff", correctLevel: 2 });
     updateSyncUI("hosting");
     broadcastedCardVersions.clear(); // Reset on session start
-    logSync(`??™è????Œè????? ${id}`);
+    logSync(`å·²å»ºç«‹æˆ¿é–“ï¼š${id}`);
   });
 
   peer.on('connection', (c) => setupConnection(c));
   peer.on('error', (err) => {
     if (err.type === 'unavailable-id') { localStorage.removeItem('bg_last_peer_id'); return startHost(); }
-    logSync(`Peer ??™è³ª?? ${err.type}`);
+    logSync(`Peer éŒ¯èª¤ï¼š${err.type}`);
     updateSyncUI("initial");
   });
 };
@@ -166,7 +166,7 @@ window.stopHost = () => {
   localStorage.removeItem('bg_session_game');
   updateSyncUI("initial");
   broadcastedCardVersions.clear(); 
-  logSync("Host session stopped.");
+  logSync("å·²é—œé–‰åŒæ­¥æˆ¿é–“ã€‚")
 };
 
 
@@ -184,7 +184,7 @@ function startJoin(id) {
     setupConnection(peer.connect(id));
   });
   peer.on('error', (err) => {
-    logSync(`??™è³¢?¯æ†­æ¢§è•­?: ${err.type}`);
+    logSync(`åŠ å…¥å¤±æ•—ï¼š${err.type}`);
     updateSyncUI("initial");
   });
 }
@@ -235,13 +235,13 @@ window.setupConnection = function(c) {
           const hs = document.getElementById("sync-host-status");
           if (hs) { hs.classList.remove("hidden"); hs.classList.add("flex"); }
           const hc = document.getElementById("sync-host-count");
-          if (hc) hc.innerText = `?Œè???? (${window.connections.size}??`;
+          if (hc) hc.innerText = `å·²é€£ç·šè£ç½® (${window.connections.size})`;
       } else {
           updateSyncUI("connected");
           setTimeout(() => { window.closeSyncModal(); }, 3000); // Auto-close for client after 3s
       }
       
-      logSync(`?????™è???: ${c.peer.slice(0,6)}`);
+      logSync(`å·²é€£ç·šï¼š${c.peer.slice(0,6)}`);
       
       const sessionStart = parseInt(localStorage.getItem('bg_session_start_time')) || 0;
       const sessionGame = localStorage.getItem('bg_session_game') || "";
@@ -274,7 +274,7 @@ window.setupConnection = function(c) {
       }).map(m => m.id);
       
       if (missingFromHost.length > 0) {
-          logSync(`??™è³­?“ç?î¸ƒæ£??${missingFromHost.length} ?˜è????..`);
+          logSync(`åµæ¸¬åˆ°ä¸»æ©Ÿç¼ºå°‘ ${missingFromHost.length} å¼µå¡ï¼Œæº–å‚™è«‹æ±‚è£œå‚³...`);
           c.send({ type: 'REQUEST_CARDS', ids: missingFromHost });
       }
       
@@ -299,7 +299,7 @@ window.setupConnection = function(c) {
     }
 
     if (data.type === 'REQUEST_CARDS') {
-        logSync(`??™è???${data.ids.length} ?˜è????™î¿¢????™è???...`);
+        logSync(`æ”¶åˆ° ${data.ids.length} å¼µè£œå‚³è«‹æ±‚ï¼Œé–‹å§‹ç™¼é€...`);
         for (const id of data.ids) {
             const card = window.dbCards.find(x => x.id === id);
             if (card) await sendCardChunked(c, card);
@@ -368,9 +368,9 @@ window.setupConnection = function(c) {
         } catch (err) {
             console.error("Storage write failed:", err);
             if (err.name === 'QuotaExceededError') {
-                logSync("????™è????›ç¶½???Œè„«?›å??¼ï??œî?ç¥??™è³£î¡??™è???", "error");
+                logSync("å„²å­˜ç©ºé–“å·²æ»¿ï¼Œç„¡æ³•å¯«å…¥æ–°è³‡æ–™ã€‚", "error");
             } else {
-                logSync(`???–æ€ ï…¯?­æùë??: ${err.message}`, "error");
+                logSync(`å¯«å…¥å¤±æ•—ï¼š${err.message}`, "error");
             }
             return;
         }
@@ -405,7 +405,7 @@ window.setupConnection = function(c) {
     if (role === 'host') {
         if (window.connections.size > 0) {
             const hc = document.getElementById("sync-host-count");
-            if (hc) hc.innerText = `?Œè???? (${window.connections.size}??`;
+            if (hc) hc.innerText = `å·²é€£ç·šè£ç½® (${window.connections.size})`;
         } else {
             const hs = document.getElementById("sync-host-status");
             if(hs) { hs.classList.add("hidden"); hs.classList.remove("flex"); }
@@ -438,7 +438,7 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
 
     if (pendingBroadcast.length > 0) {
       if (pendingBroadcast.length > 1) {
-        logSync(`??™è??????™è??? ??™è³£æ´??™è???${pendingBroadcast.length} ?˜è????..`);
+        logSync(`æ‰¹æ¬¡åŒæ­¥ï¼šæº–å‚™ç™¼é€ ${pendingBroadcast.length} å¼µå¡...`);
       } else {
         logSync(`Queued broadcast: ${pendingBroadcast[0]?.number || 'unknown'}`);
       }
@@ -474,12 +474,12 @@ function handleAutoReconnect() {
   updateActivity();
   const role = localStorage.getItem('bg_sync_role');
   if (role === 'host') {
-    logSync("??™è³ªå²??™è³£î¡??™è?????™è???...");
+    logSync("å˜—è©¦é‡æ–°å»ºç«‹æˆ¿é–“é€£ç·š...");
     startHost();
   } else if (role === 'client') {
     const lastId = localStorage.getItem('bg_last_joined_id');
     if (lastId) {
-      logSync("??™è³ªå²??™è³£î¡?????™è???...");
+      logSync("å˜—è©¦é‡æ–°åŠ å…¥åŒæ­¥æˆ¿é–“...");
       startJoin(lastId);
     }
   }
