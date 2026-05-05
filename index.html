@@ -123,8 +123,9 @@
         // ==========================================
         // PWA（只讓目錄頁可安裝）：SW 註冊 + 安裝按鈕
         // ==========================================
+        const LAUNCHER_SW_VERSION = 'v23';
         if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
-            navigator.serviceWorker.register('/sw.js').catch(() => {});
+            navigator.serviceWorker.register(`/sw.js?${LAUNCHER_SW_VERSION}`).catch(() => {});
         }
 
         let deferredInstallPrompt = null;
