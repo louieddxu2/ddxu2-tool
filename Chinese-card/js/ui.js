@@ -1,51 +1,162 @@
-let isLandscapeMode = false;
-let editingId = null;
-let isCropViewOpen = false;
+// ============================================================
+// UI STATE ARCHITECTURE (Refactor V1)
+// ============================================================
+window.UIState = {
+  viewMode: localStorage.getItem("bg_compact_mode") === "1" ? "compact" : "normal",
+  isDBReady: false,
+  orientation: window.innerWidth > window.innerHeight ? "landscape" : "portrait",
+  isCropViewOpen: false,
+  editingId: null,
+  cropOrientation: "portrait", // "portrait" or "landscape" for the cropper
+
+  init() {
+    this.updateLayoutAttributes();
+    this.setupListeners();
+    this.restoreInputs();
+  },
+
+  updateLayoutAttributes() {
+    document.body.setAttribute("data-view-mode", this.viewMode);
+    document.body.setAttribute("data-orientation", this.orientation);
+    // Backward compatibility for existing CSS
+    document.body.classList.toggle("compact-mode", this.viewMode === "compact");
+  },
+
+  setupListeners() {
+    window.addEventListener("resize", () => {
+      const newOri = window.innerWidth > window.innerHeight ? "landscape" : "portrait";
+      if (newOri !== this.orientation) {
+        this.orientation = newOri;
+        this.updateLayoutAttributes();
+      }
+    });
+  },
+
+  restoreInputs() {
+    const roots = ["inp-game", "inp-type", "inp-number"];
+    roots.forEach(root => {
+      const val = localStorage.getItem("bg_last_" + root) || "";
+      const normalEl = document.getElementById(root);
+      const compactEl = document.getElementById("compact-" + root);
+      if (normalEl) normalEl.value = val;
+      if (compactEl) compactEl.value = val;
+    });
+  },
+
+  setMode(mode) {
+    this.viewMode = mode;
+    localStorage.setItem("bg_compact_mode", mode === "compact" ? "1" : "0");
+    this.updateLayoutAttributes();
+    renderGallery();
+    try { lucide.createIcons(); } catch (e) { }
+  },
+
+  toggleCropOrientation() {
+    this.cropOrientation = this.cropOrientation === "portrait" ? "landscape" : "portrait";
+    const p = document.getElementById("icon-portrait");
+    const l = document.getElementById("icon-landscape");
+    if (p && l) {
+      if (this.cropOrientation === "landscape") {
+        p.classList.add("hidden");
+        l.classList.remove("hidden");
+      } else {
+        p.classList.remove("hidden");
+        l.classList.add("hidden");
+      }
+    }
+    
+    // Sync with cropper logic
+    const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
+    if (activeBtn) {
+      const ratioStr = activeBtn.getAttribute("data-ratio").split(":");
+      const baseRatio = parseInt(ratioStr[0]) / parseInt(ratioStr[1]);
+      if (window.setRatioAndCenter) {
+        window.setRatioAndCenter(baseRatio);
+      }
+    } else if (window.isCustomMode && window.cropRatio) {
+      window.cropRatio = 1 / window.cropRatio;
+      if (window.drawLines) window.drawLines();
+    }
+    
+    localStorage.setItem("bg_last_landscape", this.cropOrientation === "landscape");
+  }
+};
+
+// Global Sync Function
+window.syncInputs = (sourceId, value) => {
+  const rootId = sourceId.replace("compact-", "");
+  const targetIds = sourceId.startsWith("compact-") ? [rootId] : ["compact-" + sourceId];
+  
+  targetIds.forEach(tId => {
+    const el = document.getElementById(tId);
+    if (el && el.value !== value) {
+      el.value = value;
+    }
+  });
+
+  localStorage.setItem("bg_last_" + rootId, value);
+  renderGallery();
+};
 
 // Initialization
 document.addEventListener("DOMContentLoaded", () => {
+  UIState.init();
   try { lucide.createIcons(); } catch (e) { }
 
-  const els = ["inp-game", "inp-type", "inp-number"];
-  els.forEach((id) => {
+  // Bind Input Syncing
+  const allInputIds = [
+    "inp-game", "compact-inp-game",
+    "inp-type", "compact-inp-type",
+    "inp-number", "compact-inp-number"
+  ];
+  allInputIds.forEach(id => {
     const el = document.getElementById(id);
-    if (!el) return;
-    el.value = localStorage.getItem("bg_last_" + id) || el.value;
-    el.addEventListener("input", () =>
-      localStorage.setItem("bg_last_" + id, el.value),
-    );
+    if (el) {
+      el.addEventListener("input", (e) => window.syncInputs(id, e.target.value));
+    }
   });
 
   setupSmartDropdown("inp-game", "drop-game", () =>
-    [...new Set(dbCards.map((c) => c.game))].filter(Boolean),
+    [...new Set(window.dbCards.map((c) => c.game))].filter(Boolean),
   );
   setupSmartDropdown("inp-type", "drop-type", () => {
     const game = document.getElementById("inp-game").value;
     const ts = game
-      ? dbCards.filter((c) => c.game === game).map((c) => c.type)
-      : dbCards.map((c) => c.type);
+      ? window.dbCards.filter((c) => c.game === game).map((c) => c.type)
+      : window.dbCards.map((c) => c.type);
+    return [...new Set(ts)].filter(Boolean);
+  });
+
+  setupSmartDropdown("compact-inp-game", "compact-drop-game", () =>
+    [...new Set(window.dbCards.map((c) => c.game))].filter(Boolean),
+  );
+  setupSmartDropdown("compact-inp-type", "compact-drop-type", () => {
+    const game = document.getElementById("compact-inp-game").value;
+    const ts = game
+      ? window.dbCards.filter((c) => c.game === game).map((c) => c.type)
+      : window.dbCards.map((c) => c.type);
     return [...new Set(ts)].filter(Boolean);
   });
 
   setupSmartDropdown("edit-game", "drop-edit-game", () =>
-    [...new Set(dbCards.map((c) => c.game))].filter(Boolean),
+    [...new Set(window.dbCards.map((c) => c.game))].filter(Boolean),
   );
   setupSmartDropdown("edit-type", "drop-edit-type", () => {
     const game = document.getElementById("edit-game").value;
     const ts = game
-      ? dbCards.filter((c) => c.game === game).map((c) => c.type)
-      : dbCards.map((c) => c.type);
+      ? window.dbCards.filter((c) => c.game === game).map((c) => c.type)
+      : window.dbCards.map((c) => c.type);
     return [...new Set(ts)].filter(Boolean);
   });
 
   setupSmartDropdown("import-game", "drop-import-game", () =>
-    [...new Set(dbCards.map((c) => c.game))].filter(Boolean),
+    [...new Set(window.dbCards.map((c) => c.game))].filter(Boolean),
   );
   setupSmartDropdown("import-type", "drop-import-type", () => {
     const game = document.getElementById("import-game").value;
     const ts = game
-      ? dbCards.filter((c) => c.game === game).map((c) => c.type)
-      : dbCards.map((c) => c.type);
+      ? window.dbCards.filter((c) => c.game === game).map((c) => c.type)
+      : window.dbCards.map((c) => c.type);
     return [...new Set(ts)].filter(Boolean);
   });
 
@@ -54,17 +165,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (isIOS) {
     const folderOpt = document.getElementById("import-folder-option");
     if (folderOpt) {
-      // Option 1: Hide it
-      // folderOpt.classList.add("hidden");
-
-      // Option 2: Add a "Desktop Only" badge and disable it
       folderOpt.classList.add("opacity-50", "grayscale", "pointer-events-none");
       const title = folderOpt.querySelector(".font-bold");
       if (title) title.innerHTML += ' <span class="text-[10px] bg-slate-200 px-1 rounded text-slate-500 font-normal ml-1">僅限電腦</span>';
     }
   }
 
-  // Mobile Environment Guidance (In-App Browser vs PWA Prompt)
+  // Mobile Environment Guidance
   const ua = navigator.userAgent;
   const isInApp = /Line|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
@@ -72,18 +179,16 @@ document.addEventListener("DOMContentLoaded", () => {
   
   if (isMobile && !isStandalone) {
     setTimeout(() => {
-      // 1. Priority: In-App Browser (e.g. Line, FB)
       if (isInApp) {
         const inAppModal = document.getElementById("modal-inapp-browser");
         if (inAppModal) {
           inAppModal.classList.remove("hidden");
           inAppModal.classList.add("flex");
           try { lucide.createIcons(); } catch(e) {}
-          return; // Don't show PWA prompt if in-app
+          return;
         }
       }
 
-      // 2. Secondary: PWA Prompt (Suggest adding to home screen)
       const prompt = document.getElementById("pwa-prompt");
       if (!prompt) return;
       
@@ -107,6 +212,8 @@ document.addEventListener("DOMContentLoaded", () => {
       try { lucide.createIcons(); } catch(e) {}
     }, 100);
   }
+
+  initRatioButtons();
 });
 
 function setupSmartDropdown(inputId, dropId, keyGetter) {
@@ -114,7 +221,6 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
   const drop = document.getElementById(dropId);
   if (!inp || !drop) return;
 
-  // Move dropdown to body to avoid stacking context issues
   document.body.appendChild(drop);
   drop.style.position = "fixed";
   drop.classList.add("fixed", "bg-white", "border", "border-slate-200", "rounded-xl", "shadow-2xl", "overflow-y-auto", "max-h-60");
@@ -146,8 +252,7 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
         d.onmousedown = (e) => {
           e.preventDefault();
           inp.value = itemVal;
-          inp.dispatchEvent(new Event("input"));
-          inp.dispatchEvent(new Event("change"));
+          window.syncInputs(inputId, itemVal);
           close();
         };
         drop.appendChild(d);
@@ -201,12 +306,10 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
   };
 
   inp.addEventListener("click", (e) => {
-    // Game Name Lock Check
-    if (inputId === "inp-game" && localStorage.getItem('bg_session_game')) {
+    if (inputId.includes("inp-game") && localStorage.getItem('bg_session_game')) {
       alert("【房間同步中】\n目前已鎖定遊戲名稱以確保資料安全隔離。\n若要更換遊戲，請先開啟右上角「即時同步」面板並關閉房間。");
       return;
     }
-
     if (inp.hasAttribute("readonly")) {
       if (!isOpen) open();
       else enterEditMode();
@@ -237,56 +340,30 @@ function setupSmartDropdown(inputId, dropId, keyGetter) {
   });
 }
 
-// Global functions
+// Global UI functions
 window.clearInput = (event, id) => {
   event.preventDefault();
   event.stopPropagation();
   const el = document.getElementById(id);
   if (el) {
     el.value = '';
-    el.dispatchEvent(new Event('input'));
-    el.dispatchEvent(new Event('change'));
-
-    // Attempt to close dropdown if open (setupSmartDropdown relies on mousedown outside to close, 
-    // or we can simulate a blur to let it handle it)
+    window.syncInputs(id, '');
     el.blur();
   }
 };
 
-window.toggleOrientation = () => {
-  isLandscapeMode = !isLandscapeMode;
-  const p = document.getElementById("icon-portrait");
-  const l = document.getElementById("icon-landscape");
-  if (p && l) {
-    if (isLandscapeMode) { p.classList.add("hidden"); l.classList.remove("hidden"); }
-    else { p.classList.remove("hidden"); l.classList.add("hidden"); }
-  }
-  const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
-  if (activeBtn) {
-    const ratioStr = activeBtn.getAttribute("data-ratio").split(":");
-    setRatioAndCenter(parseInt(ratioStr[0]) / parseInt(ratioStr[1]));
-  } else if (window.isCustomMode) {
-    if (window.cropRatio) {
-      window.cropRatio = 1 / window.cropRatio;
-      if (window.drawLines) window.drawLines();
-    }
-  }
-  if (window.saveLastRatio) window.saveLastRatio();
-};
+window.toggleOrientation = () => UIState.toggleCropOrientation();
+window.toggleCompactMode = () => UIState.setMode(UIState.viewMode === "compact" ? "normal" : "compact");
 
 window.setCustomActive = () => {
   const activeBtn = document.querySelector(".ratio-btn.bg-emerald-600");
   if (activeBtn) {
-    activeBtn.style.backgroundColor = "";
-    activeBtn.style.color = "";
     activeBtn.classList.remove("bg-emerald-600", "text-white");
     activeBtn.classList.add("bg-slate-800", "text-slate-300");
   }
 
   const box = document.getElementById("custom-ratio-box");
   if (box) {
-    box.style.borderColor = "";
-    box.style.boxShadow = "";
     box.classList.remove("bg-slate-800");
     box.classList.add("bg-emerald-600");
     const t1 = document.getElementById("custom-ratio-text1");
@@ -298,12 +375,7 @@ window.setCustomActive = () => {
   window.isCustomMode = true;
   const savedCustom = parseFloat(localStorage.getItem("bg_last_custom_ratio"));
   if (window.setRatioAndCenter) {
-    if (savedCustom) {
-      window.setRatioAndCenter(savedCustom);
-    } else {
-      // Re-trigger with current ratio to apply boundary constraints
-      window.setRatioAndCenter(window.cropRatio || (63 / 88));
-    }
+    window.setRatioAndCenter(savedCustom || window.cropRatio || (63 / 88));
   }
   if (window.drawLines) window.drawLines();
   if (window.saveLastRatio) window.saveLastRatio();
@@ -321,16 +393,11 @@ function initRatioButtons() {
 
   const setActive = (btn) => {
     if (btn === lastActiveBtn) return;
-
     if (lastActiveBtn) {
       lastActiveBtn.classList.remove("bg-emerald-600", "text-white");
       lastActiveBtn.classList.add("bg-slate-800", "text-slate-300");
-      lastActiveBtn.style.backgroundColor = "";
-      lastActiveBtn.style.color = "";
     }
     if (customBox) {
-      customBox.style.borderColor = "";
-      customBox.style.boxShadow = "";
       customBox.classList.remove("bg-emerald-600");
       customBox.classList.add("bg-slate-800");
       const t1 = document.getElementById("custom-ratio-text1");
@@ -339,19 +406,14 @@ function initRatioButtons() {
       if (t2) t2.classList.replace("text-white", "text-slate-300");
     }
     window.isCustomMode = false;
-
     btn.classList.remove("bg-slate-800", "text-slate-300");
     btn.classList.add("bg-emerald-600", "text-white");
-    btn.style.backgroundColor = "";
-    btn.style.color = "";
     lastActiveBtn = btn;
 
     const ratioStr = btn.getAttribute("data-ratio");
-    if (ratioStr) {
+    if (ratioStr && window.setRatioAndCenter) {
       const r = ratioStr.split(":");
-      if (window.setRatioAndCenter) {
-        window.setRatioAndCenter(parseInt(r[0]) / parseInt(r[1]));
-      }
+      window.setRatioAndCenter(parseInt(r[0]) / parseInt(r[1]));
     }
   };
 
@@ -359,41 +421,27 @@ function initRatioButtons() {
     btn.addEventListener("click", () => {
       isClickScrolling = true;
       clearTimeout(clickScrollTimeout);
-
       setActive(btn);
       if (window.saveLastRatio) window.saveLastRatio();
       btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-
-      clickScrollTimeout = setTimeout(() => {
-        isClickScrolling = false;
-      }, 500);
+      clickScrollTimeout = setTimeout(() => { isClickScrolling = false; }, 500);
     });
   });
 
   let saveTimeout;
   const observer = new IntersectionObserver((entries) => {
     if (isClickScrolling) return;
-
     const intersecting = entries.filter(e => e.isIntersecting);
     if (intersecting.length > 0) {
-      const best = intersecting.reduce((prev, current) =>
-        (current.intersectionRatio > prev.intersectionRatio) ? current : prev
-      );
+      const best = intersecting.reduce((prev, current) => (current.intersectionRatio > prev.intersectionRatio) ? current : prev);
       setActive(best.target);
-
       clearTimeout(saveTimeout);
-      saveTimeout = setTimeout(() => {
-        if (window.saveLastRatio) window.saveLastRatio();
-      }, 500);
+      saveTimeout = setTimeout(() => { if (window.saveLastRatio) window.saveLastRatio(); }, 500);
     }
-  }, {
-    root: container,
-    rootMargin: '0px -40% 0px -40%', // 20% width center detection window
-    threshold: [0, 0.5, 1]
-  });
-
+  }, { root: container, rootMargin: '0px -40% 0px -40%', threshold: [0, 0.5, 1] });
   buttons.forEach(btn => observer.observe(btn));
 }
+
 window.openFullPreview = (url) => {
   const modal = document.getElementById("modal-preview");
   const img = document.getElementById("preview-img");
@@ -404,9 +452,9 @@ window.closeFullPreview = () => {
   if (m) { m.classList.remove("flex"); m.classList.add("hidden"); }
 };
 window.openEditModal = (id) => {
-  const c = dbCards.find((x) => x.id === id);
+  const c = window.dbCards.find((x) => x.id === id);
   if (!c) return;
-  editingId = id;
+  UIState.editingId = id;
   document.getElementById("edit-game").value = c.game;
   document.getElementById("edit-type").value = c.type;
   document.getElementById("edit-number").value = c.number;
@@ -423,70 +471,20 @@ window.openEditModal = (id) => {
 window.closeEditModal = () => {
   const m = document.getElementById("modal-edit");
   const o = document.getElementById("modal-edit-overlay");
-  if (m) {
-    m.classList.remove("flex");
-    m.classList.add("hidden");
-  }
+  if (m) { m.classList.remove("flex"); m.classList.add("hidden"); }
   if (o) o.classList.add("hidden");
 };
 window.saveEdit = async () => {
-  const idx = dbCards.findIndex((c) => c.id === editingId);
+  const idx = window.dbCards.findIndex((c) => c.id === UIState.editingId);
   if (idx > -1) {
-    dbCards[idx].game = document.getElementById("edit-game").value;
-    dbCards[idx].type = document.getElementById("edit-type").value;
-    dbCards[idx].number = document.getElementById("edit-number").value;
-    dbCards[idx].memo = document.getElementById("edit-memo").value;
-    dbCards[idx].timestamp = Date.now();
-    await idbKeyval.set("bgCards", dbCards);
+    window.dbCards[idx].game = document.getElementById("edit-game").value;
+    window.dbCards[idx].type = document.getElementById("edit-type").value;
+    window.dbCards[idx].number = document.getElementById("edit-number").value;
+    window.dbCards[idx].memo = document.getElementById("edit-memo").value;
+    window.dbCards[idx].timestamp = Date.now();
+    await idbKeyval.set("bgCards", window.dbCards);
     renderGallery();
   }
   closeEditModal();
 };
 
-// Global UI state and logic updated.
-window.toggleCompactMode = () => {
-  const isEnteringCompact = !document.body.classList.contains("compact-mode");
-  localStorage.setItem("bg_compact_mode", isEnteringCompact ? "1" : "0");
-  document.body.classList.toggle("compact-mode", isEnteringCompact);
-
-  // Sync input values between modes
-  if (isEnteringCompact) {
-    document.getElementById("compact-inp-game").value = document.getElementById("inp-game").value;
-    document.getElementById("compact-inp-type").value = document.getElementById("inp-type").value;
-    document.getElementById("compact-inp-number").value = document.getElementById("inp-number").value;
-  } else {
-    document.getElementById("inp-game").value = document.getElementById("compact-inp-game").value;
-    document.getElementById("inp-type").value = document.getElementById("compact-inp-type").value;
-    document.getElementById("inp-number").value = document.getElementById("compact-inp-number").value;
-  }
-  renderGallery();
-  try { lucide.createIcons(); } catch (e) { }
-};
-
-document.addEventListener("DOMContentLoaded", () => {
-  setupSmartDropdown("compact-inp-game", "compact-drop-game", () =>
-    [...new Set(dbCards.map((c) => c.game))].filter(Boolean),
-  );
-  setupSmartDropdown("compact-inp-type", "compact-drop-type", () => {
-    const game = document.getElementById("compact-inp-game").value;
-    const ts = game
-      ? dbCards.filter((c) => c.game === game).map((c) => c.type)
-      : dbCards.map((c) => c.type);
-    return [...new Set(ts)].filter(Boolean);
-  });
-
-  const compNum = document.getElementById("compact-inp-number");
-  if (compNum) {
-    compNum.oninput = () => {
-      document.getElementById("inp-number").value = compNum.value;
-      renderGallery();
-    };
-    compNum.onfocus = function () { setTimeout(() => this.select(), 10); };
-  }
-
-  initRatioButtons();
-
-  if (localStorage.getItem("bg_compact_mode") === "1") {
-    setTimeout(window.toggleCompactMode, 50);
-  }
-});

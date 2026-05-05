@@ -303,7 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.openCropView = (src, filename = "") => {
-  isCropViewOpen = true;
+  UIState.isCropViewOpen = true;
   document.getElementById("view-crop").classList.remove("hidden");
   document.getElementById("crop-loading").classList.remove("hidden");
   document.getElementById("crop-loading-text").innerText = "定位中...";
@@ -329,7 +329,7 @@ window.openCropView = (src, filename = "") => {
   const curGame = document.getElementById("inp-game").value;
   const curType = document.getElementById("inp-type").value;
   const curNumber = document.getElementById("inp-number").value;
-  const history = dbCards.slice().reverse();
+  const history = window.dbCards.slice().reverse();
   
   let lastMatchedCard = history.find((c) => c.game === curGame && c.type === curType && c.number === curNumber && c.ratio);
   if (!lastMatchedCard && curType) lastMatchedCard = history.find((c) => c.game === curGame && c.type === curType && c.ratio);
@@ -368,7 +368,7 @@ window.openCropView = (src, filename = "") => {
 };
 
 window.cancelCrop = () => {
-  isCropViewOpen = false;
+  UIState.isCropViewOpen = false;
   document.getElementById("view-crop").classList.add("hidden");
 };
 
@@ -422,11 +422,11 @@ window.processCrop = async () => {
         blob: b,
         timestamp: Date.now(),
       };
-      dbCards.push(c);
-      await idbKeyval.set("bgCards", dbCards);
+      window.dbCards.push(c);
+      await idbKeyval.set("bgCards", window.dbCards);
       document.getElementById("inp-number").value = "";
       localStorage.removeItem("bg_last_inp-number");
-      isCropViewOpen = false;
+      UIState.isCropViewOpen = false;
       renderGallery();
       document.getElementById("view-crop").classList.add("hidden");
       document.getElementById("crop-loading").classList.add("hidden");
@@ -446,39 +446,26 @@ function getRatioValue() {
 }
 
 window.setRatioAndCenter = (baseCropRatio) => {
-  let newCropRatio = isLandscapeMode ? 1 / baseCropRatio : baseCropRatio;
+  let newCropRatio = (UIState.cropOrientation === "landscape") ? 1 / baseCropRatio : baseCropRatio;
 
-  // Boundary constraint for Custom mode (or any mode really)
-  // If the top points go out of bounds, adjust cropRatio to fit
   const dx = p2.x - p1.x;
   const dy = p2.y - p1.y;
   const width = Math.sqrt(dx * dx + dy * dy);
   const angle = Math.atan2(dy, dx);
   const upAngle = angle - Math.PI / 2;
 
-  // Current height with this ratio
   let height = (width / newCropRatio) * 1.05;
-
-  // Calculate top point coordinates
-  const p4x = p1.x + Math.cos(upAngle) * height;
-  const p4y = p1.y + Math.sin(upAngle) * height;
-  const p3x = p2.x + Math.cos(upAngle) * height;
-  const p3y = p2.y + Math.sin(upAngle) * height;
-
-  // Check if any top point is outside image (y < 0 or y > h or x < 0 or x > w)
-  // Most common is y < 0 (too tall)
   const topMargin = originalImgHeight * 0.1;
   let maxH = height;
 
   const checkBounds = (x, y) => {
     if (y < topMargin) {
-      // Calculate the height that would put the point at topMargin
       const hNeeded = (topMargin - p1.y) / Math.sin(upAngle);
       if (hNeeded < maxH) maxH = hNeeded;
     }
   };
-  checkBounds(p4x, p4y);
-  checkBounds(p3x, p3y);
+  checkBounds(p1.x + Math.cos(upAngle) * height, p1.y + Math.sin(upAngle) * height);
+  checkBounds(p2.x + Math.cos(upAngle) * height, p2.y + Math.sin(upAngle) * height);
 
   if (maxH < height) {
     newCropRatio = width / (maxH / 1.05);
@@ -486,14 +473,14 @@ window.setRatioAndCenter = (baseCropRatio) => {
 
   cropRatio = newCropRatio;
   window.cropRatio = cropRatio;
-  if (!document.getElementById("view-crop").classList.contains("hidden")) {
+  if (isCropViewOpen) {
     drawLines();
   }
 };
 
 window.saveLastRatio = () => {
   localStorage.setItem("bg_last_ratio", getRatioValue());
-  localStorage.setItem("bg_last_landscape", isLandscapeMode);
+  localStorage.setItem("bg_last_landscape", UIState.cropOrientation === "landscape");
 };
 
 window.applyRatioValue = (val) => {
@@ -503,7 +490,6 @@ window.applyRatioValue = (val) => {
     return;
   }
   
-  // Handle numeric strings (e.g. "0.7159") by applying them as custom ratio
   if (!isNaN(parseFloat(val)) && !val.includes(":")) {
     cropRatio = parseFloat(val);
     window.cropRatio = cropRatio;
@@ -516,7 +502,7 @@ window.applyRatioValue = (val) => {
     if (btn.getAttribute("data-ratio") === val) {
       btn.click();
       setTimeout(() => {
-        btn.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
+        btn.scrollIntoView({ behavior: "auto", inline: "center", block: "nearest" });
       }, 50);
     }
   });

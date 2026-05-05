@@ -43,137 +43,81 @@ svg.crop-lines {
 }
 
 @keyframes spinner {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* ============================================================
-   UI LAYOUT MATRIX (Architecture Reform - V2 Stable)
+   UI LAYOUT MATRIX (Architecture Reform - V3 Attribute-Driven)
    ============================================================ */
 
-/* 1. PORTRAIT MODE: Keep it as original as possible (Tailwind-driven) */
-@media (orientation: portrait) {
-  /* Only handle visibility of compact-mode elements */
-  #compact-bar { display: none; }
-  
-  body.compact-mode #compact-bar { 
-    display: flex !important; 
-    /* Single row layout as in 5/3 */
-  }
-
-  body.compact-mode #sidebar-header-normal,
-  body.compact-mode #search-section-normal {
-    display: none !important;
-  }
+/* 1. VIEW MODE CONSTRAINTS */
+[data-view-mode="compact"] #compact-bar {
+  display: flex !important;
 }
 
-/* 2. LANDSCAPE MODE: Full Optimization Matrix */
-@media (orientation: landscape) {
-  #compact-bar { display: none !important; }
+[data-view-mode="compact"] #sidebar-header-normal,
+[data-view-mode="compact"] #search-section-normal {
+  display: none !important;
+}
 
-  /* [A] Landscape Normal (Narrow Sidebar) */
-  body:not(.compact-mode) {
-    display: flex !important;
-    flex-direction: row !important;
-  }
-  body:not(.compact-mode) aside {
-    width: 180px !important;
-    height: 100vh !important;
-    display: flex !important;
-    flex-direction: column !important;
-    border-right: 1px solid #e2e8f0 !important;
-    flex-shrink: 0 !important;
-  }
-  body:not(.compact-mode) #sidebar-header-normal h1 { display: none; }
-  body:not(.compact-mode) #search-section-normal .grid-cols-2 {
-    grid-template-columns: 1fr !important;
-  }
-  body:not(.compact-mode) #gallery-footer {
-    flex-direction: column;
-    align-items: stretch;
-    height: auto;
-    padding: 8px;
-    gap: 8px;
+/* 2. PORTRAIT MODE REFINEMENTS */
+[data-orientation="portrait"] aside {
+  width: 100% !important;
+  max-height: 40vh;
+}
+
+/* 3. LANDSCAPE MODE MATRIX */
+[data-orientation="landscape"] {
+  display: flex !important;
+  flex-direction: row !important;
+}
+
+[data-orientation="landscape"] aside {
+  width: 320px !important;
+  /* Fixed width for stability */
+  height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+[data-orientation="landscape"] #search-section-normal {
+  max-height: none !important;
+  flex-grow: 1;
+}
+
+/* LANDSCAPE + COMPACT (Optimized Top Bar) */
+[data-orientation="landscape"][data-view-mode="compact"] {
+  flex-direction: column !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] aside {
+  width: 100% !important;
+  height: auto !important;
+  min-height: 48px !important;
+}
+
+/* Ensure empty state is always centered in the main view */
+#empty-state i {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(1);
   }
 
-  /* [B] Landscape Compact (Roomy Single Row Top Bar) */
-  body.compact-mode {
-    display: flex !important;
-    flex-direction: column !important;
-  }
-  body.compact-mode aside {
-    width: 100% !important;
-    height: auto !important;
-    min-height: 48px !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    padding: 0 12px !important;
-    gap: 12px !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    background: white !important;
-  }
-  body.compact-mode #sidebar-header-normal {
-    display: flex;
-    padding: 0;
-    background: transparent;
-    color: #059669;
-    box-shadow: none;
-    width: auto;
-  }
-  body.compact-mode #sidebar-header-normal h1,
-  body.compact-mode #sidebar-header-normal a[data-home-link] {
-    display: none;
-  }
-  body.compact-mode #sidebar-header-normal i {
-    color: #059669 !important;
-  }
-  body.compact-mode #search-section-normal {
-    display: flex;
-    flex: 1;
-    flex-direction: row;
-    padding: 0;
-    gap: 8px;
-  }
-  body.compact-mode #search-section-normal section {
-    flex-direction: row;
-    align-items: center;
-    background: transparent;
-    border: none;
-    padding: 0;
-    gap: 8px;
-  }
-  body.compact-mode #search-section-normal .grid-cols-2 {
-    display: flex;
-    gap: 8px;
-    flex: 3; /* Increased space for inputs */
-  }
-  body.compact-mode #search-section-normal .grid-cols-2 > div {
-    flex: 1; /* Ensure both game and type share space equally */
-    min-width: 120px; /* Prevent too narrow fields */
-  }
-  body.compact-mode #inp-number {
-    flex: 1;
-    min-width: 80px;
-  }
-  body.compact-mode #search-section-normal .mt-0\.5 {
-    display: none;
-  }
-  body.compact-mode #gallery-footer {
-    display: flex;
-    width: auto;
-    padding: 0;
-    background: transparent;
-    border-top: none;
-  }
-  body.compact-mode #gallery-footer .font-black {
-    font-size: 14px;
-    background: #f1f5f9;
-    padding: 6px 16px;
-    border-radius: 999px;
-  }
-  body.compact-mode #gallery-footer .text-emerald-600,
-  body.compact-mode #gallery-footer .text-slate-500 {
-    display: none;
+  50% {
+    opacity: 0.3;
+    transform: scale(1.1);
   }
 }

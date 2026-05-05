@@ -6,7 +6,7 @@ const getFilteredCards = () => {
   const tQ = document.getElementById("inp-type").value.toLowerCase().trim();
   const nQ = document.getElementById("inp-number").value.toLowerCase().trim();
   
-  return dbCards.filter((c) => {
+  return window.dbCards.filter((c) => {
     try {
       return (
         (c.game || "").toLowerCase().includes(gQ) &&
@@ -20,7 +20,8 @@ const getFilteredCards = () => {
 
 window.deleteCard = async (id) => {
   if (!confirm("確定刪除？")) return;
-  dbCards = dbCards.filter((c) => c.id !== id);
+  const idx = window.dbCards.findIndex(c => c.id === id);
+  if (idx > -1) window.dbCards.splice(idx, 1);
   await saveCardsToDB();
   renderGallery();
 };
@@ -102,7 +103,7 @@ window.executeExport = async () => {
     const btnDownload = document.getElementById("btn-download-zip");
     if (btnDownload) {
       btnDownload.href = url;
-      btnDownload.download = `cards_export_${new Date().toISOString().slice(0,10)}_${Date.now()}.zip`;
+      btnDownload.download = `cards_export_${new Date().toISOString().slice(0,10)}_${Date.now()}.ccpack`;
     }
 
     const m = document.getElementById("modal-export-result");
@@ -268,17 +269,17 @@ const commitImport = async (imagesToImport) => {
       }
     }
 
-    let idx = dbCards.findIndex((c) => c.id === item.id);
+    let idx = window.dbCards.findIndex((c) => c.id === item.id);
     if (idx === -1 && item.game && item.type && item.number) {
-      idx = dbCards.findIndex((c) => c.game === item.game && c.type === item.type && c.number === item.number);
-      if (idx > -1) item.id = dbCards[idx].id;
+      idx = window.dbCards.findIndex((c) => c.game === item.game && c.type === item.type && c.number === item.number);
+      if (idx > -1) item.id = window.dbCards[idx].id;
     }
     if (idx > -1) {
-      if (item.timestamp >= (dbCards[idx].timestamp || 0)) {
-        dbCards[idx] = { ...dbCards[idx], ...item, id: dbCards[idx].id };
+      if (item.timestamp >= (window.dbCards[idx].timestamp || 0)) {
+        window.dbCards[idx] = { ...window.dbCards[idx], ...item, id: window.dbCards[idx].id };
         updateCount++;
       }
-    } else { dbCards.push(item); importCount++; }
+    } else { window.dbCards.push(item); importCount++; }
   }
   await saveCardsToDB();
   renderGallery();

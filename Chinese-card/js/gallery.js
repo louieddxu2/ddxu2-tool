@@ -3,15 +3,15 @@ window.isGridViewMode = false;
 window.isSelectionMode = false;
 window.selectedCardIds = new Set();
 
-const renderGallery = () => {
-  if (isCropViewOpen) return;
-  const gQ = document.getElementById("inp-game").value.toLowerCase();
-  const tQ = document.getElementById("inp-type").value.toLowerCase();
-  const nQ = document.getElementById("inp-number").value.toLowerCase();
+window.renderGallery = () => {
+  if (UIState.isCropViewOpen) return;
+  const gQ = (document.getElementById("inp-game").value || "").toLowerCase();
+  const tQ = (document.getElementById("inp-type").value || "").toLowerCase();
+  const nQ = (document.getElementById("inp-number").value || "").toLowerCase();
 
   let filtered = [];
   try {
-    filtered = dbCards
+    filtered = window.dbCards
       .filter((c) => {
         try {
           return (
@@ -25,7 +25,7 @@ const renderGallery = () => {
       .sort((a, b) => ((b && b.timestamp) || 0) - ((a && a.timestamp) || 0));
   } catch (e) {
     console.error("Filtering/Sorting failed:", e);
-    filtered = dbCards.filter(c => c && c.blob instanceof Blob);
+    filtered = window.dbCards.filter(c => c && c.blob instanceof Blob);
   }
 
   const displayed = filtered.slice(0, 50);
@@ -48,7 +48,7 @@ const renderGallery = () => {
   
   if (window.isGridViewMode) {
       container.classList.remove("snap-y", "snap-mandatory", "snap-x");
-      grid.className = "grid grid-cols-3 md:grid-cols-5 gap-2 p-2 h-auto";
+      grid.className = "grid grid-cols-3 md:grid-cols-5 gap-2 h-auto";
       grid.style.gridAutoRows = "";
   } else {
       container.classList.remove("snap-x");
@@ -121,7 +121,7 @@ const renderGallery = () => {
             }
         };
     } else {
-        div.className = "snap-start flex items-center justify-center w-full h-full p-2 md:p-6 overflow-hidden shrink-0";
+        div.className = "snap-start flex items-center justify-center w-full h-full overflow-hidden shrink-0";
         div.innerHTML = `
           <div class="w-full h-full flex items-center justify-center">
              <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onload="window.URL.revokeObjectURL(this.src)">
@@ -278,8 +278,10 @@ window.confirmBatchDelete = async () => {
     if (!confirm(`確定要刪除選取的 ${window.selectedCardIds.size} 張照片嗎？這項操作無法復原。`)) return;
     
     const idsToDelete = Array.from(window.selectedCardIds);
-    dbCards = dbCards.filter(c => !idsToDelete.includes(c.id));
-    await window.idbKeyval.set("bgCards", dbCards);
+    const remaining = window.dbCards.filter(c => !idsToDelete.includes(c.id));
+    window.dbCards.length = 0;
+    window.dbCards.push(...remaining);
+    await window.idbKeyval.set("bgCards", window.dbCards);
     
     window.isSelectionMode = false;
     window.selectedCardIds.clear();
