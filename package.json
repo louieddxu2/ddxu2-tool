@@ -13,7 +13,9 @@
     "test:e2e": "playwright test",
     "test": "npm run test:dynamic-sheet && npm run test:e2e",
     "verify": "npm run test:dynamic-sheet",
-    "build": "node scripts/inject-env.mjs"
+    "build": "node scripts/inject-env.mjs",
+    "check:encoding": "node scripts/check-encoding.mjs",
+    "setup:hooks": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

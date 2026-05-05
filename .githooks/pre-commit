@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -e
+
+echo "Running encoding guard..."
+npm run check:encoding
