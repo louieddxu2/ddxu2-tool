@@ -81,6 +81,10 @@ function updateSyncUI(state) {
       connected.classList.remove("hidden");
       if (dot) dot.classList.remove("hidden");
       updateGameInputLockUI(true);
+      const connectedIdEl = document.getElementById("sync-connected-id");
+      if (connectedIdEl) {
+          connectedIdEl.innerText = localStorage.getItem('bg_last_joined_id') || '---';
+      }
   }
   
   try { lucide.createIcons(); } catch (e) {}
@@ -118,7 +122,10 @@ window.startHost = () => {
       return;
   }
 
-  if (peer) peer.destroy();
+  if (peer) {
+    try { peer.removeAllListeners(); } catch (e) {}
+    peer.destroy();
+  }
   const savedId = localStorage.getItem('bg_last_peer_id');
   peer = new Peer(savedId || undefined);
   
@@ -167,7 +174,10 @@ window.startHost = () => {
 };
 
 window.stopHost = () => {
-  if (peer) peer.destroy();
+  if (peer) {
+    try { peer.removeAllListeners(); } catch (e) {}
+    peer.destroy();
+  }
   peer = null;
   window.connections.forEach(c => c.close());
   window.connections.clear();
@@ -186,7 +196,10 @@ window.stopHost = () => {
 
 function startJoin(id) {
   if (!id) return;
-  if (peer) peer.destroy();
+  if (peer) {
+    try { peer.removeAllListeners(); } catch (e) {}
+    peer.destroy();
+  }
   
   peer = new Peer();
   peer.on('open', () => {
