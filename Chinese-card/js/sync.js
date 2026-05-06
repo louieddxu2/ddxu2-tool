@@ -264,7 +264,18 @@ window.setupConnection = function(c) {
   }
 
   window.connections.add(c);
-    c.on('open', () => {
+
+  // Connection handshake timeout guard (6 seconds) to prevent zombie/stuck connections
+  const connTimeout = setTimeout(() => {
+    if (!c.open && localStorage.getItem('bg_sync_role') === 'client') {
+      logSync("連線握手超時，自動重新連線中...");
+      c.close();
+      removeConn();
+    }
+  }, 6000);
+
+  c.on('open', () => {
+    clearTimeout(connTimeout);
       const role = localStorage.getItem('bg_sync_role');
       if (role === 'host') {
           updateSyncUI("hosting");
