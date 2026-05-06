@@ -1,6 +1,7 @@
-﻿let peer = null;
+let peer = null;
 window.connections = new Set();
 let qrcode = null;
+let unavailableIdRetries = 0;
 
 const CHUNK_SIZE = 16384; 
 let incomingChunks = {}; 
@@ -122,6 +123,7 @@ window.startHost = () => {
   peer = new Peer(savedId || undefined);
   
   peer.on('open', (id) => {
+    unavailableIdRetries = 0; // reset on success
     localStorage.setItem('bg_last_peer_id', id);
     localStorage.setItem('bg_sync_role', 'host');
     
@@ -147,7 +149,18 @@ window.startHost = () => {
 
   peer.on('connection', (c) => setupConnection(c));
   peer.on('error', (err) => {
-    if (err.type === 'unavailable-id') { localStorage.removeItem('bg_last_peer_id'); return startHost(); }
+    if (err.type === 'unavailable-id') { 
+      if (unavailableIdRetries < 3) {
+        unavailableIdRetries++;
+        logSync(`房間 ID 暫時被佔用，將在 1.5 秒後重試第 ${unavailableIdRetries} 次...`);
+        setTimeout(() => { startHost(); }, 1500);
+      } else {
+        logSync("房間 ID 被佔用且重試失敗，將產生新房間 ID...");
+        localStorage.removeItem('bg_last_peer_id'); 
+        startHost(); 
+      }
+      return;
+    }
     logSync(`Peer 錯誤：${err.type}`);
     updateSyncUI("initial");
   });
@@ -186,6 +199,16 @@ function startJoin(id) {
   peer.on('error', (err) => {
     logSync(`加入失敗：${err.type}`);
     updateSyncUI("initial");
+    
+    // Client auto-reconnect on peer/connection error
+    const lastId = localStorage.getItem('bg_last_joined_id');
+    if (lastId && localStorage.getItem('bg_sync_role') === 'client') {
+      setTimeout(() => {
+        if (window.connections.size === 0 && localStorage.getItem('bg_sync_role') === 'client') {
+          handleAutoReconnect();
+        }
+      }, 5000);
+    }
   });
 }
 
@@ -413,6 +436,17 @@ window.setupConnection = function(c) {
     } else {
         if (window.connections.size === 0 && peer && !peer.destroyed) {
             setTimeout(() => { updateSyncUI('initial'); }, 3000);
+            
+            // Client auto-reconnect on disconnect
+            const lastId = localStorage.getItem('bg_last_joined_id');
+            if (lastId && localStorage.getItem('bg_sync_role') === 'client') {
+                logSync("與主機斷開連線，將在 5 秒後嘗試重新連線...");
+                setTimeout(() => {
+                    if (window.connections.size === 0 && localStorage.getItem('bg_sync_role') === 'client') {
+                        handleAutoReconnect();
+                    }
+                }, 5000);
+            }
         }
     }
   };
@@ -515,6 +549,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (localStorage.getItem('bg_sync_role')) {
         handleAutoReconnect();
     }
+  }
+});
+
+// Clean teardown on unload to release Host ID instantly on the PeerJS server
+window.addEventListener('beforeunload', () => {
+  if (peer) {
+    peer.destroy();
   }
 });
 
