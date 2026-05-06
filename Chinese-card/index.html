@@ -54,7 +54,17 @@
       <input type="search" id="compact-inp-number" placeholder="搜尋..."
         class="flex-[3] min-w-0 bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 outline-none placeholder:text-emerald-200 font-bold [&::-webkit-search-cancel-button]:invert" />
 
-      <div class="flex items-center gap-0.5 shrink-0 ml-1">
+      <!-- 一體化當前卡牌管理區 (圓角白底卡片) -->
+      <div id="compact-card-card" class="hidden bg-white text-slate-800 rounded-xl px-4 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between min-w-0 flex-1 mx-2">
+        <div id="compact-card-info" class="flex flex-col min-w-0 justify-center">
+          <div id="compact-label" class="text-xs font-black text-slate-800 truncate leading-tight"></div>
+          <div id="compact-memo" class="text-[9px] text-slate-500 italic flex items-center gap-1 opacity-70 hidden"></div>
+        </div>
+        <div id="compact-actions" class="flex items-center gap-1 shrink-0 ml-2"></div>
+      </div>
+
+      <!-- 系統按鈕 (右上排) -->
+      <div id="compact-sys-buttons" class="flex items-center gap-0.5 shrink-0 ml-1">
         <button onclick="openSyncModal()" class="p-1.5 hover:bg-emerald-700 rounded-lg relative" title="即時同步">
           <i data-lucide="users" class="w-4 h-4"></i>
           <span id="sync-active-dot-compact"
@@ -713,12 +723,14 @@
         <div class="flex items-start gap-3">
           <div class="text-emerald-500 font-bold">1.</div>
           <p class="text-sm text-slate-600 leading-relaxed">點擊邊緣選單 ( <span class="font-bold text-slate-900">...</span> 、
-            <span class="font-bold text-slate-900">⋮</span> 或 <span class="font-bold text-slate-900">分享圖示</span> )</p>
+            <span class="font-bold text-slate-900">⋮</span> 或 <span class="font-bold text-slate-900">分享圖示</span> )
+          </p>
         </div>
         <div class="flex items-start gap-3">
           <div class="text-emerald-500 font-bold">2.</div>
           <p class="text-sm text-slate-600 leading-relaxed">選擇「<span class="font-bold text-slate-900">在瀏覽器中開啟</span>」( 或
-            <span class="font-bold text-slate-900">Safari / Chrome</span> )</p>
+            <span class="font-bold text-slate-900">Safari / Chrome</span> )
+          </p>
         </div>
       </div>
 

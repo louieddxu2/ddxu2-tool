@@ -32,7 +32,7 @@ window.renderGallery = () => {
 
   const grid = document.getElementById("gallery-grid");
   grid.innerHTML = "";
-  
+
   const footer = document.getElementById("gallery-footer");
   const emptyState = document.getElementById("empty-state");
 
@@ -45,90 +45,90 @@ window.renderGallery = () => {
   }
 
   const container = document.getElementById("gallery-container");
-  
+
   if (window.isGridViewMode) {
-      container.classList.remove("snap-y", "snap-mandatory", "snap-x");
-      grid.className = "grid grid-cols-3 md:grid-cols-5 gap-2 h-auto";
-      grid.style.gridAutoRows = "";
+    container.classList.remove("snap-y", "snap-mandatory", "snap-x");
+    grid.className = "grid grid-cols-3 md:grid-cols-5 gap-2 h-auto";
+    grid.style.gridAutoRows = "";
   } else {
-      container.classList.remove("snap-x");
-      container.classList.add("snap-y", "snap-mandatory");
-      grid.className = "grid grid-cols-1 h-full";
-      grid.style.gridAutoRows = "100%";
+    container.classList.remove("snap-x");
+    container.classList.add("snap-y", "snap-mandatory");
+    grid.className = "grid grid-cols-1 h-full";
+    grid.style.gridAutoRows = "100%";
   }
 
   displayed.forEach((c, index) => {
     if (!c.blob || !(c.blob instanceof Blob)) return;
     const url = URL.createObjectURL(c.blob);
     const div = document.createElement("div");
-    
+
     div.setAttribute("data-id", c.id);
     div.setAttribute("data-game", c.game);
     div.setAttribute("data-type", c.type);
     div.setAttribute("data-number", c.number || "未命名");
     div.setAttribute("data-memo", c.memo || "");
-    
+
     if (window.isGridViewMode) {
-        div.className = "relative aspect-square bg-white rounded-lg overflow-hidden cursor-pointer shadow-sm p-1";
-        const isSelected = window.selectedCardIds.has(c.id);
-        const overlayClass = isSelected ? "opacity-100" : "opacity-0";
-        const borderClass = isSelected ? "border-4 border-emerald-500 rounded-lg" : "border-0";
-        const scaleClass = isSelected ? "scale-90" : "";
-        
-        div.innerHTML = `
+      div.className = "relative aspect-square bg-white rounded-lg overflow-hidden cursor-pointer shadow-sm p-1";
+      const isSelected = window.selectedCardIds.has(c.id);
+      const overlayClass = isSelected ? "opacity-100" : "opacity-0";
+      const borderClass = isSelected ? "border-4 border-emerald-500 rounded-lg" : "border-0";
+      const scaleClass = isSelected ? "scale-90" : "";
+
+      div.innerHTML = `
           <img src="${url}" class="w-full h-full object-contain transition-transform duration-200 ${scaleClass} ${borderClass}" onload="window.URL.revokeObjectURL(this.src)">
           <div class="selection-overlay absolute inset-0 bg-emerald-500/10 transition-opacity duration-200 ${overlayClass} pointer-events-none"></div>
           <div class="selection-badge absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-white shadow-md flex items-center justify-center transition-opacity duration-200 ${overlayClass} pointer-events-none">
              <i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>
           </div>
         `;
-        
-        div.onclick = () => {
-            if (window.isSelectionMode) {
-                const img = div.querySelector('img');
-                const overlay = div.querySelector('.selection-overlay');
-                const badge = div.querySelector('.selection-badge');
-                
-                if (window.selectedCardIds.has(c.id)) {
-                    window.selectedCardIds.delete(c.id);
-                    img.classList.remove('scale-90', 'border-4', 'border-emerald-500');
-                    overlay.classList.remove('opacity-100'); overlay.classList.add('opacity-0');
-                    badge.classList.remove('opacity-100'); badge.classList.add('opacity-0');
-                } else {
-                    window.selectedCardIds.add(c.id);
-                    img.classList.add('scale-90', 'border-4', 'border-emerald-500');
-                    overlay.classList.remove('opacity-0'); overlay.classList.add('opacity-100');
-                    badge.classList.remove('opacity-0'); badge.classList.add('opacity-100');
-                }
-                
-                // Update footer counter dynamically
-                const counter = document.getElementById("selection-counter");
-                if (counter) counter.innerText = `已選取 ${window.selectedCardIds.size} 張`;
-                
-            } else {
-                window.isGridViewMode = false;
-                renderGallery();
-                // Disable smooth scroll temporarily for an instant jump
-                setTimeout(() => {
-                    const target = document.querySelector(`div[data-id="${c.id}"]`);
-                    if (target) {
-                        const container = document.getElementById("gallery-container");
-                        container.classList.remove("scroll-smooth");
-                        target.scrollIntoView({ behavior: 'auto', block: 'start' });
-                        setTimeout(() => container.classList.add("scroll-smooth"), 50);
-                    }
-                }, 50);
+
+      div.onclick = () => {
+        if (window.isSelectionMode) {
+          const img = div.querySelector('img');
+          const overlay = div.querySelector('.selection-overlay');
+          const badge = div.querySelector('.selection-badge');
+
+          if (window.selectedCardIds.has(c.id)) {
+            window.selectedCardIds.delete(c.id);
+            img.classList.remove('scale-90', 'border-4', 'border-emerald-500');
+            overlay.classList.remove('opacity-100'); overlay.classList.add('opacity-0');
+            badge.classList.remove('opacity-100'); badge.classList.add('opacity-0');
+          } else {
+            window.selectedCardIds.add(c.id);
+            img.classList.add('scale-90', 'border-4', 'border-emerald-500');
+            overlay.classList.remove('opacity-0'); overlay.classList.add('opacity-100');
+            badge.classList.remove('opacity-0'); badge.classList.add('opacity-100');
+          }
+
+          // Update footer counter dynamically
+          const counter = document.getElementById("selection-counter");
+          if (counter) counter.innerText = `已選取 ${window.selectedCardIds.size} 張`;
+
+        } else {
+          window.isGridViewMode = false;
+          renderGallery();
+          // Disable smooth scroll temporarily for an instant jump
+          setTimeout(() => {
+            const target = document.querySelector(`div[data-id="${c.id}"]`);
+            if (target) {
+              const container = document.getElementById("gallery-container");
+              container.classList.remove("scroll-smooth");
+              target.scrollIntoView({ behavior: 'auto', block: 'start' });
+              setTimeout(() => container.classList.add("scroll-smooth"), 50);
             }
-        };
+          }, 50);
+        }
+      };
     } else {
-        div.className = "snap-start flex items-center justify-center w-full h-full overflow-hidden shrink-0";
-        div.innerHTML = `
+      div.className = "snap-start flex items-center justify-center w-full h-full overflow-hidden shrink-0";
+      div.innerHTML = `
           <div class="w-full h-full flex items-center justify-center">
              <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onload="window.URL.revokeObjectURL(this.src)">
           </div>
         `;
     }
-    
+
     grid.appendChild(div);
   });
 
@@ -153,21 +153,21 @@ window.renderGallery = () => {
 
   // If in Grid view, we don't need the observer tracking a specific card
   if (window.isGridViewMode) {
-      updateStationaryFooter(null);
+    updateStationaryFooter(null);
   } else {
-      // Manually trigger initial footer content for the first card
-      const firstCard = grid.firstElementChild;
-      if (firstCard) {
-        updateStationaryFooter(firstCard);
-      }
+    // Manually trigger initial footer content for the first card
+    const firstCard = grid.firstElementChild;
+    if (firstCard) {
+      updateStationaryFooter(firstCard);
+    }
   }
 };
 
 const updateStationaryFooter = (target) => {
   const footer = document.getElementById("gallery-footer");
-  
+
   if (window.isSelectionMode) {
-      footer.innerHTML = `
+    footer.innerHTML = `
         <div class="w-full flex flex-wrap items-center justify-between gap-1 md:gap-2">
           <div class="flex items-center gap-1 md:gap-2 shrink-0">
              <span id="selection-counter" class="text-xs md:text-sm font-bold text-slate-700">已選 ${window.selectedCardIds.size} 張</span>
@@ -178,12 +178,12 @@ const updateStationaryFooter = (target) => {
           </button>
         </div>
       `;
-      try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch(e) {}
-      return;
+    try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch (e) { }
+    return;
   }
-  
+
   if (window.isGridViewMode) {
-      footer.innerHTML = `
+    footer.innerHTML = `
         <div class="w-full flex flex-wrap items-center justify-between gap-1 md:gap-2">
           <div class="min-w-0 shrink-0">
              <span class="text-xs md:text-sm font-bold text-slate-500">目錄檢視</span>
@@ -198,13 +198,13 @@ const updateStationaryFooter = (target) => {
           </div>
         </div>
       `;
-      try { lucide.createIcons(); } catch(e) {}
-      return;
+    try { lucide.createIcons(); } catch (e) { }
+    return;
   }
 
   // Single View (requires target)
   if (!target) return;
-  
+
   const id = target.getAttribute("data-id");
   const game = target.getAttribute("data-game");
   const type = target.getAttribute("data-type");
@@ -213,7 +213,7 @@ const updateStationaryFooter = (target) => {
 
   const gQ = document.getElementById("inp-game").value.trim();
   const tQ = document.getElementById("inp-type").value.trim();
-  
+
   const showGame = !gQ;
   const showType = !tQ;
   const metaStr = [showGame ? game : "", showType ? type : ""].filter(Boolean).join(" | ");
@@ -238,54 +238,72 @@ const updateStationaryFooter = (target) => {
       </div>
     </div>
   `;
-  try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch(e) {}
+  try { lucide.createIcons({ props: { class: "w-4 h-4" }, elements: [footer] }); } catch (e) { }
 
   // NEW: Also update compact-bar if it's active
-  const compactInfo = document.getElementById("compact-card-info");
+  const compactCard = document.getElementById("compact-card-card");
   const compactLabel = document.getElementById("compact-label");
   const compactActions = document.getElementById("compact-actions");
-  if (compactInfo && compactLabel && compactActions) {
+  const compactMemo = document.getElementById("compact-memo");
+  
+  if (compactCard && compactLabel && compactActions) {
     if (window.isGridViewMode) {
-      compactInfo.classList.add("hidden");
+      compactCard.classList.add("hidden");
     } else {
-      compactInfo.classList.remove("hidden");
+      compactCard.classList.remove("hidden");
       compactLabel.innerText = number;
+      
+      // Render Memo if it exists
+      if (compactMemo) {
+        if (memo) {
+          compactMemo.innerHTML = `<i data-lucide="sticky-note" class="w-3 h-3"></i> <span>${memo}</span>`;
+          compactMemo.classList.remove("hidden");
+        } else {
+          compactMemo.classList.add("hidden");
+        }
+      }
+
       compactActions.innerHTML = `
-        <button onclick="openEditModal('${id}')" class="p-1 hover:bg-emerald-700 rounded-lg transition-colors"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
-        <button onclick="deleteCard('${id}')" class="p-1 hover:bg-red-600 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-        <button onclick="toggleGridView()" class="p-1 hover:bg-emerald-700 rounded-lg transition-colors"><i data-lucide="layout-grid" class="w-3.5 h-3.5"></i></button>
+        <button onclick="openEditModal('${id}')" class="p-1 bg-slate-50 border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-all active:scale-95" title="編輯"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i></button>
+        <button onclick="deleteCard('${id}')" class="p-1 bg-slate-50 border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-all active:scale-95" title="刪除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+        <button onclick="toggleGridView()" class="p-1 bg-slate-50 border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-all active:scale-95" title="目錄檢視"><i data-lucide="layout-grid" class="w-3.5 h-3.5"></i></button>
       `;
-      try { lucide.createIcons({ props: { class: "w-3.5 h-3.5" }, elements: [compactActions] }); } catch(e) {}
+      try { 
+        lucide.createIcons({ props: { class: "w-3.5 h-3.5" }, elements: [compactActions] });
+        if (memo && compactMemo) {
+          lucide.createIcons({ props: { class: "w-3 h-3" }, elements: [compactMemo] });
+        }
+      } catch (e) { }
     }
   }
 };
 
 window.toggleGridView = () => {
-    window.isGridViewMode = !window.isGridViewMode;
-    window.isSelectionMode = false;
-    window.selectedCardIds.clear();
-    renderGallery();
+  window.isGridViewMode = !window.isGridViewMode;
+  window.isSelectionMode = false;
+  window.selectedCardIds.clear();
+  renderGallery();
 };
 
 window.toggleSelectionMode = () => {
-    window.isSelectionMode = !window.isSelectionMode;
-    window.selectedCardIds.clear();
-    renderGallery();
+  window.isSelectionMode = !window.isSelectionMode;
+  window.selectedCardIds.clear();
+  renderGallery();
 };
 
 window.confirmBatchDelete = async () => {
-    if (window.selectedCardIds.size === 0) return;
-    if (!confirm(`確定要刪除選取的 ${window.selectedCardIds.size} 張照片嗎？這項操作無法復原。`)) return;
-    
-    const idsToDelete = Array.from(window.selectedCardIds);
-    const remaining = window.dbCards.filter(c => !idsToDelete.includes(c.id));
-    window.dbCards.length = 0;
-    window.dbCards.push(...remaining);
-    await window.idbKeyval.set("bgCards", window.dbCards);
-    
-    window.isSelectionMode = false;
-    window.selectedCardIds.clear();
-    renderGallery();
+  if (window.selectedCardIds.size === 0) return;
+  if (!confirm(`確定要刪除選取的 ${window.selectedCardIds.size} 張照片嗎？這項操作無法復原。`)) return;
+
+  const idsToDelete = Array.from(window.selectedCardIds);
+  const remaining = window.dbCards.filter(c => !idsToDelete.includes(c.id));
+  window.dbCards.length = 0;
+  window.dbCards.push(...remaining);
+  await window.idbKeyval.set("bgCards", window.dbCards);
+
+  window.isSelectionMode = false;
+  window.selectedCardIds.clear();
+  renderGallery();
 };
 
 document.addEventListener("DOMContentLoaded", () => {

@@ -103,19 +103,124 @@ svg.crop-lines {
   min-height: 48px !important;
 }
 
+/* Hide Home Link button in compact mode */
+[data-view-mode="compact"] [data-home-link] {
+  display: none !important;
+}
+
+/* Deep safeguard: Enforce hiding white card sub-panel in portrait mode */
+[data-orientation="portrait"] #compact-card-card {
+  display: none !important;
+}
+
+/* Enlarge inputs on the left in landscape compact mode */
+[data-orientation="landscape"][data-view-mode="compact"] #compact-bar input {
+  height: 38px !important;
+  font-size: 12px !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+/* One-piece Card Management Area: White Rounded Card Sub-panel */
+[data-orientation="landscape"][data-view-mode="compact"] #compact-card-card {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border-radius: 12px !important;
+  padding: 6px 16px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #f1f5f9 !important;
+  height: 38px !important;
+  min-width: 0 !important;
+  flex: 1 !important;
+  margin-left: 12px !important;
+  margin-right: 12px !important;
+  align-self: center !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-card-info {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  min-width: 0 !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-label {
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  color: #1e293b !important;
+  line-height: 1.2 !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-memo {
+  font-size: 10px !important;
+  color: #64748b !important;
+  font-style: italic !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin-top: 2px !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-actions button {
+  padding: 5px !important;
+  border-radius: 8px !important;
+  background-color: #f8fafc !important;
+  border: 1px solid #f1f5f9 !important;
+  color: #475569 !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-actions button:hover {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #d1fae5 !important;
+}
+
+/* System Buttons Styling */
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button,
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a {
+  color: #ffffff !important;
+  padding: 6px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button:hover,
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a:hover {
+  background-color: #047857 !important;
+}
+
+/* Hide original gallery footer in landscape compact mode */
+[data-orientation="landscape"][data-view-mode="compact"] #gallery-footer {
+  display: none !important;
+}
+
 /* Ensure empty state is always centered in the main view */
 #empty-state i {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 0.2;
     transform: scale(1);
   }
-
   50% {
     opacity: 0.3;
     transform: scale(1.1);
