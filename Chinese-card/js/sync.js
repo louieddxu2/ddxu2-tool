@@ -41,6 +41,14 @@ window.openSyncModal = () => {
   const m = document.getElementById("modal-sync");
   if (m) { m.classList.remove("hidden"); m.classList.add("flex"); }
   try { lucide.createIcons(); } catch (e) {}
+  
+  // If in disconnected client state, clicking also triggers manual reconnect immediately
+  const role = localStorage.getItem('bg_sync_role');
+  const isDisconnected = !peer || peer.destroyed || window.connections.size === 0;
+  if (role === 'client' && isDisconnected) {
+      logSync("使用者點擊按鈕，立即發起手動重連...");
+      handleAutoReconnect();
+  }
 };
 
 window.closeSyncModal = () => {
@@ -64,6 +72,9 @@ function updateSyncUI(state) {
   const hosting = document.getElementById("sync-hosting");
   const connected = document.getElementById("sync-connected");
   const dot = document.getElementById("sync-active-dot");
+  const dotCompact = document.getElementById("sync-active-dot-compact");
+  const btnSync = dot?.parentElement;
+  const btnSyncCompact = dotCompact?.parentElement;
 
   initial.classList.add("hidden");
   hosting.classList.add("hidden");
@@ -72,18 +83,64 @@ function updateSyncUI(state) {
   if (state === "initial") {
       initial.classList.remove("hidden");
       if (dot) dot.classList.add("hidden");
+      if (dotCompact) dotCompact.classList.add("hidden");
+      if (btnSync) btnSync.setAttribute("title", "即時同步");
+      if (btnSyncCompact) btnSyncCompact.setAttribute("title", "即時同步");
       updateGameInputLockUI(false);
   } else if (state === "hosting") {
       hosting.classList.remove("hidden");
-      if (dot) dot.classList.remove("hidden");
+      if (dot) {
+          dot.classList.remove("hidden", "bg-amber-500", "border-amber-600");
+          dot.classList.add("bg-emerald-400", "border-emerald-600");
+      }
+      if (dotCompact) {
+          dotCompact.classList.remove("hidden", "bg-amber-500", "border-amber-600");
+          dotCompact.classList.add("bg-emerald-400", "border-emerald-600");
+      }
+      if (btnSync) btnSync.setAttribute("title", "即時同步 (房主中)");
+      if (btnSyncCompact) btnSyncCompact.setAttribute("title", "即時同步 (房主中)");
       updateGameInputLockUI(true);
   } else if (state === "connected") {
       connected.classList.remove("hidden");
-      if (dot) dot.classList.remove("hidden");
+      if (dot) {
+          dot.classList.remove("hidden", "bg-amber-500", "border-amber-600");
+          dot.classList.add("bg-emerald-400", "border-emerald-600");
+      }
+      if (dotCompact) {
+          dotCompact.classList.remove("hidden", "bg-amber-500", "border-amber-600");
+          dotCompact.classList.add("bg-emerald-400", "border-emerald-600");
+      }
+      if (btnSync) btnSync.setAttribute("title", "已連線到房間");
+      if (btnSyncCompact) btnSyncCompact.setAttribute("title", "已連線到房間");
       updateGameInputLockUI(true);
       const connectedIdEl = document.getElementById("sync-connected-id");
       if (connectedIdEl) {
           connectedIdEl.innerText = localStorage.getItem('bg_last_joined_id') || '---';
+      }
+      const statusText = document.getElementById("sync-status-text");
+      if (statusText) {
+          statusText.innerHTML = "當前正與主機同步卡牌資料中";
+      }
+  } else if (state === "disconnected-client") {
+      connected.classList.remove("hidden");
+      if (dot) {
+          dot.classList.remove("hidden", "bg-emerald-400", "border-emerald-600");
+          dot.classList.add("bg-amber-500", "border-amber-600");
+      }
+      if (dotCompact) {
+          dotCompact.classList.remove("hidden", "bg-emerald-400", "border-emerald-600");
+          dotCompact.classList.add("bg-amber-500", "border-amber-600");
+      }
+      if (btnSync) btnSync.setAttribute("title", "與主機中斷連線，點擊立即手動重連");
+      if (btnSyncCompact) btnSyncCompact.setAttribute("title", "與主機中斷連線，點擊立即手動重連");
+      updateGameInputLockUI(true);
+      const connectedIdEl = document.getElementById("sync-connected-id");
+      if (connectedIdEl) {
+          connectedIdEl.innerText = localStorage.getItem('bg_last_joined_id') || '---';
+      }
+      const statusText = document.getElementById("sync-status-text");
+      if (statusText) {
+          statusText.innerHTML = `<span class="text-amber-500 font-bold">連線已中斷</span>，背景嘗試重連中...`;
       }
   }
   
@@ -187,6 +244,7 @@ window.stopHost = () => {
   localStorage.removeItem('bg_last_active_time');
   localStorage.removeItem('bg_session_start_time');
   localStorage.removeItem('bg_session_game');
+  localStorage.removeItem('bg_last_success_time');
   updateSyncUI("initial");
   broadcastedCardVersions.clear(); 
   logSync("已關閉同步房間。")
@@ -211,7 +269,7 @@ function startJoin(id) {
   });
   peer.on('error', (err) => {
     logSync(`加入失敗：${err.type}`);
-    updateSyncUI("initial");
+    updateSyncUI("disconnected-client");
     
     // Client auto-reconnect on peer/connection error
     const lastId = localStorage.getItem('bg_last_joined_id');
@@ -285,6 +343,7 @@ window.setupConnection = function(c) {
           if (hc) hc.innerText = `已連線裝置 (${window.connections.size})`;
       } else {
           updateSyncUI("connected");
+          localStorage.setItem('bg_last_success_time', Date.now().toString());
           setTimeout(() => { window.closeSyncModal(); }, 3000); // Auto-close for client after 3s
       }
       
@@ -459,7 +518,7 @@ window.setupConnection = function(c) {
         }
     } else {
         if (window.connections.size === 0 && peer && !peer.destroyed) {
-            setTimeout(() => { updateSyncUI('initial'); }, 3000);
+            updateSyncUI('disconnected-client');
             
             // Client auto-reconnect on disconnect
             const lastId = localStorage.getItem('bg_last_joined_id');
@@ -529,8 +588,18 @@ function handleAutoReconnect() {
     logSync("Session expired, cleared stale state.");
     return;
   }
-  updateActivity();
+  
   const role = localStorage.getItem('bg_sync_role');
+  if (role === 'client') {
+    const lastSuccess = localStorage.getItem('bg_last_success_time');
+    if (lastSuccess && (Date.now() - parseInt(lastSuccess, 10)) > 3600000) { // 1 hour = 3600000 ms
+      logSync("距離上次成功連線已超過 1 小時，自動清除房間紀錄並結束連線狀態。");
+      stopHost();
+      return;
+    }
+  }
+
+  updateActivity();
   if (role === 'host') {
     logSync("嘗試重新建立房間連線...");
     startHost();
