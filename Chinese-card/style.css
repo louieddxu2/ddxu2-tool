@@ -108,8 +108,9 @@ svg.crop-lines {
   display: none !important;
 }
 
-/* Deep safeguard: Enforce hiding white card sub-panel in portrait mode */
-[data-orientation="portrait"] #compact-card-card {
+/* Deep safeguard: Enforce hiding white card sub-panel and action buttons in portrait mode */
+[data-orientation="portrait"] #compact-card-card,
+[data-orientation="portrait"] #compact-actions {
   display: none !important;
 }
 
