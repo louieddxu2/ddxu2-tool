@@ -473,7 +473,7 @@ window.setRatioAndCenter = (baseCropRatio) => {
 
   cropRatio = newCropRatio;
   window.cropRatio = cropRatio;
-  if (isCropViewOpen) {
+  if (UIState.isCropViewOpen) {
     drawLines();
   }
 };
