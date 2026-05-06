@@ -56,33 +56,38 @@
           class="flex-[3] min-w-0 bg-emerald-700/50 border-none text-[10px] rounded-lg px-2 py-1.5 outline-none placeholder:text-emerald-200 font-bold [&::-webkit-search-cancel-button]:invert" />
       </div>
 
-      <!-- 一體化當前卡牌管理區 (圓角白底卡片) -->
-      <div id="compact-card-card" class="hidden bg-white text-slate-800 rounded-xl px-4 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between min-w-0 flex-1 mx-2">
+      <!-- 第二欄：編號與註解 (白底圓角卡片) -->
+      <div id="compact-card-card" class="hidden bg-white text-slate-800 rounded-xl px-4 py-1.5 border border-slate-100 shadow-sm flex flex-col justify-center min-w-0">
         <div id="compact-card-info" class="flex flex-col min-w-0 justify-center">
           <div id="compact-label" class="text-xs font-black text-slate-800 truncate leading-tight"></div>
           <div id="compact-memo" class="text-[9px] text-slate-500 italic flex items-center gap-1 opacity-70 hidden"></div>
         </div>
-        <div id="compact-actions" class="flex items-center gap-1 shrink-0 ml-2"></div>
       </div>
 
-      <!-- 系統按鈕 (右上排) -->
-      <div id="compact-sys-buttons" class="flex items-center gap-0.5 shrink-0 ml-1">
-        <button onclick="openSyncModal()" class="p-1.5 hover:bg-emerald-700 rounded-lg relative" title="即時同步">
-          <i data-lucide="users" class="w-4 h-4"></i>
-          <span id="sync-active-dot-compact"
-            class="hidden absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full border border-emerald-600 animate-pulse"></span>
-        </button>
-        <a href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images" target="_blank"
-          class="p-1.5 hover:bg-emerald-700 rounded-lg" title="Google 翻譯">
-          <i data-lucide="languages" class="w-4 h-4"></i>
-        </a>
-        <button onclick="document.getElementById('file-upload').click()" class="p-1.5 hover:bg-emerald-700 rounded-lg"
-          title="匯入圖片">
-          <i data-lucide="image-plus" class="w-4 h-4"></i>
-        </button>
-        <button onclick="toggleCompactMode()" class="p-1.5 hover:bg-emerald-700 rounded-lg" title="結束簡潔模式">
-          <i data-lucide="maximize-2" class="w-4 h-4"></i>
-        </button>
+      <!-- 第三欄：雙排功能按鈕 (上下分成兩列佈局) -->
+      <div id="compact-right-buttons" class="flex flex-col gap-1 shrink-0 ml-auto">
+        <!-- 上方系統按鈕 (配色配色設計參考第一欄，即綠底/深綠色系) -->
+        <div id="compact-sys-buttons" class="flex items-center gap-0.5 justify-end">
+          <button onclick="openSyncModal()" class="p-1.5 hover:bg-emerald-700 rounded-lg relative" title="即時同步">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span id="sync-active-dot-compact"
+              class="hidden absolute top-1 right-1 w-1.5 h-1.5 bg-emerald-400 rounded-full border border-emerald-600 animate-pulse"></span>
+          </button>
+          <a href="https://translate.google.com/?sl=auto&tl=zh-TW&op=images" target="_blank"
+            class="p-1.5 hover:bg-emerald-700 rounded-lg" title="Google 翻譯">
+            <i data-lucide="languages" class="w-4 h-4"></i>
+          </a>
+          <button onclick="document.getElementById('file-upload').click()" class="p-1.5 hover:bg-emerald-700 rounded-lg"
+            title="匯入圖片">
+            <i data-lucide="image-plus" class="w-4 h-4"></i>
+          </button>
+          <button onclick="toggleCompactMode()" class="p-1.5 hover:bg-emerald-700 rounded-lg" title="結束簡潔模式">
+            <i data-lucide="maximize-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+        
+        <!-- 下方卡牌編輯與操作按鈕 (配色參考第二欄，即白底、淺色系) -->
+        <div id="compact-actions" class="flex items-center gap-1 justify-end hidden"></div>
       </div>
     </div>
     <header id="sidebar-header-normal" class="bg-emerald-600 text-white p-1.5 px-3 shadow-md shrink-0 relative">

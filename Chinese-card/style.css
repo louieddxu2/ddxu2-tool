@@ -113,72 +113,45 @@ svg.crop-lines {
   display: none !important;
 }
 
-/* Grid Matrix for Landscape Compact Bar */
+/* 1. Entire compact-bar layout using 3 columns */
 [data-orientation="landscape"][data-view-mode="compact"] #compact-bar {
   display: grid !important;
-  grid-template-columns: minmax(300px, 450px) 1fr !important;
-  grid-template-rows: auto auto !important;
-  gap: 8px 16px !important;
+  grid-template-columns: 50% 1fr auto !important; /* Col 1 takes 50%, Col 2 and Col 3 share the remaining 50% */
+  gap: 12px !important;
   padding: 8px 16px !important;
   align-items: center !important;
+  height: 64px !important; /* Sleek, stable height */
 }
 
-/* Search inputs wrapper on Column 1, spanning both rows */
+/* Column 1: Search Inputs Group (Occupying exactly 50% width) */
 [data-orientation="landscape"][data-view-mode="compact"] #compact-search-group {
   grid-column: 1 !important;
-  grid-row: 1 / span 2 !important;
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
+  gap: 6px !important;
   width: 100% !important;
 }
 
-/* Enlarge inputs inside search group */
 [data-orientation="landscape"][data-view-mode="compact"] #compact-search-group input {
   height: 38px !important;
-  font-size: 12px !important;
-  padding-top: 8px !important;
-  padding-bottom: 8px !important;
+  font-size: 11px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
 }
 
-/* System Buttons on Row 1, Column 2, aligned right */
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons {
-  grid-column: 2 !important;
-  grid-row: 1 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  gap: 6px !important;
-  justify-self: end !important;
-}
-
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button,
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a {
-  color: #ffffff !important;
-  padding: 6px !important;
-  border-radius: 8px !important;
-  transition: all 0.2s ease !important;
-}
-
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button:hover,
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a:hover {
-  background-color: #047857 !important;
-}
-
-/* One-piece Card Management Area: White Rounded Card Sub-panel on Row 2, Column 2 */
+/* Column 2: Card Card (Showing card label & memo) */
 [data-orientation="landscape"][data-view-mode="compact"] #compact-card-card {
   grid-column: 2 !important;
-  grid-row: 2 !important;
   display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
+  flex-direction: column !important;
+  justify-content: center !important;
   background-color: #ffffff !important;
   color: #1e293b !important;
   border-radius: 12px !important;
-  padding: 6px 16px !important;
+  padding: 6px 14px !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
   border: 1px solid #f1f5f9 !important;
-  height: 38px !important;
+  height: 44px !important;
   min-width: 0 !important;
   justify-self: stretch !important;
 }
@@ -198,7 +171,7 @@ svg.crop-lines {
 }
 
 [data-orientation="landscape"][data-view-mode="compact"] #compact-memo {
-  font-size: 10px !important;
+  font-size: 9px !important;
   color: #64748b !important;
   font-style: italic !important;
   display: flex !important;
@@ -207,18 +180,51 @@ svg.crop-lines {
   margin-top: 2px !important;
 }
 
+/* Column 3: Stacked Buttons (Divided into two vertical rows) */
+[data-orientation="landscape"][data-view-mode="compact"] #compact-right-buttons {
+  grid-column: 3 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  justify-content: center !important;
+  align-items: flex-end !important;
+}
+
+/* Upper Row (System Buttons): Emerald Background, White Icons (References Column 1) */
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button,
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a {
+  color: #ffffff !important;
+  background-color: rgba(4, 120, 87, 0.4) !important; /* Semi-transparent emerald */
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button:hover,
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a:hover {
+  background-color: #047857 !important; /* Solid emerald hover */
+}
+
+/* Lower Row (Card Action Buttons): White/Light Background with Dark Text (References Column 2) */
 [data-orientation="landscape"][data-view-mode="compact"] #compact-actions {
   display: flex !important;
   align-items: center !important;
-  gap: 6px !important;
+  gap: 4px !important;
 }
 
 [data-orientation="landscape"][data-view-mode="compact"] #compact-actions button {
-  padding: 5px !important;
-  border-radius: 8px !important;
-  background-color: #f8fafc !important;
-  border: 1px solid #f1f5f9 !important;
+  background-color: #ffffff !important;
   color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
   transition: all 0.2s ease !important;
 }
 

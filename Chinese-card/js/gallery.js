@@ -249,8 +249,10 @@ const updateStationaryFooter = (target) => {
   if (compactCard && compactLabel && compactActions) {
     if (window.isGridViewMode) {
       compactCard.classList.add("hidden");
+      compactActions.classList.add("hidden");
     } else {
       compactCard.classList.remove("hidden");
+      compactActions.classList.remove("hidden");
       compactLabel.innerText = number;
       
       // Render Memo if it exists
