@@ -113,16 +113,62 @@ svg.crop-lines {
   display: none !important;
 }
 
-/* Enlarge inputs on the left in landscape compact mode */
-[data-orientation="landscape"][data-view-mode="compact"] #compact-bar input {
+/* Grid Matrix for Landscape Compact Bar */
+[data-orientation="landscape"][data-view-mode="compact"] #compact-bar {
+  display: grid !important;
+  grid-template-columns: minmax(300px, 450px) 1fr !important;
+  grid-template-rows: auto auto !important;
+  gap: 8px 16px !important;
+  padding: 8px 16px !important;
+  align-items: center !important;
+}
+
+/* Search inputs wrapper on Column 1, spanning both rows */
+[data-orientation="landscape"][data-view-mode="compact"] #compact-search-group {
+  grid-column: 1 !important;
+  grid-row: 1 / span 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+}
+
+/* Enlarge inputs inside search group */
+[data-orientation="landscape"][data-view-mode="compact"] #compact-search-group input {
   height: 38px !important;
   font-size: 12px !important;
   padding-top: 8px !important;
   padding-bottom: 8px !important;
 }
 
-/* One-piece Card Management Area: White Rounded Card Sub-panel */
+/* System Buttons on Row 1, Column 2, aligned right */
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  justify-self: end !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button,
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a {
+  color: #ffffff !important;
+  padding: 6px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button:hover,
+[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a:hover {
+  background-color: #047857 !important;
+}
+
+/* One-piece Card Management Area: White Rounded Card Sub-panel on Row 2, Column 2 */
 [data-orientation="landscape"][data-view-mode="compact"] #compact-card-card {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
@@ -134,10 +180,7 @@ svg.crop-lines {
   border: 1px solid #f1f5f9 !important;
   height: 38px !important;
   min-width: 0 !important;
-  flex: 1 !important;
-  margin-left: 12px !important;
-  margin-right: 12px !important;
-  align-self: center !important;
+  justify-self: stretch !important;
 }
 
 [data-orientation="landscape"][data-view-mode="compact"] #compact-card-info {
@@ -183,26 +226,6 @@ svg.crop-lines {
   background-color: #ecfdf5 !important;
   color: #047857 !important;
   border-color: #d1fae5 !important;
-}
-
-/* System Buttons Styling */
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons {
-  display: flex !important;
-  align-items: center !important;
-  gap: 4px !important;
-}
-
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button,
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a {
-  color: #ffffff !important;
-  padding: 6px !important;
-  border-radius: 8px !important;
-  transition: all 0.2s ease !important;
-}
-
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons button:hover,
-[data-orientation="landscape"][data-view-mode="compact"] #compact-sys-buttons a:hover {
-  background-color: #047857 !important;
 }
 
 /* Hide original gallery footer in landscape compact mode */
