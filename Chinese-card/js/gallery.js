@@ -154,7 +154,23 @@ window.renderGallery = () => {
             if (typeof window.Panzoom === "function") {
               const pz = window.Panzoom(wrapper, {
                 maxScale: 4,
-                minScale: 1
+                minScale: 1,
+                setTransform: (elem, { scale, x, y }) => {
+                  let constrainedX = x;
+                  let constrainedY = y;
+                  if (scale <= 1.01) {
+                    constrainedX = 0;
+                    constrainedY = 0;
+                  } else {
+                    const containerWidth = elem.clientWidth;
+                    const containerHeight = elem.clientHeight;
+                    const maxTranslationX = (containerWidth * scale) / 2;
+                    const maxTranslationY = (containerHeight * scale) / 2;
+                    constrainedX = Math.max(-maxTranslationX, Math.min(x, maxTranslationX));
+                    constrainedY = Math.max(-maxTranslationY, Math.min(y, maxTranslationY));
+                  }
+                  pz.setStyle("transform", `scale(${scale}) translate(${constrainedX}px, ${constrainedY}px)`);
+                }
               });
               window.activePanzooms.push(pz);
 
