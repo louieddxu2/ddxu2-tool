@@ -76,7 +76,7 @@ window.renderGallery = () => {
       const scaleClass = isSelected ? "scale-90" : "";
 
       div.innerHTML = `
-          <img src="${url}" class="w-full h-full object-contain transition-transform duration-200 ${scaleClass} ${borderClass}" onload="window.URL.revokeObjectURL(this.src)">
+          <img src="${url}" class="w-full h-full object-contain transition-transform duration-200 ${scaleClass} ${borderClass}">
           <div class="selection-overlay absolute inset-0 bg-emerald-500/10 transition-opacity duration-200 ${overlayClass} pointer-events-none"></div>
           <div class="selection-badge absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-white shadow-md flex items-center justify-center transition-opacity duration-200 ${overlayClass} pointer-events-none">
              <i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>
@@ -124,12 +124,36 @@ window.renderGallery = () => {
       div.className = "snap-start flex items-center justify-center w-full h-full overflow-hidden shrink-0";
       div.innerHTML = `
           <div class="w-full h-full flex items-center justify-center">
-             <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onload="window.URL.revokeObjectURL(this.src)">
+             <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm">
           </div>
         `;
     }
 
     grid.appendChild(div);
+
+    // 🌟 專業影像解碼與記憶體安全回收機制 (相容 iOS WebKit 與舊型設備)
+    const img = div.querySelector("img");
+    if (img) {
+      let isRevoked = false;
+      const safeRevoke = () => {
+        if (!isRevoked) {
+          isRevoked = true;
+          try { URL.revokeObjectURL(url); } catch (e) {}
+        }
+      };
+
+      if (typeof img.decode === "function") {
+        img.decode()
+          .then(safeRevoke)
+          .catch(() => setTimeout(safeRevoke, 1000));
+      } else {
+        img.onload = () => setTimeout(safeRevoke, 1000);
+        img.onerror = safeRevoke;
+      }
+
+      // 🛡️ 終極防線：5秒最大安全超時。無論加載卡死、用戶斷網或設備突發異常，5秒後絕對回收指標，永不洩漏記憶體！
+      setTimeout(safeRevoke, 5000);
+    }
   });
 
   if (currentObserver) currentObserver.disconnect();
