@@ -162,14 +162,17 @@ window.renderGallery = () => {
                     constrainedX = 0;
                     constrainedY = 0;
                   } else {
-                    const containerWidth = elem.clientWidth;
-                    const containerHeight = elem.clientHeight;
-                    const maxTranslationX = (containerWidth * scale) / 2;
-                    const maxTranslationY = (containerHeight * scale) / 2;
+                    const img = elem.querySelector("img");
+                    const imgWidth = img ? img.clientWidth : elem.clientWidth;
+                    const imgHeight = img ? img.clientHeight : elem.clientHeight;
+                    
+                    const maxTranslationX = (imgWidth * scale) / 2;
+                    const maxTranslationY = (imgHeight * scale) / 2;
+                    
                     constrainedX = Math.max(-maxTranslationX, Math.min(x, maxTranslationX));
                     constrainedY = Math.max(-maxTranslationY, Math.min(y, maxTranslationY));
                   }
-                  pz.setStyle("transform", `scale(${scale}) translate(${constrainedX}px, ${constrainedY}px)`);
+                  elem.style.transform = `scale(${scale}) translate(${constrainedX}px, ${constrainedY}px)`;
                 }
               });
               window.activePanzooms.push(pz);
