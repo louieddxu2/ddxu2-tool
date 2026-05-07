@@ -44,8 +44,8 @@ test.describe('卡牌照片雙擊縮放與滾動鎖定測試 (E2E)', () => {
     // 3. 程式化觸發第一下雙擊（放大）
     await page.evaluate(() => {
       const img = document.querySelector('#gallery-grid img');
-      if (img && img.parentElement) {
-        img.parentElement.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+      if (img) {
+        img.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
       }
     });
     await page.waitForTimeout(500); // 等待縮放與狀態變更
@@ -57,8 +57,8 @@ test.describe('卡牌照片雙擊縮放與滾動鎖定測試 (E2E)', () => {
     // 5. 程式化觸發第二下雙擊（還原）
     await page.evaluate(() => {
       const img = document.querySelector('#gallery-grid img');
-      if (img && img.parentElement) {
-        img.parentElement.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+      if (img) {
+        img.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
       }
     });
     await page.waitForTimeout(500);

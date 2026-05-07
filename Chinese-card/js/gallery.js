@@ -172,7 +172,7 @@ window.renderGallery = () => {
               });
 
               // 雙擊縮放/重設
-              img.parentElement.addEventListener("dblclick", (e) => {
+              img.addEventListener("dblclick", (e) => {
                 const currentScale = pz.getScale();
                 if (currentScale > 1.01) {
                   pz.reset({ animate: true });
