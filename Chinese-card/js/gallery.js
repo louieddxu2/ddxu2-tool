@@ -163,11 +163,11 @@ window.renderGallery = () => {
                     constrainedY = 0;
                   } else {
                     const img = elem.querySelector("img");
-                    const imgWidth = img ? img.clientWidth : elem.clientWidth;
-                    const imgHeight = img ? img.clientHeight : elem.clientHeight;
+                    const imgWidth = img && img.clientWidth > 0 ? img.clientWidth : elem.clientWidth;
+                    const imgHeight = img && img.clientHeight > 0 ? img.clientHeight : elem.clientHeight;
                     
-                    const maxTranslationX = (imgWidth * scale) / 2;
-                    const maxTranslationY = (imgHeight * scale) / 2;
+                    const maxTranslationX = imgWidth / 2;
+                    const maxTranslationY = imgHeight / 2;
                     
                     constrainedX = Math.max(-maxTranslationX, Math.min(x, maxTranslationX));
                     constrainedY = Math.max(-maxTranslationY, Math.min(y, maxTranslationY));
