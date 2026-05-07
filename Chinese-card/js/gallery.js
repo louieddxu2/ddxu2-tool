@@ -5,6 +5,9 @@ window.selectedCardIds = new Set();
 
 window.renderGallery = () => {
   if (UIState.isCropViewOpen) return;
+  // 🌟 如果目前正開啟編輯彈窗，不要重新渲染畫廊，避免打擾使用者的編輯輸入
+  const editModal = document.getElementById("modal-edit");
+  if (editModal && !editModal.classList.contains("hidden")) return;
   const gQ = (document.getElementById("inp-game").value || "").toLowerCase();
   const tQ = (document.getElementById("inp-type").value || "").toLowerCase();
   const nQ = (document.getElementById("inp-number").value || "").toLowerCase();

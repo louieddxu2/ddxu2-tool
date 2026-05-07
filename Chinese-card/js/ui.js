@@ -473,6 +473,8 @@ window.closeEditModal = () => {
   const o = document.getElementById("modal-edit-overlay");
   if (m) { m.classList.remove("flex"); m.classList.add("hidden"); }
   if (o) o.classList.add("hidden");
+  UIState.editingId = null;
+  if (typeof renderGallery === "function") renderGallery();
 };
 window.saveEdit = async () => {
   const idx = window.dbCards.findIndex((c) => c.id === UIState.editingId);
