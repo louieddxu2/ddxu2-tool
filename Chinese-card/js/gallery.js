@@ -245,7 +245,7 @@ const updateStationaryFooter = (target) => {
   const compactLabel = document.getElementById("compact-label");
   const compactActions = document.getElementById("compact-actions");
   const compactMemo = document.getElementById("compact-memo");
-
+  
   if (compactCard && compactLabel && compactActions) {
     if (window.isGridViewMode) {
       compactCard.classList.add("hidden");
@@ -254,7 +254,7 @@ const updateStationaryFooter = (target) => {
       compactCard.classList.remove("hidden");
       compactActions.classList.remove("hidden");
       compactLabel.innerText = number;
-
+      
       // Render Memo if it exists
       if (compactMemo) {
         if (memo) {
@@ -270,7 +270,7 @@ const updateStationaryFooter = (target) => {
         <button onclick="deleteCard('${id}')" class="p-1 bg-slate-50 border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-all active:scale-95" title="刪除"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
         <button onclick="toggleGridView()" class="p-1 bg-slate-50 border border-slate-100 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-lg transition-all active:scale-95" title="目錄檢視"><i data-lucide="layout-grid" class="w-3.5 h-3.5"></i></button>
       `;
-      try {
+      try { 
         lucide.createIcons({ props: { class: "w-3.5 h-3.5" }, elements: [compactActions] });
         if (memo && compactMemo) {
           lucide.createIcons({ props: { class: "w-3 h-3" }, elements: [compactMemo] });
