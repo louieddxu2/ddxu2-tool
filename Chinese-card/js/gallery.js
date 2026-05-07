@@ -155,6 +155,7 @@ window.renderGallery = () => {
               const pz = window.Panzoom(wrapper, {
                 maxScale: 4,
                 minScale: 1,
+                touchAction: "pan-y",
                 setTransform: (elem, { scale, x, y }) => {
                   let constrainedX = x;
                   let constrainedY = y;
@@ -181,9 +182,11 @@ window.renderGallery = () => {
               wrapper.addEventListener("panzoomchange", (e) => {
                 const { scale } = e.detail;
                 if (scale > 1.01) {
+                  wrapper.style.touchAction = "none";
                   container.classList.remove("snap-y", "snap-mandatory");
                   container.style.overflowY = "hidden";
                 } else {
+                  wrapper.style.touchAction = "pan-y";
                   container.classList.add("snap-y", "snap-mandatory");
                   container.style.overflowY = "auto";
                 }
