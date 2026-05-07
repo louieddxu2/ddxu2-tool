@@ -95,6 +95,33 @@ window.syncInputs = (sourceId, value) => {
   });
 
   localStorage.setItem("bg_last_" + rootId, value);
+
+  // 🌟 智慧關聯自動清除機制：
+  // 只有當最底層的「編號/搜尋」欄位為空（代表使用者在瀏覽目錄）且切換遊戲時，才啟用跨遊戲的自動類型清除
+  const numInput = document.getElementById("inp-number");
+  const nQ = (numInput ? numInput.value : "").trim();
+
+  if (nQ === "" && rootId === "inp-game") {
+    const currentType = (document.getElementById("inp-type")?.value || "").trim();
+    if (currentType !== "") {
+      // 檢查新切換的遊戲（value）底下，有沒有任何卡牌的類型包含當前類型
+      const hasTypeMatch = window.dbCards.some(c => 
+        (c.game || "").toLowerCase() === value.toLowerCase() &&
+        (c.type || "").toLowerCase() === currentType.toLowerCase()
+      );
+      
+      // 如果新遊戲完全沒有這個類型，自動級聯清空類型，防止出現空畫面
+      if (!hasTypeMatch) {
+        const typeIds = ["inp-type", "compact-inp-type"];
+        typeIds.forEach(tId => {
+          const el = document.getElementById(tId);
+          if (el) el.value = "";
+        });
+        localStorage.setItem("bg_last_inp-type", "");
+      }
+    }
+  }
+
   renderGallery();
 };
 
