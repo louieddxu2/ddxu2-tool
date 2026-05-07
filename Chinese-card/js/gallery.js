@@ -1,4 +1,5 @@
 let currentObserver = null;
+window.activePanzooms = [];
 window.isGridViewMode = false;
 window.isSelectionMode = false;
 window.selectedCardIds = new Set();
@@ -8,6 +9,21 @@ window.renderGallery = () => {
   // 🌟 如果目前正開啟編輯彈窗，不要重新渲染畫廊，避免打擾使用者的編輯輸入
   const editModal = document.getElementById("modal-edit");
   if (editModal && !editModal.classList.contains("hidden")) return;
+
+  // 🌟 銷毀舊的 Panzoom 實例，避免重複監聽與記憶體洩漏
+  if (window.activePanzooms) {
+    window.activePanzooms.forEach(pz => {
+      try { pz.destroy(); } catch (e) {}
+    });
+    window.activePanzooms = [];
+  }
+
+  // 恢復滾動容器狀態，避免維持在被鎖定的狀態
+  const containerReset = document.getElementById("gallery-container");
+  if (containerReset) {
+    containerReset.classList.add("snap-y", "snap-mandatory");
+    containerReset.style.overflowY = "auto";
+  }
   const gQ = (document.getElementById("inp-game").value || "").toLowerCase();
   const tQ = (document.getElementById("inp-type").value || "").toLowerCase();
   const nQ = (document.getElementById("inp-number").value || "").toLowerCase();
@@ -127,9 +143,53 @@ window.renderGallery = () => {
       div.className = "snap-start flex items-center justify-center w-full h-full overflow-hidden shrink-0";
       div.innerHTML = `
           <div class="w-full h-full flex items-center justify-center">
-             <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm">
+             <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm transition-transform duration-100 ease-out origin-center select-none" draggable="false">
           </div>
         `;
+
+      // 🌟 整合 Panzoom 實現雙指與雙擊縮放
+      const img = div.querySelector("img");
+      if (img) {
+        setTimeout(() => {
+          try {
+            if (typeof window.Panzoom === "function") {
+              const pz = window.Panzoom(img, {
+                maxScale: 4,
+                minScale: 1
+              });
+              window.activePanzooms.push(pz);
+
+              const container = document.getElementById("gallery-container");
+              img.addEventListener("panzoomchange", (e) => {
+                const { scale } = e.detail;
+                if (scale > 1.01) {
+                  container.classList.remove("snap-y", "snap-mandatory");
+                  container.style.overflowY = "hidden";
+                } else {
+                  container.classList.add("snap-y", "snap-mandatory");
+                  container.style.overflowY = "auto";
+                }
+              });
+
+              // 雙擊縮放/重設
+              img.parentElement.addEventListener("dblclick", (e) => {
+                const currentScale = pz.getScale();
+                if (currentScale > 1.01) {
+                  pz.reset({ animate: false });
+                  container.classList.add("snap-y", "snap-mandatory");
+                  container.style.overflowY = "auto";
+                } else {
+                  pz.zoomToPoint(2, e, { animate: false });
+                  container.classList.remove("snap-y", "snap-mandatory");
+                  container.style.overflowY = "hidden";
+                }
+              });
+            }
+          } catch (err) {
+            console.error("Panzoom init error:", err);
+          }
+        }, 50);
+      }
     }
 
     grid.appendChild(div);
