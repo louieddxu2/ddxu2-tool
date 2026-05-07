@@ -2,6 +2,7 @@ let currentObserver = null;
 window.isGridViewMode = false;
 window.isSelectionMode = false;
 window.selectedCardIds = new Set();
+window.currentIndex = 0;
 
 window.renderGallery = () => {
   if (UIState.isCropViewOpen) return;
@@ -57,18 +58,18 @@ window.renderGallery = () => {
     grid.style.gridAutoRows = "100%";
   }
 
-  displayed.forEach((c, index) => {
-    if (!c.blob || !(c.blob instanceof Blob)) return;
-    const url = URL.createObjectURL(c.blob);
-    const div = document.createElement("div");
+  if (window.isGridViewMode) {
+    displayed.forEach((c, index) => {
+      if (!c.blob || !(c.blob instanceof Blob)) return;
+      const url = URL.createObjectURL(c.blob);
+      const div = document.createElement("div");
 
-    div.setAttribute("data-id", c.id);
-    div.setAttribute("data-game", c.game);
-    div.setAttribute("data-type", c.type);
-    div.setAttribute("data-number", c.number || "未命名");
-    div.setAttribute("data-memo", c.memo || "");
+      div.setAttribute("data-id", c.id);
+      div.setAttribute("data-game", c.game);
+      div.setAttribute("data-type", c.type);
+      div.setAttribute("data-number", c.number || "未命名");
+      div.setAttribute("data-memo", c.memo || "");
 
-    if (window.isGridViewMode) {
       div.className = "relative aspect-square bg-white rounded-lg overflow-hidden cursor-pointer shadow-sm p-1";
       const isSelected = window.selectedCardIds.has(c.id);
       const overlayClass = isSelected ? "opacity-100" : "opacity-0";
@@ -107,6 +108,7 @@ window.renderGallery = () => {
 
         } else {
           window.isGridViewMode = false;
+          window.currentIndex = index;
           renderGallery();
           // Disable smooth scroll temporarily for an instant jump
           setTimeout(() => {
@@ -120,17 +122,64 @@ window.renderGallery = () => {
           }, 50);
         }
       };
-    } else {
+
+      grid.appendChild(div);
+    });
+  } else {
+    // Single View Mode: Virtual Sliding Window (Option A)
+    if (typeof window.currentIndex !== 'number') {
+      window.currentIndex = 0;
+    }
+    if (window.currentIndex >= displayed.length) {
+      window.currentIndex = Math.max(0, displayed.length - 1);
+    }
+
+    const prevIndex = window.currentIndex - 1;
+    const currIndex = window.currentIndex;
+    const nextIndex = window.currentIndex + 1;
+
+    // 1. Top Spacer (height = prevIndex * 100%)
+    if (prevIndex > 0) {
+      const topSpacer = document.createElement("div");
+      topSpacer.style.height = `${prevIndex * 100}%`;
+      topSpacer.className = "shrink-0";
+      grid.appendChild(topSpacer);
+    }
+
+    // 2. Render Sliding Window Cards (prev, curr, next)
+    for (let i = Math.max(0, prevIndex); i <= Math.min(displayed.length - 1, nextIndex); i++) {
+      const c = displayed[i];
+      if (!c || !c.blob || !(c.blob instanceof Blob)) continue;
+      const url = URL.createObjectURL(c.blob);
+      const div = document.createElement("div");
+
+      div.setAttribute("data-id", c.id);
+      div.setAttribute("data-game", c.game);
+      div.setAttribute("data-type", c.type);
+      div.setAttribute("data-number", c.number || "未命名");
+      div.setAttribute("data-memo", c.memo || "");
+      div.setAttribute("data-index", i.toString()); // For IntersectionObserver tracking
+
       div.className = "snap-start flex items-center justify-center w-full h-full overflow-hidden shrink-0";
       div.innerHTML = `
           <div class="w-full h-full flex items-center justify-center">
              <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm" onload="window.URL.revokeObjectURL(this.src)">
           </div>
         `;
+
+      grid.appendChild(div);
     }
 
-    grid.appendChild(div);
-  });
+    // 3. Bottom Spacer
+    const lastRenderedIndex = Math.min(displayed.length - 1, nextIndex);
+    const remainingCount = displayed.length - 1 - lastRenderedIndex;
+    if (remainingCount > 0) {
+      const bottomSpacer = document.createElement("div");
+      bottomSpacer.style.height = `${remainingCount * 100}%`;
+      bottomSpacer.className = "shrink-0";
+      grid.appendChild(bottomSpacer);
+    }
+  }
 
   if (currentObserver) currentObserver.disconnect();
 
@@ -143,11 +192,19 @@ window.renderGallery = () => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
         updateStationaryFooter(entry.target);
+        if (!window.isGridViewMode) {
+          const newIdx = parseInt(entry.target.getAttribute("data-index"), 10);
+          if (!isNaN(newIdx) && newIdx !== window.currentIndex) {
+            window.currentIndex = newIdx;
+            requestAnimationFrame(() => renderGallery());
+          }
+        }
       }
     });
   }, options);
 
-  document.querySelectorAll("#gallery-grid > div").forEach((card) => {
+  // Observe only real card elements, not Spacers
+  document.querySelectorAll("#gallery-grid > div[data-index]").forEach((card) => {
     currentObserver.observe(card);
   });
 
@@ -155,10 +212,10 @@ window.renderGallery = () => {
   if (window.isGridViewMode) {
     updateStationaryFooter(null);
   } else {
-    // Manually trigger initial footer content for the first card
-    const firstCard = grid.firstElementChild;
-    if (firstCard) {
-      updateStationaryFooter(firstCard);
+    // Manually trigger initial footer content for the active card
+    const activeCard = grid.querySelector(`div[data-index="${window.currentIndex}"]`);
+    if (activeCard) {
+      updateStationaryFooter(activeCard);
     }
   }
 };
