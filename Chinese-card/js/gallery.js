@@ -142,25 +142,24 @@ window.renderGallery = () => {
     } else {
       div.className = "snap-start flex items-center justify-center w-full h-full overflow-hidden shrink-0";
       div.innerHTML = `
-          <div class="w-full h-full flex items-center justify-center">
+          <div class="w-full h-full flex items-center justify-center panzoom-wrapper">
              <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm select-none" draggable="false">
           </div>
         `;
 
-      // 🌟 整合 Panzoom 實現雙指與雙擊縮放
-      const img = div.querySelector("img");
-      if (img) {
+      const wrapper = div.querySelector(".panzoom-wrapper");
+      if (wrapper) {
         setTimeout(() => {
           try {
             if (typeof window.Panzoom === "function") {
-              const pz = window.Panzoom(img, {
+              const pz = window.Panzoom(wrapper, {
                 maxScale: 4,
                 minScale: 1
               });
               window.activePanzooms.push(pz);
 
               const container = document.getElementById("gallery-container");
-              img.addEventListener("panzoomchange", (e) => {
+              wrapper.addEventListener("panzoomchange", (e) => {
                 const { scale } = e.detail;
                 if (scale > 1.01) {
                   container.classList.remove("snap-y", "snap-mandatory");
@@ -172,18 +171,21 @@ window.renderGallery = () => {
               });
 
               // 雙擊縮放/重設
-              img.addEventListener("dblclick", (e) => {
-                const currentScale = pz.getScale();
-                if (currentScale > 1.01) {
-                  pz.reset({ animate: true });
-                  container.classList.add("snap-y", "snap-mandatory");
-                  container.style.overflowY = "auto";
-                } else {
-                  pz.zoomToPoint(2, e, { animate: true });
-                  container.classList.remove("snap-y", "snap-mandatory");
-                  container.style.overflowY = "hidden";
-                }
-              });
+              const img = wrapper.querySelector("img");
+              if (img) {
+                img.addEventListener("dblclick", (e) => {
+                  const currentScale = pz.getScale();
+                  if (currentScale > 1.01) {
+                    pz.reset({ animate: true });
+                    container.classList.add("snap-y", "snap-mandatory");
+                    container.style.overflowY = "auto";
+                  } else {
+                    pz.zoomToPoint(2, e, { animate: true });
+                    container.classList.remove("snap-y", "snap-mandatory");
+                    container.style.overflowY = "hidden";
+                  }
+                });
+              }
             }
           } catch (err) {
             console.error("Panzoom init error:", err);
