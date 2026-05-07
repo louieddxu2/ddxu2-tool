@@ -143,7 +143,7 @@ window.renderGallery = () => {
       div.className = "snap-start flex items-center justify-center w-full h-full overflow-hidden shrink-0";
       div.innerHTML = `
           <div class="w-full h-full flex items-center justify-center">
-             <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm transition-transform duration-100 ease-out origin-center select-none" draggable="false">
+             <img src="${url}" class="max-w-full max-h-full object-contain shadow-2xl rounded-sm select-none" draggable="false">
           </div>
         `;
 
@@ -175,11 +175,11 @@ window.renderGallery = () => {
               img.parentElement.addEventListener("dblclick", (e) => {
                 const currentScale = pz.getScale();
                 if (currentScale > 1.01) {
-                  pz.reset({ animate: false });
+                  pz.reset({ animate: true });
                   container.classList.add("snap-y", "snap-mandatory");
                   container.style.overflowY = "auto";
                 } else {
-                  pz.zoomToPoint(2, e, { animate: false });
+                  pz.zoomToPoint(2, e, { animate: true });
                   container.classList.remove("snap-y", "snap-mandatory");
                   container.style.overflowY = "hidden";
                 }

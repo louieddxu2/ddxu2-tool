@@ -5,6 +5,8 @@ test.describe('卡牌照片雙擊縮放與滾動鎖定測試 (E2E)', () => {
     page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
     await page.goto('/Chinese-card/index.html');
     await page.waitForLoadState('domcontentloaded');
+    // 增加緩衝時間，防範 Hydration 或 Service Worker 觸發頁面二次重導向
+    await page.waitForTimeout(500);
   });
 
   test('雙擊卡牌時應正確切換縮放狀態，並動態鎖定/解鎖外層滾動', async ({ page }) => {
