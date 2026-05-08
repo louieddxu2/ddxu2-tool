@@ -494,6 +494,22 @@ window.openEditModal = (id) => {
     if (o) o.classList.remove("hidden");
     try { lucide.createIcons(); } catch (e) { }
   }
+
+  // 🌟 智慧焦點引導機制 (Smart Guided Focus)：依序自動展開/聚焦空白欄位，提升行動端輸入流暢度
+  setTimeout(() => {
+    const editGame = document.getElementById("edit-game");
+    const editType = document.getElementById("edit-type");
+    const editNumber = document.getElementById("edit-number");
+
+    if (editGame && !editGame.value.trim()) {
+      editGame.click();
+    } else if (editType && !editType.value.trim()) {
+      editType.click();
+    } else if (editNumber && !editNumber.value.trim()) {
+      editNumber.click();
+      editNumber.focus();
+    }
+  }, 150); // 150ms 延遲避開彈窗打開時的渲染重繪，確保下拉選單位置不歪斜、並順暢拉起鍵盤
 };
 window.closeEditModal = () => {
   const m = document.getElementById("modal-edit");
