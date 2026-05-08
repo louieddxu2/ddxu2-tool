@@ -188,12 +188,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const dist = Math.hypot(e.clientX - pointerDownSrc.clientX, e.clientY - pointerDownSrc.clientY);
 
     if (pointerDownSrc.dragTarget) {
+      const snapLimit = 10 / displayRatio; // 螢幕上 10px 對應到圖片上的距離
       if (pointerDownSrc.dragTarget === "p1") {
         p1.x = currX;
         p1.y = currY;
+        if (Math.abs(p1.y - p2.y) < snapLimit) p1.y = p2.y; // 螢幕磁吸：小於 10px 自動吸附水平底邊
       } else if (pointerDownSrc.dragTarget === "p2") {
         p2.x = currX;
         p2.y = currY;
+        if (Math.abs(p2.y - p1.y) < snapLimit) p2.y = p1.y; // 螢幕磁吸：小於 10px 自動吸附水平底邊
       } else if (pointerDownSrc.dragTarget === "p3" && window.isCustomMode) {
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
@@ -242,10 +245,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const dist = Math.hypot(e.clientX - pointerDownSrc.clientX, e.clientY - pointerDownSrc.clientY);
 
     if (pointerDownSrc.dragTarget) {
+      const snapLimit = 10 / displayRatio; // 螢幕上 10px 對應到圖片上的距離
       if (pointerDownSrc.dragTarget === "p1") {
         p1.x = upX; p1.y = upY;
+        if (Math.abs(p1.y - p2.y) < snapLimit) p1.y = p2.y;
       } else if (pointerDownSrc.dragTarget === "p2") {
         p2.x = upX; p2.y = upY;
+        if (Math.abs(p2.y - p1.y) < snapLimit) p2.y = p1.y;
       }
     } else if (dist < 15) {
       // Only perform tap logic if we weren't dragging anything (p1, p2, or p3)
@@ -271,11 +277,14 @@ document.addEventListener("DOMContentLoaded", () => {
         cropRatio = length / (newHeight / 1.05);
         window.cropRatio = cropRatio;
       } else {
-        // 若在底邊外側、或小於 50 像素的極扁區域內，一律視為移動最靠近 the 底邊端點 (p1 或 p2)
+        const snapLimit = 10 / displayRatio; // 螢幕上 10px 對應到圖片上的距離
+        // 若在底邊外側、或小於 50 像素的極扁區域內，一律視為移動最靠近底邊端點 (p1 或 p2)
         if (d1 < d2) {
           p1.x = upX; p1.y = upY;
+          if (Math.abs(p1.y - p2.y) < snapLimit) p1.y = p2.y;
         } else {
           p2.x = upX; p2.y = upY;
+          if (Math.abs(p2.y - p1.y) < snapLimit) p2.y = p1.y;
         }
       }
     } else {
