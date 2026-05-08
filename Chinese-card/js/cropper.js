@@ -252,21 +252,26 @@ document.addEventListener("DOMContentLoaded", () => {
       const dx = p2.x - p1.x;
       const dy = p2.y - p1.y;
       const length = Math.sqrt(dx * dx + dy * dy);
-      let tapDistToLine = 0;
+      
+      let rawDist = 0;
       if (length > 0) {
-        tapDistToLine = Math.abs(dy * upX - dx * upY + p1.y * dx - p1.x * dy) / length;
+        // 計算點到無限延伸底邊直線的帶號距離（朝頂邊方向為正，底邊下方外側為負）
+        rawDist = (dy * upX - dx * upY + p1.y * dx - p1.x * dy) / length;
       }
 
       const d1 = Math.hypot(upX - p1.x, upY - p1.y);
       const d2 = Math.hypot(upX - p2.x, upY - p2.y);
 
-      // If in custom mode and not tapping very close to a bottom corner, adjust height
-      if (window.isCustomMode && d1 > 60 && d2 > 60) {
-        const newHeight = tapDistToLine;
+      // 預設卡片合理最小高度為 50 像素。低於此高度（或點擊於底邊下方外側）一律不視為調整高，而是微調底角。
+      const MIN_HEIGHT = 50;
+
+      // 如果在自訂模式下，且點擊點在底邊往上 50 像素以上的合理高度區間，且距離底邊兩端點大於 60 時，才調整高
+      if (window.isCustomMode && rawDist >= MIN_HEIGHT && d1 > 60 && d2 > 60) {
+        const newHeight = rawDist;
         cropRatio = length / (newHeight / 1.05);
         window.cropRatio = cropRatio;
       } else {
-        // Move nearest corner
+        // 若在底邊外側、或小於 50 像素的極扁區域內，一律視為移動最靠近 the 底邊端點 (p1 或 p2)
         if (d1 < d2) {
           p1.x = upX; p1.y = upY;
         } else {
