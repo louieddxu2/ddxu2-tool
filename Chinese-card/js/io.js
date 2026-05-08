@@ -98,7 +98,9 @@ window.executeExport = async () => {
     zip.file("metadata.json", JSON.stringify(metadata, null, 2));
     
     const content = await zip.generateAsync({ type: "blob" });
-    const url = URL.createObjectURL(content);
+    // 強制將 MIME 覆寫為通用二進位流，阻止 iOS Safari / LINE 等下載管理員自動追加 .zip 副檔名或執行自動解壓
+    const ccpackBlob = new Blob([content], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(ccpackBlob);
     
     const btnDownload = document.getElementById("btn-download-zip");
     if (btnDownload) {
