@@ -323,6 +323,42 @@ window.setupConnection = function(c) {
 
   window.connections.add(c);
 
+  // --- 智慧心跳與健康度驗證機制 ---
+  c.verifyConnection = function(timeoutMs = 1000) {
+    return new Promise((resolve) => {
+      let resolved = false;
+      c.pendingPingResolve = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          resolve(true);
+        }
+      };
+      try {
+        c.send("p");
+      } catch (e) {
+        resolve(false);
+        return;
+      }
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(false);
+        }
+      }, timeoutMs);
+    });
+  };
+
+  if (c.peerConnection) {
+    c.peerConnection.addEventListener('iceconnectionstatechange', () => {
+      const state = c.peerConnection.iceConnectionState;
+      if (state === 'disconnected' || state === 'failed') {
+        logSync(`底層 ICE 連線已中斷 (${state})，主動關閉連線...`);
+        c.close();
+      }
+    });
+  }
+
   // Connection handshake timeout guard (6 seconds) to prevent zombie/stuck connections
   const connTimeout = setTimeout(() => {
     if (!c.open && localStorage.getItem('bg_sync_role') === 'client') {
@@ -362,7 +398,21 @@ window.setupConnection = function(c) {
   c.on('data', async (data) => {
     updateActivity(); 
     
-    if (data.type === 'HELLO') {
+    // 智慧心跳與驗證字元分離過濾 (極簡酬載)
+    if (typeof data === 'string') {
+      if (data === 'p') {
+        try { c.send('P'); } catch (e) {}
+        return;
+      }
+      if (data === 'P') {
+        if (typeof c.pendingPingResolve === 'function') {
+          c.pendingPingResolve();
+        }
+        return;
+      }
+    }
+    
+    if (data && data.type === 'HELLO') {
       localStorage.setItem('bg_session_start_time', data.sessionStart.toString());
       localStorage.setItem('bg_session_game', data.sessionGame);
       
@@ -560,17 +610,35 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
         logSync(`Queued broadcast: ${pendingBroadcast[0]?.number || 'unknown'}`);
       }
       
+      // 1. 批次廣播前，對所有連線進行一次性 1.0 秒健康度驗證
+      const activeConns = [];
+      for (const c of window.connections) {
+        if (c.open) {
+          if (typeof c.verifyConnection === 'function') {
+            const isAlive = await c.verifyConnection(1000); // 1.0 秒超時
+            if (isAlive) {
+              activeConns.push(c);
+            } else {
+              logSync(`發送前驗證失敗，判定為殭屍連線，主動重連...`);
+              c.close(); // 關閉觸發自動重連
+            }
+          } else {
+            // 測試環境下未經過 setupConnection 的 Mock 連線，直接視為健康
+            activeConns.push(c);
+          }
+        }
+      }
+
+      // 2. 對於真正健康的連線，依序無等待快速發送所有卡牌
       for (const card of pendingBroadcast) {
         let sentToAllConnections = true;
-        for (const c of window.connections) {
-          if (c.open) {
-            // Sequential send to avoid interleaving messages on the data channel
-            try {
-              await sendCardChunked(c, card);
-            } catch (err) {
-              sentToAllConnections = false;
-              logSync(`Broadcast failed for ${card.number || card.id}: ${err.message || err}`, "error");
-            }
+        for (const c of activeConns) {
+          // Sequential send to avoid interleaving messages on the data channel
+          try {
+            await sendCardChunked(c, card);
+          } catch (err) {
+            sentToAllConnections = false;
+            logSync(`Broadcast failed for ${card.number || card.id}: ${err.message || err}`, "error");
           }
         }
         if (sentToAllConnections) {
