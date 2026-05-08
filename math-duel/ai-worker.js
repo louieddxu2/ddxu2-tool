@@ -1,4 +1,4 @@
-﻿function getPermutations(arr) {
+function getPermutations(arr) {
   if (arr.length <= 1) return [arr];
   const result = [];
   for (let i = 0; i < arr.length; i++) {
@@ -103,11 +103,6 @@ function gameResult(state, aiColor) {
   return 0;
 }
 
-function countValidMoves(activeHand, centerCards, cap = 20) {
-  const moves = generateValidMoves(activeHand, centerCards, cap);
-  return moves.length;
-}
-
 function evaluateState(state, aiColor) {
   const result = gameResult(state, aiColor);
   if (result === 1) return 10000000;
@@ -117,12 +112,11 @@ function evaluateState(state, aiColor) {
   const aiOwn = state.whiteHand.filter(c => c.color === aiColor).length;
   const oppOwn = state.blackHand.filter(c => c.color === oppColor).length;
 
-  const aiMobility = countValidMoves(state.whiteHand, state.centerCards, 20);
-  const oppMobility = countValidMoves(state.blackHand, state.centerCards, 20);
-
   let score = 0;
   score += (oppOwn - aiOwn) * 1200;
-  score += (aiMobility - oppMobility) * 120;
+  // Cheap center pressure heuristic: higher center sum tends to reduce easy equations.
+  const centerPressure = state.centerCards.reduce((sum, c) => sum + c.val, 0);
+  score += centerPressure * 25;
   score += (state.blackHand.length - state.whiteHand.length) * 40;
   return score;
 }
@@ -176,10 +170,9 @@ function moveOrderingScore(state, move, aiColor, isAiTurn) {
   const immediate = gameResult(child, aiColor);
   if (immediate === 1) return 10_000_000;
 
-  const oppMoves = generateValidMoves(child.blackHand, child.centerCards, 8).length;
-  const selfMoves = generateValidMoves(child.whiteHand, child.centerCards, 8).length;
   let score = 0;
-  score += (selfMoves - oppMoves) * 200;
+  const childEval = evaluateState(child, aiColor);
+  score += childEval * 0.02;
   score += (move.center.length * 60);
   score -= (move.hand.length * 20);
   return score;

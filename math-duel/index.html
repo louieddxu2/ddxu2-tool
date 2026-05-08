@@ -272,11 +272,12 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-    const APP_VERSION = '1.1.8';
+    const APP_VERSION = '1.1.9';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
     const worker = new Worker(`ai-worker.js?v=${APP_VERSION}`);
+    let aiTimeoutToken = null;
 
     // --- 2. 存檔 Key 也綁定版號 (徹底預防讀取到舊版卡死狀態) ---
     const SAVE_KEY = `mathDuelState_v${APP_VERSION}`;
@@ -531,6 +532,11 @@
         const aiHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
         const oppHand = game.turn === 'BLACK' ? game.whiteHand : game.blackHand;
 
+        if (aiTimeoutToken) clearTimeout(aiTimeoutToken);
+        aiTimeoutToken = setTimeout(() => {
+          if (isAITurn() && game.state === 'PLAYING') giveUp();
+        }, 5500);
+
         worker.postMessage({
           difficulty,
           aiHand,
@@ -541,6 +547,7 @@
     }
 
     worker.onmessage = function (e) {
+      if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
       const move = e.data;
       if (!move) { setTimeout(() => giveUp(), 1500); return; }
       setTimeout(() => {
@@ -556,6 +563,11 @@
 
         render(); setTimeout(() => handleMainAction(), 800);
       }, 500);
+    };
+
+    worker.onerror = function () {
+      if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
+      if (isAITurn() && game.state === 'PLAYING') setTimeout(() => giveUp(), 600);
     };
 
     function giveUp() {
