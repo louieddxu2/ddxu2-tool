@@ -1,11 +1,10 @@
-// --- 數學與邏輯核心工具 ---
-function getPermutations(arr) {
+﻿function getPermutations(arr) {
   if (arr.length <= 1) return [arr];
-  let result = [];
+  const result = [];
   for (let i = 0; i < arr.length; i++) {
-    let current = arr[i];
-    let remaining = arr.slice(0, i).concat(arr.slice(i + 1));
-    for (let perm of getPermutations(remaining)) result.push([current].concat(perm));
+    const current = arr[i];
+    const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
+    for (const perm of getPermutations(remaining)) result.push([current].concat(perm));
   }
   return result;
 }
@@ -13,10 +12,10 @@ function getPermutations(arr) {
 function getValues(cards) {
   if (cards.length === 1) return (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
   if (cards.length === 2) {
-    let v1_opts = (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
-    let v2_opts = (cards[1].val === 6 || cards[1].val === 9) ? [6, 9] : [cards[1].val];
-    let vals = [];
-    for (let v1 of v1_opts) for (let v2 of v2_opts) vals.push(v1 * 10 + v2);
+    const v1Opts = (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
+    const v2Opts = (cards[1].val === 6 || cards[1].val === 9) ? [6, 9] : [cards[1].val];
+    const vals = [];
+    for (const v1 of v1Opts) for (const v2 of v2Opts) vals.push(v1 * 10 + v2);
     return vals;
   }
   return [];
@@ -33,20 +32,23 @@ function getCombinations(arr, size) {
 function checkEquation(handCards, op, targetCards) {
   let targetVals = [];
   const targetPerms = getPermutations(targetCards);
-  for (let p of targetPerms) targetVals = targetVals.concat(getValues(p));
+  for (const p of targetPerms) targetVals = targetVals.concat(getValues(p));
 
   const perms = getPermutations(handCards);
-  for (let p of perms) {
-    let splits = [];
-    if (p.length === 2) splits.push({A: [p[0]], B: [p[1]]});
-    if (p.length === 3) { splits.push({A: [p[0]], B: [p[1], p[2]]}); splits.push({A: [p[0], p[1]], B: [p[2]]}); }
-    if (p.length === 4) { splits.push({A: [p[0], p[1]], B: [p[2], p[3]]}); }
-    
-    for (let split of splits) {
-      let valsA = getValues(split.A);
-      let valsB = getValues(split.B);
-      for (let a of valsA) {
-        for (let b of valsB) {
+  for (const p of perms) {
+    const splits = [];
+    if (p.length === 2) splits.push({ A: [p[0]], B: [p[1]] });
+    if (p.length === 3) {
+      splits.push({ A: [p[0]], B: [p[1], p[2]] });
+      splits.push({ A: [p[0], p[1]], B: [p[2]] });
+    }
+    if (p.length === 4) splits.push({ A: [p[0], p[1]], B: [p[2], p[3]] });
+
+    for (const split of splits) {
+      const valsA = getValues(split.A);
+      const valsB = getValues(split.B);
+      for (const a of valsA) {
+        for (const b of valsB) {
           let res;
           if (op === '+') res = a + b;
           else if (op === '-') res = a - b;
@@ -64,111 +66,21 @@ function checkEquation(handCards, op, targetCards) {
   return { success: false };
 }
 
-function isPrime(num) {
-  if (num <= 1) return false;
-  if (num <= 3) return true;
-  if (num % 2 === 0 || num % 3 === 0) return false;
-  for (let i = 5; i * i <= num; i += 6) if (num % i === 0 || num % (i + 2) === 0) return false;
-  return true;
-}
-
-function evaluateCenterDifficulty(cards) {
-  let targets = [];
-  const targetPerms = getPermutations(cards);
-  for (let p of targetPerms) targets = targets.concat(getValues(p));
-  
-  let score = 0;
-  for (let v of targets) {
-    if (isPrime(v)) score += (v > 20) ? 50 : 30;
-    else {
-      let divisors = 0;
-      for(let i=1; i<=Math.min(v, 20); i++) if(v % i === 0) divisors++;
-      if (divisors > 4) score -= 20;
-    }
-  }
-  return score / (targets.length || 1);
-}
-
-// --- 盤面狀態評估 ---
-// AI 的目標是讓自己的手牌全變成「對手的顏色」
-function evaluateState(state, aiColor, isAiTurnEnd) {
-  const oppColor = aiColor === 'w' ? 'b' : 'w';
-
-  // AI 側 (在 Worker 內部固定為 whiteHand)
-  const aiHand = state.whiteHand;
-  const aiHandOwnCount = aiHand.filter(c => c.color === aiColor).length;
-  
-  // 玩家側 (在 Worker 內部固定為 blackHand)
-  const oppHand = state.blackHand;
-  const oppHandOwnCount = oppHand.filter(c => c.color === oppColor).length;
-
-  // 檢查勝負條件
-  const aiWins = aiHand.length > 0 && aiHandOwnCount === 0;
-  const oppWins = oppHand.length > 0 && oppHandOwnCount === 0;
-
-  if (aiWins) return 9999999;
-  if (oppWins) return -9999999;
-
-  // 必敗條件判斷 (手牌少於2張絕對無法發動攻擊)
-  // 如果是 AI 剛下完，但 AI 沒贏且手牌少於 2 張 -> 輪回 AI 時一定死
-  if (isAiTurnEnd && aiHand.length < 2) return -9000000;
-  // 如果是對手剛下完，對手沒贏且手牌少於 2 張 -> 輪回對手時一定死
-  if (!isAiTurnEnd && oppHand.length < 2) return 9000000;
-
-  let score = 0;
-  // AI 自己的利益 (強烈要求減少自己顏色的牌)
-  score -= (aiHandOwnCount * 1000);
-  
-  // 打擊對手利益 (讓對手自己顏色的牌越多越好)
-  score += (oppHandOwnCount * 800);
-  
-  const centerDiff = evaluateCenterDifficulty(state.centerCards);
-  if (isAiTurnEnd) score += centerDiff * 2; // 留給對手的難題
-  else score -= centerDiff * 2; // 對手留給我的難題
-
-  return score;
-}
-
-// 產生所有合法步數
-function generateValidMoves(activeHand, centerCards) {
-  const ops = ['+', '-', '*', '/'];
-  let moves = [];
-  let handCombos = [];
-  for(let i=2; i<=4; i++) handCombos = handCombos.concat(getCombinations(activeHand, i));
-  let centerCombos = [];
-  for(let i=1; i<=2; i++) centerCombos = centerCombos.concat(getCombinations(centerCards, i));
-
-  for (let hCombo of handCombos) {
-    for (let cCombo of centerCombos) {
-      for (let op of ops) {
-        const result = checkEquation(hCombo, op, cCombo);
-        if (result.success) {
-          let tempCenter = centerCards.filter(c => !cCombo.includes(c)).concat(hCombo);
-          if (tempCenter.length > 2) {
-            let keepCombos = getCombinations(tempCenter, 2);
-            // 隨機打亂 discard 的選擇，避免前段全都是同一算式
-            keepCombos.sort(() => 0.5 - Math.random());
-            // 限制同一算式最多加入 2 種 discarding 結果，精簡樹狀結構
-            keepCombos = keepCombos.slice(0, 2);
-            for (let keep of keepCombos) {
-              moves.push({ hand: hCombo, center: cCombo, op: op, discard: keep, eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB });
-            }
-          } else {
-            moves.push({ hand: hCombo, center: cCombo, op: op, discard: [], eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB });
-          }
-        }
-      }
-    }
-  }
-  return moves;
-}
-
-// 模擬盤面推演
-function applyMove(state, move, isWhiteTurn) {
-  let newState = {
+function normalizeState(state) {
+  return {
     whiteHand: [...state.whiteHand],
     blackHand: [...state.blackHand],
-    centerCards: move.discard.length > 0 ? move.discard : state.centerCards.filter(c => !move.center.includes(c)).concat(move.hand)
+    centerCards: [...state.centerCards]
+  };
+}
+
+function applyMove(state, move, isWhiteTurn) {
+  const newState = {
+    whiteHand: [...state.whiteHand],
+    blackHand: [...state.blackHand],
+    centerCards: move.discard.length > 0
+      ? move.discard
+      : state.centerCards.filter(c => !move.center.includes(c)).concat(move.hand)
   };
 
   if (isWhiteTurn) {
@@ -179,169 +91,257 @@ function applyMove(state, move, isWhiteTurn) {
   return newState;
 }
 
-// --- 蒙地卡羅樹搜尋 (MCTS) 相關函數 ---
-
-// 快速隨機產生一個合法步 (用於模擬，避免生成全部步數導致卡頓)
-function getRandomValidMove(activeHand, centerCards, maxAttempts = 20) {
-  const ops = ['+', '-', '*', '/'];
-  for (let i = 0; i < maxAttempts; i++) {
-    // 隨機選 2-4 張手牌
-    const hCount = Math.floor(Math.random() * 3) + 2; 
-    if (hCount > activeHand.length) continue;
-    
-    let shuffledHand = [...activeHand].sort(() => 0.5 - Math.random());
-    let hCombo = shuffledHand.slice(0, hCount);
-
-    // 隨機選 1-2 張場中牌
-    const cCount = Math.floor(Math.random() * 2) + 1;
-    if (cCount > centerCards.length) continue;
-
-    let shuffledCenter = [...centerCards].sort(() => 0.5 - Math.random());
-    let cCombo = shuffledCenter.slice(0, cCount);
-
-    const op = ops[Math.floor(Math.random() * ops.length)];
-
-    const result = checkEquation(hCombo, op, cCombo);
-    if (result.success) {
-       let tempCenter = centerCards.filter(c => !cCombo.includes(c)).concat(hCombo);
-       let discard = [];
-       if (tempCenter.length > 2) {
-         let shuffledTemp = [...tempCenter].sort(() => 0.5 - Math.random());
-         discard = shuffledTemp.slice(0, 2);
-       }
-       return { hand: hCombo, center: cCombo, op: op, discard: discard, eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB };
-    }
-  }
-  return null; // 嘗試多次找不到就算放棄
-}
-
-// 模擬單局遊戲到底
-function simulatePlayout(state, isWhiteTurn, aiColor, maxDepth = 12) {
-  let currentState = state;
-  let currentTurn = isWhiteTurn; // true = AI turn, false = Player turn
+function gameResult(state, aiColor) {
   const oppColor = aiColor === 'w' ? 'b' : 'w';
+  const aiOwn = state.whiteHand.filter(c => c.color === aiColor).length;
+  const oppOwn = state.blackHand.filter(c => c.color === oppColor).length;
 
-  for (let d = 0; d < maxDepth; d++) {
-    const aiHand = currentState.whiteHand;
-    const oppHand = currentState.blackHand;
-    
-    const aiOwnCount = aiHand.filter(c => c.color === aiColor).length;
-    const oppOwnCount = oppHand.filter(c => c.color === oppColor).length;
-
-    // 檢查勝負條件
-    if (aiHand.length > 0 && aiOwnCount === 0) return 1.0; // AI 獲勝
-    if (oppHand.length > 0 && oppOwnCount === 0) return 0.0; // 玩家獲勝
-
-    // 必敗檢查
-    if (currentTurn && aiHand.length < 2) return 0.0; 
-    if (!currentTurn && oppHand.length < 2) return 1.0; 
-
-    const activeHand = currentTurn ? aiHand : oppHand;
-    let randomMove = getRandomValidMove(activeHand, currentState.centerCards, 25);
-
-    // 若隨機嘗試失敗，再退向全面生成
-    if (!randomMove) {
-      const allMoves = generateValidMoves(activeHand, currentState.centerCards);
-      if (allMoves.length === 0) return currentTurn ? 0.0 : 1.0;
-      randomMove = allMoves[Math.floor(Math.random() * allMoves.length)];
-    }
-
-    currentState = applyMove(currentState, randomMove, currentTurn);
-    currentTurn = !currentTurn; 
-  }
-
-  // 若模擬達到最大深度未分勝負，則估算剩餘優勢 (自身原顏色越少越好)
-  const finalAiOwn = currentState.whiteHand.filter(c => c.color === aiColor).length;
-  const finalOppOwn = currentState.blackHand.filter(c => c.color === oppColor).length;
-  
-  if (finalAiOwn < finalOppOwn) return 0.8;
-  if (finalAiOwn > finalOppOwn) return 0.2;
-  return 0.5;
+  if (state.whiteHand.length > 0 && aiOwn === 0) return 1;
+  if (state.blackHand.length > 0 && oppOwn === 0) return -1;
+  if (state.whiteHand.length < 2) return -1;
+  if (state.blackHand.length < 2) return 1;
+  return 0;
 }
 
-// 時間預算型蒙地卡羅搜尋
-function timeBudgetedMCTS(initialState, validMoves, aiColor, timeBudgetMs = 1500) {
-  const endTime = Date.now() + timeBudgetMs;
-  let stats = validMoves.map(m => ({ move: m, wins: 0, plays: 0 }));
+function countValidMoves(activeHand, centerCards, cap = 20) {
+  const moves = generateValidMoves(activeHand, centerCards, cap);
+  return moves.length;
+}
 
-  // 秒殺首輪檢查
-  for (let s of stats) {
-    let childState = applyMove(initialState, s.move, true);
-    const aiOwnCount = childState.whiteHand.filter(c => c.color === aiColor).length;
-    if (childState.whiteHand.length > 0 && aiOwnCount === 0) {
-      return s.move; 
+function evaluateState(state, aiColor) {
+  const result = gameResult(state, aiColor);
+  if (result === 1) return 10000000;
+  if (result === -1) return -10000000;
+
+  const oppColor = aiColor === 'w' ? 'b' : 'w';
+  const aiOwn = state.whiteHand.filter(c => c.color === aiColor).length;
+  const oppOwn = state.blackHand.filter(c => c.color === oppColor).length;
+
+  const aiMobility = countValidMoves(state.whiteHand, state.centerCards, 20);
+  const oppMobility = countValidMoves(state.blackHand, state.centerCards, 20);
+
+  let score = 0;
+  score += (oppOwn - aiOwn) * 1200;
+  score += (aiMobility - oppMobility) * 120;
+  score += (state.blackHand.length - state.whiteHand.length) * 40;
+  return score;
+}
+
+function generateValidMoves(activeHand, centerCards, keepCap = Infinity) {
+  const ops = ['+', '-', '*', '/'];
+  const moves = [];
+  let handCombos = [];
+  for (let i = 2; i <= 4; i++) handCombos = handCombos.concat(getCombinations(activeHand, i));
+  let centerCombos = [];
+  for (let i = 1; i <= 2; i++) centerCombos = centerCombos.concat(getCombinations(centerCards, i));
+
+  for (const hCombo of handCombos) {
+    for (const cCombo of centerCombos) {
+      for (const op of ops) {
+        const result = checkEquation(hCombo, op, cCombo);
+        if (!result.success) continue;
+
+        const tempCenter = centerCards.filter(c => !cCombo.includes(c)).concat(hCombo);
+        if (tempCenter.length > 2) {
+          let keepCombos = getCombinations(tempCenter, 2);
+          keepCombos = keepCombos
+            .map(keep => ({ keep, score: scoreKeepCombo(keep) }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, keepCap)
+            .map(x => x.keep);
+
+          for (const keep of keepCombos) {
+            moves.push({ hand: hCombo, center: cCombo, op, discard: keep, eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB });
+          }
+        } else {
+          moves.push({ hand: hCombo, center: cCombo, op, discard: [], eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB });
+        }
+      }
     }
   }
+  return moves;
+}
 
-  // 打亂順序，避免如果時間提早結束，始終只有前幾個被測到
-  stats.sort(() => 0.5 - Math.random());
+function scoreKeepCombo(keep) {
+  return keep[0].val + keep[1].val;
+}
 
-  let passes = 0;
-  while (Date.now() < endTime) {
-    for (let i = 0; i < stats.length; i++) {
-        if (Date.now() >= endTime) break;
-        let childState = applyMove(initialState, stats[i].move, true);
-        let score = simulatePlayout(childState, false, aiColor);
-        stats[i].wins += score;
-        stats[i].plays++;
+function hashState(state, isAiTurn) {
+  const pack = cards => cards.map(c => `${c.id}:${c.color}:${c.val}`).sort().join('|');
+  return `${isAiTurn ? 'A' : 'O'}#${pack(state.whiteHand)}#${pack(state.blackHand)}#${pack(state.centerCards)}`;
+}
+
+function moveOrderingScore(state, move, aiColor, isAiTurn) {
+  const child = applyMove(state, move, isAiTurn);
+  const immediate = gameResult(child, aiColor);
+  if (immediate === 1) return 10_000_000;
+
+  const oppMoves = generateValidMoves(child.blackHand, child.centerCards, 8).length;
+  const selfMoves = generateValidMoves(child.whiteHand, child.centerCards, 8).length;
+  let score = 0;
+  score += (selfMoves - oppMoves) * 200;
+  score += (move.center.length * 60);
+  score -= (move.hand.length * 20);
+  return score;
+}
+
+function pickEasyMove(initialState, aiColor, moves) {
+  let best = null;
+  let bestScore = -Infinity;
+  for (const move of moves) {
+    const child = applyMove(initialState, move, true);
+    const score = evaluateState(child, aiColor) + Math.random() * 30;
+    if (score > bestScore) {
+      bestScore = score;
+      best = move;
     }
-    passes++;
   }
+  return best || moves[Math.floor(Math.random() * moves.length)];
+}
 
+function alphaBetaRoot(initialState, aiColor, baseMoves, deadlineMs) {
+  const transTable = new Map();
   let bestMove = null;
-  let bestWinRate = -1;
-  
-  for (let s of stats) {
-    if (s.plays === 0) continue;
-    let winRate = s.wins / s.plays;
-    winRate += Math.random() * 0.001; // 微量雜訊避免平局固化
-    
-    if (winRate > bestWinRate) {
-      bestWinRate = winRate;
-      bestMove = s.move;
+  let completedDepth = 0;
+
+  const orderedRootMoves = [...baseMoves].sort((a, b) =>
+    moveOrderingScore(initialState, b, aiColor, true) - moveOrderingScore(initialState, a, aiColor, true)
+  );
+
+  for (let depth = 1; depth <= 6; depth++) {
+    if (performance.now() >= deadlineMs) break;
+
+    let localBest = null;
+    let localBestScore = -Infinity;
+    let alpha = -Infinity;
+    let beta = Infinity;
+    let finishedDepth = true;
+
+    for (const move of orderedRootMoves) {
+      if (performance.now() >= deadlineMs) {
+        finishedDepth = false;
+        break;
+      }
+
+      const child = applyMove(initialState, move, true);
+      const score = alphaBeta(child, depth - 1, alpha, beta, false, aiColor, deadlineMs, transTable);
+      if (score > localBestScore) {
+        localBestScore = score;
+        localBest = move;
+      }
+      if (score > alpha) alpha = score;
+    }
+
+    if (finishedDepth && localBest) {
+      bestMove = localBest;
+      completedDepth = depth;
+      orderedRootMoves.sort((a, b) => {
+        const sa = a === localBest ? 1 : 0;
+        const sb = b === localBest ? 1 : 0;
+        return sb - sa;
+      });
+    } else {
+      break;
     }
   }
-  return bestMove || stats[0].move;
+
+  return { bestMove: bestMove || orderedRootMoves[0] || null, completedDepth };
+}
+
+function alphaBeta(state, depth, alpha, beta, isAiTurn, aiColor, deadlineMs, transTable) {
+  if (performance.now() >= deadlineMs) return evaluateState(state, aiColor);
+
+  const result = gameResult(state, aiColor);
+  if (result === 1) return 9_000_000 + depth;
+  if (result === -1) return -9_000_000 - depth;
+  if (depth === 0) return evaluateState(state, aiColor);
+
+  const key = `${depth}:${hashState(state, isAiTurn)}`;
+  if (transTable.has(key)) return transTable.get(key);
+
+  const activeHand = isAiTurn ? state.whiteHand : state.blackHand;
+  const moves = generateValidMoves(activeHand, state.centerCards, 8);
+
+  if (moves.length === 0) {
+    const noMoveScore = isAiTurn ? -8_000_000 : 8_000_000;
+    transTable.set(key, noMoveScore);
+    return noMoveScore;
+  }
+
+  moves.sort((a, b) => moveOrderingScore(state, b, aiColor, isAiTurn) - moveOrderingScore(state, a, aiColor, isAiTurn));
+
+  let best;
+  if (isAiTurn) {
+    best = -Infinity;
+    for (const move of moves) {
+      const child = applyMove(state, move, true);
+      const score = alphaBeta(child, depth - 1, alpha, beta, false, aiColor, deadlineMs, transTable);
+      if (score > best) best = score;
+      if (score > alpha) alpha = score;
+      if (beta <= alpha) break;
+      if (performance.now() >= deadlineMs) break;
+    }
+  } else {
+    best = Infinity;
+    for (const move of moves) {
+      const child = applyMove(state, move, false);
+      const score = alphaBeta(child, depth - 1, alpha, beta, true, aiColor, deadlineMs, transTable);
+      if (score < best) best = score;
+      if (score < beta) beta = score;
+      if (beta <= alpha) break;
+      if (performance.now() >= deadlineMs) break;
+    }
+  }
+
+  transTable.set(key, best);
+  return best;
 }
 
 self.onmessage = function(e) {
   const { difficulty, aiHand, opponentHand, centerCards } = e.data;
   if (!aiHand || aiHand.length === 0) return self.postMessage(null);
 
-  // 取得 AI 目前的顏色與對手顏色
   const aiColor = aiHand[0].color;
-  
-  // 在 Worker 內部，whiteHand 統一代表「發起計算的 AI」，blackHand 代表「對手」
   const whiteHand = aiHand;
   const blackHand = opponentHand;
   const isHard = difficulty === 'hard';
-  const depth = isHard ? 3 : 1; 
-  const initialState = { whiteHand, blackHand, centerCards };
-  const moves = generateValidMoves(whiteHand, centerCards);
+  const initialState = normalizeState({ whiteHand, blackHand, centerCards });
 
-  let bestMove = null;
-
+  const moves = generateValidMoves(initialState.whiteHand, initialState.centerCards, isHard ? 10 : 4);
   if (moves.length === 0) return self.postMessage(null);
 
+  let bestMove;
+
   if (isHard) {
-    // 困難模式：使用 MCTS (時間預算 1.5 秒)
-    bestMove = timeBudgetedMCTS(initialState, moves, aiColor, 1500);
+    const start = performance.now();
+    const hardBudgetMs = 4300;
+    const deadline = start + hardBudgetMs;
+
+    for (const move of moves) {
+      const child = applyMove(initialState, move, true);
+      if (gameResult(child, aiColor) === 1) {
+        bestMove = move;
+        break;
+      }
+    }
+
+    if (!bestMove) {
+      const searchResult = alphaBetaRoot(initialState, aiColor, moves, deadline);
+      bestMove = searchResult.bestMove;
+    }
   } else {
-    // 普通模式：也用 MCTS，但時間極短、思考粗糙 (或純隨機)
-    bestMove = timeBudgetedMCTS(initialState, moves, aiColor, 100); 
+    bestMove = pickEasyMove(initialState, aiColor, moves);
   }
 
-  if (bestMove) {
-    self.postMessage({
-      hand: bestMove.hand.map(c => c.id),
-      center: bestMove.center.map(c => c.id),
-      op: bestMove.op,
-      discard: bestMove.discard.length > 0 ? bestMove.discard.map(c => c.id) : [],
-      eq: bestMove.eq,
-      cardsA: bestMove.cardsA,
-      cardsB: bestMove.cardsB
-    });
-  } else {
-    self.postMessage(null); 
-  }
+  if (!bestMove) return self.postMessage(null);
+
+  self.postMessage({
+    hand: bestMove.hand.map(c => c.id),
+    center: bestMove.center.map(c => c.id),
+    op: bestMove.op,
+    discard: bestMove.discard.length > 0 ? bestMove.discard.map(c => c.id) : [],
+    eq: bestMove.eq,
+    cardsA: bestMove.cardsA,
+    cardsB: bestMove.cardsB
+  });
 };
