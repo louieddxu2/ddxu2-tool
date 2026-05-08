@@ -497,6 +497,9 @@ window.openEditModal = (id) => {
 
   // 🌟 智慧焦點引導機制 (Smart Guided Focus)：依序自動展開/聚焦空白欄位，提升行動端輸入流暢度
   setTimeout(() => {
+    // 檢查是否有 OCR 記憶以顯示自動勾選框
+    if (window.checkOcrMemory) window.checkOcrMemory(c.game, c.type);
+
     const editGame = document.getElementById("edit-game");
     const editType = document.getElementById("edit-type");
     const editNumber = document.getElementById("edit-number");

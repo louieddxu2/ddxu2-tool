@@ -512,8 +512,19 @@
           </div>
         </div>
 
-        <input type="search" id="edit-number" placeholder="編號或名稱"
-          class="bg-white border border-slate-200 text-xs rounded-lg px-3 py-2 w-full outline-none focus:ring-2 focus:ring-emerald-500" />
+        <div class="flex gap-2">
+          <input type="search" id="edit-number" placeholder="編號或名稱"
+            class="flex-1 bg-white border border-slate-200 text-xs rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500 min-w-0" />
+          <div class="flex items-center gap-1">
+            <label id="ocr-auto-wrap" class="hidden items-center justify-center cursor-pointer text-[10px] text-slate-500 hover:text-emerald-600 font-bold px-1" title="使用記憶位置直接辨識">
+              <input type="checkbox" id="ocr-auto-checkbox" class="mr-1 accent-emerald-500 w-3 h-3" checked>
+              <span>自動</span>
+            </label>
+            <button type="button" id="btn-ocr-trigger" onclick="openOcrHelper()" class="shrink-0 flex items-center justify-center bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-600 rounded-lg w-9 h-9 transition-colors" title="螢光筆 OCR">
+              <i data-lucide="highlighter" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
 
         <textarea id="edit-memo" placeholder="備註 (選填)..."
           class="bg-white border border-slate-200 text-xs rounded-lg px-3 py-2 w-full h-8 min-h-[32px] outline-none focus:ring-2 focus:ring-emerald-500 resize-none transition-all duration-200"
@@ -802,15 +813,33 @@
     </div>
   </div>
 
+  <!-- OCR Helper Overlay -->
+  <div id="ocr-helper-overlay" class="fixed inset-0 z-[70] hidden backdrop-blur-md bg-slate-950/90 flex-col items-center justify-center p-4">
+    <div class="absolute top-0 left-0 w-full p-4 flex justify-between items-start z-10">
+      <div class="bg-slate-900/80 text-white text-xs px-3 py-1.5 rounded-full font-bold border border-slate-800 shadow-lg flex items-center gap-2" id="ocr-status-text">
+        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+        <span>請在編號處畫一筆 🖍️</span>
+      </div>
+      <button type="button" onclick="closeOcrHelper()" class="w-8 h-8 flex items-center justify-center bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-full transition-colors shadow-lg">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div class="relative max-w-full max-h-full flex items-center justify-center shadow-2xl shadow-amber-500/10 rounded-md" id="ocr-canvas-container">
+      <canvas id="ocr-canvas-preview" class="block max-w-full max-h-[80vh] rounded-md border border-slate-800"></canvas>
+      <canvas id="ocr-canvas-draw" class="absolute inset-0 block w-full h-full cursor-crosshair touch-none rounded-md"></canvas>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="js/db.js"></script>
-  <script src="js/sync.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/gallery.js?v=30"></script>
-  <script src="js/io.js"></script>
-  <script src="js/cropper.js"></script>
+  <script src="js/db.js?v=31"></script>
+  <script src="js/sync.js?v=31"></script>
+  <script src="js/utils.js?v=31"></script>
+  <script src="js/ui.js?v=31"></script>
+  <script src="js/gallery.js?v=31"></script>
+  <script src="js/io.js?v=31"></script>
+  <script src="js/cropper.js?v=31"></script>
+  <script src="js/ocr-helper.js?v=31"></script>
 </body>
 
 </html>
