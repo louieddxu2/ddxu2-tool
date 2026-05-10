@@ -250,6 +250,73 @@ window.stopHost = () => {
   logSync("已關閉同步房間。")
 };
 
+window.forceSyncExistingCards = async () => {
+  if (window.connections.size === 0) {
+      alert("目前沒有連線中的裝置，無法廣播。");
+      return;
+  }
+  
+  const sessionGame = localStorage.getItem('bg_session_game') || "";
+  if (!sessionGame) {
+      alert("未指定房間遊戲分類，無法強制廣播。");
+      return;
+  }
+  
+  const cardsToSync = window.dbCards.filter(c => c.blob instanceof Blob && c.game === sessionGame);
+  
+  if (cardsToSync.length === 0) {
+      alert(`目前「${sessionGame}」中沒有圖片可供廣播。`);
+      return;
+  }
+  
+  const confirmMsg = `確定要將「${sessionGame}」中的 ${cardsToSync.length} 張圖片強制發送給所有已連線的使用者嗎？\n（對方若已有相同版本的圖片會自動忽略，不會重複寫入）`;
+  if (!confirm(confirmMsg)) return;
+
+  logSync(`強制廣播：準備發送 ${cardsToSync.length} 張卡...`);
+  
+  const activeConns = [];
+  for (const c of window.connections) {
+    if (c.open) {
+      if (typeof c.verifyConnection === 'function') {
+        const isAlive = await c.verifyConnection(1000); 
+        if (isAlive) {
+          activeConns.push(c);
+        } else {
+          logSync(`強制廣播前驗證失敗，判定為殭屍連線，主動關閉連線...`);
+          c.close(); 
+        }
+      } else {
+        activeConns.push(c);
+      }
+    }
+  }
+
+  if (activeConns.length === 0) {
+      alert("所有連線皆無回應，廣播取消。");
+      return;
+  }
+
+  let successCount = 0;
+  for (const card of cardsToSync) {
+    let sentToAllConnections = true;
+    for (const c of activeConns) {
+      try {
+        await sendCardChunked(c, card);
+      } catch (err) {
+        sentToAllConnections = false;
+        logSync(`強制廣播失敗 ${card.number || card.id}: ${err.message || err}`, "error");
+      }
+    }
+    if (sentToAllConnections) {
+      broadcastedCardVersions.set(card.id, card.timestamp || 0);
+      successCount++;
+    }
+  }
+  
+  logSync(`強制廣播完成：共發送 ${successCount} 張卡牌。`);
+  alert(`已完成強制廣播！`);
+};
+
 
 
 function startJoin(id) {

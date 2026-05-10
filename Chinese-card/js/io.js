@@ -98,14 +98,16 @@ window.executeExport = async () => {
     zip.file("metadata.json", JSON.stringify(metadata, null, 2));
     
     const content = await zip.generateAsync({ type: "blob" });
-    // 強制將 MIME 覆寫為通用二進位流，阻止 iOS Safari / LINE 等下載管理員自動追加 .zip 副檔名或執行自動解壓
-    const ccpackBlob = new Blob([content], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(ccpackBlob);
+    
+    // 🌟 採用最標準的 ZIP 格式，不加入任何前綴或偽裝
+    const standardZipBlob = new Blob([content], { type: 'application/zip' });
+    const url = URL.createObjectURL(standardZipBlob);
     
     const btnDownload = document.getElementById("btn-download-zip");
     if (btnDownload) {
       btnDownload.href = url;
-      btnDownload.download = `cards_export_${new Date().toISOString().slice(0,10)}_${Date.now()}.ccpack`;
+      // 恢復使用 .zip 副檔名，因為我們已經有了防護前綴，且 .zip 在通訊軟體(如 LINE)傳輸上相容性最好
+      btnDownload.download = `cards_export_${new Date().toISOString().slice(0,10)}_${Date.now()}.zip`;
     }
 
     const m = document.getElementById("modal-export-result");

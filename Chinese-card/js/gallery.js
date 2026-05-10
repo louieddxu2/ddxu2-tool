@@ -10,6 +10,14 @@ window.renderGallery = () => {
   const editModal = document.getElementById("modal-edit");
   if (editModal && !editModal.classList.contains("hidden")) return;
 
+  // 🌟 統一管理與回收 Blob URL，避免 iOS 上提早回收導致破圖，或未回收導致記憶體洩漏
+  if (window.activeGalleryBlobUrls) {
+    window.activeGalleryBlobUrls.forEach(url => {
+      try { URL.revokeObjectURL(url); } catch (e) {}
+    });
+  }
+  window.activeGalleryBlobUrls = [];
+
   // 🌟 銷毀舊的 Panzoom 實例，避免重複監聽與記憶體洩漏
   if (window.activePanzooms) {
     window.activePanzooms.forEach(pz => {
@@ -79,6 +87,7 @@ window.renderGallery = () => {
   displayed.forEach((c, index) => {
     if (!c.blob || !(c.blob instanceof Blob)) return;
     const url = URL.createObjectURL(c.blob);
+    window.activeGalleryBlobUrls.push(url);
     const div = document.createElement("div");
 
     div.setAttribute("data-id", c.id);
@@ -217,30 +226,6 @@ window.renderGallery = () => {
     }
 
     grid.appendChild(div);
-
-    // 🌟 專業影像解碼與記憶體安全回收機制 (相容 iOS WebKit 與舊型設備)
-    const img = div.querySelector("img");
-    if (img) {
-      let isRevoked = false;
-      const safeRevoke = () => {
-        if (!isRevoked) {
-          isRevoked = true;
-          try { URL.revokeObjectURL(url); } catch (e) {}
-        }
-      };
-
-      if (typeof img.decode === "function") {
-        img.decode()
-          .then(safeRevoke)
-          .catch(() => setTimeout(safeRevoke, 1000));
-      } else {
-        img.onload = () => setTimeout(safeRevoke, 1000);
-        img.onerror = safeRevoke;
-      }
-
-      // 🛡️ 終極防線：5秒最大安全超時。無論加載卡死、用戶斷網或設備突發異常，5秒後絕對回收指標，永不洩漏記憶體！
-      setTimeout(safeRevoke, 5000);
-    }
   });
 
   if (currentObserver) currentObserver.disconnect();
@@ -425,4 +410,26 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("inp-number").oninput = renderGallery;
   document.getElementById("inp-number").onfocus = function () { this.select(); };
   document.getElementById("edit-number").onfocus = function () { this.select(); };
+});
+
+// 🌟 iOS WebKit 記憶體防禦機制：當網頁從背景(原生相簿/相機)切回時，重新從 IDB 提取 Blob 並渲染，修復記憶體被靜默回收造成的破圖
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "visible") {
+    if (window.idbKeyval && window.UIState && window.UIState.isDBReady) {
+      try {
+        const freshData = await window.idbKeyval.get("bgCards");
+        if (freshData && freshData.length > 0) {
+          window.dbCards = freshData; // 替換掉可能已被 iOS 系統殺掉的失效 Blob
+          // 只有在未開啟編輯模式或裁切模式時才主動重新渲染，避免干擾使用者
+          const editModal = document.getElementById("modal-edit");
+          const isEditOpen = editModal && !editModal.classList.contains("hidden");
+          if (!window.UIState.isCropViewOpen && !isEditOpen) {
+            if (typeof window.renderGallery === "function") window.renderGallery();
+          }
+        }
+      } catch (err) {
+        console.error("Failed to restore Blobs on visibilitychange", err);
+      }
+    }
+  }
 });

@@ -107,14 +107,37 @@ window.addEventListener("load", async () => {
 function handleSharedImage(file) {
   if (file && file.type.startsWith("image/")) {
     const url = URL.createObjectURL(file);
-    if (typeof openCropView === "function") {
-      openCropView(url);
+    
+    const triggerCrop = () => {
+      if (typeof openCropView === "function") {
+        openCropView(url);
+      } else {
+        window.addEventListener(
+          "DOMContentLoaded",
+          () => openCropView(url),
+          { once: true },
+        );
+      }
+    };
+
+    // 解決 Race Condition: 確保 IndexedDB 的歷史卡牌已經載入，才能讓裁切器正確參考過去的比例
+    if (window.UIState && window.UIState.isDBReady) {
+      triggerCrop();
     } else {
-      window.addEventListener(
-        "DOMContentLoaded",
-        () => openCropView(url),
-        { once: true },
-      );
+      const checkDB = setInterval(() => {
+        if (window.UIState && window.UIState.isDBReady) {
+          clearInterval(checkDB);
+          triggerCrop();
+        }
+      }, 50);
+      
+      // 避免無限等待，設定 2.5 秒的 Timeout
+      setTimeout(() => {
+        clearInterval(checkDB);
+        if (!(window.UIState && window.UIState.isDBReady)) {
+          triggerCrop();
+        }
+      }, 2500);
     }
   }
 }

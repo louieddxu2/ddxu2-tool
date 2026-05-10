@@ -603,8 +603,15 @@
               <span id="sync-host-count">已連線 (1人)</span>
             </div>
           </div>
-          <button onclick="stopHost()"
-            class="w-full py-3 bg-red-50 text-red-600 font-bold hover:bg-red-100 rounded-xl transition-colors active:scale-95">關閉並銷毀房間</button>
+          <div class="flex flex-col gap-2 w-full mt-2">
+            <button onclick="forceSyncExistingCards()"
+              class="w-full py-3 bg-amber-50 text-amber-600 font-bold hover:bg-amber-100 rounded-xl transition-colors active:scale-95 flex items-center justify-center gap-2">
+              <i data-lucide="send" class="w-5 h-5"></i>
+              強制廣播現有卡牌
+            </button>
+            <button onclick="stopHost()"
+              class="w-full py-3 bg-red-50 text-red-600 font-bold hover:bg-red-100 rounded-xl transition-colors active:scale-95">關閉並銷毀房間</button>
+          </div>
         </div>
 
         <!-- Client View (Toast-like success) -->
