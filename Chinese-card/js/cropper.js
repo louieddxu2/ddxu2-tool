@@ -210,7 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
       drawLines();
-    } else if (dist >= 15) {
+    } else if (dist >= 60) {
       let nx1 = Math.max(0, Math.min(originalImgWidth, pointerDownSrc.x));
       let ny1 = Math.max(0, Math.min(originalImgHeight, pointerDownSrc.y));
       let nx2 = currX, ny2 = currY;
@@ -253,7 +253,7 @@ document.addEventListener("DOMContentLoaded", () => {
         p2.x = upX; p2.y = upY;
         if (Math.abs(p2.y - p1.y) < snapLimit) p2.y = p1.y;
       }
-    } else if (dist < 15) {
+    } else if (dist < 60) {
       // Only perform tap logic if we weren't dragging anything (p1, p2, or p3)
       const dx = p2.x - p1.x;
       const dy = p2.y - p1.y;
