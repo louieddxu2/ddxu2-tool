@@ -191,12 +191,17 @@
             data-lucide="rotate-ccw" class="w-5 h-5"></i></button>
       </div>
     </div>
-    <div class="max-w-md mx-auto w-full flex justify-center">
+    <div class="max-w-md mx-auto w-full flex justify-center gap-2">
       <select id="mode-select" onchange="changeMode(this.value)"
         class="bg-slate-700 text-sm text-white px-3 py-1.5 rounded-full border border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
         <option value="PVP"></option>
         <option value="AI_EASY"></option>
         <option value="AI_HARD"></option>
+      </select>
+      <select id="rule-mode-select" onchange="changeRuleMode(this.value)"
+        class="bg-slate-700 text-sm text-white px-3 py-1.5 rounded-full border border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
+        <option value="CLASSIC">Classic</option>
+        <option value="RACE2">Race to 2</option>
       </select>
     </div>
   </header>
@@ -204,6 +209,8 @@
   <main class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4">
     <div id="status-banner"
       class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200"></div>
+    <div id="race2-scoreboard"
+      class="hidden bg-emerald-50 text-emerald-800 p-2 rounded-xl text-center font-bold border border-emerald-200"></div>
     <div id="history-area" class="flex flex-col items-center gap-1 py-1 overflow-hidden min-h-[3.5rem] transition-all">
     </div>
 
@@ -231,6 +238,10 @@
           class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md"></button>
         <button id="giveup-btn" onclick="giveUp()"
           class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border"></button>
+        <button id="pass-btn" onclick="passTurn()"
+          class="hidden w-full mt-1 bg-amber-50 text-amber-700 py-2 rounded-xl font-semibold border border-amber-200">
+          Pass
+        </button>
       </div>
     </section>
 
@@ -267,12 +278,13 @@
     </div>
   </div>
 
+  <script src="rule-modes.js"></script>
   <script>
     // ==========================================
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-    const APP_VERSION = '1.1.9';
+    const APP_VERSION = '1.2.0';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -282,10 +294,11 @@
     // --- 2. 存檔 Key 也綁定版號 (徹底預防讀取到舊版卡死狀態) ---
     const SAVE_KEY = `mathDuelState_v${APP_VERSION}`;
 
-    function createInitialState(mode = 'PVP') {
+    function createInitialState(mode = 'PVP', ruleMode = MathDuelRuleModes.RULE_MODE.CLASSIC) {
       const aiSide = (mode.startsWith('AI')) ? (Math.random() < 0.5 ? 'BLACK' : 'WHITE') : null;
-      return {
+      const gameState = {
         mode: mode,
+        ruleMode: ruleMode,
         turn: 'BLACK',
         aiSide: aiSide,
         state: 'PLAYING', winner: null,
@@ -296,31 +309,62 @@
         discardSelections: [],
         lastMove: null
       };
+      return MathDuelRuleModes.initRuleState(gameState, ruleMode);
     }
 
     let game = loadState() || createInitialState('PVP');
+    game = MathDuelRuleModes.ensureRuleState(game);
     document.getElementById('mode-select').value = game.mode;
+    document.getElementById('rule-mode-select').value = game.ruleMode;
 
     // ... 後續的 saveState, loadState 與遊戲邏輯保持不變 ...
 
 
     function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(game)); }
-    function loadState() { try { const saved = localStorage.getItem(SAVE_KEY); return saved ? JSON.parse(saved) : null; } catch (e) { return null; } }
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(SAVE_KEY);
+        const parsed = saved ? JSON.parse(saved) : null;
+        return parsed ? MathDuelRuleModes.ensureRuleState(parsed) : null;
+      } catch (e) {
+        return null;
+      }
+    }
 
     function changeMode(newMode) {
       if (confirm(t('confirm_change_mode'))) {
-        game = createInitialState(newMode);
-        saveState(); render();
+        game = createInitialState(newMode, game.ruleMode);
+        saveState(); render(); checkAITurn();
       } else {
         document.getElementById('mode-select').value = game.mode;
       }
     }
 
+    function changeRuleMode(newRuleMode) {
+      if (confirm(t('confirm_change_mode'))) {
+        game = createInitialState(game.mode, newRuleMode);
+        saveState(); render(); checkAITurn();
+      } else {
+        document.getElementById('rule-mode-select').value = game.ruleMode;
+      }
+    }
+
     function resetGame(force = false) {
       if (force && !confirm(t('confirm_reset'))) return;
-      game = createInitialState(game.mode);
+      game = createInitialState(game.mode, game.ruleMode);
       saveState(); render();
       checkAITurn();
+    }
+
+    function isRace2Mode() {
+      return MathDuelRuleModes.isRace2(game);
+    }
+
+    function passTurn() {
+      if (!isRace2Mode() || game.state !== 'PLAYING' || isAITurn()) return;
+      const ended = MathDuelRuleModes.applyPassPoint(game);
+      if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+      saveState(); render(); checkAITurn();
     }
 
     // --- 前端運算共用區 ---
@@ -495,13 +539,22 @@
     }
 
     function endTurn() {
-      const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
-      const targetColor = game.turn === 'BLACK' ? 'w' : 'b';
-      if (activeHand.length > 0 && activeHand.every(c => c.color === targetColor)) {
-        game.winner = game.turn; game.state = 'GAMEOVER';
+      const turnJustEnded = game.turn;
+      if (isRace2Mode()) {
+        const ended = MathDuelRuleModes.applyColorMatchPoint(game, turnJustEnded);
+        if (!ended) {
+          game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+          game.state = 'PLAYING';
+        }
       } else {
-        game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
-        game.state = 'PLAYING';
+        const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+        const targetColor = game.turn === 'BLACK' ? 'w' : 'b';
+        if (activeHand.length > 0 && activeHand.every(c => c.color === targetColor)) {
+          game.winner = game.turn; game.state = 'GAMEOVER';
+        } else {
+          game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+          game.state = 'PLAYING';
+        }
       }
       saveState(); render();
       checkAITurn();
@@ -513,6 +566,13 @@
       // 檢查當前行動方是否還有路走 (死局判定)
       const currentHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
       if (!hasValidMove(currentHand, game.center)) {
+        if (isRace2Mode()) {
+          const ended = MathDuelRuleModes.applyPassPoint(game);
+          if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+          saveState(); render();
+          setTimeout(() => checkAITurn(), 200);
+          return;
+        }
         setTimeout(() => {
           const winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
           const msg = game.turn === 'BLACK' ? (LANG === 'zh' ? '你已無路可走！' : 'No moves left!') : (LANG === 'zh' ? 'AI 已無路可走！' : 'AI has no moves left!');
@@ -534,7 +594,14 @@
 
         if (aiTimeoutToken) clearTimeout(aiTimeoutToken);
         aiTimeoutToken = setTimeout(() => {
-          if (isAITurn() && game.state === 'PLAYING') giveUp();
+          if (!isAITurn() || game.state !== 'PLAYING') return;
+          if (isRace2Mode()) {
+            const ended = MathDuelRuleModes.applyPassPoint(game);
+            if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+            saveState(); render(); checkAITurn();
+            return;
+          }
+          giveUp();
         }, 5500);
 
         worker.postMessage({
@@ -549,7 +616,18 @@
     worker.onmessage = function (e) {
       if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
       const move = e.data;
-      if (!move) { setTimeout(() => giveUp(), 1500); return; }
+      if (!move) {
+        setTimeout(() => {
+          if (isRace2Mode() && isAITurn() && game.state === 'PLAYING') {
+            const ended = MathDuelRuleModes.applyPassPoint(game);
+            if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+            saveState(); render(); checkAITurn();
+            return;
+          }
+          giveUp();
+        }, 1500);
+        return;
+      }
       setTimeout(() => {
         game.selections.hand = move.hand;
         game.selections.center = move.center;
@@ -567,7 +645,17 @@
 
     worker.onerror = function () {
       if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
-      if (isAITurn() && game.state === 'PLAYING') setTimeout(() => giveUp(), 600);
+      if (isAITurn() && game.state === 'PLAYING') {
+        setTimeout(() => {
+          if (isRace2Mode()) {
+            const ended = MathDuelRuleModes.applyPassPoint(game);
+            if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+            saveState(); render(); checkAITurn();
+          } else {
+            giveUp();
+          }
+        }, 600);
+      }
     };
 
     function giveUp() {
@@ -606,6 +694,8 @@
         document.querySelector('#mode-select option[value="PVP"]').innerText = t('mode_pvp');
         document.querySelector('#mode-select option[value="AI_EASY"]').innerText = t('mode_ai_easy');
         document.querySelector('#mode-select option[value="AI_HARD"]').innerText = t('mode_ai_hard');
+        document.querySelector('#rule-mode-select option[value="CLASSIC"]').innerText = 'Classic';
+        document.querySelector('#rule-mode-select option[value="RACE2"]').innerText = 'Race to 2';
         document.getElementById('ui-center-label').innerText = t('center_target');
         lucide.createIcons();
         lastRenderState.title = titleStr;
@@ -637,6 +727,7 @@
 
       if (document.getElementById('white-label').innerText !== whiteLabel) document.getElementById('white-label').innerText = whiteLabel;
       if (document.getElementById('black-label').innerText !== blackLabel) document.getElementById('black-label').innerText = blackLabel;
+      document.getElementById('rule-mode-select').value = game.ruleMode;
 
       document.getElementById('white-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors ${game.turn === 'WHITE' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
       document.getElementById('black-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4 ${game.turn === 'BLACK' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
@@ -704,6 +795,19 @@
         gb.innerText = t('give_up');
       }
       // 渲染歷史紀錄
+      const scoreboard = document.getElementById('race2-scoreboard');
+      const passBtn = document.getElementById('pass-btn');
+      if (isRace2Mode()) {
+        scoreboard.classList.remove('hidden');
+        scoreboard.innerText = `Race to 2 | Black ${game.scores.BLACK} : ${game.scores.WHITE} White`;
+        const canPass = game.state === 'PLAYING' && !isAITurn();
+        passBtn.classList.remove('hidden');
+        passBtn.disabled = !canPass;
+        passBtn.className = `w-full mt-1 py-2 rounded-xl font-semibold border border-amber-200 ${canPass ? 'bg-amber-50 text-amber-700' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`;
+      } else {
+        scoreboard.classList.add('hidden');
+        passBtn.classList.add('hidden');
+      }
       renderHistory();
     }
 
