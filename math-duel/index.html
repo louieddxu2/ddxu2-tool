@@ -801,13 +801,25 @@
           ? `搶 2 分 | 黑方 ${game.scores.BLACK} : ${game.scores.WHITE} 白方`
           : `Race to 2 | Black ${game.scores.BLACK} : ${game.scores.WHITE} White`;
         const canPass = game.state === 'PLAYING' && !isAITurn();
-        passBtn.classList.remove('hidden');
-        passBtn.disabled = !canPass;
-        passBtn.innerText = LANG === 'zh' ? '不出牌' : 'Pass';
-        passBtn.className = `w-full mt-1 py-2 rounded-xl font-semibold border border-amber-200 ${canPass ? 'bg-amber-50 text-amber-700' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`;
+        const opponent = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+        const opponentScore = game.scores[opponent];
+        const passWouldLose = opponentScore >= (game.winScore - 1);
+        passBtn.classList.add('hidden');
+        if (game.state === 'PLAYING') {
+          gb.onclick = passTurn;
+          gb.innerText = passWouldLose
+            ? (LANG === 'zh' ? '無法湊出（對手直接獲勝）' : 'No Move (Opponent wins)')
+            : (LANG === 'zh' ? '無法湊出（對手得 1 分）' : 'No Move (Opponent +1)');
+          gb.className = `w-full mt-1 py-2 rounded-xl font-semibold border ${canPass
+            ? (passWouldLose ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-700 border-amber-200')
+            : 'bg-slate-200 text-slate-500 border-slate-300 cursor-not-allowed'}`;
+        } else {
+          gb.classList.add('hidden');
+        }
       } else {
         scoreboard.classList.add('hidden');
         passBtn.classList.add('hidden');
+        gb.onclick = giveUp;
       }
       renderHistory();
     }
