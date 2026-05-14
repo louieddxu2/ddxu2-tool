@@ -200,8 +200,8 @@
       </select>
       <select id="rule-mode-select" onchange="changeRuleMode(this.value)"
         class="bg-slate-700 text-sm text-white px-3 py-1.5 rounded-full border border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
-        <option value="CLASSIC">Classic</option>
-        <option value="RACE2">Race to 2</option>
+        <option value="CLASSIC"></option>
+        <option value="RACE2"></option>
       </select>
     </div>
   </header>
@@ -239,9 +239,7 @@
         <button id="giveup-btn" onclick="giveUp()"
           class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border"></button>
         <button id="pass-btn" onclick="passTurn()"
-          class="hidden w-full mt-1 bg-amber-50 text-amber-700 py-2 rounded-xl font-semibold border border-amber-200">
-          Pass
-        </button>
+          class="hidden w-full mt-1 bg-amber-50 text-amber-700 py-2 rounded-xl font-semibold border border-amber-200"></button>
       </div>
     </section>
 
@@ -694,8 +692,8 @@
         document.querySelector('#mode-select option[value="PVP"]').innerText = t('mode_pvp');
         document.querySelector('#mode-select option[value="AI_EASY"]').innerText = t('mode_ai_easy');
         document.querySelector('#mode-select option[value="AI_HARD"]').innerText = t('mode_ai_hard');
-        document.querySelector('#rule-mode-select option[value="CLASSIC"]').innerText = 'Classic';
-        document.querySelector('#rule-mode-select option[value="RACE2"]').innerText = 'Race to 2';
+        document.querySelector('#rule-mode-select option[value="CLASSIC"]').innerText = LANG === 'zh' ? '基本模式' : 'Classic';
+        document.querySelector('#rule-mode-select option[value="RACE2"]').innerText = LANG === 'zh' ? '搶 2 分' : 'Race to 2';
         document.getElementById('ui-center-label').innerText = t('center_target');
         lucide.createIcons();
         lastRenderState.title = titleStr;
@@ -799,10 +797,13 @@
       const passBtn = document.getElementById('pass-btn');
       if (isRace2Mode()) {
         scoreboard.classList.remove('hidden');
-        scoreboard.innerText = `Race to 2 | Black ${game.scores.BLACK} : ${game.scores.WHITE} White`;
+        scoreboard.innerText = LANG === 'zh'
+          ? `搶 2 分 | 黑方 ${game.scores.BLACK} : ${game.scores.WHITE} 白方`
+          : `Race to 2 | Black ${game.scores.BLACK} : ${game.scores.WHITE} White`;
         const canPass = game.state === 'PLAYING' && !isAITurn();
         passBtn.classList.remove('hidden');
         passBtn.disabled = !canPass;
+        passBtn.innerText = LANG === 'zh' ? '不出牌' : 'Pass';
         passBtn.className = `w-full mt-1 py-2 rounded-xl font-semibold border border-amber-200 ${canPass ? 'bg-amber-50 text-amber-700' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`;
       } else {
         scoreboard.classList.add('hidden');

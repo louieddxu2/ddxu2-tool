@@ -46,7 +46,7 @@
   }
 
   function applyColorMatchPoint(game, turnJustEnded) {
-    if (!isRace2(game) || game.state !== 'PLAYING') return false;
+    if (!isRace2(game)) return false;
     const hand = turnJustEnded === 'BLACK' ? game.blackHand : game.whiteHand;
     const targetColor = turnJustEnded === 'BLACK' ? 'w' : 'b';
     if (hand.length > 0 && hand.every(c => c.color === targetColor)) {
@@ -64,4 +64,3 @@
     applyColorMatchPoint
   };
 })(window);
-
