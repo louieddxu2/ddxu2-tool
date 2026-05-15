@@ -28,6 +28,8 @@
     } = ctx;
 
     const child = applyMove(initialState, move, true);
+    const aiSide = aiColor === 'w' ? 'WHITE' : 'BLACK';
+    const oppSide = aiSide === 'WHITE' ? 'BLACK' : 'WHITE';
     const aiHandLen = child.whiteHand.length;
     const oppHandLen = child.blackHand.length;
     const oppColor = aiColor === 'w' ? 'b' : 'w';
@@ -35,10 +37,10 @@
     let score = 0;
     const cardsSpent = move.hand.length;
     const centerTaken = move.center.length;
+    const netCardDelta = centerTaken - cardsSpent;
 
     // Prefer efficient exchanges in race-to-2.
-    score -= cardsSpent * 180;
-    score += centerTaken * 130;
+    score += netCardDelta * 520;
     score += scoreSafetyLine(aiHandLen, oppHandLen);
 
     // Progress in color conversion remains useful.
@@ -48,8 +50,8 @@
 
     const aiGetsPoint = isColorMatchPoint(child.whiteHand, aiColor);
     const oppThreatReady = isColorMatchPoint(child.blackHand, oppColor);
-    const aiOnMatchPoint = (scores.WHITE || 0) >= (winScore - 1);
-    const oppOnMatchPoint = (scores.BLACK || 0) >= (winScore - 1);
+    const aiOnMatchPoint = (scores[aiSide] || 0) >= (winScore - 1);
+    const oppOnMatchPoint = (scores[oppSide] || 0) >= (winScore - 1);
 
     if (aiGetsPoint) {
       score += aiOnMatchPoint ? 2_000_000 : 35_000;
@@ -62,6 +64,11 @@
     // When opponent is close to win, safety line becomes stricter.
     if (oppOnMatchPoint && aiHandLen < (oppHandLen - 1)) {
       score -= 80_000;
+    }
+
+    // Hard guardrail: avoid crossing safety line unless this move is effectively a win.
+    if (aiHandLen < (oppHandLen - 1) && !aiGetsPoint) {
+      score -= 250_000;
     }
 
     return score;
@@ -84,4 +91,3 @@
 
   global.Race2AiStrategy = { pickMove };
 })(self);
-
