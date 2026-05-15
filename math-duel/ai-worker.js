@@ -312,6 +312,7 @@ self.onmessage = function(e) {
       initialState,
       moves,
       applyMove,
+      generateValidMoves,
       aiColor,
       scores: scores || { WHITE: 0, BLACK: 0 },
       winScore: winScore || 2
