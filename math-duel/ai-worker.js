@@ -1,3 +1,5 @@
+importScripts('ai-race2-strategy.js');
+
 function getPermutations(arr) {
   if (arr.length <= 1) return [arr];
   const result = [];
@@ -291,7 +293,7 @@ function alphaBeta(state, depth, alpha, beta, isAiTurn, aiColor, deadlineMs, tra
 }
 
 self.onmessage = function(e) {
-  const { difficulty, aiHand, opponentHand, centerCards } = e.data;
+  const { difficulty, aiHand, opponentHand, centerCards, ruleMode, scores, winScore } = e.data;
   if (!aiHand || aiHand.length === 0) return self.postMessage(null);
 
   const aiColor = aiHand[0].color;
@@ -305,7 +307,16 @@ self.onmessage = function(e) {
 
   let bestMove;
 
-  if (isHard) {
+  if (ruleMode === 'RACE2') {
+    bestMove = Race2AiStrategy.pickMove({
+      initialState,
+      moves,
+      applyMove,
+      aiColor,
+      scores: scores || { WHITE: 0, BLACK: 0 },
+      winScore: winScore || 2
+    });
+  } else if (isHard) {
     const start = performance.now();
     const hardBudgetMs = 4300;
     const deadline = start + hardBudgetMs;

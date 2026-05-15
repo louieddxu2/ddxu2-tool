@@ -282,7 +282,7 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-    const APP_VERSION = '1.2.0';
+    const APP_VERSION = '1.2.1';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -606,7 +606,10 @@
           difficulty,
           aiHand,
           opponentHand: oppHand,
-          centerCards: game.center
+          centerCards: game.center,
+          ruleMode: game.ruleMode,
+          scores: game.scores || { BLACK: 0, WHITE: 0 },
+          winScore: game.winScore || 2
         });
       }
     }
