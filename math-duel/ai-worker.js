@@ -1,4 +1,5 @@
-importScripts('ai-race2-strategy.js');
+const __workerVersion = new URL(self.location.href).searchParams.get('v') || 'dev';
+importScripts(`ai-race2-strategy.js?v=${encodeURIComponent(__workerVersion)}`);
 
 function getPermutations(arr) {
   if (arr.length <= 1) return [arr];
