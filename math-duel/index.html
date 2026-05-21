@@ -282,7 +282,7 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-    const APP_VERSION = '1.2.1';
+    const APP_VERSION = '1.2.2';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -299,6 +299,8 @@
         ruleMode: ruleMode,
         turn: 'BLACK',
         aiSide: aiSide,
+        aiColor: aiSide ? (aiSide === 'BLACK' ? 'b' : 'w') : null,
+        playerColor: aiSide ? (aiSide === 'BLACK' ? 'w' : 'b') : null,
         state: 'PLAYING', winner: null,
         blackHand: Array.from({ length: 9 }, (_, i) => ({ id: `b${i + 1}`, val: i + 1, color: 'b' })),
         whiteHand: Array.from({ length: 8 }, (_, i) => ({ id: `w${i + 1}`, val: i + 1, color: 'w' })),
@@ -604,6 +606,9 @@
 
         worker.postMessage({
           difficulty,
+          aiSide: game.aiSide,
+          aiColor: game.aiColor,
+          playerColor: game.playerColor,
           aiHand,
           opponentHand: oppHand,
           centerCards: game.center,
@@ -616,6 +621,7 @@
 
     worker.onmessage = function (e) {
       if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
+      if (!isAITurn() || game.state !== 'PLAYING') return;
       const move = e.data;
       if (!move) {
         setTimeout(() => {

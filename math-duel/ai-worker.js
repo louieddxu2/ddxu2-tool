@@ -294,10 +294,10 @@ function alphaBeta(state, depth, alpha, beta, isAiTurn, aiColor, deadlineMs, tra
 }
 
 self.onmessage = function(e) {
-  const { difficulty, aiHand, opponentHand, centerCards, ruleMode, scores, winScore } = e.data;
+  const { difficulty, aiHand, opponentHand, centerCards, ruleMode, scores, winScore, aiColor: sentAiColor } = e.data;
   if (!aiHand || aiHand.length === 0) return self.postMessage(null);
 
-  const aiColor = aiHand[0].color;
+  const aiColor = sentAiColor || (aiHand[0] ? aiHand[0].color : 'b');
   const whiteHand = aiHand;
   const blackHand = opponentHand;
   const isHard = difficulty === 'hard';
@@ -316,7 +316,8 @@ self.onmessage = function(e) {
       generateValidMoves,
       aiColor,
       scores: scores || { WHITE: 0, BLACK: 0 },
-      winScore: winScore || 2
+      winScore: winScore || 2,
+      deadlineMs: performance.now() + 4000
     });
   } else if (isHard) {
     const start = performance.now();
