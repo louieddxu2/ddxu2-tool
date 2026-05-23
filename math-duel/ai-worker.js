@@ -177,7 +177,7 @@ function moveOrderingScore(state, move, aiColor, isAiTurn) {
   const childEval = evaluateState(child, aiColor);
   score += childEval * 0.02;
   score += (move.center.length * 60);
-  score -= (move.hand.length * 20);
+  // 解放攻擊力：基本模式下出大牌有利於消耗手牌，不再對其進行任何懲罰
   return score;
 }
 
@@ -256,7 +256,7 @@ function alphaBeta(state, depth, alpha, beta, isAiTurn, aiColor, deadlineMs, tra
   if (transTable.has(key)) return transTable.get(key);
 
   const activeHand = isAiTurn ? state.whiteHand : state.blackHand;
-  const moves = generateValidMoves(activeHand, state.centerCards, 8);
+  const moves = generateValidMoves(activeHand, state.centerCards, 2);
 
   if (moves.length === 0) {
     const noMoveScore = isAiTurn ? -8_000_000 : 8_000_000;

@@ -52,9 +52,17 @@
     const centerTaken = isPass ? 0 : move.center.length;
     const netCardDelta = centerTaken - cardsSpent;
 
-    // Prefer efficient exchanges in race-to-2.
-    score += netCardDelta * 520;
-    score += scoreSafetyLine(aiHandLen, oppHandLen);
+    // 核心判定：只有在自己尚未取得第 1 分前，不消耗手牌的安全策略與防線才有意義。
+    const isAiFirstPointNotObtained = (scores[aiSide] || 0) === 0;
+
+    if (isAiFirstPointNotObtained) {
+      // 尚未得分時，採取防守安全策略：懲罰手牌消耗、使用安全線
+      score += netCardDelta * 520;
+      score += scoreSafetyLine(aiHandLen, oppHandLen);
+    } else {
+      // 已經取得 1 分（進入賽點）：全力進攻，不懲罰手牌消耗，甚至鼓勵消耗手牌（出大牌）
+      score += cardsSpent * 150;
+    }
 
     // Progress in color conversion remains useful.
     const aiOwnAfter = countOwnColorCards(child.whiteHand, aiColor);
@@ -77,14 +85,17 @@
       score -= oppOnMatchPoint ? 1_200_000 : 20_000;
     }
 
-    // When opponent is close to win, safety line becomes stricter.
-    if (oppOnMatchPoint && aiHandLen < (oppHandLen - 1)) {
-      score -= 80_000;
-    }
+    // 只有在尚未得分（防守狀態）時，才套用對手賽點時的安全線加嚴與硬護欄限制
+    if (isAiFirstPointNotObtained) {
+      // When opponent is close to win, safety line becomes stricter.
+      if (oppOnMatchPoint && aiHandLen < (oppHandLen - 1)) {
+        score -= 80_000;
+      }
 
-    // Hard guardrail: avoid crossing safety line unless this move is effectively a win.
-    if (aiHandLen < (oppHandLen - 1) && !aiGetsPoint) {
-      score -= 250_000;
+      // Hard guardrail: avoid crossing safety line unless this move is effectively a win.
+      if (aiHandLen < (oppHandLen - 1) && !aiGetsPoint) {
+        score -= 250_000;
+      }
     }
 
     return score;
