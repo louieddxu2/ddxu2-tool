@@ -64,6 +64,35 @@
       box-shadow: 0 12px 30px rgb(59 130 246 / 0.12);
     }
 
+    .play-progress {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .play-progress-step {
+      padding: 5px 4px;
+      border-radius: 8px;
+      background: rgb(241 245 249);
+      color: rgb(100 116 139);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.2;
+      text-align: center;
+      transition: color 180ms ease, background-color 180ms ease;
+    }
+
+    .play-progress-step.is-active {
+      background: rgb(219 234 254);
+      color: rgb(29 78 216);
+    }
+
+    .play-progress-step.is-ready {
+      background: rgb(220 252 231);
+      color: rgb(21 128 61);
+    }
+
     .play-stage-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr);
@@ -189,6 +218,18 @@
          play_target_hint: '點按中央牌加入',
          play_operator_hint: '選擇符號',
          play_confirm_hint: '確認算式後，牌會依照方向移動',
+         play_empty_hint: '先選 2–4 張手牌，再選 1–2 張中央牌',
+         play_remove_hint: '點按工作區的牌可移除',
+         play_staging: '正在把牌放入工作區...',
+         play_select_hand: '還需要至少 2 張手牌',
+         play_select_target: '還需要至少 1 張中央牌',
+         play_select_operator: '再選一個運算符號',
+         play_ready: '算式成立，可以送出',
+         play_hand_count: '手牌 {count}/2–4',
+         play_target_count: '目標 {count}/1–2',
+         play_operator_selected: '運算符號 ✓',
+         ai_plan_hint: 'AI 已展示這一步，確認後會自動執行',
+         continue_ai: '立即執行 AI 行動',
          ai_discarding: 'AI 正在丟棄多餘卡牌...',
         discard_hint: '⚠️ 場中央超過兩張，請選擇 2 張保留',
         confirm_keep: '確認保留',
@@ -242,6 +283,18 @@
          play_target_hint: 'Tap center cards to add',
          play_operator_hint: 'Choose an operator',
          play_confirm_hint: 'Confirm to move cards along the route',
+         play_empty_hint: 'Choose 2–4 hand cards, then 1–2 center cards',
+         play_remove_hint: 'Tap a staged card to remove it',
+         play_staging: 'Moving card into the play area...',
+         play_select_hand: 'Choose at least 2 hand cards',
+         play_select_target: 'Choose at least 1 center card',
+         play_select_operator: 'Choose an operator',
+         play_ready: 'Equation ready to send',
+         play_hand_count: 'Hand {count}/2–4',
+         play_target_count: 'Target {count}/1–2',
+         play_operator_selected: 'Operator ✓',
+         ai_plan_hint: 'AI has revealed the move; it will execute next',
+         continue_ai: 'Execute AI move now',
          ai_discarding: 'AI discarding extra cards...',
         discard_hint: '⚠️ More than 2 cards in center, keep 2.',
         confirm_keep: 'Confirm Keep',
@@ -271,6 +324,7 @@
 
     let LANG = localStorage.getItem('mathDuelLang') || (navigator.language.startsWith('en') ? 'en' : 'zh');
     const t = (key) => I18N[LANG][key] || key;
+    const tf = (key, values = {}) => Object.entries(values).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), t(key));
     function toggleLang() {
       LANG = LANG === 'zh' ? 'en' : 'zh';
       localStorage.setItem('mathDuelLang', LANG);
@@ -341,6 +395,12 @@
           <div id="play-zone-status" class="text-[10px] font-bold text-slate-400 text-right"></div>
         </div>
 
+        <div class="play-progress" aria-live="polite">
+          <div id="play-progress-hand" class="play-progress-step"></div>
+          <div id="play-progress-target" class="play-progress-step"></div>
+          <div id="play-progress-operator" class="play-progress-step"></div>
+        </div>
+
         <div class="play-stage-grid">
           <div id="stage-hand-slot" class="play-stage-slot">
             <div id="stage-hand-label" class="text-[10px] font-black text-slate-500"></div>
@@ -365,6 +425,8 @@
           </div>
           <button id="main-btn" onclick="handleMainAction()"
             class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md"></button>
+          <button id="plan-continue-btn" onclick="continueAiPlan()"
+            class="hidden w-full py-2 rounded-xl font-bold border border-violet-200 bg-violet-50 text-violet-700 active:scale-[0.98]"></button>
           <button id="giveup-btn" onclick="giveUp()"
             class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border"></button>
           <button id="pass-btn" onclick="passTurn()"
@@ -413,12 +475,14 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-     const APP_VERSION = '1.2.5';
+     const APP_VERSION = '1.2.6';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
     const worker = new Worker(`ai-worker.js?v=${APP_VERSION}`);
     let aiTimeoutToken = null;
+    let aiPlanTimer = null;
+    let aiPlanResolver = null;
 
     // --- 2. 存檔 Key 也綁定版號 (徹底預防讀取到舊版卡死狀態) ---
     const SAVE_KEY = `mathDuelState_v${APP_VERSION}`;
@@ -465,8 +529,33 @@
       }
     }
 
+    function finishAiPlanWait(shouldContinue) {
+      if (!aiPlanResolver) return;
+      if (aiPlanTimer) clearTimeout(aiPlanTimer);
+      const resolve = aiPlanResolver;
+      aiPlanTimer = null;
+      aiPlanResolver = null;
+      resolve(shouldContinue);
+    }
+
+    function waitForAiPlan(ms) {
+      return new Promise(resolve => {
+        aiPlanResolver = resolve;
+        aiPlanTimer = setTimeout(() => finishAiPlanWait(true), ms);
+      });
+    }
+
+    function continueAiPlan() {
+      finishAiPlanWait(true);
+    }
+
+    function cancelAiPlanWait() {
+      finishAiPlanWait(false);
+    }
+
     function changeMode(newMode) {
       if (confirm(t('confirm_change_mode'))) {
+        cancelAiPlanWait();
         game = createInitialState(newMode, game.ruleMode);
         saveState(); render(); checkAITurn();
       } else {
@@ -476,6 +565,7 @@
 
     function changeRuleMode(newRuleMode) {
       if (confirm(t('confirm_change_mode'))) {
+        cancelAiPlanWait();
         game = createInitialState(game.mode, newRuleMode);
         saveState(); render(); checkAITurn();
       } else {
@@ -485,6 +575,7 @@
 
     function resetGame(force = false) {
       if (force && !confirm(t('confirm_reset'))) return;
+      cancelAiPlanWait();
       game = createInitialState(game.mode, game.ruleMode);
       saveState(); render();
       checkAITurn();
@@ -791,7 +882,7 @@
      }
 
      function handleMainAction() {
-       if (game.state === 'ANIMATING') return;
+       if (game.state === 'ANIMATING' || game.uiBusy) return;
        if (game.state === 'DISCARDING') {
          if (game.discardSelections.length !== 2) return alert(t('discard_err'));
          playDiscardMove();
@@ -953,7 +1044,7 @@
 
       game.uiBusy = false;
       render();
-      if (!CardMotion.prefersReducedMotion(document)) await wait(1100);
+      if (!CardMotion.prefersReducedMotion(document) && !(await waitForAiPlan(1100))) return;
       handleMainAction();
     }
 
@@ -1000,10 +1091,19 @@
        return `<div data-card-id="${escapeHtml(card.id)}" class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${selectionLocation}')` : ''}">${card.val}</div>`;
      }
 
-     function renderStage() {
+     function getCurrentSelection() {
        const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
        const selectedHand = activeHand.filter(c => game.selections.hand.includes(c.id));
        const selectedCenter = game.center.filter(c => game.selections.center.includes(c.id));
+       const operator = game.selections.operator;
+       const equation = operator && selectedHand.length >= 2 && selectedHand.length <= 4 && selectedCenter.length >= 1 && selectedCenter.length <= 2
+         ? checkEquation(selectedHand, operator, selectedCenter)
+         : null;
+       return { selectedHand, selectedCenter, operator, equation };
+     }
+
+     function renderStage() {
+       const { selectedHand, selectedCenter, operator, equation } = getCurrentSelection();
        const handArea = document.getElementById('stage-hand-cards');
        const centerArea = document.getElementById('stage-center-cards');
        const handSlot = document.getElementById('stage-hand-slot');
@@ -1016,11 +1116,32 @@
        handArea.innerHTML = handHTML || `<span class="play-stage-empty">${escapeHtml(t('play_hand_hint'))}</span>`;
        centerArea.innerHTML = centerHTML || `<span class="play-stage-empty">${escapeHtml(t('play_target_hint'))}</span>`;
        document.getElementById('play-zone-title').innerText = t('play_zone');
-       document.getElementById('play-route-hint').innerText = t('move_route');
+       const hasSelection = selectedHand.length > 0 || selectedCenter.length > 0;
+       document.getElementById('play-route-hint').innerText = hasSelection && !isAITurn()
+         ? `${t('move_route')} · ${t('play_remove_hint')}`
+         : t('move_route');
        document.getElementById('stage-hand-label').innerText = t('play_hand');
        document.getElementById('stage-center-label').innerText = t('play_target');
-       document.getElementById('stage-operator-symbol').innerText = game.selections.operator ? (game.selections.operator === '*' ? '×' : game.selections.operator === '/' ? '÷' : game.selections.operator) : '?';
-       document.getElementById('play-zone-status').innerText = game.state === 'ANIMATING' ? t('move_resolving') : t('play_confirm_hint');
+       document.getElementById('stage-operator-symbol').innerText = operator ? (operator === '*' ? '×' : operator === '/' ? '÷' : operator) : '?';
+       document.getElementById('play-progress-hand').innerText = tf('play_hand_count', { count: selectedHand.length });
+       document.getElementById('play-progress-target').innerText = tf('play_target_count', { count: selectedCenter.length });
+       document.getElementById('play-progress-operator').innerText = operator ? t('play_operator_selected') : t('play_operator_hint');
+       const handProgress = document.getElementById('play-progress-hand');
+       const targetProgress = document.getElementById('play-progress-target');
+       const operatorProgress = document.getElementById('play-progress-operator');
+       handProgress.className = `play-progress-step ${selectedHand.length >= 2 ? 'is-ready' : selectedHand.length ? 'is-active' : ''}`;
+       targetProgress.className = `play-progress-step ${selectedCenter.length >= 1 ? 'is-ready' : selectedHand.length >= 2 ? 'is-active' : ''}`;
+       operatorProgress.className = `play-progress-step ${operator ? (equation?.success ? 'is-ready' : 'is-active') : ''}`;
+       let stageStatus = t('play_empty_hint');
+       if (game.state === 'ANIMATING') stageStatus = t('move_resolving');
+       else if (game.uiBusy) stageStatus = t('play_staging');
+       else if (isAITurn() && game.aiMoveInfo) stageStatus = t('ai_plan_hint');
+       else if (selectedHand.length < 2) stageStatus = selectedHand.length ? t('play_select_hand') : t('play_empty_hint');
+       else if (selectedCenter.length < 1) stageStatus = t('play_select_target');
+       else if (!operator) stageStatus = t('play_select_operator');
+       else if (equation?.success) stageStatus = t('play_ready');
+       else stageStatus = t('eq_error');
+       document.getElementById('play-zone-status').innerText = stageStatus;
        handSlot.classList.toggle('is-active', selectedHand.length > 0);
        centerSlot.classList.toggle('is-active', selectedCenter.length > 0);
        playArea.classList.toggle('is-working', selectedHand.length > 0 || selectedCenter.length > 0 || Boolean(game.movePreview) || Boolean(game.aiMoveInfo));
@@ -1088,6 +1209,11 @@
          <div class="text-xs text-slate-500 mt-1">${escapeHtml(detail)}</div>
          ${mode !== 'resolving' ? `<div class="text-[10px] text-slate-400 mt-1">${escapeHtml(t('move_route'))}</div>` : ''}
        `;
+     }
+
+     function canSendCurrentSelection() {
+       const { equation } = getCurrentSelection();
+       return game.state === 'PLAYING' && !game.uiBusy && !isAITurn() && Boolean(equation?.success);
      }
 
      let lastRenderState = { white: '', black: '', center: '', title: '', lang: '' };
@@ -1170,7 +1296,9 @@
         btn.className = classes;
       });
 
-      const sb = document.getElementById('status-banner'), mb = document.getElementById('main-btn'), gb = document.getElementById('giveup-btn'), og = document.getElementById('operator-group');
+      const sb = document.getElementById('status-banner'), mb = document.getElementById('main-btn'), pc = document.getElementById('plan-continue-btn'), gb = document.getElementById('giveup-btn'), og = document.getElementById('operator-group');
+      mb.disabled = false;
+      pc.classList.add('hidden');
        if (game.state === 'GAMEOVER') {
          let winnerName;
         if (game.mode.startsWith('AI')) {
@@ -1182,11 +1310,13 @@
         sb.className = "bg-amber-100 text-amber-800 p-3 rounded-xl text-center font-bold shadow-sm border border-amber-200";
         sb.innerHTML = t('game_over') + winnerName + t('win_suffix');
          mb.innerText = t('play_again'); mb.className = "w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98]";
+         mb.disabled = false;
          gb.classList.add('hidden'); og.classList.add('hidden');
        } else if (game.state === 'ANIMATING') {
          const actorLabel = game.movePreview?.actor === 'AI' ? '🤖 AI' : (LANG === 'zh' ? '⌛ 你' : '⌛ You');
          sb.className = "bg-violet-100 text-violet-800 p-3 rounded-xl text-center font-bold shadow-sm border border-violet-200";
          sb.innerHTML = `${actorLabel} ${t('move_resolving')}`;
+         mb.disabled = true;
          mb.className = "hidden";
          gb.classList.add('hidden'); og.classList.add('hidden');
        } else if (game.state === 'DISCARDING') {
@@ -1194,6 +1324,7 @@
         sb.innerHTML = isAITurn() ? t('ai_discarding') : t('discard_hint');
         mb.innerText = `${t('confirm_keep')} (${game.discardSelections.length}/2)`;
         mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${game.discardSelections.length === 2 ? 'bg-rose-600 text-white active:scale-[0.98]' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`;
+        mb.disabled = game.discardSelections.length !== 2 || isAITurn();
         if (isAITurn()) mb.className += " hidden";
         gb.classList.add('hidden'); og.classList.add('hidden');
       } else {
@@ -1209,12 +1340,28 @@
          } else if (!isAITurn() || !sb.innerHTML.includes(t('ai_thinking_easy').slice(0, 4))) {
            sb.innerHTML = `${t('turn_label')}<span class="text-xl mx-1">${pName}</span>`;
          }
-        mb.innerText = isAITurn() ? t('ai_thinking_btn') : t('send_eq');
-        mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${(isAITurn() || game.uiBusy) ? 'bg-slate-300 text-slate-500 cursor-not-allowed hidden' : 'bg-blue-600 text-white active:scale-[0.98]'}`;
+        const { selectedHand, selectedCenter, operator } = getCurrentSelection();
+        const canSend = canSendCurrentSelection();
+        const actionLabel = canSend
+          ? t('send_eq')
+          : selectedHand.length < 2
+            ? t('play_select_hand')
+            : selectedCenter.length < 1
+              ? t('play_select_target')
+              : !operator
+                ? t('play_select_operator')
+                : t('eq_error');
+        mb.innerText = isAITurn() ? t('ai_thinking_btn') : actionLabel;
+        mb.disabled = !canSend;
+        mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${(isAITurn() || game.uiBusy) ? 'bg-slate-300 text-slate-500 cursor-not-allowed hidden' : canSend ? 'bg-blue-600 text-white active:scale-[0.98]' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`;
         if (isAITurn() || game.uiBusy) gb.classList.add('hidden'); else gb.classList.remove('hidden');
         if (isAITurn() || game.uiBusy) og.classList.add('opacity-60'); else og.classList.remove('opacity-60');
         og.classList.remove('hidden');
         gb.innerText = t('give_up');
+        if (isAITurn() && game.aiMoveInfo && !game.uiBusy) {
+          pc.innerText = t('continue_ai');
+          pc.classList.remove('hidden');
+        }
       }
       // 渲染歷史紀錄
       const scoreboard = document.getElementById('race2-scoreboard');

@@ -4,6 +4,9 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
 
+  await expect(page.locator('#play-zone-status')).toContainText('先選 2–4 張手牌');
+  await expect(page.locator('#main-btn')).toBeDisabled();
+
   await page.locator('[data-card-id="b1"]').click();
   await expect(page.locator('#stage-hand-cards [data-card-id="b1"]')).toBeVisible({ timeout: 2000 });
   await page.locator('[data-card-id="b8"]').click();
@@ -12,6 +15,8 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await expect(page.locator('#stage-center-cards [data-card-id="w9"]')).toBeVisible({ timeout: 2000 });
   await page.locator('[data-op="+"]').click();
 
+  await expect(page.locator('#play-zone-status')).toContainText('算式成立');
+  await expect(page.locator('#main-btn')).toBeEnabled();
   await expect(page.locator('#move-preview')).toContainText('1 + 8 = 9');
 
   await page.locator('#main-btn').click();
@@ -27,7 +32,7 @@ test('animates a card exchange and resolves it into the correct zones', async ({
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.2.5', JSON.stringify({
+      localStorage.setItem('mathDuelState_v1.2.6', JSON.stringify({
       mode: 'AI_EASY',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',
@@ -54,5 +59,9 @@ test('reveals the AI plan in the play area before resolving it', async ({ page }
   await expect(page.locator('#status-banner')).toContainText('AI 的行動計畫', { timeout: 10000 });
   await expect(page.locator('#stage-hand-cards [data-card-id]').first()).toBeVisible({ timeout: 10000 });
   await expect(page.locator('#stage-center-cards [data-card-id]').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('#plan-continue-btn')).toBeVisible();
   await expect(page.locator('#move-preview')).toContainText('AI 的行動計畫');
+
+  await page.locator('#plan-continue-btn').click();
+  await expect(page.locator('#status-banner')).toContainText('行動結算中', { timeout: 2000 });
 });
