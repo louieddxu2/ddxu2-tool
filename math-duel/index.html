@@ -51,6 +51,89 @@
         opacity: 1;
       }
     }
+
+    .play-area {
+      position: relative;
+      overflow: hidden;
+      transition: border-color 220ms ease, background-color 220ms ease, box-shadow 220ms ease;
+    }
+
+    .play-area.is-working {
+      border-color: rgb(96 165 250);
+      background: linear-gradient(180deg, rgb(239 246 255), rgb(255 255 255));
+      box-shadow: 0 12px 30px rgb(59 130 246 / 0.12);
+    }
+
+    .play-stage-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+
+    .play-stage-slot {
+      min-height: 96px;
+      padding: 8px;
+      border: 1px dashed rgb(148 163 184 / 0.8);
+      border-radius: 16px;
+      background: rgb(248 250 252 / 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: border-color 220ms ease, background-color 220ms ease, transform 220ms ease;
+    }
+
+    .play-stage-slot.is-active {
+      border-color: rgb(96 165 250);
+      background: rgb(239 246 255);
+      transform: translateY(-2px);
+    }
+
+    .play-stage-cards {
+      min-height: 64px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .play-stage-empty {
+      color: rgb(148 163 184);
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.25;
+    }
+
+    .play-stage-operator {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: rgb(226 232 240);
+      color: rgb(71 85 105);
+      font-size: 20px;
+      font-weight: 900;
+      box-shadow: inset 0 0 0 1px rgb(148 163 184 / 0.4);
+    }
+
+    @media (max-width: 360px) {
+      .play-stage-grid {
+        grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
+        gap: 4px;
+      }
+
+      .play-stage-operator {
+        width: 30px;
+        height: 30px;
+      }
+    }
   </style>
 </head>
 
@@ -99,6 +182,13 @@
          move_resolving: '行動結算中...',
          discard_resolving: '正在移除多餘卡牌...',
          move_route: '手牌 → 中央；目標牌 → 手牌',
+         play_zone: '出牌工作區',
+         play_hand: '準備打出的牌',
+         play_target: '要回收的目標',
+         play_hand_hint: '點按手牌加入',
+         play_target_hint: '點按中央牌加入',
+         play_operator_hint: '選擇符號',
+         play_confirm_hint: '確認算式後，牌會依照方向移動',
          ai_discarding: 'AI 正在丟棄多餘卡牌...',
         discard_hint: '⚠️ 場中央超過兩張，請選擇 2 張保留',
         confirm_keep: '確認保留',
@@ -145,6 +235,13 @@
          move_resolving: 'Resolving move...',
          discard_resolving: 'Removing extra cards...',
          move_route: 'Hand → Center; target → Hand',
+         play_zone: 'Play area',
+         play_hand: 'Cards to play',
+         play_target: 'Target to take',
+         play_hand_hint: 'Tap hand cards to add',
+         play_target_hint: 'Tap center cards to add',
+         play_operator_hint: 'Choose an operator',
+         play_confirm_hint: 'Confirm to move cards along the route',
          ai_discarding: 'AI discarding extra cards...',
         discard_hint: '⚠️ More than 2 cards in center, keep 2.',
         confirm_keep: 'Confirm Keep',
@@ -217,8 +314,6 @@
   <main class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4">
      <div id="status-banner"
        class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200"></div>
-    <div id="move-preview" aria-live="polite"
-      class="hidden bg-white p-3 rounded-xl border border-blue-200 shadow-sm text-center"></div>
     <div id="race2-scoreboard"
       class="hidden bg-emerald-50 text-emerald-800 p-2 rounded-xl text-center font-bold border border-emerald-200"></div>
     <div id="history-area" class="flex flex-col items-center gap-1 py-1 overflow-hidden min-h-[3.5rem] transition-all">
@@ -237,19 +332,44 @@
         <div id="center-cards" class="flex justify-center flex-wrap gap-2 min-h-[4.5rem]"></div>
       </div>
 
-      <div id="action-panel" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-        <div id="operator-group" class="flex justify-center gap-2">
-          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="+">+</button>
-          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="-">-</button>
-          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="*">×</button>
-          <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="/">÷</button>
+      <div id="play-area" class="play-area bg-white p-3 rounded-2xl border-2 border-dashed border-slate-300 shadow-sm">
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div>
+            <div id="play-zone-title" class="text-sm font-black text-slate-700"></div>
+            <div id="play-route-hint" class="text-[10px] text-slate-400 mt-0.5"></div>
+          </div>
+          <div id="play-zone-status" class="text-[10px] font-bold text-slate-400 text-right"></div>
         </div>
-        <button id="main-btn" onclick="handleMainAction()"
-          class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md"></button>
-        <button id="giveup-btn" onclick="giveUp()"
-          class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border"></button>
-        <button id="pass-btn" onclick="passTurn()"
-          class="hidden w-full mt-1 bg-amber-50 text-amber-700 py-2 rounded-xl font-semibold border border-amber-200"></button>
+
+        <div class="play-stage-grid">
+          <div id="stage-hand-slot" class="play-stage-slot">
+            <div id="stage-hand-label" class="text-[10px] font-black text-slate-500"></div>
+            <div id="stage-hand-cards" class="play-stage-cards"></div>
+          </div>
+          <div id="stage-operator-symbol" class="play-stage-operator">?</div>
+          <div id="stage-center-slot" class="play-stage-slot">
+            <div id="stage-center-label" class="text-[10px] font-black text-slate-500"></div>
+            <div id="stage-center-cards" class="play-stage-cards"></div>
+          </div>
+        </div>
+
+        <div id="move-preview" aria-live="polite"
+          class="hidden mt-3 bg-white p-3 rounded-xl border border-blue-200 shadow-sm text-center"></div>
+
+        <div id="action-panel" class="bg-slate-50/80 mt-3 p-3 rounded-xl border border-slate-200 flex flex-col gap-3">
+          <div id="operator-group" class="flex justify-center gap-2">
+            <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="+">+</button>
+            <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="-">-</button>
+            <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="*">×</button>
+            <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="/">÷</button>
+          </div>
+          <button id="main-btn" onclick="handleMainAction()"
+            class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md"></button>
+          <button id="giveup-btn" onclick="giveUp()"
+            class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border"></button>
+          <button id="pass-btn" onclick="passTurn()"
+            class="hidden w-full mt-1 bg-amber-50 text-amber-700 py-2 rounded-xl font-semibold border border-amber-200"></button>
+        </div>
       </div>
     </section>
 
@@ -293,7 +413,7 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-     const APP_VERSION = '1.2.4';
+     const APP_VERSION = '1.2.5';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -317,10 +437,11 @@
         whiteHand: Array.from({ length: 8 }, (_, i) => ({ id: `w${i + 1}`, val: i + 1, color: 'w' })),
         center: [{ id: 'w9', val: 9, color: 'w' }],
         selections: { hand: [], center: [], operator: null },
-         discardSelections: [],
-         lastMove: null,
-         aiMoveInfo: null,
-         movePreview: null
+        discardSelections: [],
+        lastMove: null,
+        aiMoveInfo: null,
+        movePreview: null,
+        uiBusy: false
       };
       return MathDuelRuleModes.initRuleState(gameState, ruleMode);
     }
@@ -466,35 +587,62 @@
       return false;
     }
 
-    // --- UI 邏輯 ---
-    function isAITurn() { return game.mode.startsWith('AI') && game.turn === game.aiSide; }
+     // --- UI 邏輯 ---
+     function isAITurn() { return game.mode.startsWith('AI') && game.turn === game.aiSide; }
+
+     function wait(ms) {
+       return new Promise(resolve => setTimeout(resolve, ms));
+     }
+
+     async function animateSelectionChange(id, location) {
+       const ids = location === 'hand' ? game.selections.hand : game.selections.center;
+       const max = location === 'hand' ? 4 : 2;
+       const idx = ids.indexOf(id);
+       const adding = idx === -1;
+       if (adding && ids.length >= max) return;
+
+       game.uiBusy = true;
+       render();
+       let committed = false;
+       try {
+         await CardMotion.playExchange({
+           moves: [{ id }],
+           commit: () => {
+             if (adding) ids.push(id);
+             else ids.splice(idx, 1);
+             committed = true;
+             render();
+           },
+           options: { duration: 620, stagger: 0 }
+         });
+       } catch (error) {
+         console.error('Card selection animation failed:', error);
+         if (!committed) {
+           if (adding) ids.push(id);
+           else ids.splice(idx, 1);
+         }
+       } finally {
+         game.uiBusy = false;
+         render();
+       }
+     }
 
      function toggleSelect(id, location) {
-       if (game.state === 'GAMEOVER' || game.state === 'ANIMATING' || isAITurn()) return;
-      if (game.state === 'DISCARDING') {
-        if (location !== 'center') return;
-        const idx = game.discardSelections.indexOf(id);
-        if (idx > -1) game.discardSelections.splice(idx, 1);
-        else if (game.discardSelections.length < 2) game.discardSelections.push(id);
-        render(); return;
-      }
-      if (location === 'hand') {
-        const idx = game.selections.hand.indexOf(id);
-        if (idx > -1) game.selections.hand.splice(idx, 1);
-        else if (game.selections.hand.length < 4) game.selections.hand.push(id);
-      } else {
-        const idx = game.selections.center.indexOf(id);
-        if (idx > -1) game.selections.center.splice(idx, 1);
-        else if (game.selections.center.length < 2) game.selections.center.push(id);
-      }
-
-      // 精確更新：只更新被點擊卡片的樣式，避免全量 render 的閃爍
-      render();
-    }
+       if (game.state === 'GAMEOVER' || game.state === 'ANIMATING' || game.uiBusy || isAITurn()) return;
+       if (game.state === 'DISCARDING') {
+         if (location !== 'center') return;
+         const idx = game.discardSelections.indexOf(id);
+         if (idx > -1) game.discardSelections.splice(idx, 1);
+         else if (game.discardSelections.length < 2) game.discardSelections.push(id);
+         render(); return;
+       }
+       if (location !== 'hand' && location !== 'center') return;
+       animateSelectionChange(id, location);
+     }
 
     document.querySelectorAll('.op-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-         if (game.state !== 'PLAYING' || isAITurn()) return;
+         if (game.state !== 'PLAYING' || game.uiBusy || isAITurn()) return;
         game.selections.operator = e.target.dataset.op;
         render();
       });
@@ -555,6 +703,7 @@
        const discardedCards = game.center.filter(c => !keepIds.has(c.id));
        const actor = isAITurn() ? 'AI' : 'PLAYER';
        game.state = 'ANIMATING';
+       game.uiBusy = true;
        game.movePreview = {
          actor,
          phase: 'discard',
@@ -563,6 +712,7 @@
          centerCards: discardedCards.map(c => ({ ...c }))
        };
        render();
+       if (!CardMotion.prefersReducedMotion(document)) await wait(520);
 
        let committed = false;
        try {
@@ -575,7 +725,7 @@
              render();
            },
            getExitPoint: getDiscardExitPoint,
-           options: { duration: 300, stagger: 45 }
+            options: { duration: 620, stagger: 100 }
          });
        } catch (error) {
          console.error('Card discard animation failed:', error);
@@ -585,22 +735,25 @@
          }
        }
 
-       game.movePreview = null;
-       endTurn();
-     }
+        game.movePreview = null;
+        game.uiBusy = false;
+        endTurn();
+      }
 
      async function playCardMove(hCards, cCards, op, eqResult) {
-       const actor = isAITurn() ? 'AI' : 'PLAYER';
-       const aiInfo = game.aiMoveInfo;
-       game.state = 'ANIMATING';
-       game.movePreview = {
+        const actor = isAITurn() ? 'AI' : 'PLAYER';
+        const aiInfo = game.aiMoveInfo;
+        game.state = 'ANIMATING';
+        game.uiBusy = true;
+        game.movePreview = {
          actor,
          phase: 'move',
          eq: aiInfo?.eq || eqResult.eq,
          handCards: hCards.map(c => ({ ...c })),
          centerCards: cCards.map(c => ({ ...c }))
-       };
-       render();
+        };
+        render();
+        if (!CardMotion.prefersReducedMotion(document)) await wait(520);
 
        let committed = false;
        try {
@@ -614,22 +767,25 @@
              committed = true;
              render();
            },
-           options: { duration: 390, stagger: 55 }
+           options: { duration: 720, stagger: 95 }
          });
        } catch (error) {
          console.error('Card exchange animation failed:', error);
-         if (!committed) {
-           applyMoveState(hCards, cCards, op, eqResult);
-           committed = true;
-         }
+          if (!committed) {
+            applyMoveState(hCards, cCards, op, eqResult);
+            committed = true;
+            render();
+          }
        }
 
        game.movePreview = null;
        if (game.center.length > 2) {
+         game.uiBusy = false;
          game.state = 'DISCARDING';
          render();
          if (isAITurn() && game.discardSelections.length === 2) await playDiscardMove();
        } else {
+         game.uiBusy = false;
          endTurn();
        }
      }
@@ -658,6 +814,7 @@
      }
 
     function endTurn() {
+      game.uiBusy = false;
       const turnJustEnded = game.turn;
       if (isRace2Mode()) {
         const ended = MathDuelRuleModes.applyColorMatchPoint(game, turnJustEnded);
@@ -754,24 +911,51 @@
         }, 1500);
         return;
       }
-       setTimeout(() => {
-         game.selections.hand = move.hand;
-         game.selections.center = move.center;
-         game.selections.operator = move.op;
-
-         // 修正：動態取得 AI 目前的手牌，解決 AI 當黑方時的 Bug
-         const aiHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
-         const eqResult = checkEquation(aiHand.filter(c => move.hand.includes(c.id)), move.op, game.center.filter(c => move.center.includes(c.id)));
-         if (move.eq) game.aiMoveInfo = {
-           eq: move.eq,
-           cardsA: move.cardsA,
-           cardsB: move.cardsB,
-           discard: move.discard || []
-         };
-
-         render(); setTimeout(() => handleMainAction(), 700);
-       }, 500);
+      setTimeout(() => revealAiMove(move), 350);
     };
+
+    async function revealAiMove(move) {
+      if (!isAITurn() || game.state !== 'PLAYING') return;
+
+      const aiInfo = move.eq ? {
+        eq: move.eq,
+        cardsA: move.cardsA,
+        cardsB: move.cardsB,
+        discard: move.discard || []
+      } : null;
+      const moves = [
+        ...move.hand.map(id => ({ id, destination: 'stage-hand' })),
+        ...move.center.map(id => ({ id, destination: 'stage-center' }))
+      ];
+
+      game.uiBusy = true;
+      render();
+      let committed = false;
+      const commitPlan = () => {
+        game.selections.hand = [...move.hand];
+        game.selections.center = [...move.center];
+        game.selections.operator = move.op;
+        game.aiMoveInfo = aiInfo;
+        committed = true;
+        render();
+      };
+
+      try {
+        await CardMotion.playExchange({
+          moves,
+          commit: commitPlan,
+          options: { duration: 720, stagger: 95 }
+        });
+      } catch (error) {
+        console.error('AI card reveal animation failed:', error);
+        if (!committed) commitPlan();
+      }
+
+      game.uiBusy = false;
+      render();
+      if (!CardMotion.prefersReducedMotion(document)) await wait(1100);
+      handleMainAction();
+    }
 
     worker.onerror = function () {
       if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
@@ -794,23 +978,53 @@
       game.state = 'GAMEOVER'; saveState(); render();
     }
 
-    function generateCardHTML(card, location, isNew = false) {
-      const isBlack = card.color === 'b';
-      const isSelectable = (game.state === 'PLAYING' && (location === 'center' || (game.turn === 'BLACK' && location === 'black') || (game.turn === 'WHITE' && location === 'white'))) ||
-        (game.state === 'DISCARDING' && location === 'center');
-      let isSelected = (game.state === 'PLAYING') ? (game.selections.hand.includes(card.id) || game.selections.center.includes(card.id)) :
-        (game.state === 'DISCARDING') ? game.discardSelections.includes(card.id) : false;
+     function generateCardHTML(card, location, isNew = false) {
+       const isBlack = card.color === 'b';
+       const isStage = location === 'stage-hand' || location === 'stage-center';
+       const selectionLocation = location === 'stage-center' || location === 'center' ? 'center' : 'hand';
+       const isStageSelectable = isStage && game.state === 'PLAYING' && !game.uiBusy && !isAITurn();
+       const isSelectable = (game.state === 'PLAYING' && !game.uiBusy && (location === 'center' || (game.turn === 'BLACK' && location === 'black') || (game.turn === 'WHITE' && location === 'white'))) ||
+         (game.state === 'DISCARDING' && !game.uiBusy && location === 'center') || isStageSelectable;
+       const isSelected = isStage || (game.state === 'PLAYING' ? (game.selections.hand.includes(card.id) || game.selections.center.includes(card.id)) :
+         (game.state === 'DISCARDING' ? game.discardSelections.includes(card.id) : false));
 
-      const baseClasses = `w-12 h-16 flex items-center justify-center text-2xl font-bold font-mono rounded-lg border-2 shadow-sm transition-all select-none ${isNew ? 'card-pop' : ''}`;
-      const colorClasses = isBlack ? "bg-slate-800 text-white border-slate-900" : "bg-white text-slate-800 border-slate-300";
-      let interactiveClasses = "opacity-60";
+       const baseClasses = `w-12 h-16 flex items-center justify-center text-2xl font-bold font-mono rounded-lg border-2 shadow-sm transition-all select-none ${isNew ? 'card-pop' : ''}`;
+       const colorClasses = isBlack ? "bg-slate-800 text-white border-slate-900" : "bg-white text-slate-800 border-slate-300";
+       let interactiveClasses = "opacity-60";
 
-      if (isAITurn() && location !== 'center' && !isSelected) interactiveClasses = "opacity-40";
-      else if (isSelectable) interactiveClasses = isSelected ? "ring-4 ring-blue-500 scale-105 opacity-100 cursor-pointer" : "cursor-pointer hover:-translate-y-1 opacity-100";
-      else if (isSelected) interactiveClasses = "opacity-100 ring-2 ring-slate-400";
+       if (isStage) interactiveClasses = isSelectable ? "ring-2 ring-blue-400 opacity-100 cursor-pointer hover:-translate-y-1" : "ring-2 ring-blue-200 opacity-100";
+       else if (isAITurn() && location !== 'center' && !isSelected) interactiveClasses = "opacity-40";
+       else if (isSelectable) interactiveClasses = isSelected ? "ring-4 ring-blue-500 scale-105 opacity-100 cursor-pointer" : "cursor-pointer hover:-translate-y-1 opacity-100";
+       else if (isSelected) interactiveClasses = "opacity-100 ring-2 ring-slate-400";
 
-       return `<div data-card-id="${escapeHtml(card.id)}" class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${location === 'center' ? 'center' : 'hand'}')` : ''}">${card.val}</div>`;
-    }
+       return `<div data-card-id="${escapeHtml(card.id)}" class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${selectionLocation}')` : ''}">${card.val}</div>`;
+     }
+
+     function renderStage() {
+       const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+       const selectedHand = activeHand.filter(c => game.selections.hand.includes(c.id));
+       const selectedCenter = game.center.filter(c => game.selections.center.includes(c.id));
+       const handArea = document.getElementById('stage-hand-cards');
+       const centerArea = document.getElementById('stage-center-cards');
+       const handSlot = document.getElementById('stage-hand-slot');
+       const centerSlot = document.getElementById('stage-center-slot');
+       const playArea = document.getElementById('play-area');
+       if (!handArea || !centerArea || !handSlot || !centerSlot || !playArea) return;
+
+       const handHTML = selectedHand.map(c => generateCardHTML(c, 'stage-hand')).join('');
+       const centerHTML = selectedCenter.map(c => generateCardHTML(c, 'stage-center')).join('');
+       handArea.innerHTML = handHTML || `<span class="play-stage-empty">${escapeHtml(t('play_hand_hint'))}</span>`;
+       centerArea.innerHTML = centerHTML || `<span class="play-stage-empty">${escapeHtml(t('play_target_hint'))}</span>`;
+       document.getElementById('play-zone-title').innerText = t('play_zone');
+       document.getElementById('play-route-hint').innerText = t('move_route');
+       document.getElementById('stage-hand-label').innerText = t('play_hand');
+       document.getElementById('stage-center-label').innerText = t('play_target');
+       document.getElementById('stage-operator-symbol').innerText = game.selections.operator ? (game.selections.operator === '*' ? '×' : game.selections.operator === '/' ? '÷' : game.selections.operator) : '?';
+       document.getElementById('play-zone-status').innerText = game.state === 'ANIMATING' ? t('move_resolving') : t('play_confirm_hint');
+       handSlot.classList.toggle('is-active', selectedHand.length > 0);
+       centerSlot.classList.toggle('is-active', selectedCenter.length > 0);
+       playArea.classList.toggle('is-working', selectedHand.length > 0 || selectedCenter.length > 0 || Boolean(game.movePreview) || Boolean(game.aiMoveInfo));
+     }
 
      function renderMovePreview() {
        const area = document.getElementById('move-preview');
@@ -839,7 +1053,8 @@
          }
        }
 
-       if (!eq && mode !== 'resolving') {
+       const hasSelection = handCards.length > 0 || centerCards.length > 0;
+       if (!eq && mode !== 'resolving' && !hasSelection) {
          area.className = 'hidden';
          area.innerHTML = '';
          return;
@@ -896,10 +1111,12 @@
       }
 
       // 2. 卡牌區域智慧更新
-      const whiteHTML = game.whiteHand.map(c => generateCardHTML(c, 'white')).join('');
-      const blackHTML = game.blackHand.map(c => generateCardHTML(c, 'black')).join('');
+      const selectedHandIds = new Set(game.selections.hand);
+      const selectedCenterIds = new Set(game.selections.center);
+      const whiteHTML = game.whiteHand.filter(c => !selectedHandIds.has(c.id)).map(c => generateCardHTML(c, 'white')).join('');
+      const blackHTML = game.blackHand.filter(c => !selectedHandIds.has(c.id)).map(c => generateCardHTML(c, 'black')).join('');
       // 場中央也同步使用智慧更新，消除閃爍
-      const centerHTML = game.center.map(c => generateCardHTML(c, 'center', false)).join('');
+      const centerHTML = game.center.filter(c => !selectedCenterIds.has(c.id)).map(c => generateCardHTML(c, 'center', false)).join('');
 
       if (lastRenderState.white !== whiteHTML) {
         document.getElementById('white-hand').innerHTML = whiteHTML;
@@ -913,6 +1130,7 @@
         document.getElementById('center-cards').innerHTML = centerHTML;
         lastRenderState.center = centerHTML;
       }
+      renderStage();
 
       // 3. 標籤與 Banner 更新 (僅在文字改變時)
       const whiteLabel = game.mode.startsWith('AI') ? (game.aiSide === 'WHITE' ? t('white_hand_ai') : t('white_hand')) : t('white_hand');
@@ -927,7 +1145,7 @@
 
       document.querySelectorAll('.op-btn').forEach(btn => {
         const isSel = game.selections.operator === btn.dataset.op;
-        const isDisabled = game.state !== 'PLAYING' || isAITurn();
+        const isDisabled = game.state !== 'PLAYING' || isAITurn() || game.uiBusy;
 
         // 基礎樣式
         let classes = `op-btn w-12 h-12 rounded-lg border text-xl font-bold transition-all duration-200 flex items-center justify-center `;
@@ -992,8 +1210,9 @@
            sb.innerHTML = `${t('turn_label')}<span class="text-xl mx-1">${pName}</span>`;
          }
         mb.innerText = isAITurn() ? t('ai_thinking_btn') : t('send_eq');
-        mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${isAITurn() ? 'bg-slate-300 text-slate-500 cursor-not-allowed hidden' : 'bg-blue-600 text-white active:scale-[0.98]'}`;
-        if (isAITurn()) gb.classList.add('hidden'); else gb.classList.remove('hidden');
+        mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${(isAITurn() || game.uiBusy) ? 'bg-slate-300 text-slate-500 cursor-not-allowed hidden' : 'bg-blue-600 text-white active:scale-[0.98]'}`;
+        if (isAITurn() || game.uiBusy) gb.classList.add('hidden'); else gb.classList.remove('hidden');
+        if (isAITurn() || game.uiBusy) og.classList.add('opacity-60'); else og.classList.remove('opacity-60');
         og.classList.remove('hidden');
         gb.innerText = t('give_up');
       }

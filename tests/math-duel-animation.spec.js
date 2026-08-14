@@ -5,8 +5,11 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await page.goto('/math-duel/index.html');
 
   await page.locator('[data-card-id="b1"]').click();
+  await expect(page.locator('#stage-hand-cards [data-card-id="b1"]')).toBeVisible({ timeout: 2000 });
   await page.locator('[data-card-id="b8"]').click();
+  await expect(page.locator('#stage-hand-cards [data-card-id="b8"]')).toBeVisible({ timeout: 2000 });
   await page.locator('[data-card-id="w9"]').click();
+  await expect(page.locator('#stage-center-cards [data-card-id="w9"]')).toBeVisible({ timeout: 2000 });
   await page.locator('[data-op="+"]').click();
 
   await expect(page.locator('#move-preview')).toContainText('1 + 8 = 9');
@@ -15,8 +18,41 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await expect(page.locator('#status-banner')).toContainText('行動結算中', { timeout: 1000 });
   await expect(page.locator('#main-btn')).toBeHidden();
 
-  await expect(page.locator('#center-cards [data-card-id="b1"]')).toBeVisible({ timeout: 2500 });
-  await expect(page.locator('#center-cards [data-card-id="b8"]')).toBeVisible({ timeout: 2500 });
-  await expect(page.locator('#black-hand [data-card-id="w9"]')).toBeVisible({ timeout: 2500 });
+  await expect(page.locator('#center-cards [data-card-id="b1"]')).toBeVisible({ timeout: 7000 });
+  await expect(page.locator('#center-cards [data-card-id="b8"]')).toBeVisible({ timeout: 7000 });
+  await expect(page.locator('#black-hand [data-card-id="w9"]')).toBeVisible({ timeout: 7000 });
   await expect(page.locator('#white-area')).toHaveClass(/border-blue-500/);
+});
+
+test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('mathDuelLang', 'zh');
+    localStorage.setItem('mathDuelState_v1.2.5', JSON.stringify({
+      mode: 'AI_EASY',
+      ruleMode: 'CLASSIC',
+      turn: 'BLACK',
+      aiSide: 'BLACK',
+      aiColor: 'b',
+      playerColor: 'w',
+      state: 'PLAYING',
+      winner: null,
+      blackHand: Array.from({ length: 9 }, (_, i) => ({ id: `b${i + 1}`, val: i + 1, color: 'b' })),
+      whiteHand: Array.from({ length: 8 }, (_, i) => ({ id: `w${i + 1}`, val: i + 1, color: 'w' })),
+      center: [{ id: 'w9', val: 9, color: 'w' }],
+      selections: { hand: [], center: [], operator: null },
+      discardSelections: [],
+      lastMove: null,
+      aiMoveInfo: null,
+      movePreview: null,
+      uiBusy: false,
+      scores: { BLACK: 0, WHITE: 0 },
+      winScore: 2
+    }));
+  });
+  await page.goto('/math-duel/index.html');
+
+  await expect(page.locator('#status-banner')).toContainText('AI 的行動計畫', { timeout: 10000 });
+  await expect(page.locator('#stage-hand-cards [data-card-id]').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('#stage-center-cards [data-card-id]').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('#move-preview')).toContainText('AI 的行動計畫');
 });
