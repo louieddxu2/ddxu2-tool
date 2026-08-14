@@ -93,9 +93,13 @@
         give_up: '無法湊出 (對手獲勝)',
         confirm_change_mode: '確定要切換模式並重新開始嗎？',
         confirm_reset: '確定要重新開始遊戲嗎？',
-        ai_thinking_easy: '新手 AI 思考中...',
-        ai_thinking_hard: '大師級推演中 (深度 3)',
-        ai_discarding: 'AI 正在丟棄多餘卡牌...',
+         ai_thinking_easy: '新手 AI 思考中...',
+         ai_thinking_hard: '大師級推演中 (深度 3)',
+         ai_plan: 'AI 的行動計畫',
+         move_resolving: '行動結算中...',
+         discard_resolving: '正在移除多餘卡牌...',
+         move_route: '手牌 → 中央；目標牌 → 手牌',
+         ai_discarding: 'AI 正在丟棄多餘卡牌...',
         discard_hint: '⚠️ 場中央超過兩張，請選擇 2 張保留',
         confirm_keep: '確認保留',
         turn_label: '現在輪到：',
@@ -135,9 +139,13 @@
         give_up: 'I Give Up',
         confirm_change_mode: 'Are you sure you want to change mode and restart?',
         confirm_reset: 'Are you sure you want to restart the game?',
-        ai_thinking_easy: 'AI thinking...',
-        ai_thinking_hard: 'Master AI deducing (Depth 3)',
-        ai_discarding: 'AI discarding extra cards...',
+         ai_thinking_easy: 'AI thinking...',
+         ai_thinking_hard: 'Master AI deducing (Depth 3)',
+         ai_plan: 'AI action plan',
+         move_resolving: 'Resolving move...',
+         discard_resolving: 'Removing extra cards...',
+         move_route: 'Hand → Center; target → Hand',
+         ai_discarding: 'AI discarding extra cards...',
         discard_hint: '⚠️ More than 2 cards in center, keep 2.',
         confirm_keep: 'Confirm Keep',
         turn_label: 'Turn: ',
@@ -207,8 +215,10 @@
   </header>
 
   <main class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4">
-    <div id="status-banner"
-      class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200"></div>
+     <div id="status-banner"
+       class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200"></div>
+    <div id="move-preview" aria-live="polite"
+      class="hidden bg-white p-3 rounded-xl border border-blue-200 shadow-sm text-center"></div>
     <div id="race2-scoreboard"
       class="hidden bg-emerald-50 text-emerald-800 p-2 rounded-xl text-center font-bold border border-emerald-200"></div>
     <div id="history-area" class="flex flex-col items-center gap-1 py-1 overflow-hidden min-h-[3.5rem] transition-all">
@@ -276,13 +286,14 @@
     </div>
   </div>
 
-  <script src="rule-modes.js"></script>
+   <script src="rule-modes.js"></script>
+  <script src="../shared/card-motion.js?v=1"></script>
   <script>
     // ==========================================
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-    const APP_VERSION = '1.2.3';
+     const APP_VERSION = '1.2.4';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -306,8 +317,10 @@
         whiteHand: Array.from({ length: 8 }, (_, i) => ({ id: `w${i + 1}`, val: i + 1, color: 'w' })),
         center: [{ id: 'w9', val: 9, color: 'w' }],
         selections: { hand: [], center: [], operator: null },
-        discardSelections: [],
-        lastMove: null
+         discardSelections: [],
+         lastMove: null,
+         aiMoveInfo: null,
+         movePreview: null
       };
       return MathDuelRuleModes.initRuleState(gameState, ruleMode);
     }
@@ -456,8 +469,8 @@
     // --- UI 邏輯 ---
     function isAITurn() { return game.mode.startsWith('AI') && game.turn === game.aiSide; }
 
-    function toggleSelect(id, location) {
-      if (game.state === 'GAMEOVER' || isAITurn()) return;
+     function toggleSelect(id, location) {
+       if (game.state === 'GAMEOVER' || game.state === 'ANIMATING' || isAITurn()) return;
       if (game.state === 'DISCARDING') {
         if (location !== 'center') return;
         const idx = game.discardSelections.indexOf(id);
@@ -481,62 +494,168 @@
 
     document.querySelectorAll('.op-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        if (game.state !== 'PLAYING' || isAITurn()) return;
+         if (game.state !== 'PLAYING' || isAITurn()) return;
         game.selections.operator = e.target.dataset.op;
         render();
       });
     });
 
-    function handleMainAction() {
-      if (game.state === 'DISCARDING') {
-        if (game.discardSelections.length !== 2) return alert(t('discard_err'));
-        game.center = game.center.filter(c => game.discardSelections.includes(c.id));
-        game.discardSelections = [];
-        endTurn(); return;
-      }
-      if (game.state === 'GAMEOVER') { resetGame(false); return; }
+     function escapeHtml(value) {
+       return String(value).replace(/[&<>"']/g, (char) => ({
+         '&': '&amp;',
+         '<': '&lt;',
+         '>': '&gt;',
+         '"': '&quot;',
+         "'": '&#39;'
+       }[char]));
+     }
 
-      const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
-      const hCards = activeHand.filter(c => game.selections.hand.includes(c.id));
-      const cCards = game.center.filter(c => game.selections.center.includes(c.id));
-      const op = game.selections.operator;
+     function cardValues(cards) {
+       return cards.map(c => c.val).join(LANG === 'zh' ? '、' : ', ');
+     }
 
-      if (hCards.length < 2 || hCards.length > 4) return alert(t('select_hand_err'));
-      if (cCards.length < 1 || cCards.length > 2) return alert(t('select_target_err'));
-      if (!op) return alert(t('select_op_err'));
+     function getDiscardExitPoint(rect) {
+       const centerArea = document.getElementById('center-area');
+       const areaRect = centerArea ? centerArea.getBoundingClientRect() : null;
+       return {
+         left: Math.max((areaRect ? areaRect.right : rect.right) + 90, rect.left + 140),
+         top: areaRect ? areaRect.top + areaRect.height / 2 : rect.top - 20
+       };
+     }
 
-      const eqResult = checkEquation(hCards, op, cCards);
-      if (eqResult.success) {
-        if (game.turn === 'BLACK') game.blackHand = game.blackHand.filter(c => !game.selections.hand.includes(c.id)).concat(cCards);
-        else game.whiteHand = game.whiteHand.filter(c => !game.selections.hand.includes(c.id)).concat(cCards);
-        game.center = game.center.filter(c => !game.selections.center.includes(c.id)).concat(hCards);
+     function applyMoveState(hCards, cCards, op, eqResult) {
+       const selectedHandIds = new Set(hCards.map(c => c.id));
+       const selectedCenterIds = new Set(cCards.map(c => c.id));
+       const aiInfo = game.aiMoveInfo;
 
-        // 紀錄歷史紀錄
-        game.lastMove = {
-          handCards: hCards.map(c => ({ ...c })),
-          centerCards: cCards.map(c => ({ ...c })),
-          op: op,
-          turn: game.turn,
-          eq: eqResult.eq,
-          cardsA: eqResult.cardsA,
-          cardsB: eqResult.cardsB
-        };
+       if (game.turn === 'BLACK') game.blackHand = game.blackHand.filter(c => !selectedHandIds.has(c.id)).concat(cCards);
+       else game.whiteHand = game.whiteHand.filter(c => !selectedHandIds.has(c.id)).concat(cCards);
+       game.center = game.center.filter(c => !selectedCenterIds.has(c.id)).concat(hCards);
 
-        game.selections = { hand: [], center: [], operator: null };
-        if (game.aiMoveInfo) {
-          game.lastMove.eq = game.aiMoveInfo.eq;
-          game.lastMove.cardsA = game.aiMoveInfo.cardsA;
-          game.lastMove.cardsB = game.aiMoveInfo.cardsB;
-          delete game.aiMoveInfo;
-        }
+       game.lastMove = {
+         handCards: hCards.map(c => ({ ...c })),
+         centerCards: cCards.map(c => ({ ...c })),
+         op,
+         turn: game.turn,
+         eq: aiInfo?.eq || eqResult.eq,
+         cardsA: aiInfo?.cardsA || eqResult.cardsA,
+         cardsB: aiInfo?.cardsB || eqResult.cardsB
+       };
 
-        if (game.center.length > 2) {
-          game.state = 'DISCARDING';
-          if (isAITurn()) handleMainAction(); // AI 自動丟牌
-          else render();
-        } else endTurn();
-      } else alert(t('eq_error'));
-    }
+       game.selections = { hand: [], center: [], operator: null };
+       game.discardSelections = aiInfo?.discard?.length === 2 ? [...aiInfo.discard] : [];
+       game.aiMoveInfo = null;
+     }
+
+     async function playDiscardMove() {
+       if (game.state !== 'DISCARDING' || game.discardSelections.length !== 2) return;
+
+       const keepIds = new Set(game.discardSelections);
+       const keepCards = game.center.filter(c => keepIds.has(c.id));
+       const discardedCards = game.center.filter(c => !keepIds.has(c.id));
+       const actor = isAITurn() ? 'AI' : 'PLAYER';
+       game.state = 'ANIMATING';
+       game.movePreview = {
+         actor,
+         phase: 'discard',
+         eq: actor === 'AI' ? game.lastMove?.eq : null,
+         handCards: [],
+         centerCards: discardedCards.map(c => ({ ...c }))
+       };
+       render();
+
+       let committed = false;
+       try {
+         await CardMotion.playRemoval({
+           ids: discardedCards.map(c => c.id),
+           commit: () => {
+             game.center = keepCards;
+             game.discardSelections = [];
+             committed = true;
+             render();
+           },
+           getExitPoint: getDiscardExitPoint,
+           options: { duration: 300, stagger: 45 }
+         });
+       } catch (error) {
+         console.error('Card discard animation failed:', error);
+         if (!committed) {
+           game.center = keepCards;
+           game.discardSelections = [];
+         }
+       }
+
+       game.movePreview = null;
+       endTurn();
+     }
+
+     async function playCardMove(hCards, cCards, op, eqResult) {
+       const actor = isAITurn() ? 'AI' : 'PLAYER';
+       const aiInfo = game.aiMoveInfo;
+       game.state = 'ANIMATING';
+       game.movePreview = {
+         actor,
+         phase: 'move',
+         eq: aiInfo?.eq || eqResult.eq,
+         handCards: hCards.map(c => ({ ...c })),
+         centerCards: cCards.map(c => ({ ...c }))
+       };
+       render();
+
+       let committed = false;
+       try {
+         await CardMotion.playExchange({
+           moves: [
+             ...hCards.map(c => ({ id: c.id, destination: 'center' })),
+             ...cCards.map(c => ({ id: c.id, destination: 'hand' }))
+           ],
+           commit: () => {
+             applyMoveState(hCards, cCards, op, eqResult);
+             committed = true;
+             render();
+           },
+           options: { duration: 390, stagger: 55 }
+         });
+       } catch (error) {
+         console.error('Card exchange animation failed:', error);
+         if (!committed) {
+           applyMoveState(hCards, cCards, op, eqResult);
+           committed = true;
+         }
+       }
+
+       game.movePreview = null;
+       if (game.center.length > 2) {
+         game.state = 'DISCARDING';
+         render();
+         if (isAITurn() && game.discardSelections.length === 2) await playDiscardMove();
+       } else {
+         endTurn();
+       }
+     }
+
+     function handleMainAction() {
+       if (game.state === 'ANIMATING') return;
+       if (game.state === 'DISCARDING') {
+         if (game.discardSelections.length !== 2) return alert(t('discard_err'));
+         playDiscardMove();
+         return;
+       }
+       if (game.state === 'GAMEOVER') { resetGame(false); return; }
+
+       const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+       const hCards = activeHand.filter(c => game.selections.hand.includes(c.id));
+       const cCards = game.center.filter(c => game.selections.center.includes(c.id));
+       const op = game.selections.operator;
+
+       if (hCards.length < 2 || hCards.length > 4) return alert(t('select_hand_err'));
+       if (cCards.length < 1 || cCards.length > 2) return alert(t('select_target_err'));
+       if (!op) return alert(t('select_op_err'));
+
+       const eqResult = checkEquation(hCards, op, cCards);
+       if (!eqResult.success) return alert(t('eq_error'));
+       playCardMove(hCards, cCards, op, eqResult);
+     }
 
     function endTurn() {
       const turnJustEnded = game.turn;
@@ -635,19 +754,23 @@
         }, 1500);
         return;
       }
-      setTimeout(() => {
-        game.selections.hand = move.hand;
-        game.selections.center = move.center;
-        game.selections.operator = move.op;
-        if (move.discard && move.discard.length === 2) game.discardSelections = move.discard;
+       setTimeout(() => {
+         game.selections.hand = move.hand;
+         game.selections.center = move.center;
+         game.selections.operator = move.op;
 
-        // 修正：動態取得 AI 目前的手牌，解決 AI 當黑方時的 Bug
-        const aiHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
-        const eqResult = checkEquation(aiHand.filter(c => move.hand.includes(c.id)), move.op, game.center.filter(c => move.center.includes(c.id)));
-        if (move.eq) game.aiMoveInfo = { eq: move.eq, cardsA: move.cardsA, cardsB: move.cardsB };
+         // 修正：動態取得 AI 目前的手牌，解決 AI 當黑方時的 Bug
+         const aiHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+         const eqResult = checkEquation(aiHand.filter(c => move.hand.includes(c.id)), move.op, game.center.filter(c => move.center.includes(c.id)));
+         if (move.eq) game.aiMoveInfo = {
+           eq: move.eq,
+           cardsA: move.cardsA,
+           cardsB: move.cardsB,
+           discard: move.discard || []
+         };
 
-        render(); setTimeout(() => handleMainAction(), 800);
-      }, 500);
+         render(); setTimeout(() => handleMainAction(), 700);
+       }, 500);
     };
 
     worker.onerror = function () {
@@ -686,10 +809,73 @@
       else if (isSelectable) interactiveClasses = isSelected ? "ring-4 ring-blue-500 scale-105 opacity-100 cursor-pointer" : "cursor-pointer hover:-translate-y-1 opacity-100";
       else if (isSelected) interactiveClasses = "opacity-100 ring-2 ring-slate-400";
 
-      return `<div class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${location === 'center' ? 'center' : 'hand'}')` : ''}">${card.val}</div>`;
+       return `<div data-card-id="${escapeHtml(card.id)}" class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${location === 'center' ? 'center' : 'hand'}')` : ''}">${card.val}</div>`;
     }
 
-    let lastRenderState = { white: '', black: '', center: '', title: '', lang: '' };
+     function renderMovePreview() {
+       const area = document.getElementById('move-preview');
+       if (!area) return;
+
+       const preview = game.movePreview;
+       const aiPlan = game.aiMoveInfo;
+       let eq = preview?.eq || aiPlan?.eq || null;
+       let handCards = preview?.handCards || [];
+       let centerCards = preview?.centerCards || [];
+       let mode = preview ? 'resolving' : (aiPlan ? 'ai-plan' : 'selection');
+
+       if (!preview && aiPlan) {
+         const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+         handCards = activeHand.filter(c => game.selections.hand.includes(c.id));
+         centerCards = game.center.filter(c => game.selections.center.includes(c.id));
+       }
+
+       if (!preview && !aiPlan && game.state === 'PLAYING') {
+         const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
+         handCards = activeHand.filter(c => game.selections.hand.includes(c.id));
+         centerCards = game.center.filter(c => game.selections.center.includes(c.id));
+         if (game.selections.operator && handCards.length >= 2 && centerCards.length >= 1) {
+           const result = checkEquation(handCards, game.selections.operator, centerCards);
+           if (result.success) eq = result.eq;
+         }
+       }
+
+       if (!eq && mode !== 'resolving') {
+         area.className = 'hidden';
+         area.innerHTML = '';
+         return;
+       }
+
+       const handText = cardValues(handCards);
+       const centerText = cardValues(centerCards);
+       let detail;
+       if (mode === 'resolving' && preview?.phase === 'discard') {
+         detail = LANG === 'zh'
+           ? `移出 ${centerText || '多餘牌'}`
+           : `Remove ${centerText || 'extra cards'}`;
+       } else if (mode === 'selection') {
+         detail = LANG === 'zh' ? '確認後，牌會依照箭頭方向交換' : 'Confirm to exchange cards along the shown route';
+       } else {
+         detail = LANG === 'zh'
+           ? `出牌 ${handText}，回收 ${centerText}`
+           : `Play ${handText}, take back ${centerText}`;
+       }
+
+       const label = mode === 'ai-plan'
+         ? t('ai_plan')
+         : mode === 'resolving'
+           ? (preview?.phase === 'discard' ? t('discard_resolving') : t('move_resolving'))
+           : (LANG === 'zh' ? '算式預覽' : 'Equation preview');
+       const tone = mode === 'resolving' ? 'border-violet-200 bg-violet-50' : 'border-blue-200 bg-blue-50';
+       area.className = `block ${tone} p-3 rounded-xl border shadow-sm text-center`;
+       area.innerHTML = `
+         <div class="text-[10px] uppercase tracking-wider font-black text-slate-500">${escapeHtml(label)}</div>
+         ${eq ? `<div class="text-xl font-black text-slate-800 mt-1">${escapeHtml(eq)}</div>` : ''}
+         <div class="text-xs text-slate-500 mt-1">${escapeHtml(detail)}</div>
+         ${mode !== 'resolving' ? `<div class="text-[10px] text-slate-400 mt-1">${escapeHtml(t('move_route'))}</div>` : ''}
+       `;
+     }
+
+     let lastRenderState = { white: '', black: '', center: '', title: '', lang: '' };
 
     function render() {
       // 1. 靜態 UI 更新 (僅在必要時)
@@ -704,7 +890,7 @@
         document.querySelector('#rule-mode-select option[value="CLASSIC"]').innerText = LANG === 'zh' ? '基本模式' : 'Classic';
         document.querySelector('#rule-mode-select option[value="RACE2"]').innerText = LANG === 'zh' ? '搶 2 分' : 'Race to 2';
         document.getElementById('ui-center-label').innerText = t('center_target');
-        lucide.createIcons();
+         if (typeof lucide !== 'undefined') lucide.createIcons();
         lastRenderState.title = titleStr;
         lastRenderState.lang = LANG;
       }
@@ -767,8 +953,8 @@
       });
 
       const sb = document.getElementById('status-banner'), mb = document.getElementById('main-btn'), gb = document.getElementById('giveup-btn'), og = document.getElementById('operator-group');
-      if (game.state === 'GAMEOVER') {
-        let winnerName;
+       if (game.state === 'GAMEOVER') {
+         let winnerName;
         if (game.mode.startsWith('AI')) {
           if (game.winner === game.aiSide) winnerName = '🤖 AI';
           else winnerName = (LANG === 'zh' ? '🎉 你' : '🎉 You');
@@ -777,9 +963,15 @@
         }
         sb.className = "bg-amber-100 text-amber-800 p-3 rounded-xl text-center font-bold shadow-sm border border-amber-200";
         sb.innerHTML = t('game_over') + winnerName + t('win_suffix');
-        mb.innerText = t('play_again'); mb.className = "w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98]";
-        gb.classList.add('hidden'); og.classList.add('hidden');
-      } else if (game.state === 'DISCARDING') {
+         mb.innerText = t('play_again'); mb.className = "w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md active:scale-[0.98]";
+         gb.classList.add('hidden'); og.classList.add('hidden');
+       } else if (game.state === 'ANIMATING') {
+         const actorLabel = game.movePreview?.actor === 'AI' ? '🤖 AI' : (LANG === 'zh' ? '⌛ 你' : '⌛ You');
+         sb.className = "bg-violet-100 text-violet-800 p-3 rounded-xl text-center font-bold shadow-sm border border-violet-200";
+         sb.innerHTML = `${actorLabel} ${t('move_resolving')}`;
+         mb.className = "hidden";
+         gb.classList.add('hidden'); og.classList.add('hidden');
+       } else if (game.state === 'DISCARDING') {
         sb.className = "bg-rose-100 text-rose-800 p-3 rounded-xl text-center font-bold shadow-sm border border-rose-200";
         sb.innerHTML = isAITurn() ? t('ai_discarding') : t('discard_hint');
         mb.innerText = `${t('confirm_keep')} (${game.discardSelections.length}/2)`;
@@ -794,7 +986,11 @@
           pName = game.turn === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
         }
         sb.className = "bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200";
-        if (!isAITurn() || !sb.innerHTML.includes(t('ai_thinking_easy').slice(0, 4))) sb.innerHTML = `${t('turn_label')}<span class="text-xl mx-1">${pName}</span>`;
+         if (isAITurn() && game.aiMoveInfo) {
+           sb.innerHTML = `🤖 ${t('ai_plan')}`;
+         } else if (!isAITurn() || !sb.innerHTML.includes(t('ai_thinking_easy').slice(0, 4))) {
+           sb.innerHTML = `${t('turn_label')}<span class="text-xl mx-1">${pName}</span>`;
+         }
         mb.innerText = isAITurn() ? t('ai_thinking_btn') : t('send_eq');
         mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${isAITurn() ? 'bg-slate-300 text-slate-500 cursor-not-allowed hidden' : 'bg-blue-600 text-white active:scale-[0.98]'}`;
         if (isAITurn()) gb.classList.add('hidden'); else gb.classList.remove('hidden');
@@ -830,7 +1026,8 @@
         passBtn.classList.add('hidden');
         gb.onclick = giveUp;
       }
-      renderHistory();
+       renderMovePreview();
+       renderHistory();
     }
 
     function renderHistory() {
