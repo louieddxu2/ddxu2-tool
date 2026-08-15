@@ -60,37 +60,7 @@
 
     .play-area.is-working {
       border-color: rgb(96 165 250);
-      background: linear-gradient(180deg, rgb(239 246 255), rgb(255 255 255));
-      box-shadow: 0 12px 30px rgb(59 130 246 / 0.12);
-    }
-
-    .play-progress {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 4px;
-      margin-bottom: 10px;
-    }
-
-    .play-progress-step {
-      padding: 5px 4px;
-      border-radius: 8px;
-      background: rgb(241 245 249);
-      color: rgb(100 116 139);
-      font-size: 10px;
-      font-weight: 800;
-      line-height: 1.2;
-      text-align: center;
-      transition: color 180ms ease, background-color 180ms ease;
-    }
-
-    .play-progress-step.is-active {
-      background: rgb(219 234 254);
-      color: rgb(29 78 216);
-    }
-
-    .play-progress-step.is-ready {
-      background: rgb(220 252 231);
-      color: rgb(21 128 61);
+      background: rgb(239 246 255 / 0.45);
     }
 
     .play-stage-grid {
@@ -101,10 +71,10 @@
     }
 
     .play-stage-slot {
-      min-height: 96px;
-      padding: 8px;
+      min-height: 80px;
+      padding: 6px;
       border: 1px dashed rgb(148 163 184 / 0.8);
-      border-radius: 16px;
+      border-radius: 12px;
       background: rgb(248 250 252 / 0.9);
       display: flex;
       flex-direction: column;
@@ -121,26 +91,18 @@
     }
 
     .play-stage-cards {
-      min-height: 64px;
+      min-height: 58px;
       width: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .play-stage-empty {
-      color: rgb(148 163 184);
-      font-size: 11px;
-      font-weight: 700;
-      text-align: center;
-      line-height: 1.25;
+      gap: 4px;
     }
 
     .play-stage-operator {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -210,25 +172,6 @@
          ai_plan: 'AI 的行動計畫',
          move_resolving: '行動結算中...',
          discard_resolving: '正在移除多餘卡牌...',
-         move_route: '手牌 → 中央；目標牌 → 手牌',
-         play_zone: '出牌工作區',
-         play_hand: '準備打出的牌',
-         play_target: '要回收的目標',
-         play_hand_hint: '點按手牌加入',
-         play_target_hint: '點按中央牌加入',
-         play_operator_hint: '選擇符號',
-         play_confirm_hint: '確認算式後，牌會依照方向移動',
-         play_empty_hint: '先選 2–4 張手牌，再選 1–2 張中央牌',
-         play_remove_hint: '點按工作區的牌可移除',
-         play_staging: '正在把牌放入工作區...',
-         play_select_hand: '還需要至少 2 張手牌',
-         play_select_target: '還需要至少 1 張中央牌',
-         play_select_operator: '再選一個運算符號',
-         play_ready: '算式成立，可以送出',
-         play_hand_count: '手牌 {count}/2–4',
-         play_target_count: '目標 {count}/1–2',
-         play_operator_selected: '運算符號 ✓',
-         ai_plan_hint: 'AI 已展示這一步，確認後會自動執行',
          continue_ai: '立即執行 AI 行動',
          ai_discarding: 'AI 正在丟棄多餘卡牌...',
         discard_hint: '⚠️ 場中央超過兩張，請選擇 2 張保留',
@@ -275,25 +218,6 @@
          ai_plan: 'AI action plan',
          move_resolving: 'Resolving move...',
          discard_resolving: 'Removing extra cards...',
-         move_route: 'Hand → Center; target → Hand',
-         play_zone: 'Play area',
-         play_hand: 'Cards to play',
-         play_target: 'Target to take',
-         play_hand_hint: 'Tap hand cards to add',
-         play_target_hint: 'Tap center cards to add',
-         play_operator_hint: 'Choose an operator',
-         play_confirm_hint: 'Confirm to move cards along the route',
-         play_empty_hint: 'Choose 2–4 hand cards, then 1–2 center cards',
-         play_remove_hint: 'Tap a staged card to remove it',
-         play_staging: 'Moving card into the play area...',
-         play_select_hand: 'Choose at least 2 hand cards',
-         play_select_target: 'Choose at least 1 center card',
-         play_select_operator: 'Choose an operator',
-         play_ready: 'Equation ready to send',
-         play_hand_count: 'Hand {count}/2–4',
-         play_target_count: 'Target {count}/1–2',
-         play_operator_selected: 'Operator ✓',
-         ai_plan_hint: 'AI has revealed the move; it will execute next',
          continue_ai: 'Execute AI move now',
          ai_discarding: 'AI discarding extra cards...',
         discard_hint: '⚠️ More than 2 cards in center, keep 2.',
@@ -324,7 +248,6 @@
 
     let LANG = localStorage.getItem('mathDuelLang') || (navigator.language.startsWith('en') ? 'en' : 'zh');
     const t = (key) => I18N[LANG][key] || key;
-    const tf = (key, values = {}) => Object.entries(values).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), t(key));
     function toggleLang() {
       LANG = LANG === 'zh' ? 'en' : 'zh';
       localStorage.setItem('mathDuelLang', LANG);
@@ -387,28 +310,12 @@
       </div>
 
       <div id="play-area" class="play-area bg-white p-3 rounded-2xl border-2 border-dashed border-slate-300 shadow-sm">
-        <div class="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <div id="play-zone-title" class="text-sm font-black text-slate-700"></div>
-            <div id="play-route-hint" class="text-[10px] text-slate-400 mt-0.5"></div>
-          </div>
-          <div id="play-zone-status" class="text-[10px] font-bold text-slate-400 text-right"></div>
-        </div>
-
-        <div class="play-progress" aria-live="polite">
-          <div id="play-progress-hand" class="play-progress-step"></div>
-          <div id="play-progress-target" class="play-progress-step"></div>
-          <div id="play-progress-operator" class="play-progress-step"></div>
-        </div>
-
         <div class="play-stage-grid">
-          <div id="stage-hand-slot" class="play-stage-slot">
-            <div id="stage-hand-label" class="text-[10px] font-black text-slate-500"></div>
+          <div id="stage-hand-slot" class="play-stage-slot" aria-label="hand cards">
             <div id="stage-hand-cards" class="play-stage-cards"></div>
           </div>
           <div id="stage-operator-symbol" class="play-stage-operator">?</div>
-          <div id="stage-center-slot" class="play-stage-slot">
-            <div id="stage-center-label" class="text-[10px] font-black text-slate-500"></div>
+          <div id="stage-center-slot" class="play-stage-slot" aria-label="target cards">
             <div id="stage-center-cards" class="play-stage-cards"></div>
           </div>
         </div>
@@ -475,7 +382,7 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-     const APP_VERSION = '1.2.6';
+     const APP_VERSION = '1.2.7';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -747,10 +654,6 @@
          '"': '&quot;',
          "'": '&#39;'
        }[char]));
-     }
-
-     function cardValues(cards) {
-       return cards.map(c => c.val).join(LANG === 'zh' ? '、' : ', ');
      }
 
      function getDiscardExitPoint(rect) {
@@ -1103,7 +1006,7 @@
      }
 
      function renderStage() {
-       const { selectedHand, selectedCenter, operator, equation } = getCurrentSelection();
+       const { selectedHand, selectedCenter, operator } = getCurrentSelection();
        const handArea = document.getElementById('stage-hand-cards');
        const centerArea = document.getElementById('stage-center-cards');
        const handSlot = document.getElementById('stage-hand-slot');
@@ -1113,35 +1016,9 @@
 
        const handHTML = selectedHand.map(c => generateCardHTML(c, 'stage-hand')).join('');
        const centerHTML = selectedCenter.map(c => generateCardHTML(c, 'stage-center')).join('');
-       handArea.innerHTML = handHTML || `<span class="play-stage-empty">${escapeHtml(t('play_hand_hint'))}</span>`;
-       centerArea.innerHTML = centerHTML || `<span class="play-stage-empty">${escapeHtml(t('play_target_hint'))}</span>`;
-       document.getElementById('play-zone-title').innerText = t('play_zone');
-       const hasSelection = selectedHand.length > 0 || selectedCenter.length > 0;
-       document.getElementById('play-route-hint').innerText = hasSelection && !isAITurn()
-         ? `${t('move_route')} · ${t('play_remove_hint')}`
-         : t('move_route');
-       document.getElementById('stage-hand-label').innerText = t('play_hand');
-       document.getElementById('stage-center-label').innerText = t('play_target');
+       handArea.innerHTML = handHTML;
+       centerArea.innerHTML = centerHTML;
        document.getElementById('stage-operator-symbol').innerText = operator ? (operator === '*' ? '×' : operator === '/' ? '÷' : operator) : '?';
-       document.getElementById('play-progress-hand').innerText = tf('play_hand_count', { count: selectedHand.length });
-       document.getElementById('play-progress-target').innerText = tf('play_target_count', { count: selectedCenter.length });
-       document.getElementById('play-progress-operator').innerText = operator ? t('play_operator_selected') : t('play_operator_hint');
-       const handProgress = document.getElementById('play-progress-hand');
-       const targetProgress = document.getElementById('play-progress-target');
-       const operatorProgress = document.getElementById('play-progress-operator');
-       handProgress.className = `play-progress-step ${selectedHand.length >= 2 ? 'is-ready' : selectedHand.length ? 'is-active' : ''}`;
-       targetProgress.className = `play-progress-step ${selectedCenter.length >= 1 ? 'is-ready' : selectedHand.length >= 2 ? 'is-active' : ''}`;
-       operatorProgress.className = `play-progress-step ${operator ? (equation?.success ? 'is-ready' : 'is-active') : ''}`;
-       let stageStatus = t('play_empty_hint');
-       if (game.state === 'ANIMATING') stageStatus = t('move_resolving');
-       else if (game.uiBusy) stageStatus = t('play_staging');
-       else if (isAITurn() && game.aiMoveInfo) stageStatus = t('ai_plan_hint');
-       else if (selectedHand.length < 2) stageStatus = selectedHand.length ? t('play_select_hand') : t('play_empty_hint');
-       else if (selectedCenter.length < 1) stageStatus = t('play_select_target');
-       else if (!operator) stageStatus = t('play_select_operator');
-       else if (equation?.success) stageStatus = t('play_ready');
-       else stageStatus = t('eq_error');
-       document.getElementById('play-zone-status').innerText = stageStatus;
        handSlot.classList.toggle('is-active', selectedHand.length > 0);
        centerSlot.classList.toggle('is-active', selectedCenter.length > 0);
        playArea.classList.toggle('is-working', selectedHand.length > 0 || selectedCenter.length > 0 || Boolean(game.movePreview) || Boolean(game.aiMoveInfo));
@@ -1174,40 +1051,22 @@
          }
        }
 
-       const hasSelection = handCards.length > 0 || centerCards.length > 0;
-       if (!eq && mode !== 'resolving' && !hasSelection) {
+       if (!eq && mode !== 'resolving') {
          area.className = 'hidden';
          area.innerHTML = '';
          return;
-       }
-
-       const handText = cardValues(handCards);
-       const centerText = cardValues(centerCards);
-       let detail;
-       if (mode === 'resolving' && preview?.phase === 'discard') {
-         detail = LANG === 'zh'
-           ? `移出 ${centerText || '多餘牌'}`
-           : `Remove ${centerText || 'extra cards'}`;
-       } else if (mode === 'selection') {
-         detail = LANG === 'zh' ? '確認後，牌會依照箭頭方向交換' : 'Confirm to exchange cards along the shown route';
-       } else {
-         detail = LANG === 'zh'
-           ? `出牌 ${handText}，回收 ${centerText}`
-           : `Play ${handText}, take back ${centerText}`;
        }
 
        const label = mode === 'ai-plan'
          ? t('ai_plan')
          : mode === 'resolving'
            ? (preview?.phase === 'discard' ? t('discard_resolving') : t('move_resolving'))
-           : (LANG === 'zh' ? '算式預覽' : 'Equation preview');
+           : (LANG === 'zh' ? '算式' : 'Equation');
        const tone = mode === 'resolving' ? 'border-violet-200 bg-violet-50' : 'border-blue-200 bg-blue-50';
        area.className = `block ${tone} p-3 rounded-xl border shadow-sm text-center`;
        area.innerHTML = `
          <div class="text-[10px] uppercase tracking-wider font-black text-slate-500">${escapeHtml(label)}</div>
          ${eq ? `<div class="text-xl font-black text-slate-800 mt-1">${escapeHtml(eq)}</div>` : ''}
-         <div class="text-xs text-slate-500 mt-1">${escapeHtml(detail)}</div>
-         ${mode !== 'resolving' ? `<div class="text-[10px] text-slate-400 mt-1">${escapeHtml(t('move_route'))}</div>` : ''}
        `;
      }
 
@@ -1340,18 +1199,8 @@
          } else if (!isAITurn() || !sb.innerHTML.includes(t('ai_thinking_easy').slice(0, 4))) {
            sb.innerHTML = `${t('turn_label')}<span class="text-xl mx-1">${pName}</span>`;
          }
-        const { selectedHand, selectedCenter, operator } = getCurrentSelection();
         const canSend = canSendCurrentSelection();
-        const actionLabel = canSend
-          ? t('send_eq')
-          : selectedHand.length < 2
-            ? t('play_select_hand')
-            : selectedCenter.length < 1
-              ? t('play_select_target')
-              : !operator
-                ? t('play_select_operator')
-                : t('eq_error');
-        mb.innerText = isAITurn() ? t('ai_thinking_btn') : actionLabel;
+        mb.innerText = isAITurn() ? t('ai_thinking_btn') : t('send_eq');
         mb.disabled = !canSend;
         mb.className = `w-full py-3 rounded-xl font-bold shadow-md ${(isAITurn() || game.uiBusy) ? 'bg-slate-300 text-slate-500 cursor-not-allowed hidden' : canSend ? 'bg-blue-600 text-white active:scale-[0.98]' : 'bg-slate-200 text-slate-500 cursor-not-allowed'}`;
         if (isAITurn() || game.uiBusy) gb.classList.add('hidden'); else gb.classList.remove('hidden');
@@ -1359,7 +1208,9 @@
         og.classList.remove('hidden');
         gb.innerText = t('give_up');
         if (isAITurn() && game.aiMoveInfo && !game.uiBusy) {
-          pc.innerText = t('continue_ai');
+          pc.innerText = '▶';
+          pc.title = t('continue_ai');
+          pc.setAttribute('aria-label', t('continue_ai'));
           pc.classList.remove('hidden');
         }
       }
