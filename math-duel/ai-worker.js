@@ -1,28 +1,8 @@
 const __workerVersion = new URL(self.location.href).searchParams.get('v') || 'dev';
 importScripts(`ai-race2-strategy.js?v=${encodeURIComponent(__workerVersion)}`);
+importScripts(`../shared/equation-witness.js?v=${encodeURIComponent(__workerVersion)}`);
 
-function getPermutations(arr) {
-  if (arr.length <= 1) return [arr];
-  const result = [];
-  for (let i = 0; i < arr.length; i++) {
-    const current = arr[i];
-    const remaining = arr.slice(0, i).concat(arr.slice(i + 1));
-    for (const perm of getPermutations(remaining)) result.push([current].concat(perm));
-  }
-  return result;
-}
-
-function getValues(cards) {
-  if (cards.length === 1) return (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
-  if (cards.length === 2) {
-    const v1Opts = (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
-    const v2Opts = (cards[1].val === 6 || cards[1].val === 9) ? [6, 9] : [cards[1].val];
-    const vals = [];
-    for (const v1 of v1Opts) for (const v2 of v2Opts) vals.push(v1 * 10 + v2);
-    return vals;
-  }
-  return [];
-}
+const checkEquation = MathDuelEquation.checkEquation;
 
 function getCombinations(arr, size) {
   if (size === 0) return [[]];
@@ -30,43 +10,6 @@ function getCombinations(arr, size) {
   const first = arr[0];
   const rest = arr.slice(1);
   return getCombinations(rest, size - 1).map(c => [first, ...c]).concat(getCombinations(rest, size));
-}
-
-function checkEquation(handCards, op, targetCards) {
-  let targetVals = [];
-  const targetPerms = getPermutations(targetCards);
-  for (const p of targetPerms) targetVals = targetVals.concat(getValues(p));
-
-  const perms = getPermutations(handCards);
-  for (const p of perms) {
-    const splits = [];
-    if (p.length === 2) splits.push({ A: [p[0]], B: [p[1]] });
-    if (p.length === 3) {
-      splits.push({ A: [p[0]], B: [p[1], p[2]] });
-      splits.push({ A: [p[0], p[1]], B: [p[2]] });
-    }
-    if (p.length === 4) splits.push({ A: [p[0], p[1]], B: [p[2], p[3]] });
-
-    for (const split of splits) {
-      const valsA = getValues(split.A);
-      const valsB = getValues(split.B);
-      for (const a of valsA) {
-        for (const b of valsB) {
-          let res;
-          if (op === '+') res = a + b;
-          else if (op === '-') res = a - b;
-          else if (op === '*') res = a * b;
-          else if (op === '/') res = a / b;
-
-          if (targetVals.includes(res)) {
-            const opChar = op === '*' ? '×' : (op === '/' ? '÷' : op);
-            return { success: true, eq: `${a} ${opChar} ${b} = ${res}`, cardsA: split.A, cardsB: split.B };
-          }
-        }
-      }
-    }
-  }
-  return { success: false };
 }
 
 function normalizeState(state) {
@@ -148,10 +91,10 @@ function generateValidMoves(activeHand, centerCards, keepCap = Infinity) {
             .map(x => x.keep);
 
           for (const keep of keepCombos) {
-            moves.push({ hand: hCombo, center: cCombo, op, discard: keep, eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB });
+            moves.push({ hand: hCombo, center: cCombo, op, discard: keep, eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB, witness: result });
           }
         } else {
-          moves.push({ hand: hCombo, center: cCombo, op, discard: [], eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB });
+          moves.push({ hand: hCombo, center: cCombo, op, discard: [], eq: result.eq, cardsA: result.cardsA, cardsB: result.cardsB, witness: result });
         }
       }
     }
@@ -349,6 +292,7 @@ self.onmessage = function(e) {
     discard: bestMove.discard.length > 0 ? bestMove.discard.map(c => c.id) : [],
     eq: bestMove.eq,
     cardsA: bestMove.cardsA,
-    cardsB: bestMove.cardsB
+    cardsB: bestMove.cardsB,
+    witness: bestMove.witness
   });
 };

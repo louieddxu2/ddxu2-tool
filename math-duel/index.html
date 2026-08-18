@@ -114,6 +114,58 @@
       box-shadow: inset 0 0 0 1px rgb(148 163 184 / 0.4);
     }
 
+    .equation-line {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: rgb(30 41 59);
+      font-weight: 900;
+    }
+
+    .equation-group {
+      display: inline-flex;
+      gap: 2px;
+      padding: 3px 4px;
+      border-radius: 8px;
+      background: rgb(255 255 255 / 0.82);
+      box-shadow: inset 0 0 0 1px rgb(148 163 184 / 0.35);
+    }
+
+    .equation-group-target {
+      background: rgb(239 246 255 / 0.95);
+      box-shadow: inset 0 0 0 1px rgb(96 165 250 / 0.55);
+    }
+
+    .equation-digit {
+      width: 20px;
+      height: 26px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 5px;
+      background: rgb(248 250 252);
+      border: 1px solid rgb(203 213 225);
+      color: rgb(30 41 59);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .equation-digit.is-alternate {
+      background: rgb(254 249 195);
+      border-color: rgb(234 179 8);
+      border-style: dashed;
+    }
+
+    .equation-operator,
+    .equation-equals {
+      min-width: 15px;
+      font-size: 18px;
+      color: rgb(71 85 105);
+    }
+
     @media (max-width: 360px) {
       .play-stage-grid {
         grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
@@ -377,12 +429,13 @@
 
    <script src="rule-modes.js"></script>
   <script src="../shared/card-motion.js?v=1"></script>
+  <script src="../shared/equation-witness.js?v=1"></script>
   <script>
     // ==========================================
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-     const APP_VERSION = '1.2.7';
+     const APP_VERSION = '1.2.8';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -500,56 +553,7 @@
     }
 
     // --- 前端運算共用區 ---
-    function getPermutations(arr) {
-      if (arr.length <= 1) return [arr];
-      let res = [];
-      for (let i = 0; i < arr.length; i++) {
-        let cur = arr[i], rem = arr.slice(0, i).concat(arr.slice(i + 1));
-        for (let p of getPermutations(rem)) res.push([cur].concat(p));
-      }
-      return res;
-    }
-    function getValues(cards) {
-      if (cards.length === 1) return (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
-      if (cards.length === 2) {
-        let v1_opts = (cards[0].val === 6 || cards[0].val === 9) ? [6, 9] : [cards[0].val];
-        let v2_opts = (cards[1].val === 6 || cards[1].val === 9) ? [6, 9] : [cards[1].val];
-        let vals = [];
-        for (let v1 of v1_opts) for (let v2 of v2_opts) vals.push(v1 * 10 + v2);
-        return vals;
-      }
-      return [];
-    }
-    function checkEquation(handCards, op, targetCards) {
-      let targetVals = [];
-      const targetPerms = getPermutations(targetCards);
-      for (let p of targetPerms) targetVals = targetVals.concat(getValues(p));
-
-      const perms = getPermutations(handCards);
-      for (let p of perms) {
-        let splits = [];
-        if (p.length === 2) splits.push({ A: [p[0]], B: [p[1]] });
-        if (p.length === 3) { splits.push({ A: [p[0]], B: [p[1], p[2]] }); splits.push({ A: [p[0], p[1]], B: [p[2]] }); }
-        if (p.length === 4) { splits.push({ A: [p[0], p[1]], B: [p[2], p[3]] }); }
-        for (let split of splits) {
-          let valsA = getValues(split.A), valsB = getValues(split.B);
-          for (let a of valsA) {
-            for (let b of valsB) {
-              let res;
-              if (op === '+') res = a + b;
-              else if (op === '-') res = a - b;
-              else if (op === '*') res = a * b;
-              else if (op === '/') res = a / b;
-
-              if (targetVals.includes(res)) {
-                const opChar = op === '*' ? '×' : (op === '/' ? '÷' : op);
-                return { success: true, eq: `${a} ${opChar} ${b} = ${res}`, cardsA: split.A, cardsB: split.B };
-              }
-            }
-          }
-        }
-      } return { success: false };
-    }
+    const checkEquation = MathDuelEquation.checkEquation;
 
     // --- 核心邏輯工具 ---
     function getCombinations(arr, k) {
@@ -679,6 +683,7 @@
          centerCards: cCards.map(c => ({ ...c })),
          op,
          turn: game.turn,
+         witness: aiInfo?.witness || eqResult,
          eq: aiInfo?.eq || eqResult.eq,
          cardsA: aiInfo?.cardsA || eqResult.cardsA,
          cardsB: aiInfo?.cardsB || eqResult.cardsB
@@ -698,13 +703,13 @@
        const actor = isAITurn() ? 'AI' : 'PLAYER';
        game.state = 'ANIMATING';
        game.uiBusy = true;
-       game.movePreview = {
+        game.movePreview = {
          actor,
          phase: 'discard',
          eq: actor === 'AI' ? game.lastMove?.eq : null,
          handCards: [],
          centerCards: discardedCards.map(c => ({ ...c }))
-       };
+        };
        render();
        if (!CardMotion.prefersReducedMotion(document)) await wait(520);
 
@@ -740,11 +745,12 @@
         game.state = 'ANIMATING';
         game.uiBusy = true;
         game.movePreview = {
-         actor,
-         phase: 'move',
-         eq: aiInfo?.eq || eqResult.eq,
-         handCards: hCards.map(c => ({ ...c })),
-         centerCards: cCards.map(c => ({ ...c }))
+          actor,
+          phase: 'move',
+          eq: aiInfo?.eq || eqResult.eq,
+          witness: aiInfo?.witness || eqResult,
+          handCards: hCards.map(c => ({ ...c })),
+          centerCards: cCards.map(c => ({ ...c }))
         };
         render();
         if (!CardMotion.prefersReducedMotion(document)) await wait(520);
@@ -915,6 +921,7 @@
         eq: move.eq,
         cardsA: move.cardsA,
         cardsB: move.cardsB,
+        witness: move.witness || null,
         discard: move.discard || []
       } : null;
       const moves = [
@@ -1005,8 +1012,34 @@
        return { selectedHand, selectedCenter, operator, equation };
      }
 
+     function renderEquationOperand(operand, role) {
+       if (!operand?.cards?.length) return '';
+       const digits = operand.digits || operand.cards.map(card => card.val);
+       const cards = operand.cards.map((card, index) => {
+         const digit = digits[index];
+         const isAlternate = Number(card.val) !== Number(digit);
+         const digitLabel = isAlternate ? `${card.val} → ${digit}` : String(card.val);
+         return `<span class="equation-digit${isAlternate ? ' is-alternate' : ''}" data-card-id="${escapeHtml(card.id)}" data-effective-value="${escapeHtml(digit)}" title="${escapeHtml(digitLabel)}">${escapeHtml(digit)}</span>`;
+       }).join('');
+       return `<span class="equation-group equation-group-${role}" data-value="${escapeHtml(operand.display || operand.value)}">${cards}</span>`;
+     }
+
+     function renderEquationWitness(witness) {
+       if (!witness?.success || !witness.left || !witness.right || !witness.target) return '';
+       const operator = witness.operator || (witness.op === '*' ? '×' : (witness.op === '/' ? '÷' : witness.op));
+       return `
+         <div class="equation-line" data-equation="${escapeHtml(witness.eq)}" aria-label="${escapeHtml(witness.eq)}">
+           ${renderEquationOperand(witness.left, 'left')}
+           <span class="equation-operator">${escapeHtml(operator)}</span>
+           ${renderEquationOperand(witness.right, 'right')}
+           <span class="equation-equals">=</span>
+           ${renderEquationOperand(witness.target, 'target')}
+         </div>
+       `;
+     }
+
      function renderStage() {
-       const { selectedHand, selectedCenter, operator } = getCurrentSelection();
+       const { selectedHand, selectedCenter, operator, equation } = getCurrentSelection();
        const handArea = document.getElementById('stage-hand-cards');
        const centerArea = document.getElementById('stage-center-cards');
        const handSlot = document.getElementById('stage-hand-slot');
@@ -1014,14 +1047,18 @@
        const playArea = document.getElementById('play-area');
        if (!handArea || !centerArea || !handSlot || !centerSlot || !playArea) return;
 
-       const handHTML = selectedHand.map(c => generateCardHTML(c, 'stage-hand')).join('');
-       const centerHTML = selectedCenter.map(c => generateCardHTML(c, 'stage-center')).join('');
+       const witness = equation?.success ? equation : game.aiMoveInfo?.witness;
+       const stageHandCards = witness?.success ? witness.left.cards.concat(witness.right.cards) : selectedHand;
+       const stageCenterCards = witness?.success ? witness.target.cards : selectedCenter;
+       const stageOperator = witness?.success ? witness.op : operator;
+       const handHTML = stageHandCards.map(c => generateCardHTML(c, 'stage-hand')).join('');
+       const centerHTML = stageCenterCards.map(c => generateCardHTML(c, 'stage-center')).join('');
        handArea.innerHTML = handHTML;
        centerArea.innerHTML = centerHTML;
-       document.getElementById('stage-operator-symbol').innerText = operator ? (operator === '*' ? '×' : operator === '/' ? '÷' : operator) : '?';
-       handSlot.classList.toggle('is-active', selectedHand.length > 0);
-       centerSlot.classList.toggle('is-active', selectedCenter.length > 0);
-       playArea.classList.toggle('is-working', selectedHand.length > 0 || selectedCenter.length > 0 || Boolean(game.movePreview) || Boolean(game.aiMoveInfo));
+       document.getElementById('stage-operator-symbol').innerText = stageOperator ? (stageOperator === '*' ? '×' : stageOperator === '/' ? '÷' : stageOperator) : '?';
+       handSlot.classList.toggle('is-active', stageHandCards.length > 0);
+       centerSlot.classList.toggle('is-active', stageCenterCards.length > 0);
+       playArea.classList.toggle('is-working', stageHandCards.length > 0 || stageCenterCards.length > 0 || Boolean(game.movePreview) || Boolean(game.aiMoveInfo));
      }
 
      function renderMovePreview() {
@@ -1031,27 +1068,18 @@
        const preview = game.movePreview;
        const aiPlan = game.aiMoveInfo;
        let eq = preview?.eq || aiPlan?.eq || null;
-       let handCards = preview?.handCards || [];
-       let centerCards = preview?.centerCards || [];
+       let witness = preview?.witness || aiPlan?.witness || null;
        let mode = preview ? 'resolving' : (aiPlan ? 'ai-plan' : 'selection');
 
-       if (!preview && aiPlan) {
-         const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
-         handCards = activeHand.filter(c => game.selections.hand.includes(c.id));
-         centerCards = game.center.filter(c => game.selections.center.includes(c.id));
-       }
-
        if (!preview && !aiPlan && game.state === 'PLAYING') {
-         const activeHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
-         handCards = activeHand.filter(c => game.selections.hand.includes(c.id));
-         centerCards = game.center.filter(c => game.selections.center.includes(c.id));
-         if (game.selections.operator && handCards.length >= 2 && centerCards.length >= 1) {
-           const result = checkEquation(handCards, game.selections.operator, centerCards);
-           if (result.success) eq = result.eq;
+         const result = getCurrentSelection().equation;
+         if (result?.success) {
+           witness = result;
+           eq = result.eq;
          }
        }
 
-       if (!eq && mode !== 'resolving') {
+       if (!witness && !eq && mode !== 'resolving') {
          area.className = 'hidden';
          area.innerHTML = '';
          return;
@@ -1061,12 +1089,12 @@
          ? t('ai_plan')
          : mode === 'resolving'
            ? (preview?.phase === 'discard' ? t('discard_resolving') : t('move_resolving'))
-           : (LANG === 'zh' ? '算式' : 'Equation');
+           : '';
        const tone = mode === 'resolving' ? 'border-violet-200 bg-violet-50' : 'border-blue-200 bg-blue-50';
        area.className = `block ${tone} p-3 rounded-xl border shadow-sm text-center`;
        area.innerHTML = `
-         <div class="text-[10px] uppercase tracking-wider font-black text-slate-500">${escapeHtml(label)}</div>
-         ${eq ? `<div class="text-xl font-black text-slate-800 mt-1">${escapeHtml(eq)}</div>` : ''}
+         ${label ? `<div class="text-[10px] uppercase tracking-wider font-black text-slate-500 mb-1">${escapeHtml(label)}</div>` : ''}
+         ${witness ? renderEquationWitness(witness) : (eq ? `<div class="text-xl font-black text-slate-800">${escapeHtml(eq)}</div>` : '')}
        `;
      }
 
@@ -1254,27 +1282,34 @@
         return;
       }
 
-      const { cardsA, cardsB, centerCards, op, turn } = game.lastMove;
+      const { cardsA = [], cardsB = [], centerCards = [], op, turn } = game.lastMove;
+      const witness = game.lastMove.witness;
+      const displayCardsA = witness?.left?.cards || cardsA;
+      const displayCardsB = witness?.right?.cards || cardsB;
+      const displayTargetCards = witness?.target?.cards || witness?.targetCards || centerCards;
 
-      const cardToHtml = (c) => {
+      const cardToHtml = (c, digit = c.val) => {
         const isBlack = c.color === 'b';
         const base = "w-6 h-8 flex items-center justify-center text-xs font-bold font-mono rounded border shadow-sm";
         const colors = isBlack ? "bg-slate-800 text-white border-slate-900" : "bg-white text-slate-800 border-slate-300";
-        return `<div class="${base} ${colors}">${c.val}</div>`;
+        const alternate = Number(c.val) !== Number(digit) ? ' border-dashed border-amber-400 bg-yellow-50' : '';
+        return `<div class="${base} ${colors}${alternate}" title="${escapeHtml(c.val)}">${escapeHtml(digit)}</div>`;
       };
+
+      const operandCards = (cards, operand) => cards.map((card, index) => cardToHtml(card, operand?.digits?.[index] ?? card.val)).join('');
 
       const turnLabel = turn === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
       const turnColor = turn === 'BLACK' ? 'text-slate-500' : 'text-blue-400';
-      const opChar = op === '*' ? '×' : (op === '/' ? '÷' : op);
+      const opChar = witness?.operator || (op === '*' ? '×' : (op === '/' ? '÷' : op));
 
       area.innerHTML = `
-        <div class="flex items-center gap-1.5 opacity-40 scale-90 transition-opacity hover:opacity-100">
+        <div class="flex items-center gap-1.5 opacity-40 scale-90 transition-opacity hover:opacity-100"${witness?.eq ? ` data-equation="${escapeHtml(witness.eq)}"` : ''}>
           <span class="text-[9px] font-black ${turnColor} mr-0.5 whitespace-nowrap">${turnLabel}</span>
-          <div class="flex gap-0.5">${cardsA.map(cardToHtml).join('')}</div>
+          <div class="flex gap-0.5">${operandCards(displayCardsA, witness?.left)}</div>
           <span class="text-xs font-bold text-slate-400">${opChar}</span>
-          <div class="flex gap-0.5">${cardsB.map(cardToHtml).join('')}</div>
+          <div class="flex gap-0.5">${operandCards(displayCardsB, witness?.right)}</div>
           <span class="text-xs font-bold text-slate-400">=</span>
-          <div class="flex gap-0.5">${centerCards.map(cardToHtml).join('')}</div>
+          <div class="flex gap-0.5">${operandCards(displayTargetCards, witness?.target)}</div>
         </div>
       `;
     }
