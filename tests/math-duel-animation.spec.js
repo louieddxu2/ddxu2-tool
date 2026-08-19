@@ -9,8 +9,8 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await page.locator('[data-card-id="b1"]').click();
   await expect(page.locator('#stage-hand-cards [data-card-id="b1"]')).toBeVisible({ timeout: 2000 });
   await page.waitForTimeout(700);
-  await page.locator('[data-card-id="b8"]').click();
-  await expect(page.locator('#stage-hand-cards [data-card-id="b8"]')).toBeVisible({ timeout: 2000 });
+  await page.locator('[data-card-id="b5"]').click();
+  await expect(page.locator('#stage-hand-cards [data-card-id="b5"]')).toBeVisible({ timeout: 2000 });
   await page.waitForTimeout(700);
   await page.locator('[data-card-id="w9"]').click();
   await expect(page.locator('#stage-center-cards [data-card-id="w9"]')).toBeVisible({ timeout: 2000 });
@@ -18,14 +18,15 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await page.locator('[data-op="+"]').click();
 
   await expect(page.locator('#main-btn')).toBeEnabled();
-  await expect(page.locator('#move-preview .equation-line')).toHaveAttribute('data-equation', '1 + 8 = 9');
+  await expect(page.locator('#move-preview .equation-line')).toHaveAttribute('data-equation', '1 + 5 = 6');
+  await expect(page.locator('#stage-center-cards .card-face-number.is-transformed')).toBeVisible();
 
   await page.locator('#main-btn').click();
   await expect(page.locator('#status-banner')).toContainText('行動結算中', { timeout: 1000 });
   await expect(page.locator('#main-btn')).toBeHidden();
 
   await expect(page.locator('#center-cards [data-card-id="b1"]')).toBeVisible({ timeout: 7000 });
-  await expect(page.locator('#center-cards [data-card-id="b8"]')).toBeVisible({ timeout: 7000 });
+  await expect(page.locator('#center-cards [data-card-id="b5"]')).toBeVisible({ timeout: 7000 });
   await expect(page.locator('#black-hand [data-card-id="w9"]')).toBeVisible({ timeout: 7000 });
   await expect(page.locator('#white-area')).toHaveClass(/border-blue-500/);
 });
@@ -33,7 +34,7 @@ test('animates a card exchange and resolves it into the correct zones', async ({
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.2.8', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.2.9', JSON.stringify({
       mode: 'AI_EASY',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',

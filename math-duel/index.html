@@ -65,17 +65,17 @@
 
     .play-stage-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr);
-      gap: 8px;
+      grid-template-columns: minmax(0, 1fr) 28px minmax(0, .72fr);
+      gap: 4px;
       align-items: center;
     }
 
     .play-stage-slot {
-      min-height: 80px;
-      padding: 6px;
-      border: 1px dashed rgb(148 163 184 / 0.8);
+      min-height: 82px;
+      padding: 2px;
+      border: 1px solid transparent;
       border-radius: 12px;
-      background: rgb(248 250 252 / 0.9);
+      background: transparent;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -85,9 +85,8 @@
     }
 
     .play-stage-slot.is-active {
-      border-color: rgb(96 165 250);
-      background: rgb(239 246 255);
-      transform: translateY(-2px);
+      border-color: rgb(147 197 253 / 0.7);
+      background: rgb(239 246 255 / 0.72);
     }
 
     .play-stage-cards {
@@ -98,6 +97,69 @@
       justify-content: center;
       flex-wrap: wrap;
       gap: 4px;
+    }
+
+    .play-stage-cards.is-expression {
+      min-height: 0;
+      flex-wrap: nowrap;
+      gap: 3px;
+    }
+
+    .play-stage-cards.is-expression [data-card-id] {
+      width: 40px;
+      height: 56px;
+      font-size: 1.5rem;
+    }
+
+    .operand-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 1px;
+      padding: 4px;
+      border-radius: 11px;
+      background: rgb(255 255 255 / 0.82);
+      box-shadow: inset 0 0 0 1px rgb(148 163 184 / 0.35);
+      transition: background-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+    }
+
+    .operand-group.is-revealed {
+      background: rgb(239 246 255 / 0.9);
+      box-shadow: inset 0 0 0 1px rgb(96 165 250 / 0.58);
+      animation: operandReveal 420ms cubic-bezier(0.22, 0.8, 0.28, 1);
+    }
+
+    .operand-divider {
+      flex: 0 0 auto;
+      width: 18px;
+      color: rgb(71 85 105);
+      font-size: 19px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .card-face-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      transform-origin: center;
+    }
+
+    .card-face-number.is-transformed {
+      color: rgb(161 98 7);
+      animation: cardValueFlip 460ms cubic-bezier(0.22, 0.8, 0.28, 1);
+    }
+
+    @keyframes cardValueFlip {
+      0% { transform: rotateX(88deg) scale(.72); opacity: .15; }
+      58% { transform: rotateX(-12deg) scale(1.08); opacity: 1; }
+      100% { transform: rotateX(0) scale(1); opacity: 1; }
+    }
+
+    @keyframes operandReveal {
+      0% { transform: scale(.94); opacity: .65; }
+      100% { transform: scale(1); opacity: 1; }
     }
 
     .play-stage-operator {
@@ -115,7 +177,7 @@
     }
 
     .equation-line {
-      min-height: 34px;
+      min-height: 30px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -124,52 +186,35 @@
       font-weight: 900;
     }
 
-    .equation-group {
-      display: inline-flex;
-      gap: 2px;
-      padding: 3px 4px;
-      border-radius: 8px;
-      background: rgb(255 255 255 / 0.82);
-      box-shadow: inset 0 0 0 1px rgb(148 163 184 / 0.35);
-    }
-
-    .equation-group-target {
-      background: rgb(239 246 255 / 0.95);
-      box-shadow: inset 0 0 0 1px rgb(96 165 250 / 0.55);
-    }
-
-    .equation-digit {
-      width: 20px;
-      height: 26px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 5px;
-      background: rgb(248 250 252);
-      border: 1px solid rgb(203 213 225);
+    .operation-result {
+      min-height: 27px;
       color: rgb(30 41 59);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 15px;
-      line-height: 1;
+      font-size: 19px;
+      font-weight: 900;
+      letter-spacing: .02em;
     }
 
-    .equation-digit.is-alternate {
-      background: rgb(254 249 195);
-      border-color: rgb(234 179 8);
-      border-style: dashed;
+    .operation-result.is-resolving {
+      color: rgb(109 40 217);
     }
 
-    .equation-operator,
-    .equation-equals {
-      min-width: 15px;
-      font-size: 18px;
-      color: rgb(71 85 105);
+    .operation-controls {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgb(226 232 240);
+    }
+
+    .operation-controls .op-btn {
+      width: 42px;
+      height: 38px;
+      border-radius: 9px;
     }
 
     @media (max-width: 360px) {
       .play-stage-grid {
-        grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr);
-        gap: 4px;
+        grid-template-columns: minmax(0, 1fr) 24px minmax(0, .72fr);
+        gap: 2px;
       }
 
       .play-stage-operator {
@@ -345,7 +390,7 @@
        class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200"></div>
     <div id="race2-scoreboard"
       class="hidden bg-emerald-50 text-emerald-800 p-2 rounded-xl text-center font-bold border border-emerald-200"></div>
-    <div id="history-area" class="flex flex-col items-center gap-1 py-1 overflow-hidden min-h-[3.5rem] transition-all">
+    <div id="history-area" class="hidden flex-col items-center gap-1 py-1 overflow-hidden transition-all">
     </div>
 
     <section id="white-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors">
@@ -361,26 +406,26 @@
         <div id="center-cards" class="flex justify-center flex-wrap gap-2 min-h-[4.5rem]"></div>
       </div>
 
-      <div id="play-area" class="play-area bg-white p-3 rounded-2xl border-2 border-dashed border-slate-300 shadow-sm">
+      <div id="play-area" class="play-area bg-white p-3 rounded-2xl border-2 border-slate-200 shadow-sm">
         <div class="play-stage-grid">
-          <div id="stage-hand-slot" class="play-stage-slot" aria-label="hand cards">
+          <div id="stage-hand-slot" class="play-stage-slot" aria-label="played cards and operands">
             <div id="stage-hand-cards" class="play-stage-cards"></div>
           </div>
-          <div id="stage-operator-symbol" class="play-stage-operator">?</div>
-          <div id="stage-center-slot" class="play-stage-slot" aria-label="target cards">
+          <div id="stage-operator-symbol" class="play-stage-operator">=</div>
+          <div id="stage-center-slot" class="play-stage-slot" aria-label="result cards">
             <div id="stage-center-cards" class="play-stage-cards"></div>
           </div>
         </div>
 
         <div id="move-preview" aria-live="polite"
-          class="hidden mt-3 bg-white p-3 rounded-xl border border-blue-200 shadow-sm text-center"></div>
+          class="hidden operation-result text-center mt-1"></div>
 
-        <div id="action-panel" class="bg-slate-50/80 mt-3 p-3 rounded-xl border border-slate-200 flex flex-col gap-3">
-          <div id="operator-group" class="flex justify-center gap-2">
-            <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="+">+</button>
-            <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="-">-</button>
-            <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="*">×</button>
-            <button class="op-btn w-12 h-12 rounded-lg bg-slate-100 border text-xl font-bold" data-op="/">÷</button>
+        <div id="action-panel" class="operation-controls flex flex-col gap-2">
+          <div id="operator-group" class="flex justify-center gap-2" aria-label="operators">
+            <button class="op-btn bg-slate-100 border text-xl font-bold" data-op="+">+</button>
+            <button class="op-btn bg-slate-100 border text-xl font-bold" data-op="-">-</button>
+            <button class="op-btn bg-slate-100 border text-xl font-bold" data-op="*">×</button>
+            <button class="op-btn bg-slate-100 border text-xl font-bold" data-op="/">÷</button>
           </div>
           <button id="main-btn" onclick="handleMainAction()"
             class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md"></button>
@@ -435,7 +480,7 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-     const APP_VERSION = '1.2.8';
+     const APP_VERSION = '1.2.9';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -979,9 +1024,10 @@
       game.state = 'GAMEOVER'; saveState(); render();
     }
 
-     function generateCardHTML(card, location, isNew = false) {
+     function generateCardHTML(card, location, isNew = false, displayValue = card.val) {
        const isBlack = card.color === 'b';
        const isStage = location === 'stage-hand' || location === 'stage-center';
+       const isTransformed = Number(displayValue) !== Number(card.val);
        const selectionLocation = location === 'stage-center' || location === 'center' ? 'center' : 'hand';
        const isStageSelectable = isStage && game.state === 'PLAYING' && !game.uiBusy && !isAITurn();
        const isSelectable = (game.state === 'PLAYING' && !game.uiBusy && (location === 'center' || (game.turn === 'BLACK' && location === 'black') || (game.turn === 'WHITE' && location === 'white'))) ||
@@ -998,7 +1044,8 @@
        else if (isSelectable) interactiveClasses = isSelected ? "ring-4 ring-blue-500 scale-105 opacity-100 cursor-pointer" : "cursor-pointer hover:-translate-y-1 opacity-100";
        else if (isSelected) interactiveClasses = "opacity-100 ring-2 ring-slate-400";
 
-       return `<div data-card-id="${escapeHtml(card.id)}" class="${baseClasses} ${colorClasses} ${interactiveClasses}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${selectionLocation}')` : ''}">${card.val}</div>`;
+       const valueMarkup = `<span class="card-face-number${isTransformed ? ' is-transformed' : ''}" data-original-value="${escapeHtml(card.val)}" data-effective-value="${escapeHtml(displayValue)}">${escapeHtml(displayValue)}</span>`;
+       return `<div data-card-id="${escapeHtml(card.id)}" class="${baseClasses} ${colorClasses} ${interactiveClasses}" data-effective-value="${escapeHtml(displayValue)}" onclick="${isSelectable ? `toggleSelect('${card.id}', '${selectionLocation}')` : ''}">${valueMarkup}</div>`;
      }
 
      function getCurrentSelection() {
@@ -1012,34 +1059,15 @@
        return { selectedHand, selectedCenter, operator, equation };
      }
 
-     function renderEquationOperand(operand, role) {
+     function renderStageOperand(operand, location) {
        if (!operand?.cards?.length) return '';
        const digits = operand.digits || operand.cards.map(card => card.val);
-       const cards = operand.cards.map((card, index) => {
-         const digit = digits[index];
-         const isAlternate = Number(card.val) !== Number(digit);
-         const digitLabel = isAlternate ? `${card.val} → ${digit}` : String(card.val);
-         return `<span class="equation-digit${isAlternate ? ' is-alternate' : ''}" data-card-id="${escapeHtml(card.id)}" data-effective-value="${escapeHtml(digit)}" title="${escapeHtml(digitLabel)}">${escapeHtml(digit)}</span>`;
-       }).join('');
-       return `<span class="equation-group equation-group-${role}" data-value="${escapeHtml(operand.display || operand.value)}">${cards}</span>`;
-     }
-
-     function renderEquationWitness(witness) {
-       if (!witness?.success || !witness.left || !witness.right || !witness.target) return '';
-       const operator = witness.operator || (witness.op === '*' ? '×' : (witness.op === '/' ? '÷' : witness.op));
-       return `
-         <div class="equation-line" data-equation="${escapeHtml(witness.eq)}" aria-label="${escapeHtml(witness.eq)}">
-           ${renderEquationOperand(witness.left, 'left')}
-           <span class="equation-operator">${escapeHtml(operator)}</span>
-           ${renderEquationOperand(witness.right, 'right')}
-           <span class="equation-equals">=</span>
-           ${renderEquationOperand(witness.target, 'target')}
-         </div>
-       `;
+       const cards = operand.cards.map((card, index) => generateCardHTML(card, location, false, digits[index])).join('');
+       return `<div class="operand-group is-revealed" data-value="${escapeHtml(operand.display || operand.value)}">${cards}</div>`;
      }
 
      function renderStage() {
-       const { selectedHand, selectedCenter, operator, equation } = getCurrentSelection();
+       const { selectedHand, selectedCenter, equation } = getCurrentSelection();
        const handArea = document.getElementById('stage-hand-cards');
        const centerArea = document.getElementById('stage-center-cards');
        const handSlot = document.getElementById('stage-hand-slot');
@@ -1050,12 +1078,19 @@
        const witness = equation?.success ? equation : game.aiMoveInfo?.witness;
        const stageHandCards = witness?.success ? witness.left.cards.concat(witness.right.cards) : selectedHand;
        const stageCenterCards = witness?.success ? witness.target.cards : selectedCenter;
-       const stageOperator = witness?.success ? witness.op : operator;
-       const handHTML = stageHandCards.map(c => generateCardHTML(c, 'stage-hand')).join('');
-       const centerHTML = stageCenterCards.map(c => generateCardHTML(c, 'stage-center')).join('');
+       const stageHandClass = `play-stage-cards${witness?.success ? ' is-expression' : ''}`;
+       const stageCenterClass = `play-stage-cards${witness?.success ? ' is-expression' : ''}`;
+       const handHTML = witness?.success
+         ? `${renderStageOperand(witness.left, 'stage-hand')}<span class="operand-divider">${escapeHtml(witness.operator)}</span>${renderStageOperand(witness.right, 'stage-hand')}`
+         : stageHandCards.map(c => generateCardHTML(c, 'stage-hand')).join('');
+       const centerHTML = witness?.success
+         ? renderStageOperand(witness.target, 'stage-center')
+         : stageCenterCards.map(c => generateCardHTML(c, 'stage-center')).join('');
+       handArea.className = stageHandClass;
+       centerArea.className = stageCenterClass;
        handArea.innerHTML = handHTML;
        centerArea.innerHTML = centerHTML;
-       document.getElementById('stage-operator-symbol').innerText = stageOperator ? (stageOperator === '*' ? '×' : stageOperator === '/' ? '÷' : stageOperator) : '?';
+       document.getElementById('stage-operator-symbol').innerText = witness?.success ? '=' : '?';
        handSlot.classList.toggle('is-active', stageHandCards.length > 0);
        centerSlot.classList.toggle('is-active', stageCenterCards.length > 0);
        playArea.classList.toggle('is-working', stageHandCards.length > 0 || stageCenterCards.length > 0 || Boolean(game.movePreview) || Boolean(game.aiMoveInfo));
@@ -1069,7 +1104,7 @@
        const aiPlan = game.aiMoveInfo;
        let eq = preview?.eq || aiPlan?.eq || null;
        let witness = preview?.witness || aiPlan?.witness || null;
-       let mode = preview ? 'resolving' : (aiPlan ? 'ai-plan' : 'selection');
+       const mode = preview ? 'resolving' : (aiPlan ? 'ai-plan' : 'selection');
 
        if (!preview && !aiPlan && game.state === 'PLAYING') {
          const result = getCurrentSelection().equation;
@@ -1079,23 +1114,16 @@
          }
        }
 
-       if (!witness && !eq && mode !== 'resolving') {
+       if (!witness && !eq) {
          area.className = 'hidden';
          area.innerHTML = '';
          return;
        }
 
-       const label = mode === 'ai-plan'
-         ? t('ai_plan')
-         : mode === 'resolving'
-           ? (preview?.phase === 'discard' ? t('discard_resolving') : t('move_resolving'))
-           : '';
-       const tone = mode === 'resolving' ? 'border-violet-200 bg-violet-50' : 'border-blue-200 bg-blue-50';
-       area.className = `block ${tone} p-3 rounded-xl border shadow-sm text-center`;
-       area.innerHTML = `
-         ${label ? `<div class="text-[10px] uppercase tracking-wider font-black text-slate-500 mb-1">${escapeHtml(label)}</div>` : ''}
-         ${witness ? renderEquationWitness(witness) : (eq ? `<div class="text-xl font-black text-slate-800">${escapeHtml(eq)}</div>` : '')}
-       `;
+       const formula = witness?.eq || eq;
+       const tone = mode === 'resolving' ? 'is-resolving' : '';
+       area.className = `block operation-result ${tone} text-center mt-1`;
+       area.innerHTML = `<div class="equation-line" data-equation="${escapeHtml(formula)}" aria-label="${escapeHtml(formula)}">${escapeHtml(formula)}</div>`;
      }
 
      function canSendCurrentSelection() {
@@ -1278,9 +1306,12 @@
     function renderHistory() {
       const area = document.getElementById('history-area');
       if (!game.lastMove) {
-        area.innerHTML = `<div class="text-[10px] text-slate-300 font-bold uppercase tracking-wider">${t('waiting_first')}</div>`;
+        area.className = 'hidden';
+        area.innerHTML = '';
         return;
       }
+
+      area.className = 'flex flex-col items-center gap-1 py-1 overflow-hidden transition-all';
 
       const { cardsA = [], cardsB = [], centerCards = [], op, turn } = game.lastMove;
       const witness = game.lastMove.witness;
