@@ -31,7 +31,7 @@ test('animates a card exchange and resolves it into the correct zones', async ({
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.3.0', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.3.1', JSON.stringify({
       mode: 'AI_EASY',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',
@@ -74,17 +74,17 @@ test('keeps the full tabletop fixed inside a portrait phone viewport', async ({ 
     bodyHeight: document.body.scrollHeight,
     viewportHeight: window.innerHeight,
     boardBottom: document.querySelector('#game-board').getBoundingClientRect().bottom,
-    opponentTransform: getComputedStyle(document.querySelector('#white-area')).transform,
+    tableTransform: getComputedStyle(document.querySelector('#play-area')).transform,
     visibleCards: document.querySelectorAll('#white-hand [data-card-id], #black-hand [data-card-id], #center-cards [data-card-id]').length
   }));
 
   expect(layout.bodyHeight).toBeLessThanOrEqual(layout.viewportHeight);
   expect(layout.boardBottom).toBeLessThanOrEqual(layout.viewportHeight);
-  expect(layout.opponentTransform).not.toBe('none');
+  expect(layout.tableTransform).toBe('none');
   expect(layout.visibleCards).toBe(18);
 });
 
-test('switches to a no-scroll landscape tabletop', async ({ page }) => {
+test('keeps a no-scroll landscape tabletop with players across from each other', async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 360 });
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
@@ -98,11 +98,45 @@ test('switches to a no-scroll landscape tabletop', async ({ page }) => {
       bodyHeight: document.body.scrollHeight,
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
-      ordered: white.right <= play.left && play.right <= black.left
+      ordered: white.bottom <= play.top && play.bottom <= black.top
     };
   });
 
   expect(layout.bodyWidth).toBeLessThanOrEqual(layout.viewportWidth);
   expect(layout.bodyHeight).toBeLessThanOrEqual(layout.viewportHeight);
   expect(layout.ordered).toBe(true);
+});
+
+test('rotates the entire tabletop toward white after the turn changes', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
+  await page.goto('/math-duel/index.html');
+
+  await page.locator('#black-hand [data-card-id="b1"]').click();
+  await page.locator('#black-hand [data-card-id="b5"]').click();
+  await page.locator('#center-cards [data-card-id="w9"]').click();
+  await page.locator('[data-op="+"]').click();
+  await page.locator('#main-btn').click();
+
+  await expect(page.locator('body')).toHaveClass(/is-white-turn/, { timeout: 4000 });
+  await expect(page.locator('body')).toHaveClass(/is-turning/);
+  await expect(page.locator('body')).not.toHaveClass(/is-turning/, { timeout: 2000 });
+
+  const orientation = await page.evaluate(() => {
+    const white = document.querySelector('#white-area').getBoundingClientRect();
+    const black = document.querySelector('#black-area').getBoundingClientRect();
+    const surfaces = ['.app-header', '#game-meta', '#white-area', '#center-area', '#play-area', '#black-area'];
+    return {
+      transforms: surfaces.map(selector => getComputedStyle(document.querySelector(selector)).transform),
+      whiteRemainsNearestWhitePlayer: white.top < black.top,
+      titleTransform: getComputedStyle(document.querySelector('#ui-title')).transform,
+      scrollHeight: document.body.scrollHeight,
+      viewportHeight: innerHeight
+    };
+  });
+
+  expect(orientation.transforms.every(transform => transform !== 'none')).toBe(true);
+  expect(orientation.whiteRemainsNearestWhitePlayer).toBe(true);
+  expect(orientation.titleTransform).toBe('none');
+  expect(orientation.scrollHeight).toBeLessThanOrEqual(orientation.viewportHeight);
 });

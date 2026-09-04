@@ -22,6 +22,32 @@
       overflow: hidden;
     }
 
+    .app-header,
+    #game-meta,
+    #white-area,
+    #center-area,
+    #play-area,
+    #black-area,
+    #rules-modal > div {
+      transform-origin: center center;
+      transition: transform 520ms cubic-bezier(0.65, 0, 0.35, 1);
+      will-change: transform;
+    }
+
+    body.is-pvp.is-white-turn .app-header,
+    body.is-pvp.is-white-turn #game-meta,
+    body.is-pvp.is-white-turn #white-area,
+    body.is-pvp.is-white-turn #center-area,
+    body.is-pvp.is-white-turn #play-area,
+    body.is-pvp.is-white-turn #black-area,
+    body.is-pvp.is-white-turn #rules-modal > div {
+      transform: rotate(180deg);
+    }
+
+    body.is-turning {
+      pointer-events: none;
+    }
+
     .app-header {
       flex: 0 0 auto;
       padding: 8px 12px;
@@ -106,10 +132,6 @@
       overflow: hidden;
       transform-origin: center;
       transition: border-color 180ms ease, background-color 180ms ease;
-    }
-
-    body.is-pvp #white-area {
-      transform: rotate(180deg);
     }
 
     #white-area > div:first-child,
@@ -438,7 +460,7 @@
 
     @media (orientation: landscape) and (max-height: 500px) {
       .app-header {
-        height: 42px;
+        height: 38px;
         padding: 4px 10px;
         flex-direction: row !important;
         align-items: center;
@@ -471,22 +493,24 @@
       }
 
       .game-board {
-        max-width: none !important;
+        max-width: 720px !important;
         padding: 4px 8px;
-        grid-template-columns: minmax(135px, .8fr) minmax(280px, 1.7fr) minmax(135px, .8fr);
-        grid-template-rows: 25px minmax(0, 1fr);
-        gap: 4px 6px;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 22px 50px 40px minmax(140px, 1fr) 50px;
+        gap: 3px;
       }
 
       .game-meta {
-        grid-column: 1 / -1;
+        grid-column: 1;
         grid-row: 1;
         grid-template-columns: minmax(0, 1fr) auto auto;
-        grid-template-rows: 25px;
+        grid-template-rows: 22px;
       }
 
       #status-banner {
         grid-column: 1;
+        height: 22px;
+        line-height: 16px;
       }
 
       #white-area {
@@ -495,51 +519,113 @@
       }
 
       #center-area {
-        grid-column: 2;
-        grid-row: 2;
-        align-self: start;
-        height: 58px;
+        grid-column: 1;
+        grid-row: 3;
+        height: auto;
       }
 
       #play-area {
-        grid-column: 2;
-        grid-row: 2;
-        margin-top: 62px !important;
-        height: calc(100% - 62px);
+        grid-column: 1;
+        grid-row: 4;
+        margin-top: 0 !important;
+        height: auto;
       }
 
       #black-area {
-        grid-column: 3;
-        grid-row: 2;
+        grid-column: 1;
+        grid-row: 5;
       }
 
       #white-area,
       #black-area {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+        display: block;
+        position: relative;
+        padding: 3px 7px !important;
+      }
+
+      #white-area > div:first-child,
+      #black-area > div:first-child {
+        position: absolute;
+        right: 6px;
+        bottom: 1px;
+        z-index: 1;
+        height: 10px;
+        margin: 0 !important;
+      }
+
+      #white-label,
+      #black-label {
+        font-size: 8px;
+        line-height: 10px;
       }
 
       .hand-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        grid-template-rows: repeat(3, minmax(0, 1fr));
+        height: 34px;
+        grid-template-columns: repeat(9, minmax(0, 1fr));
+        grid-template-rows: 34px;
       }
 
       .hand-grid [data-card-id] {
-        max-height: 48px;
+        width: 28px !important;
+        height: 34px !important;
+        aspect-ratio: auto;
+        font-size: 14px !important;
         justify-self: center;
       }
 
       .play-stage-slot {
-        min-height: 48px;
+        min-height: 42px;
+      }
+
+      #center-area {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 3px 8px !important;
+      }
+
+      #ui-center-label {
+        flex: 0 0 auto;
+        width: auto;
+        height: auto;
+        margin: 0 !important;
+      }
+
+      #center-cards {
+        flex: 0 1 auto;
+        width: auto;
+        height: 34px;
+      }
+
+      #center-cards [data-card-id] {
+        width: 26px !important;
+        height: 34px !important;
+        font-size: 14px !important;
       }
 
       .play-stage-cards {
-        min-height: 40px;
+        min-height: 36px;
+      }
+
+      .play-stage-cards.is-expression [data-card-id] {
+        width: 27px;
+        height: 36px;
       }
 
       .operation-controls {
         grid-template-columns: minmax(0, 1fr) 90px;
+      }
+
+      .operation-controls .op-btn {
+        height: 28px !important;
+      }
+
+      #main-btn,
+      #giveup-btn,
+      #pass-btn,
+      #plan-continue-btn {
+        min-height: 30px;
       }
     }
 
@@ -810,7 +896,7 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-     const APP_VERSION = '1.3.0';
+     const APP_VERSION = '1.3.1';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -1452,9 +1538,34 @@
      }
 
      let lastRenderState = { white: '', black: '', center: '', title: '', lang: '' };
+     let lastViewTurnKey = null;
+     let viewTurnTimer = null;
+
+     function syncViewOrientation() {
+       const isPvp = game.mode === 'PVP';
+       const nextKey = isPvp ? game.turn : 'SOLO';
+       const shouldAnimate = lastViewTurnKey !== null && lastViewTurnKey !== nextKey;
+
+       document.body.classList.toggle('is-pvp', isPvp);
+       document.body.classList.toggle('is-white-turn', isPvp && game.turn === 'WHITE');
+
+       if (shouldAnimate) {
+         if (viewTurnTimer) clearTimeout(viewTurnTimer);
+         document.body.classList.add('is-turning');
+         document.body.setAttribute('aria-busy', 'true');
+         const duration = CardMotion.prefersReducedMotion(document) ? 0 : 520;
+         viewTurnTimer = setTimeout(() => {
+           document.body.classList.remove('is-turning');
+           document.body.removeAttribute('aria-busy');
+           viewTurnTimer = null;
+         }, duration);
+       }
+
+       lastViewTurnKey = nextKey;
+     }
 
     function render() {
-      document.body.classList.toggle('is-pvp', game.mode === 'PVP');
+      syncViewOrientation();
       // 1. 靜態 UI 更新 (僅在必要時)
       const titleStr = t('title');
       if (lastRenderState.title !== titleStr || lastRenderState.lang !== LANG) {
