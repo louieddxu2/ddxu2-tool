@@ -18,6 +18,156 @@
 
     body {
       -webkit-tap-highlight-color: transparent;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    .app-header {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      gap: 5px;
+    }
+
+    .game-board {
+      height: auto;
+      flex: 1 1 0;
+      min-height: 0;
+      padding: 7px 10px max(7px, env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-rows: 42px minmax(62px, .72fr) minmax(58px, .66fr) minmax(178px, 1.9fr) minmax(62px, .72fr);
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .game-meta {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: 25px 15px;
+      column-gap: 8px;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    #status-banner {
+      grid-column: 1 / -1;
+      height: 25px;
+      min-width: 0;
+      padding: 2px 9px !important;
+      border-radius: 9px !important;
+      font-size: 12px;
+      line-height: 19px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    #race2-scoreboard,
+    #history-area {
+      min-width: 0;
+      height: 15px;
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+      font-size: 10px;
+      line-height: 15px;
+      box-shadow: none !important;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    #history-area {
+      display: block;
+      color: rgb(100 116 139);
+      text-align: right;
+    }
+
+    #history-area.hidden {
+      visibility: hidden;
+    }
+
+    #table-area {
+      display: contents;
+    }
+
+    #white-area,
+    #black-area,
+    #center-area,
+    #play-area {
+      min-height: 0;
+      margin: 0 !important;
+    }
+
+    #white-area,
+    #black-area {
+      padding: 5px 7px !important;
+      border-radius: 13px !important;
+      overflow: hidden;
+      transform-origin: center;
+      transition: border-color 180ms ease, background-color 180ms ease;
+    }
+
+    body.is-pvp #white-area {
+      transform: rotate(180deg);
+    }
+
+    #white-area > div:first-child,
+    #black-area > div:first-child {
+      height: 15px;
+      margin-bottom: 3px !important;
+    }
+
+    #white-label,
+    #black-label {
+      font-size: 10px;
+      line-height: 15px;
+    }
+
+    .hand-grid {
+      width: 100%;
+      min-height: 0 !important;
+      display: grid !important;
+      grid-template-columns: repeat(9, minmax(0, 1fr));
+      gap: 3px !important;
+      align-items: center;
+    }
+
+    .hand-grid [data-card-id] {
+      width: 100% !important;
+      height: auto !important;
+      min-width: 0;
+      max-height: 48px;
+      aspect-ratio: 3 / 4;
+      border-width: 1.5px;
+      border-radius: 6px;
+      font-size: clamp(1rem, 5vw, 1.35rem) !important;
+    }
+
+    #center-area {
+      padding: 4px 8px !important;
+      border-radius: 13px !important;
+      overflow: hidden;
+    }
+
+    #ui-center-label {
+      height: 14px;
+      margin-bottom: 2px !important;
+      font-size: 10px;
+      line-height: 14px;
+    }
+
+    #center-cards {
+      min-height: 0 !important;
+      height: calc(100% - 16px);
+      gap: 4px !important;
+      align-items: center;
+    }
+
+    #center-cards [data-card-id] {
+      width: 36px !important;
+      height: 48px !important;
+      font-size: 1.2rem !important;
     }
 
     .ai-thinking {
@@ -55,6 +205,8 @@
     .play-area {
       position: relative;
       overflow: hidden;
+      padding: 6px 8px !important;
+      border-radius: 13px !important;
       transition: border-color 220ms ease, background-color 220ms ease, box-shadow 220ms ease;
     }
 
@@ -71,7 +223,7 @@
     }
 
     .play-stage-slot {
-      min-height: 82px;
+      min-height: 58px;
       padding: 2px;
       border: 1px solid transparent;
       border-radius: 12px;
@@ -90,7 +242,7 @@
     }
 
     .play-stage-cards {
-      min-height: 58px;
+      min-height: 48px;
       width: 100%;
       display: flex;
       align-items: center;
@@ -106,9 +258,9 @@
     }
 
     .play-stage-cards.is-expression [data-card-id] {
-      width: 40px;
-      height: 56px;
-      font-size: 1.5rem;
+      width: clamp(29px, 9.2vw, 38px);
+      height: clamp(41px, 12.8vw, 52px);
+      font-size: clamp(1rem, 5vw, 1.35rem);
     }
 
     .operand-group {
@@ -187,10 +339,10 @@
     }
 
     .operation-result {
-      min-height: 27px;
+      min-height: 17px;
       color: rgb(30 41 59);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 19px;
+      font-size: 12px;
       font-weight: 900;
       letter-spacing: .02em;
     }
@@ -200,15 +352,47 @@
     }
 
     .operation-controls {
-      margin-top: 8px;
-      padding-top: 8px;
+      margin-top: 3px;
+      padding-top: 4px;
       border-top: 1px solid rgb(226 232 240);
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px !important;
+    }
+
+    #operator-group {
+      grid-column: 1 / -1;
+      gap: 5px !important;
     }
 
     .operation-controls .op-btn {
-      width: 42px;
-      height: 38px;
-      border-radius: 9px;
+      width: 38px !important;
+      height: 31px !important;
+      border-radius: 8px;
+      font-size: 17px !important;
+    }
+
+    #main-btn {
+      min-height: 34px;
+      padding: 4px 10px !important;
+      border-radius: 9px !important;
+      font-size: 13px;
+    }
+
+    #giveup-btn,
+    #pass-btn,
+    #plan-continue-btn {
+      min-width: 46px;
+      min-height: 34px;
+      margin: 0 !important;
+      padding: 4px 8px !important;
+      border-radius: 9px !important;
+      font-size: 11px;
+    }
+
+    #plan-continue-btn {
+      grid-column: 2;
+      grid-row: 2;
     }
 
     @media (max-width: 360px) {
@@ -220,6 +404,151 @@
       .play-stage-operator {
         width: 30px;
         height: 30px;
+      }
+    }
+
+    @media (max-height: 700px) {
+      .app-header {
+        padding-top: 5px;
+        padding-bottom: 5px;
+      }
+
+      .game-board {
+        grid-template-rows: 38px minmax(55px, .65fr) minmax(52px, .6fr) minmax(155px, 1.7fr) minmax(55px, .65fr);
+        gap: 4px;
+      }
+
+      .play-stage-slot {
+        min-height: 51px;
+      }
+
+      .play-stage-cards {
+        min-height: 43px;
+      }
+
+      .play-stage-cards.is-expression [data-card-id] {
+        width: 29px;
+        height: 41px;
+      }
+
+      .operand-group {
+        padding: 2px;
+      }
+    }
+
+    @media (orientation: landscape) and (max-height: 500px) {
+      .app-header {
+        height: 42px;
+        padding: 4px 10px;
+        flex-direction: row !important;
+        align-items: center;
+      }
+
+      .app-header > div {
+        max-width: none !important;
+      }
+
+      .app-header > div:first-child {
+        flex: 1 1 auto;
+        width: auto !important;
+        min-width: 0;
+      }
+
+      .app-header > div:last-child {
+        flex: 0 0 auto;
+        width: auto !important;
+      }
+
+      #ui-title {
+        font-size: 14px;
+      }
+
+      #mode-select,
+      #rule-mode-select {
+        max-width: 125px;
+        padding: 3px 7px;
+        font-size: 10px;
+      }
+
+      .game-board {
+        max-width: none !important;
+        padding: 4px 8px;
+        grid-template-columns: minmax(135px, .8fr) minmax(280px, 1.7fr) minmax(135px, .8fr);
+        grid-template-rows: 25px minmax(0, 1fr);
+        gap: 4px 6px;
+      }
+
+      .game-meta {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-rows: 25px;
+      }
+
+      #status-banner {
+        grid-column: 1;
+      }
+
+      #white-area {
+        grid-column: 1;
+        grid-row: 2;
+      }
+
+      #center-area {
+        grid-column: 2;
+        grid-row: 2;
+        align-self: start;
+        height: 58px;
+      }
+
+      #play-area {
+        grid-column: 2;
+        grid-row: 2;
+        margin-top: 62px !important;
+        height: calc(100% - 62px);
+      }
+
+      #black-area {
+        grid-column: 3;
+        grid-row: 2;
+      }
+
+      #white-area,
+      #black-area {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .hand-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-rows: repeat(3, minmax(0, 1fr));
+      }
+
+      .hand-grid [data-card-id] {
+        max-height: 48px;
+        justify-self: center;
+      }
+
+      .play-stage-slot {
+        min-height: 48px;
+      }
+
+      .play-stage-cards {
+        min-height: 40px;
+      }
+
+      .operation-controls {
+        grid-template-columns: minmax(0, 1fr) 90px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
       }
     }
   </style>
@@ -352,7 +681,7 @@
     }
   </script>
 
-  <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-20 flex flex-col gap-2">
+  <header class="app-header bg-slate-800 text-white shadow-md z-20 flex flex-col">
     <div class="max-w-md mx-auto w-full flex items-center justify-between">
       <a href="/" data-home-link
         class="p-2 -ml-2 hover:bg-slate-700 rounded-full transition-colors invisible pointer-events-none">
@@ -385,22 +714,23 @@
     </div>
   </header>
 
-  <main class="flex-grow w-full max-w-md mx-auto p-4 flex flex-col gap-4">
-     <div id="status-banner"
-       class="bg-blue-100 text-blue-800 p-3 rounded-xl text-center font-bold shadow-sm border border-blue-200"></div>
-    <div id="race2-scoreboard"
-      class="hidden bg-emerald-50 text-emerald-800 p-2 rounded-xl text-center font-bold border border-emerald-200"></div>
-    <div id="history-area" class="hidden flex-col items-center gap-1 py-1 overflow-hidden transition-all">
+  <main id="game-board" class="game-board flex-grow w-full max-w-md mx-auto">
+    <div id="game-meta" class="game-meta">
+      <div id="status-banner"
+        class="bg-blue-100 text-blue-800 text-center font-bold shadow-sm border border-blue-200"></div>
+      <div id="race2-scoreboard"
+        class="hidden bg-emerald-50 text-emerald-800 text-center font-bold border border-emerald-200"></div>
+      <div id="history-area" class="hidden"></div>
     </div>
 
     <section id="white-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors">
       <div class="flex justify-between items-center mb-3">
         <h2 class="text-sm font-bold text-slate-500" id="white-label"></h2>
       </div>
-      <div id="white-hand" class="flex flex-wrap gap-2 min-h-[4.5rem]"></div>
+      <div id="white-hand" class="hand-grid"></div>
     </section>
 
-    <section class="flex flex-col gap-3 relative">
+    <section id="table-area">
       <div id="center-area" class="bg-slate-200 rounded-2xl p-4 border-2 border-slate-300 shadow-inner">
         <div id="ui-center-label" class="text-center font-bold text-slate-600 mb-3 text-sm"></div>
         <div id="center-cards" class="flex justify-center flex-wrap gap-2 min-h-[4.5rem]"></div>
@@ -443,7 +773,7 @@
       <div class="flex justify-between items-center mb-3">
         <h2 class="text-sm font-bold text-slate-500" id="black-label"></h2>
       </div>
-      <div id="black-hand" class="flex flex-wrap gap-2 min-h-[4.5rem]"></div>
+      <div id="black-hand" class="hand-grid"></div>
     </section>
   </main>
 
@@ -480,7 +810,7 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-     const APP_VERSION = '1.2.9';
+     const APP_VERSION = '1.3.0';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -641,18 +971,15 @@
        return new Promise(resolve => setTimeout(resolve, ms));
      }
 
-     async function animateSelectionChange(id, location) {
+     function animateSelectionChange(id, location) {
        const ids = location === 'hand' ? game.selections.hand : game.selections.center;
        const max = location === 'hand' ? 4 : 2;
        const idx = ids.indexOf(id);
        const adding = idx === -1;
        if (adding && ids.length >= max) return;
 
-       game.uiBusy = true;
-       render();
        let committed = false;
-       try {
-         await CardMotion.playExchange({
+       CardMotion.playExchange({
            moves: [{ id }],
            commit: () => {
              if (adding) ids.push(id);
@@ -660,18 +987,15 @@
              committed = true;
              render();
            },
-           options: { duration: 620, stagger: 0 }
-         });
-       } catch (error) {
+           options: { duration: 420, stagger: 0 }
+         }).catch((error) => {
          console.error('Card selection animation failed:', error);
          if (!committed) {
            if (adding) ids.push(id);
            else ids.splice(idx, 1);
+           render();
          }
-       } finally {
-         game.uiBusy = false;
-         render();
-       }
+       });
      }
 
      function toggleSelect(id, location) {
@@ -756,8 +1080,6 @@
          centerCards: discardedCards.map(c => ({ ...c }))
         };
        render();
-       if (!CardMotion.prefersReducedMotion(document)) await wait(520);
-
        let committed = false;
        try {
          await CardMotion.playRemoval({
@@ -769,7 +1091,7 @@
              render();
            },
            getExitPoint: getDiscardExitPoint,
-            options: { duration: 620, stagger: 100 }
+            options: { duration: 520, stagger: 70 }
          });
        } catch (error) {
          console.error('Card discard animation failed:', error);
@@ -798,8 +1120,6 @@
           centerCards: cCards.map(c => ({ ...c }))
         };
         render();
-        if (!CardMotion.prefersReducedMotion(document)) await wait(520);
-
        let committed = false;
        try {
          await CardMotion.playExchange({
@@ -812,7 +1132,7 @@
              committed = true;
              render();
            },
-           options: { duration: 720, stagger: 95 }
+           options: { duration: 560, stagger: 70 }
          });
        } catch (error) {
          console.error('Card exchange animation failed:', error);
@@ -990,7 +1310,7 @@
         await CardMotion.playExchange({
           moves,
           commit: commitPlan,
-          options: { duration: 720, stagger: 95 }
+          options: { duration: 560, stagger: 70 }
         });
       } catch (error) {
         console.error('AI card reveal animation failed:', error);
@@ -1134,6 +1454,7 @@
      let lastRenderState = { white: '', black: '', center: '', title: '', lang: '' };
 
     function render() {
+      document.body.classList.toggle('is-pvp', game.mode === 'PVP');
       // 1. 靜態 UI 更新 (僅在必要時)
       const titleStr = t('title');
       if (lastRenderState.title !== titleStr || lastRenderState.lang !== LANG) {
@@ -1311,7 +1632,7 @@
         return;
       }
 
-      area.className = 'flex flex-col items-center gap-1 py-1 overflow-hidden transition-all';
+      area.className = 'block';
 
       const { cardsA = [], cardsB = [], centerCards = [], op, turn } = game.lastMove;
       const witness = game.lastMove.witness;
@@ -1319,30 +1640,11 @@
       const displayCardsB = witness?.right?.cards || cardsB;
       const displayTargetCards = witness?.target?.cards || witness?.targetCards || centerCards;
 
-      const cardToHtml = (c, digit = c.val) => {
-        const isBlack = c.color === 'b';
-        const base = "w-6 h-8 flex items-center justify-center text-xs font-bold font-mono rounded border shadow-sm";
-        const colors = isBlack ? "bg-slate-800 text-white border-slate-900" : "bg-white text-slate-800 border-slate-300";
-        const alternate = Number(c.val) !== Number(digit) ? ' border-dashed border-amber-400 bg-yellow-50' : '';
-        return `<div class="${base} ${colors}${alternate}" title="${escapeHtml(c.val)}">${escapeHtml(digit)}</div>`;
-      };
-
-      const operandCards = (cards, operand) => cards.map((card, index) => cardToHtml(card, operand?.digits?.[index] ?? card.val)).join('');
-
       const turnLabel = turn === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
-      const turnColor = turn === 'BLACK' ? 'text-slate-500' : 'text-blue-400';
       const opChar = witness?.operator || (op === '*' ? '×' : (op === '/' ? '÷' : op));
-
-      area.innerHTML = `
-        <div class="flex items-center gap-1.5 opacity-40 scale-90 transition-opacity hover:opacity-100"${witness?.eq ? ` data-equation="${escapeHtml(witness.eq)}"` : ''}>
-          <span class="text-[9px] font-black ${turnColor} mr-0.5 whitespace-nowrap">${turnLabel}</span>
-          <div class="flex gap-0.5">${operandCards(displayCardsA, witness?.left)}</div>
-          <span class="text-xs font-bold text-slate-400">${opChar}</span>
-          <div class="flex gap-0.5">${operandCards(displayCardsB, witness?.right)}</div>
-          <span class="text-xs font-bold text-slate-400">=</span>
-          <div class="flex gap-0.5">${operandCards(displayTargetCards, witness?.target)}</div>
-        </div>
-      `;
+      const operandText = (cards, operand) => (operand?.digits || cards.map(card => card.val)).join('');
+      const formula = witness?.eq || `${operandText(displayCardsA, witness?.left)} ${opChar} ${operandText(displayCardsB, witness?.right)} = ${operandText(displayTargetCards, witness?.target)}`;
+      area.innerHTML = `<span data-equation="${escapeHtml(formula)}">${escapeHtml(turnLabel)} · ${escapeHtml(formula)}</span>`;
     }
 
     function toggleRules(show) {

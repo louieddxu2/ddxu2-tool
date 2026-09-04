@@ -8,13 +8,10 @@ test('animates a card exchange and resolves it into the correct zones', async ({
 
   await page.locator('[data-card-id="b1"]').click();
   await expect(page.locator('#stage-hand-cards [data-card-id="b1"]')).toBeVisible({ timeout: 2000 });
-  await page.waitForTimeout(700);
   await page.locator('[data-card-id="b5"]').click();
   await expect(page.locator('#stage-hand-cards [data-card-id="b5"]')).toBeVisible({ timeout: 2000 });
-  await page.waitForTimeout(700);
   await page.locator('[data-card-id="w9"]').click();
   await expect(page.locator('#stage-center-cards [data-card-id="w9"]')).toBeVisible({ timeout: 2000 });
-  await page.waitForTimeout(700);
   await page.locator('[data-op="+"]').click();
 
   await expect(page.locator('#main-btn')).toBeEnabled();
@@ -34,7 +31,7 @@ test('animates a card exchange and resolves it into the correct zones', async ({
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.2.9', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.3.0', JSON.stringify({
       mode: 'AI_EASY',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',
@@ -66,4 +63,46 @@ test('reveals the AI plan in the play area before resolving it', async ({ page }
 
   await page.locator('#plan-continue-btn').click();
   await expect(page.locator('#status-banner')).toContainText('行動結算中', { timeout: 2000 });
+});
+
+test('keeps the full tabletop fixed inside a portrait phone viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
+  await page.goto('/math-duel/index.html');
+
+  const layout = await page.evaluate(() => ({
+    bodyHeight: document.body.scrollHeight,
+    viewportHeight: window.innerHeight,
+    boardBottom: document.querySelector('#game-board').getBoundingClientRect().bottom,
+    opponentTransform: getComputedStyle(document.querySelector('#white-area')).transform,
+    visibleCards: document.querySelectorAll('#white-hand [data-card-id], #black-hand [data-card-id], #center-cards [data-card-id]').length
+  }));
+
+  expect(layout.bodyHeight).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.boardBottom).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.opponentTransform).not.toBe('none');
+  expect(layout.visibleCards).toBe(18);
+});
+
+test('switches to a no-scroll landscape tabletop', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 360 });
+  await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
+  await page.goto('/math-duel/index.html');
+
+  const layout = await page.evaluate(() => {
+    const white = document.querySelector('#white-area').getBoundingClientRect();
+    const play = document.querySelector('#play-area').getBoundingClientRect();
+    const black = document.querySelector('#black-area').getBoundingClientRect();
+    return {
+      bodyWidth: document.body.scrollWidth,
+      bodyHeight: document.body.scrollHeight,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      ordered: white.right <= play.left && play.right <= black.left
+    };
+  });
+
+  expect(layout.bodyWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.bodyHeight).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.ordered).toBe(true);
 });
