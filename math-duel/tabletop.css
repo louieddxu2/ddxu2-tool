@@ -1,0 +1,139 @@
+/* A quiet tabletop: surfaces recede, cards and the equation carry the game. */
+:root {
+  --table: #172a3a;
+  --table-raised: #203748;
+  --paper: #f8fbff;
+  --muted: #a2b8c9;
+  --accent: #a8d9ff;
+}
+
+body { background: var(--table) !important; color: var(--paper); }
+.app-header {
+  background: var(--table) !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid #ffffff12;
+}
+#ui-title { font-size: 15px; letter-spacing: .06em; }
+#mode-select, #rule-mode-select {
+  background: #ffffff08 !important;
+  border-color: #ffffff20 !important;
+  font-size: 11px;
+}
+.game-board {
+  max-width: 480px;
+  padding: 8px 14px max(10px, env(safe-area-inset-bottom));
+  grid-template-rows: 40px minmax(114px, 1fr) minmax(65px, .6fr) minmax(160px, 1.35fr) minmax(114px, 1fr);
+  gap: 8px;
+}
+#status-banner {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--accent) !important;
+  font-weight: 500;
+}
+#status-banner .text-xl { font-size: 15px; font-weight: 800; }
+#history-area, #race2-scoreboard { color: var(--muted) !important; }
+#white-area, #black-area {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  padding: 5px 9px !important;
+  border-radius: 14px !important;
+  transition: transform 520ms cubic-bezier(.65,0,.35,1), background-color 180ms;
+}
+#white-area.border-blue-500, #black-area.border-blue-500 {
+  background: var(--table-raised) !important;
+}
+#white-label, #black-label { color: var(--muted) !important; font-weight: 500; }
+.hand-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(2, 40px);
+  gap: 5px !important;
+}
+.hand-grid [data-card-id] {
+  width: 100% !important;
+  height: 40px !important;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 7px;
+  font-size: 23px !important;
+}
+[data-card-id] { box-shadow: 0 2px 0 #00000028; }
+[data-card-id].bg-slate-800 { background: #354d62; border-color: #536e83; }
+[data-card-id].bg-white { background: var(--paper); border-color: #d6e2ec; }
+#center-area {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+#ui-center-label { color: var(--muted) !important; font-weight: 500; }
+#center-cards [data-card-id] { height: 44px !important; width: 38px !important; }
+#play-area {
+  background: #edf4fa !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  padding: 10px !important;
+  box-shadow: 0 4px 14px #00000018 !important;
+  display: flex;
+  flex-direction: column;
+}
+.play-stage-grid {
+  flex: 1;
+  grid-template-columns: minmax(0, 2fr) 24px minmax(0, 1fr);
+}
+.play-stage-slot, .play-stage-slot.is-active {
+  background: transparent;
+  border-color: transparent;
+}
+.operand-group, .operand-group.is-revealed {
+  padding: 2px;
+  background: transparent;
+  box-shadow: none;
+}
+.play-stage-operator { background: transparent; box-shadow: none; width: 24px; }
+.play-stage-cards { flex-wrap: nowrap; }
+.play-stage-cards [data-card-id] { width: 30px; height: 42px; font-size: 21px; flex-shrink: 1; }
+.play-stage-cards.is-expression [data-card-id] { width: 30px; height: 42px; font-size: 21px; }
+/* The cards already spell the equation; retain its live announcement only. */
+#move-preview {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.operation-controls { flex-shrink: 0; margin-top: 5px; padding-top: 7px; border-color: #cbd9e5; }
+.operation-controls .op-btn { width: 44px !important; height: 34px !important; box-shadow: none; }
+#main-btn { box-shadow: none !important; min-height: 36px; }
+#giveup-btn { box-shadow: none !important; max-width: 125px; }
+button:focus-visible, select:focus-visible { outline: 2px solid #70baff; outline-offset: 3px; }
+
+@media (max-height: 700px) and (orientation: portrait) {
+  .app-header { padding-top: 3px; padding-bottom: 3px; }
+  .game-board {
+    gap: 5px;
+    padding: 5px 10px;
+    grid-template-rows: 36px minmax(105px, 1fr) 62px minmax(143px, 1.3fr) minmax(105px, 1fr);
+  }
+  .hand-grid { grid-template-rows: repeat(2, 37px); gap: 4px !important; }
+  .hand-grid [data-card-id] { height: 37px !important; }
+  #play-area { padding: 7px 9px !important; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .game-board {
+    max-width: 720px !important;
+    grid-template-rows: 22px 46px 39px minmax(120px, 1fr) 46px;
+    gap: 3px;
+    padding: 3px 10px;
+  }
+  .hand-grid { grid-template-columns: repeat(9, minmax(0,1fr)); grid-template-rows: 32px; height: 32px; }
+  .hand-grid [data-card-id] { width: 100% !important; height: 32px !important; font-size: 19px !important; }
+  #center-cards [data-card-id] { width: 28px !important; height: 34px !important; }
+  #play-area { padding: 4px 10px !important; }
+  .play-stage-cards [data-card-id], .play-stage-cards.is-expression [data-card-id] { height: 34px; }
+  .operation-controls { padding-top: 3px; margin-top: 2px; }
+  .operation-controls .op-btn { height: 28px !important; }
+  #main-btn { min-height: 30px; }
+}
