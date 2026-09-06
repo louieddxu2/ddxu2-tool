@@ -31,7 +31,7 @@ test('animates a card exchange and resolves it into the correct zones', async ({
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.3.3', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.4.0', JSON.stringify({
       mode: 'AI_EASY',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',
@@ -125,7 +125,7 @@ test('rotates the entire tabletop toward white after the turn changes', async ({
   const orientation = await page.evaluate(() => {
     const white = document.querySelector('#white-area').getBoundingClientRect();
     const black = document.querySelector('#black-area').getBoundingClientRect();
-    const surfaces = ['.app-header', '#game-meta', '#white-area', '#center-area', '#play-area', '#black-area'];
+    const surfaces = ['#table-area', '#white-area'];
     return {
       transforms: surfaces.map(selector => getComputedStyle(document.querySelector(selector)).transform),
       whiteRemainsNearestWhitePlayer: white.top < black.top,

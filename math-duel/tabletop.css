@@ -1,74 +1,152 @@
-/* Light tabletop, with stable zones and portrait-shaped cards. */
-.game-board {
-  grid-template-rows: 40px minmax(90px, 1fr) 78px minmax(170px, 1.5fr) minmax(90px, 1fr);
+/* A half-turn maps one player's complete view onto the other's. */
+html, body { height: 100%; overflow: hidden; }
+body { min-height: 0 !important; }
+#game-board {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  max-width: 720px !important;
+  padding: max(8px, env(safe-area-inset-top), env(safe-area-inset-bottom)) 10px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  grid-template-rows: minmax(76px,1fr) minmax(330px,1.8fr) minmax(76px,1fr);
   gap: 8px;
+  overflow: hidden;
 }
-.app-header { box-shadow: none !important; }
+#white-area { grid-area: 1 / 1 !important; }
+#black-area { grid-area: 3 / 1 !important; }
 #white-area, #black-area {
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 8px !important;
+  background: #fff;
   box-shadow: none !important;
-  transition: transform 520ms cubic-bezier(.65,0,.35,1), border-color 180ms, background-color 180ms;
+  transition: background-color 180ms, border-color 180ms;
 }
-#white-label, #black-label { font-size: 11px; color: #475569; }
-.hand-grid { grid-template-columns: repeat(9,minmax(0,1fr)); gap: 4px !important; }
+#white-area > div:first-child, #black-area > div:first-child {
+  position: static;
+  height: 16px;
+  margin: 0 0 5px !important;
+}
+#white-label, #black-label { font-size: 11px; line-height: 16px; color: #475569; }
+.hand-grid {
+  display: grid;
+  height: auto;
+  grid-template-columns: repeat(9,minmax(0,1fr));
+  grid-template-rows: 48px;
+  gap: 4px !important;
+}
 .hand-grid [data-card-id] {
-  height: 49px !important;
+  width: 100% !important;
+  height: 48px !important;
+  max-width: 38px;
   max-height: none;
+  justify-self: center;
   aspect-ratio: auto;
   font-size: 22px !important;
-  border-radius: 6px;
+  opacity: 1;
 }
-#white-hand [data-card-id], #black-hand [data-card-id] { opacity: 1; }
-#center-area {
-  background: #e9eef5 !important;
-  border-color: transparent !important;
+/* Both seats face their owner at all times, including while waiting. */
+body.is-pvp #white-area { transform: rotate(180deg) !important; }
+body.is-pvp #black-area { transform: none !important; }
+#table-area {
+  grid-area: 2 / 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 67px 35px 62px minmax(145px,1fr);
+  gap: 4px;
+  border: 1px solid #dbe3ee;
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+  transition: transform 520ms cubic-bezier(.65,0,.35,1);
+}
+body.is-pvp.is-white-turn #table-area { transform: rotate(180deg); }
+/* No nested rotations: headings, cards and controls inherit the table view. */
+body.is-pvp.is-white-turn .app-header,
+body.is-pvp.is-white-turn #game-meta,
+body.is-pvp.is-white-turn #center-area,
+body.is-pvp.is-white-turn #play-area { transform: none; }
+.app-header {
+  height: auto;
+  min-width: 0;
+  padding: 3px 10px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px;
   box-shadow: none !important;
 }
-#center-cards [data-card-id] { width: 36px !important; height: 48px !important; }
+.app-header > div { width: 100% !important; max-width: none !important; }
+.app-header > div:first-child { height: 30px; }
+.app-header button { padding: 4px; height: 30px; }
+#ui-title { font-size: 14px; }
+#mode-select, #rule-mode-select { font-size: 11px; padding: 2px 7px; max-width: none; }
+#game-meta {
+  grid-area: auto;
+  grid-template-columns: minmax(0,1fr) auto;
+  grid-template-rows: 21px 14px;
+  gap: 0 4px;
+  padding: 0 8px;
+}
+#status-banner { grid-column: 1 / -1; height: 21px; line-height: 17px; padding: 0 !important; border: 0; background: transparent; box-shadow: none; }
+#status-banner .text-xl { font-size: 15px; }
+#center-area {
+  grid-area: auto;
+  height: auto;
+  padding: 0 8px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+#ui-center-label { height: auto; margin: 0 !important; font-size: 11px; }
+#center-cards { min-height: 0; height: auto; width: auto; }
+#center-cards [data-card-id] { width: 34px !important; height: 46px !important; font-size: 21px !important; }
 #play-area {
+  grid-area: auto;
+  height: auto;
   display: flex;
   flex-direction: column;
-  padding: 9px !important;
-  background: #fff !important;
-  border-color: #dbe3ee !important;
+  padding: 4px 8px 8px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
+  background: transparent !important;
 }
-.play-stage-grid {
-  flex: 1;
-  grid-template-columns: minmax(0,2fr) 24px minmax(0,1fr);
-}
-.play-stage-slot, .play-stage-slot.is-active { background: transparent; border-color: transparent; }
-.play-stage-cards { flex-wrap: nowrap; }
-.play-stage-cards [data-card-id], .play-stage-cards.is-expression [data-card-id] {
-  width: 30px;
-  height: 44px;
-  font-size: 22px;
-  flex-shrink: 1;
-}
+.play-stage-grid { flex: 1; min-height: 0; grid-template-columns: minmax(0,2fr) 24px minmax(0,1fr); }
+.play-stage-slot, .play-stage-slot.is-active { min-height: 42px; background: transparent; border: 0; }
+.play-stage-cards { flex-wrap: nowrap; min-height: 40px; }
+.play-stage-cards [data-card-id], .play-stage-cards.is-expression [data-card-id] { width: 29px; height: 40px; font-size: 21px; flex-shrink: 1; }
 .operand-group, .operand-group.is-revealed { padding: 2px; background: transparent; box-shadow: none; }
 .play-stage-operator { width: 24px; background: transparent; box-shadow: none; }
-/* Cards and symbols are the visible equation; keep the accessible announcement. */
 #move-preview { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.operation-controls { flex-shrink: 0; margin-top: 5px; padding-top: 7px; }
-.operation-controls .op-btn { width: 44px !important; height: 36px !important; box-shadow: none; }
-#main-btn { min-height: 38px; box-shadow: none !important; }
-#giveup-btn { max-width: 115px; font-size: 11px; }
-button:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
-@media (orientation: portrait) and (max-height: 700px) {
-  .game-board { grid-template-rows: 38px minmax(80px,1fr) 72px minmax(155px,1.4fr) minmax(80px,1fr); gap: 5px; }
-}
+.operation-controls { flex-shrink: 0; padding-top: 4px; margin-top: 3px; grid-template-columns: minmax(0,1fr) auto; }
+.operation-controls .op-btn { height: 32px !important; width: 42px !important; }
+#main-btn { min-height: 34px; box-shadow: none !important; }
+#giveup-btn { max-width: 112px; }
 @media (orientation: landscape) and (max-height: 500px) {
-  .game-board { grid-template-rows: 22px 49px 42px minmax(124px,1fr) 49px; gap: 3px; padding: 3px 8px; }
-  #white-area, #black-area { padding: 3px 7px !important; }
-  .hand-grid { height: 36px; grid-template-rows: 36px; }
-  .hand-grid [data-card-id] { width: 28px !important; height: 36px !important; font-size: 19px !important; justify-self: center; }
-  #center-cards [data-card-id] { width: 26px !important; height: 34px !important; }
-  #play-area { padding: 4px 9px !important; }
-  .play-stage-cards [data-card-id], .play-stage-cards.is-expression [data-card-id] { height: 34px; }
-  .operation-controls { margin-top: 2px; padding-top: 3px; }
-  .operation-controls .op-btn { height: 28px !important; }
-  #main-btn { min-height: 30px; }
+  #game-board { grid-template-rows: 64px minmax(180px,1fr) 64px; gap: 4px; padding: 4px 10px; }
+  #white-area, #black-area { padding: 2px 8px !important; }
+  .hand-grid { grid-template-rows: 36px; }
+  .hand-grid [data-card-id] { height: 36px !important; max-width: 28px; font-size: 19px !important; }
+  #white-area > div:first-child, #black-area > div:first-child { height: 12px; margin-bottom: 2px !important; }
+  #white-label, #black-label { line-height: 12px; font-size: 10px; }
+  #table-area { grid-template-columns: minmax(0,1fr) minmax(0,1fr); grid-template-rows: 34px 30px minmax(105px,1fr); gap: 2px 5px; }
+  .app-header { grid-column: 1 / -1; flex-direction: row !important; align-items: center; }
+  .app-header > div { width: auto !important; }
+  .app-header > div:first-child { flex: 1; }
+  #game-meta { grid-column: 1 / -1; grid-template-rows: 18px 12px; }
+  #center-area { grid-column: 1; grid-row: 3; }
+  #play-area { grid-column: 2; grid-row: 3; padding: 0 6px 3px !important; }
+  .play-stage-slot, .play-stage-cards { min-height: 28px; }
+  .play-stage-cards [data-card-id], .play-stage-cards.is-expression [data-card-id] { height: 30px; width: 25px; }
+  .operation-controls .op-btn { height: 25px !important; }
+  #main-btn, #giveup-btn { min-height: 28px; }
 }
+@media (prefers-reduced-motion: reduce) { #table-area { transition: none; } }

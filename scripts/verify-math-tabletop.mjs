@@ -21,6 +21,12 @@ try {
     let result = await measure();
     assert.deepEqual(result.clipped, []);
     assert.ok(result.width <= width && result.height <= height, JSON.stringify(result));
+    const blackView = await page.evaluate(() => {
+      const rect = id => { const r = document.getElementById(id).getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,h:r.height}; };
+      return Object.fromEntries(['white-area','black-area','table-area','main-btn'].map(id=>[id,rect(id)]));
+    });
+    assert.ok(Math.abs(blackView['white-area'].y + blackView['black-area'].y + blackView['black-area'].h - height) < 2, 'seats must mirror about viewport center');
+    assert.ok(Math.abs(blackView['table-area'].y * 2 + blackView['table-area'].h - height) < 2, 'shared table must be centered');
     await page.locator('#black-hand [data-card-id="b1"]').click();
     await page.locator('#black-hand [data-card-id="b5"]').click();
     await page.locator('#center-cards [data-card-id="w9"]').click();
@@ -40,7 +46,11 @@ try {
     await page.locator('#center-cards [data-card-id="b5"]').click();
     await page.locator('[data-op="+"]').click();
     await page.waitForFunction(() => !document.querySelector('#main-btn').disabled);
-    console.log(`${width}x${height}: fits, cards unclipped, equation selectable`);
+    await page.waitForTimeout(600);
+    const whiteButton = await page.locator('#main-btn').boundingBox();
+    await page.screenshot({ path: `test-results/math-tabletop-white-${width}.png` });
+    assert.ok(Math.abs(whiteButton.y - (height - blackView['main-btn'].y - blackView['main-btn'].h)) < 2, JSON.stringify({whiteButton,blackButton:blackView['main-btn'],height}));
+    console.log(`${width}x${height}: symmetric seats and controls, fits, cards unclipped, both players can select`);
     await page.close();
   }
 } finally { await browser.close(); }
