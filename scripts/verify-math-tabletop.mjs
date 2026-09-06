@@ -30,6 +30,16 @@ try {
     result = await measure();
     assert.deepEqual(result.clipped, []);
     await page.screenshot({ path: `test-results/math-tabletop-${width}.png` });
+    await page.locator('#main-btn').click();
+    await page.waitForFunction(() => document.body.classList.contains('is-white-turn') && !document.body.classList.contains('is-turning'));
+    result = await measure();
+    assert.deepEqual(result.clipped, []);
+    assert.ok(result.width <= width && result.height <= height);
+    await page.locator('#white-hand [data-card-id="w2"]').click();
+    await page.locator('#white-hand [data-card-id="w3"]').click();
+    await page.locator('#center-cards [data-card-id="b5"]').click();
+    await page.locator('[data-op="+"]').click();
+    await page.waitForFunction(() => !document.querySelector('#main-btn').disabled);
     console.log(`${width}x${height}: fits, cards unclipped, equation selectable`);
     await page.close();
   }
