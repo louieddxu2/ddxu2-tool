@@ -45,9 +45,9 @@ body.is-pvp #white-area { transform: rotate(180deg); }
   transform-origin: center; transition: transform 520ms cubic-bezier(.65, 0, .35, 1);
 }
 body.is-pvp.is-white-turn #table-area { transform: rotate(180deg); }
-.table-toolbar { display: grid; grid-template-columns: 34px minmax(0, 1fr) 34px; align-items: center; gap: 5px; padding: 0 7px; border-bottom: 1px solid var(--line); background: #fcfbf7; }
-.table-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; color: #617086; background: transparent; border: 0; border-radius: 8px; text-decoration: none; }
-.table-icon:hover { background: var(--surface-deep); }
+.utility-rail { position: fixed !important; z-index: 1200; right: max(12px, env(safe-area-inset-right)); top: 50%; transform: translate3d(0, -50%, 0) !important; display: flex; flex-direction: column; gap: 10px; padding: 0; pointer-events: none; }
+.table-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; color: #53647b; background: #fffefa; border: 1px solid #cfd7e1; border-radius: 50%; text-decoration: none; box-shadow: 0 3px 12px #26314224; pointer-events: auto; }
+.table-icon:hover, .table-icon:focus-visible { background: var(--surface-soft); }
 #game-meta { min-width: 0; display: grid; grid-template-rows: 18px 12px; text-align: center; }
 #status-banner { min-width: 0; overflow: hidden; padding: 0 !important; color: var(--blue) !important; background: transparent !important; border: 0 !important; box-shadow: none !important; font-size: 11px !important; line-height: 18px !important; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
 #status-banner .text-xl { margin: 0 2px; font-size: 12px; }
