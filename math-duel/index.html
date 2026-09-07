@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.1.0">
+  <link rel="stylesheet" href="tabletop.css?v=2.1.1">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -288,7 +288,7 @@
   </div>
 
    <script src="rule-modes.js"></script>
-  <script src="../shared/card-motion.js?v=1"></script>
+  <script src="../shared/card-motion.js?v=2"></script>
   <script src="../shared/equation-witness.js?v=1"></script>
   <script>
     // ==========================================
@@ -456,7 +456,32 @@
        return new Promise(resolve => setTimeout(resolve, ms));
      }
 
-     function animateSelectionChange(id, location) {
+      function findCardIn(rootSelector, id) {
+        const root = document.querySelector(rootSelector);
+        if (!root) return null;
+        return [...root.querySelectorAll('[data-card-id]')].find(card => card.dataset.cardId === String(id)) || null;
+      }
+
+      function findSelectionCard(id, location) {
+        const side = game.turn.toLowerCase();
+        const roots = location === 'hand'
+          ? [`#${side}-equation [data-role="stage-hand-cards"]`, `#${side}-hand`]
+          : [`#${side}-equation [data-role="stage-center-cards"]`, '#center-cards'];
+        return roots.map(root => findCardIn(root, id)).find(Boolean) || null;
+      }
+
+      function findActiveGameCard(id) {
+        const side = game.turn.toLowerCase();
+        const roots = [
+          `#${side}-equation [data-role="stage-hand-cards"]`,
+          `#${side}-equation [data-role="stage-center-cards"]`,
+          `#${side}-hand`,
+          '#center-cards'
+        ];
+        return roots.map(root => findCardIn(root, id)).find(Boolean) || null;
+      }
+
+      function animateSelectionChange(id, location) {
        const ids = location === 'hand' ? game.selections.hand : game.selections.center;
        const max = location === 'hand' ? 4 : 2;
        const idx = ids.indexOf(id);
@@ -464,8 +489,9 @@
        if (adding && ids.length >= max) return;
 
        let committed = false;
-       CardMotion.playExchange({
+        CardMotion.playExchange({
            moves: [{ id }],
+           find: cardId => findSelectionCard(cardId, location),
            commit: () => {
              if (adding) ids.push(id);
              else ids.splice(idx, 1);
@@ -566,10 +592,11 @@
         };
        render();
        let committed = false;
-       try {
-         await CardMotion.playRemoval({
-           ids: discardedCards.map(c => c.id),
-           commit: () => {
+        try {
+          await CardMotion.playRemoval({
+            ids: discardedCards.map(c => c.id),
+            find: cardId => findCardIn('#center-cards', cardId),
+            commit: () => {
              game.center = keepCards;
              game.discardSelections = [];
              committed = true;
@@ -606,13 +633,14 @@
         };
         render();
        let committed = false;
-       try {
-         await CardMotion.playExchange({
+         try {
+           await CardMotion.playExchange({
            moves: [
              ...hCards.map(c => ({ id: c.id, destination: 'center' })),
-             ...cCards.map(c => ({ id: c.id, destination: 'hand' }))
-           ],
-           commit: () => {
+              ...cCards.map(c => ({ id: c.id, destination: 'hand' }))
+            ],
+            find: cardId => findActiveGameCard(cardId),
+            commit: () => {
              applyMoveState(hCards, cCards, op, eqResult);
              committed = true;
              render();
@@ -794,6 +822,7 @@
       try {
         await CardMotion.playExchange({
           moves,
+          find: cardId => findActiveGameCard(cardId),
           commit: commitPlan,
           options: { duration: 560, stagger: 70 }
         });

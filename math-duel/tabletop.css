@@ -72,6 +72,8 @@ body.is-pvp #white-area { transform: rotate(180deg); }
 .equation-content { width: min(100%, 460px); min-height: 0; position: relative; display: flex; flex-direction: column; align-items: stretch; justify-content: center; transform-origin: center; transition: transform 520ms cubic-bezier(.65, 0, .35, 1); }
 body.is-pvp.is-white-turn .equation-zone .equation-content { transform: rotate(180deg); }
 #center-area { min-height: 54px; display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 8px; margin: 0; padding: 5px 12px !important; background: var(--surface-soft) !important; border: 0 !important; border-bottom: 1px solid var(--line) !important; border-radius: 0 !important; box-shadow: none !important; }
+#center-area > * { transform-origin: center; transition: transform 520ms cubic-bezier(.65, 0, .35, 1); }
+body.is-pvp.is-white-turn #center-area > * { transform: rotate(180deg); }
 #ui-center-label { display: block; margin: 0 !important; color: var(--muted); font-size: 10px; line-height: 13px; font-weight: 700; letter-spacing: .1em; }
 #center-cards { min-height: 44px !important; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 5px !important; }
 #center-cards [data-card-id] { width: 31px; height: 45px; font-size: 23px; border-width: 1px; opacity: 1; }

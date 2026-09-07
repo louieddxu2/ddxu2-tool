@@ -12,4 +12,6 @@ await CardMotion.playExchange({
 });
 ```
 
+If the same card ID is intentionally shown in a non-interactive history view, pass a `find(id, document)` callback so source and destination measurements stay scoped to the live card.
+
 Use `CardMotion.playRemoval({ ids, commit, getExitPoint })` for cards that leave the board. The module automatically respects `prefers-reduced-motion` and animates unaffected cards with FLIP when a hand or zone reflows.

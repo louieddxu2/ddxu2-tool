@@ -50,12 +50,16 @@
     };
   }
 
-  function rectsByCard(doc) {
+  function rectsByCard(doc, find = findCard) {
+    const ids = new Set();
     const rects = new Map();
     doc.querySelectorAll('[data-card-id]').forEach((element) => {
       const id = getCardId(element);
-      const rect = getRect(element);
-      if (id && rect) rects.set(id, rect);
+      if (id) ids.add(id);
+    });
+    ids.forEach((id) => {
+      const rect = getRect(find(id, doc));
+      if (rect) rects.set(id, rect);
     });
     return rects;
   }
@@ -178,12 +182,12 @@
     });
   }
 
-  function applyLayoutFlip(beforeRects, afterRects, movedIds, doc, options) {
+  function applyLayoutFlip(beforeRects, afterRects, movedIds, doc, options, find) {
     const animated = [];
     afterRects.forEach((after, id) => {
       if (movedIds.has(id)) return;
       const before = beforeRects.get(id);
-      const element = findCard(id, doc);
+      const element = find(id, doc);
       if (!before || !element) return;
 
       const dx = before.left - after.left;
@@ -223,14 +227,14 @@
 
     const options = { ...DEFAULTS, ...rawOptions };
     const normalizedMoves = moves.map((move) => ({ ...move, id: String(move.id) }));
-    const beforeRects = rectsByCard(doc);
+    const beforeRects = rectsByCard(doc, find);
     const sourceClones = new Map();
     const movedIds = new Set(normalizedMoves.map((move) => move.id));
     const reduced = isReducedMotion(doc);
 
     normalizedMoves.forEach((move) => {
       const element = find(move.id, doc);
-      const rect = beforeRects.get(move.id) || getRect(element);
+      const rect = getRect(element) || beforeRects.get(move.id);
       if (element && rect) {
         sourceClones.set(move.id, { element, rect });
       }
@@ -245,7 +249,7 @@
     }
 
     await nextFrame(doc);
-    const afterRects = rectsByCard(doc);
+    const afterRects = rectsByCard(doc, find);
     const layer = ensureLayer(doc, options.layerId);
     const ghosts = [];
 
@@ -266,7 +270,7 @@
       if (currentTarget) currentTarget.style.visibility = 'hidden';
     });
 
-    const layoutPromise = applyLayoutFlip(beforeRects, afterRects, movedIds, doc, options);
+    const layoutPromise = applyLayoutFlip(beforeRects, afterRects, movedIds, doc, options, find);
     const motionPromise = Promise.all(ghosts.map(({ ghost, source, target, move, destination }, index) => {
       return move && move.exit
         ? animateExit(doc, ghost, source.rect, destination, options, index)

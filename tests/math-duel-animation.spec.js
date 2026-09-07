@@ -30,6 +30,73 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await expect(page.locator('#white-area')).toHaveClass(/border-blue-500/);
 });
 
+test('anchors deselection animation to the live card when history repeats its id', async ({ page }) => {
+  await page.addInitScript(() => {
+    const card = (id, val, color) => ({ id, val, color });
+    const w1 = card('w1', 1, 'w');
+    const w2 = card('w2', 2, 'w');
+    const w3 = card('w3', 3, 'w');
+    const b3 = card('b3', 3, 'b');
+    localStorage.setItem('mathDuelLang', 'zh');
+    localStorage.setItem('mathDuelState_v1.6.0', JSON.stringify({
+      mode: 'PVP',
+      ruleMode: 'CLASSIC',
+      turn: 'BLACK',
+      aiSide: null,
+      aiColor: null,
+      playerColor: null,
+      state: 'PLAYING',
+      winner: null,
+      blackHand: Array.from({ length: 9 }, (_, i) => card(`b${i + 1}`, i + 1, 'b')),
+      whiteHand: [w3, ...Array.from({ length: 5 }, (_, i) => card(`w${i + 4}`, i + 4, 'w')), b3],
+      center: [w1, w2],
+      selections: { hand: [], center: [], operator: null },
+      discardSelections: [],
+      lastMove: {
+        handCards: [w1, w2],
+        centerCards: [b3],
+        op: '+',
+        turn: 'WHITE',
+        witness: {
+          success: true,
+          op: '+',
+          operator: '+',
+          left: { cards: [w1], cardIds: ['w1'], digits: [1], value: 1, display: '1' },
+          right: { cards: [w2], cardIds: ['w2'], digits: [2], value: 2, display: '2' },
+          target: { cards: [b3], cardIds: ['b3'], digits: [3], value: 3, display: '3' },
+          eq: '1 + 2 = 3'
+        },
+        eq: '1 + 2 = 3'
+      },
+      aiMoveInfo: null,
+      movePreview: null,
+      uiBusy: false,
+      scores: { BLACK: 0, WHITE: 0 },
+      winScore: 2
+    }));
+  });
+  await page.goto('/math-duel/index.html');
+
+  await expect(page.locator('#white-equation [data-role="stage-hand-cards"] [data-card-id="w1"]')).toBeVisible();
+  await page.locator('#center-cards [data-card-id="w1"]').click();
+  await expect(page.locator('#black-equation [data-role="stage-center-cards"] [data-card-id="w1"]')).toBeVisible();
+  await expect(page.locator('#card-motion-layer')).toHaveCount(1, { timeout: 1000 });
+  await expect(page.locator('#card-motion-layer [data-card-id="w1"]')).toHaveCount(0, { timeout: 2000 });
+
+  const liveCardBefore = await page.locator('#black-equation [data-role="stage-center-cards"] [data-card-id="w1"]').boundingBox();
+  const historyCardBefore = await page.locator('#white-equation [data-role="stage-hand-cards"] [data-card-id="w1"]').boundingBox();
+  await page.locator('#black-equation [data-role="stage-center-cards"] [data-card-id="w1"]').click();
+  await expect(page.locator('#card-motion-layer [data-card-id="w1"]')).toBeVisible({ timeout: 1000 });
+
+  const ghostOrigin = await page.locator('#card-motion-layer [data-card-id="w1"]').evaluate((element) => ({
+    left: Number.parseFloat(element.style.left),
+    top: Number.parseFloat(element.style.top)
+  }));
+  expect(ghostOrigin.left).toBeCloseTo(liveCardBefore.x, 0);
+  expect(ghostOrigin.top).toBeCloseTo(liveCardBefore.y, 0);
+  expect(Math.abs(ghostOrigin.left - historyCardBefore.x)).toBeGreaterThan(5);
+});
+
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
@@ -164,6 +231,7 @@ test('rotates only equation contents toward white after the turn changes', async
       equationTransforms,
       tableTransform: getComputedStyle(document.querySelector('#table-area')).transform,
       centerTransform: getComputedStyle(document.querySelector('#center-area')).transform,
+      centerContentTransforms: ['#ui-center-label', '#center-cards'].map(selector => getComputedStyle(document.querySelector(selector)).transform),
       whiteActionTransform: getComputedStyle(document.querySelector('#white-actions .action-content')).transform,
       blackActionTransform: getComputedStyle(document.querySelector('#black-actions .action-content')).transform,
       centralZoneCount: document.querySelectorAll('#table-surface > *').length,
@@ -177,6 +245,7 @@ test('rotates only equation contents toward white after the turn changes', async
   expect(orientation.equationTransforms.every(transform => transform !== 'none')).toBe(true);
   expect(orientation.tableTransform).toBe('none');
   expect(orientation.centerTransform).toBe('none');
+  expect(orientation.centerContentTransforms.every(transform => transform !== 'none')).toBe(true);
   expect(orientation.whiteActionTransform).not.toBe('none');
   expect(orientation.blackActionTransform).toBe('none');
   expect(orientation.centralZoneCount).toBe(5);

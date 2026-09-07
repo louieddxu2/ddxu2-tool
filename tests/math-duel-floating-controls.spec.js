@@ -5,7 +5,7 @@ test('keeps navigation and settings as usable viewport-floating controls', async
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
 
-  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.1.0');
+  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.1.1');
   const rail = page.locator('.utility-rail');
   const controls = rail.locator('.table-icon');
   await expect(controls).toHaveCount(2);
