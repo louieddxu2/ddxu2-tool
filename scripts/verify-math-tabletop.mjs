@@ -8,7 +8,7 @@ try {
     await page.goto('http://127.0.0.1:3000/math-duel/');
     await page.waitForSelector('#black-hand [data-card-id]');
     const measure = () => page.evaluate(() => {
-      const zones = ['white-area','black-area','center-area'];
+      const zones = ['white-area','black-area','center-area','play-area'];
       const clipped = zones.flatMap(id => {
         const area = document.getElementById(id).getBoundingClientRect();
         return [...document.querySelectorAll(`#${id} [data-card-id]`)].filter(card => {
@@ -16,11 +16,11 @@ try {
           return r.top < area.top-1 || r.bottom > area.bottom+1 || r.left < area.left-1 || r.right > area.right+1;
         }).map(card => card.dataset.cardId);
       });
-      const operation = document.getElementById(document.body.classList.contains('is-white-turn') ? 'white-area' : 'black-area').getBoundingClientRect();
+      const table = document.getElementById('table-area').getBoundingClientRect();
       for (const button of document.querySelectorAll('#action-panel button')) {
         if (getComputedStyle(button).display === 'none') continue;
         const r = button.getBoundingClientRect();
-        if (r.top < operation.top-1 || r.bottom > operation.bottom+1 || r.left < operation.left-1 || r.right > operation.right+1) clipped.push(button.id || button.dataset.op);
+        if (r.top < table.top-1 || r.bottom > table.bottom+1 || r.left < table.left-1 || r.right > table.right+1) clipped.push(button.id || button.dataset.op);
       }
       return { clipped, width: document.body.scrollWidth, height: document.body.scrollHeight };
     });
@@ -32,7 +32,7 @@ try {
       return Object.fromEntries(['white-area','black-area','table-area','main-btn'].map(id=>[id,rect(id)]));
     });
     assert.ok(Math.abs(blackView['white-area'].y + blackView['black-area'].y + blackView['black-area'].h - height) < 2, 'seats must mirror about viewport center');
-    assert.ok(Math.abs(blackView['table-area'].y * 2 + blackView['table-area'].h - height) < 2, 'center field must be centered');
+    assert.ok(Math.abs(blackView['table-area'].y * 2 + blackView['table-area'].h - height) < 2, 'shared table must be centered');
     await page.locator('#black-hand [data-card-id="b1"]').click();
     await page.locator('#black-hand [data-card-id="b5"]').click();
     await page.locator('#center-cards [data-card-id="w9"]').click();
@@ -54,9 +54,8 @@ try {
     await page.waitForFunction(() => !document.querySelector('#main-btn').disabled);
     await page.waitForTimeout(600);
     const whiteButton = await page.locator('#main-btn').boundingBox();
-    const whiteArea = await page.locator('#white-area').boundingBox();
     await page.screenshot({ path: `test-results/math-tabletop-white-${width}.png` });
-    assert.ok(whiteButton.y >= whiteArea.y && whiteButton.y + whiteButton.height <= whiteArea.y + whiteArea.height, JSON.stringify({whiteButton,whiteArea}));
+    assert.ok(Math.abs(whiteButton.y - (height - blackView['main-btn'].y - blackView['main-btn'].h)) < 2, JSON.stringify({whiteButton,blackButton:blackView['main-btn'],height}));
     console.log(`${width}x${height}: symmetric seats and controls, fits, cards unclipped, both players can select`);
     await page.close();
   }

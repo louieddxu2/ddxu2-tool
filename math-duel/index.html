@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=1.7.0">
+  <link rel="stylesheet" href="tabletop.css?v=1.6.0">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -183,14 +183,10 @@
     </div>
 
     <section id="white-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors">
-      <div id="white-zone-content" class="player-zone-content">
-       <div class="flex justify-between items-center mb-3">
+      <div class="flex justify-between items-center mb-3">
         <h2 class="text-sm font-bold text-slate-500" id="white-label"></h2>
-       </div>
-       <div id="white-operation-history" class="operation-history" aria-live="polite"></div>
-       <div id="white-operation-host" class="operation-host"></div>
-       <div id="white-hand" class="hand-grid"></div>
       </div>
+      <div id="white-hand" class="hand-grid"></div>
     </section>
 
     <section id="table-area">
@@ -233,14 +229,10 @@
     </section>
 
     <section id="black-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4">
-      <div id="black-zone-content" class="player-zone-content">
-       <div class="flex justify-between items-center mb-3">
+      <div class="flex justify-between items-center mb-3">
         <h2 class="text-sm font-bold text-slate-500" id="black-label"></h2>
-       </div>
-       <div id="black-operation-history" class="operation-history" aria-live="polite"></div>
-       <div id="black-operation-host" class="operation-host"></div>
-       <div id="black-hand" class="hand-grid"></div>
       </div>
+      <div id="black-hand" class="hand-grid"></div>
     </section>
   </main>
 
@@ -277,7 +269,7 @@
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-    const APP_VERSION = '1.7.0';
+    const APP_VERSION = '1.6.0';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -920,48 +912,6 @@
        area.innerHTML = `<div class="equation-line" data-equation="${escapeHtml(formula)}" aria-label="${escapeHtml(formula)}">${escapeHtml(formula)}</div>`;
      }
 
-     function renderHistoryCard(card, displayValue = card.val) {
-       const isBlack = card.color === 'b';
-       return `<span class="history-card ${isBlack ? 'is-black' : 'is-white'}"><span>${escapeHtml(displayValue)}</span></span>`;
-     }
-
-     function renderHistoryOperand(operand, fallbackCards = []) {
-       if (!operand?.cards?.length && !fallbackCards.length) return '';
-       const cards = operand?.cards || fallbackCards;
-       const digits = operand?.digits || cards.map(card => card.val);
-       return `<span class="history-operand">${cards.map((card, index) => renderHistoryCard(card, digits[index])).join('')}</span>`;
-     }
-
-     function renderPlayerHistory() {
-       const lastMove = game.lastMove;
-       ['WHITE', 'BLACK'].forEach(side => {
-         const area = document.getElementById(`${side.toLowerCase()}-operation-history`);
-         if (!area) return;
-         const isVisible = lastMove && lastMove.turn === side && game.state !== 'ANIMATING' && game.state !== 'DISCARDING' && (game.turn !== side || game.state === 'GAMEOVER');
-         if (!isVisible) {
-           area.innerHTML = '';
-           area.classList.remove('has-history');
-           return;
-         }
-         const witness = lastMove.witness;
-         const left = witness?.left || { cards: lastMove.cardsA || [] };
-         const right = witness?.right || { cards: lastMove.cardsB || [] };
-         const target = witness?.target || { cards: lastMove.centerCards || [] };
-         const op = witness?.operator || (lastMove.op === '*' ? '×' : (lastMove.op === '/' ? '÷' : lastMove.op || '?'));
-         const formula = witness?.eq || lastMove.eq || '';
-         area.innerHTML = `<div class="history-record"><span class="history-label">${LANG === 'zh' ? '上一動' : 'LAST MOVE'}</span><div class="history-equation" data-equation="${escapeHtml(formula)}">${renderHistoryOperand(left)}<span class="history-operator">${escapeHtml(op)}</span>${renderHistoryOperand(right)}<span class="history-equals">=</span>${renderHistoryOperand(target)}</div></div>`;
-         area.classList.add('has-history');
-       });
-     }
-
-     function mountPlayAreaForTurn() {
-       const playArea = document.getElementById('play-area');
-       const host = document.getElementById(`${game.turn.toLowerCase()}-operation-host`);
-       if (!playArea || !host) return;
-       if (playArea.parentElement !== host) host.append(playArea);
-       document.body.dataset.activeSide = game.turn;
-     }
-
      function canSendCurrentSelection() {
        const { equation } = getCurrentSelection();
        return game.state === 'PLAYING' && !game.uiBusy && !isAITurn() && Boolean(equation?.success);
@@ -997,7 +947,6 @@
     function render() {
       syncViewOrientation();
       document.body.dataset.gameState = game.state;
-      mountPlayAreaForTurn();
       // 1. 靜態 UI 更新 (僅在必要時)
       const titleStr = t('title');
       if (lastRenderState.title !== titleStr || lastRenderState.lang !== LANG) {
@@ -1035,7 +984,6 @@
         lastRenderState.center = centerHTML;
       }
       renderStage();
-      renderPlayerHistory();
 
       // 3. 標籤與 Banner 更新 (僅在文字改變時)
       const whiteLabel = game.mode.startsWith('AI') ? (game.aiSide === 'WHITE' ? t('white_hand_ai') : t('white_hand')) : t('white_hand');
@@ -1221,12 +1169,14 @@
       else panel.close();
     }
 
-    // Utility controls stay with the phone owner; only the three tabletop content zones rotate.
-    const utilityRail = document.createElement('nav');
-    utilityRail.className = 'utility-rail';
-    utilityRail.innerHTML = '<a href="/" class="table-icon" aria-label="返回目錄" title="返回目錄"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-6h6v6"/></svg></a><button class="table-icon settings-toggle" onclick="toggleSettings(true)" aria-label="設定" title="設定"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg></button>';
-    document.body.append(utilityRail);
-    document.getElementById('center-area').prepend(document.getElementById('game-meta'));
+    // The central equation rail rotates as a unit; player seats stay at the edges.
+    const tabletop = document.getElementById('table-area');
+    const toolbar = document.createElement('div');
+    toolbar.className = 'table-toolbar';
+    toolbar.innerHTML = '<a href="/" class="table-icon" aria-label="返回目錄" title="返回目錄"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-6h6v6"/></svg></a><button class="table-icon settings-toggle" onclick="toggleSettings(true)" aria-label="設定" title="設定"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg></button>';
+    toolbar.insertBefore(document.getElementById('game-meta'), toolbar.lastChild);
+    tabletop.prepend(toolbar);
+    document.getElementById('play-area').prepend(document.getElementById('center-area'));
     const settings = document.createElement('dialog');
     settings.id = 'table-settings';
     settings.innerHTML = '<button class="settings-close" onclick="toggleSettings(false)" aria-label="關閉設定">×</button>';
