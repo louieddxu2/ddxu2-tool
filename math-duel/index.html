@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.0.0">
+  <link rel="stylesheet" href="tabletop.css?v=2.1.0">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -190,41 +190,67 @@
     </section>
 
     <section id="table-area">
-      <div id="center-area" class="bg-slate-200 rounded-2xl p-4 border-2 border-slate-300 shadow-inner">
-        <div id="ui-center-label" class="text-center font-bold text-slate-600 mb-3 text-sm"></div>
-        <div id="center-cards" class="flex justify-center flex-wrap gap-2 min-h-[4.5rem]"></div>
-      </div>
+      <div id="table-surface">
+        <section id="white-actions" class="table-zone action-zone" data-side="WHITE">
+          <div class="action-content">
+            <div class="operator-group" data-role="operator-group" aria-label="operators">
+              <button class="op-btn" data-op="+">+</button><button class="op-btn" data-op="-">−</button>
+              <button class="op-btn" data-op="*">×</button><button class="op-btn" data-op="/">÷</button>
+            </div>
+            <button data-role="main-btn" onclick="handleMainAction()"></button>
+            <button data-role="plan-continue-btn" onclick="continueAiPlan()" class="hidden"></button>
+            <button data-role="giveup-btn" onclick="giveUp()"></button>
+            <button data-role="pass-btn" onclick="passTurn()" class="hidden"></button>
+          </div>
+        </section>
 
-      <div id="play-area" class="play-area bg-white p-3 rounded-2xl border-2 border-slate-200 shadow-sm">
-        <div class="play-stage-grid">
-          <div id="stage-hand-slot" class="play-stage-slot" aria-label="played cards and operands">
-            <div id="stage-hand-cards" class="play-stage-cards"></div>
+        <section id="white-equation" class="table-zone equation-zone" data-side="WHITE">
+          <div class="equation-content" data-role="equation-content">
+            <div class="play-stage-grid">
+              <div class="play-stage-slot" data-role="stage-hand-slot" aria-label="played cards and operands">
+                <div class="play-stage-cards" data-role="stage-hand-cards"></div>
+              </div>
+              <div class="play-stage-operator" data-role="stage-operator-symbol">=</div>
+              <div class="play-stage-slot" data-role="stage-center-slot" aria-label="result cards">
+                <div class="play-stage-cards" data-role="stage-center-cards"></div>
+              </div>
+            </div>
+            <div data-role="move-preview" aria-live="polite" class="hidden operation-result"></div>
           </div>
-          <div id="stage-operator-symbol" class="play-stage-operator">=</div>
-          <div id="stage-center-slot" class="play-stage-slot" aria-label="result cards">
-            <div id="stage-center-cards" class="play-stage-cards"></div>
-          </div>
+        </section>
+
+        <div id="center-area" class="bg-slate-200 rounded-2xl p-4 border-2 border-slate-300 shadow-inner">
+          <div id="ui-center-label" class="text-center font-bold text-slate-600 mb-3 text-sm"></div>
+          <div id="center-cards" class="flex justify-center flex-wrap gap-2 min-h-[4.5rem]"></div>
         </div>
 
-        <div id="move-preview" aria-live="polite"
-          class="hidden operation-result text-center mt-1"></div>
-
-        <div id="action-panel" class="operation-controls flex flex-col gap-2">
-          <div id="operator-group" class="flex justify-center gap-2" aria-label="operators">
-            <button class="op-btn bg-slate-100 border text-xl font-bold" data-op="+">+</button>
-            <button class="op-btn bg-slate-100 border text-xl font-bold" data-op="-">-</button>
-            <button class="op-btn bg-slate-100 border text-xl font-bold" data-op="*">×</button>
-            <button class="op-btn bg-slate-100 border text-xl font-bold" data-op="/">÷</button>
+        <section id="black-equation" class="table-zone equation-zone" data-side="BLACK">
+          <div class="equation-content" data-role="equation-content">
+            <div class="play-stage-grid">
+              <div class="play-stage-slot" data-role="stage-hand-slot" aria-label="played cards and operands">
+                <div class="play-stage-cards" data-role="stage-hand-cards"></div>
+              </div>
+              <div class="play-stage-operator" data-role="stage-operator-symbol">=</div>
+              <div class="play-stage-slot" data-role="stage-center-slot" aria-label="result cards">
+                <div class="play-stage-cards" data-role="stage-center-cards"></div>
+              </div>
+            </div>
+            <div data-role="move-preview" aria-live="polite" class="hidden operation-result"></div>
           </div>
-          <button id="main-btn" onclick="handleMainAction()"
-            class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-md"></button>
-          <button id="plan-continue-btn" onclick="continueAiPlan()"
-            class="hidden w-full py-2 rounded-xl font-bold border border-violet-200 bg-violet-50 text-violet-700 active:scale-[0.98]"></button>
-          <button id="giveup-btn" onclick="giveUp()"
-            class="w-full mt-1 bg-rose-50 text-rose-600 py-2 rounded-xl font-semibold border"></button>
-          <button id="pass-btn" onclick="passTurn()"
-            class="hidden w-full mt-1 bg-amber-50 text-amber-700 py-2 rounded-xl font-semibold border border-amber-200"></button>
-        </div>
+        </section>
+
+        <section id="black-actions" class="table-zone action-zone" data-side="BLACK">
+          <div class="action-content">
+            <div class="operator-group" data-role="operator-group" aria-label="operators">
+              <button class="op-btn" data-op="+">+</button><button class="op-btn" data-op="-">−</button>
+              <button class="op-btn" data-op="*">×</button><button class="op-btn" data-op="/">÷</button>
+            </div>
+            <button data-role="main-btn" onclick="handleMainAction()"></button>
+            <button data-role="plan-continue-btn" onclick="continueAiPlan()" class="hidden"></button>
+            <button data-role="giveup-btn" onclick="giveUp()"></button>
+            <button data-role="pass-btn" onclick="passTurn()" class="hidden"></button>
+          </div>
+        </section>
       </div>
     </section>
 
@@ -470,12 +496,12 @@
        animateSelectionChange(id, location);
      }
 
-    document.querySelectorAll('.op-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-         if (game.state !== 'PLAYING' || game.uiBusy || isAITurn()) return;
-        game.selections.operator = e.target.dataset.op;
-        render();
-      });
+    document.addEventListener('click', (event) => {
+      const btn = event.target.closest('.op-btn');
+      if (!btn || btn.disabled || game.state !== 'PLAYING' || game.uiBusy || isAITurn()) return;
+      if (btn.closest('.action-zone')?.dataset.side !== game.turn) return;
+      game.selections.operator = btn.dataset.op;
+      render();
     });
 
      function escapeHtml(value) {
@@ -852,38 +878,77 @@
        return `<div class="operand-group is-revealed" data-value="${escapeHtml(operand.display || operand.value)}">${cards}</div>`;
      }
 
-     function renderStage() {
-       const { selectedHand, selectedCenter, equation } = getCurrentSelection();
-       const handArea = document.getElementById('stage-hand-cards');
-       const centerArea = document.getElementById('stage-center-cards');
-       const handSlot = document.getElementById('stage-hand-slot');
-       const centerSlot = document.getElementById('stage-center-slot');
-       const playArea = document.getElementById('play-area');
-       if (!handArea || !centerArea || !handSlot || !centerSlot || !playArea) return;
+      function getEquationZone(side) {
+        return document.querySelector(`#${side.toLowerCase()}-equation`);
+      }
 
-       const witness = equation?.success ? equation : game.aiMoveInfo?.witness;
-       const stageHandCards = witness?.success ? witness.left.cards.concat(witness.right.cards) : selectedHand;
-       const stageCenterCards = witness?.success ? witness.target.cards : selectedCenter;
-       const stageHandClass = `play-stage-cards${witness?.success ? ' is-expression' : ''}`;
-       const stageCenterClass = `play-stage-cards${witness?.success ? ' is-expression' : ''}`;
-       const handHTML = witness?.success
-         ? `${renderStageOperand(witness.left, 'stage-hand')}<span class="operand-divider">${escapeHtml(witness.operator)}</span>${renderStageOperand(witness.right, 'stage-hand')}`
-         : stageHandCards.map(c => generateCardHTML(c, 'stage-hand')).join('');
-       const centerHTML = witness?.success
-         ? renderStageOperand(witness.target, 'stage-center')
-         : stageCenterCards.map(c => generateCardHTML(c, 'stage-center')).join('');
-       handArea.className = stageHandClass;
-       centerArea.className = stageCenterClass;
-       handArea.innerHTML = handHTML;
-       centerArea.innerHTML = centerHTML;
-       document.getElementById('stage-operator-symbol').innerText = witness?.success ? '=' : '?';
-       handSlot.classList.toggle('is-active', stageHandCards.length > 0);
-       centerSlot.classList.toggle('is-active', stageCenterCards.length > 0);
-       playArea.classList.toggle('is-working', stageHandCards.length > 0 || stageCenterCards.length > 0 || Boolean(game.movePreview) || Boolean(game.aiMoveInfo));
-     }
+      function clearEquationZone(zone) {
+        if (!zone) return;
+        const handArea = zone.querySelector('[data-role="stage-hand-cards"]');
+        const centerArea = zone.querySelector('[data-role="stage-center-cards"]');
+        const handSlot = zone.querySelector('[data-role="stage-hand-slot"]');
+        const centerSlot = zone.querySelector('[data-role="stage-center-slot"]');
+        const operator = zone.querySelector('[data-role="stage-operator-symbol"]');
+        const preview = zone.querySelector('[data-role="move-preview"]');
+        if (handArea) { handArea.className = 'play-stage-cards'; handArea.innerHTML = ''; }
+        if (centerArea) { centerArea.className = 'play-stage-cards'; centerArea.innerHTML = ''; }
+        if (handSlot) handSlot.classList.remove('is-active');
+        if (centerSlot) centerSlot.classList.remove('is-active');
+        if (operator) operator.innerText = '=';
+        if (preview) { preview.className = 'hidden operation-result'; preview.innerHTML = ''; }
+        zone.classList.remove('is-working');
+      }
+
+      function renderEquationWitness(zone, witness, interactive = true) {
+        if (!zone || !witness?.left?.cards?.length || !witness?.right?.cards?.length || !witness?.target?.cards?.length) return;
+        const handArea = zone.querySelector('[data-role="stage-hand-cards"]');
+        const centerArea = zone.querySelector('[data-role="stage-center-cards"]');
+        const handSlot = zone.querySelector('[data-role="stage-hand-slot"]');
+        const centerSlot = zone.querySelector('[data-role="stage-center-slot"]');
+        const operator = zone.querySelector('[data-role="stage-operator-symbol"]');
+        if (!handArea || !centerArea || !handSlot || !centerSlot || !operator) return;
+        const handLocation = interactive ? 'stage-hand' : 'history-hand';
+        const centerLocation = interactive ? 'stage-center' : 'history-center';
+        handArea.className = 'play-stage-cards is-expression';
+        centerArea.className = 'play-stage-cards is-expression';
+        handArea.innerHTML = `${renderStageOperand(witness.left, handLocation)}<span class="operand-divider">${escapeHtml(witness.operator)}</span>${renderStageOperand(witness.right, handLocation)}`;
+        centerArea.innerHTML = renderStageOperand(witness.target, centerLocation);
+        operator.innerText = '=';
+        handSlot.classList.add('is-active');
+        centerSlot.classList.add('is-active');
+        zone.classList.add('is-working');
+      }
+
+      function renderStage() {
+        const activeZone = getEquationZone(game.turn);
+        document.querySelectorAll('.equation-zone').forEach(clearEquationZone);
+        if (!activeZone) return;
+
+        const { selectedHand, selectedCenter, equation } = getCurrentSelection();
+        const witness = game.movePreview?.witness || (equation?.success ? equation : null) || game.aiMoveInfo?.witness;
+        if (witness?.success) {
+          renderEquationWitness(activeZone, witness, true);
+          return;
+        }
+
+        const handArea = activeZone.querySelector('[data-role="stage-hand-cards"]');
+        const centerArea = activeZone.querySelector('[data-role="stage-center-cards"]');
+        const handSlot = activeZone.querySelector('[data-role="stage-hand-slot"]');
+        const centerSlot = activeZone.querySelector('[data-role="stage-center-slot"]');
+        const operator = activeZone.querySelector('[data-role="stage-operator-symbol"]');
+        if (!handArea || !centerArea || !handSlot || !centerSlot || !operator) return;
+        handArea.className = 'play-stage-cards';
+        centerArea.className = 'play-stage-cards';
+        handArea.innerHTML = selectedHand.map(c => generateCardHTML(c, 'stage-hand')).join('');
+        centerArea.innerHTML = selectedCenter.map(c => generateCardHTML(c, 'stage-center')).join('');
+        operator.innerText = game.selections.operator ? game.selections.operator : '?';
+        handSlot.classList.toggle('is-active', selectedHand.length > 0);
+        centerSlot.classList.toggle('is-active', selectedCenter.length > 0);
+        activeZone.classList.toggle('is-working', selectedHand.length > 0 || selectedCenter.length > 0);
+      }
 
      function renderMovePreview() {
-       const area = document.getElementById('move-preview');
+        const area = getEquationZone(game.turn)?.querySelector('[data-role="move-preview"]');
        if (!area) return;
 
        const preview = game.movePreview;
@@ -998,7 +1063,7 @@
 
       document.querySelectorAll('.op-btn').forEach(btn => {
         const isSel = game.selections.operator === btn.dataset.op;
-        const isDisabled = game.state !== 'PLAYING' || isAITurn() || game.uiBusy;
+        const isDisabled = game.state !== 'PLAYING' || isAITurn() || game.uiBusy || btn.closest('.action-zone')?.dataset.side !== game.turn;
 
         // 基礎樣式
         let classes = `op-btn w-12 h-12 rounded-lg border text-xl font-bold transition-all duration-200 flex items-center justify-center `;
@@ -1021,9 +1086,24 @@
         }
 
         btn.className = classes;
+        btn.disabled = isDisabled;
       });
 
-      const sb = document.getElementById('status-banner'), mb = document.getElementById('main-btn'), pc = document.getElementById('plan-continue-btn'), gb = document.getElementById('giveup-btn'), og = document.getElementById('operator-group');
+      const sb = document.getElementById('status-banner');
+      const actionZones = [...document.querySelectorAll('.action-zone')];
+      const activeActions = document.querySelector(`#${game.turn.toLowerCase()}-actions`);
+      const mb = activeActions?.querySelector('[data-role="main-btn"]');
+      const pc = activeActions?.querySelector('[data-role="plan-continue-btn"]');
+      const gb = activeActions?.querySelector('[data-role="giveup-btn"]');
+      const passBtn = activeActions?.querySelector('[data-role="pass-btn"]');
+      const og = activeActions?.querySelector('[data-role="operator-group"]');
+      if (!mb || !pc || !gb || !passBtn || !og) return;
+      actionZones.forEach(zone => {
+        zone.classList.toggle('is-active', zone === activeActions);
+        zone.querySelectorAll('[data-role="main-btn"], [data-role="plan-continue-btn"], [data-role="giveup-btn"], [data-role="pass-btn"]').forEach(button => {
+          button.disabled = zone !== activeActions;
+        });
+      });
       mb.disabled = false;
       pc.classList.add('hidden');
        if (game.state === 'GAMEOVER') {
@@ -1082,9 +1162,20 @@
           pc.classList.remove('hidden');
         }
       }
+      actionZones.filter(zone => zone !== activeActions).forEach(zone => {
+        ['main-btn', 'plan-continue-btn', 'giveup-btn', 'pass-btn'].forEach(role => {
+          const source = activeActions.querySelector(`[data-role="${role}"]`);
+          const target = zone.querySelector(`[data-role="${role}"]`);
+          if (!source || !target) return;
+          target.innerText = source.innerText;
+          target.className = source.className;
+          target.title = source.title;
+          target.setAttribute('aria-label', source.getAttribute('aria-label') || '');
+          target.disabled = true;
+        });
+      });
       // 渲染歷史紀錄
       const scoreboard = document.getElementById('race2-scoreboard');
-      const passBtn = document.getElementById('pass-btn');
       if (isRace2Mode()) {
         scoreboard.classList.remove('hidden');
         scoreboard.innerText = LANG === 'zh'
@@ -1117,25 +1208,35 @@
 
     function renderHistory() {
       const area = document.getElementById('history-area');
-      if (!game.lastMove) {
-        area.className = 'hidden';
-        area.innerHTML = '';
+      area.className = 'hidden';
+      area.innerHTML = '';
+      if (!game.lastMove) return;
+
+      const { turn, witness, handCards = [], cardsA = [], cardsB = [], centerCards = [], op } = game.lastMove;
+      const zone = getEquationZone(turn);
+      if (!zone) return;
+
+      if (witness?.success) {
+        renderEquationWitness(zone, witness, false);
         return;
       }
 
-      area.className = 'block';
-
-      const { cardsA = [], cardsB = [], centerCards = [], op, turn } = game.lastMove;
-      const witness = game.lastMove.witness;
-      const displayCardsA = witness?.left?.cards || cardsA;
-      const displayCardsB = witness?.right?.cards || cardsB;
-      const displayTargetCards = witness?.target?.cards || witness?.targetCards || centerCards;
-
-      const turnLabel = turn === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
-      const opChar = witness?.operator || (op === '*' ? '×' : (op === '/' ? '÷' : op));
-      const operandText = (cards, operand) => (operand?.digits || cards.map(card => card.val)).join('');
-      const formula = witness?.eq || `${operandText(displayCardsA, witness?.left)} ${opChar} ${operandText(displayCardsB, witness?.right)} = ${operandText(displayTargetCards, witness?.target)}`;
-      area.innerHTML = `<span data-equation="${escapeHtml(formula)}">${escapeHtml(turnLabel)} · ${escapeHtml(formula)}</span>`;
+      const handArea = zone.querySelector('[data-role="stage-hand-cards"]');
+      const centerArea = zone.querySelector('[data-role="stage-center-cards"]');
+      const handSlot = zone.querySelector('[data-role="stage-hand-slot"]');
+      const centerSlot = zone.querySelector('[data-role="stage-center-slot"]');
+      const operator = zone.querySelector('[data-role="stage-operator-symbol"]');
+      const playedCards = handCards.length ? handCards : [...cardsA, ...cardsB];
+      const targetCards = centerCards;
+      if (!handArea || !centerArea || !handSlot || !centerSlot || !operator || !playedCards.length || !targetCards.length) return;
+      handArea.className = 'play-stage-cards is-expression';
+      centerArea.className = 'play-stage-cards is-expression';
+      handArea.innerHTML = playedCards.map(card => generateCardHTML(card, 'history-hand')).join('');
+      centerArea.innerHTML = targetCards.map(card => generateCardHTML(card, 'history-center')).join('');
+      operator.innerText = op === '*' ? '×' : (op === '/' ? '÷' : (op || '?'));
+      handSlot.classList.add('is-active');
+      centerSlot.classList.add('is-active');
+      zone.classList.add('is-working');
     }
 
     function toggleRules(show) {
@@ -1177,7 +1278,6 @@
     toolbar.querySelector('a').setAttribute('data-home-link', '');
     document.body.append(toolbar);
     tabletop.prepend(document.getElementById('game-meta'));
-    document.getElementById('play-area').prepend(document.getElementById('center-area'));
     const settings = document.createElement('dialog');
     settings.id = 'table-settings';
     settings.innerHTML = '<button class="settings-close" onclick="toggleSettings(false)" aria-label="關閉設定">×</button>';

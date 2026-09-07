@@ -4,27 +4,29 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
 
-  await expect(page.locator('#main-btn')).toBeDisabled();
+  await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeDisabled();
 
   await page.locator('[data-card-id="b1"]').click();
-  await expect(page.locator('#stage-hand-cards [data-card-id="b1"]')).toBeVisible({ timeout: 2000 });
+  await expect(page.locator('#black-equation [data-role="stage-hand-cards"] [data-card-id="b1"]')).toBeVisible({ timeout: 2000 });
   await page.locator('[data-card-id="b5"]').click();
-  await expect(page.locator('#stage-hand-cards [data-card-id="b5"]')).toBeVisible({ timeout: 2000 });
+  await expect(page.locator('#black-equation [data-role="stage-hand-cards"] [data-card-id="b5"]')).toBeVisible({ timeout: 2000 });
   await page.locator('[data-card-id="w9"]').click();
-  await expect(page.locator('#stage-center-cards [data-card-id="w9"]')).toBeVisible({ timeout: 2000 });
-  await page.locator('[data-op="+"]').click();
+  await expect(page.locator('#black-equation [data-role="stage-center-cards"] [data-card-id="w9"]')).toBeVisible({ timeout: 2000 });
+  await page.locator('#black-actions [data-op="+"]').click();
 
-  await expect(page.locator('#main-btn')).toBeEnabled();
-  await expect(page.locator('#move-preview .equation-line')).toHaveAttribute('data-equation', '1 + 5 = 6');
-  await expect(page.locator('#stage-center-cards .card-face-number.is-transformed')).toBeVisible();
+  await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeEnabled();
+  await expect(page.locator('#black-equation [data-role="move-preview"] .equation-line')).toHaveAttribute('data-equation', '1 + 5 = 6');
+  await expect(page.locator('#black-equation [data-role="stage-center-cards"] .card-face-number.is-transformed')).toBeVisible();
 
-  await page.locator('#main-btn').click();
+  await page.locator('#black-actions [data-role="main-btn"]').click();
   await expect(page.locator('#status-banner')).toContainText('行動結算中', { timeout: 1000 });
-  await expect(page.locator('#main-btn')).toBeHidden();
+  await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeHidden();
 
   await expect(page.locator('#center-cards [data-card-id="b1"]')).toBeVisible({ timeout: 7000 });
   await expect(page.locator('#center-cards [data-card-id="b5"]')).toBeVisible({ timeout: 7000 });
   await expect(page.locator('#black-hand [data-card-id="w9"]')).toBeVisible({ timeout: 7000 });
+  await expect(page.locator('#black-equation [data-role="stage-hand-cards"] [data-card-id="b1"]')).toHaveCount(1);
+  await expect(page.locator('#history-area')).toBeHidden();
   await expect(page.locator('#white-area')).toHaveClass(/border-blue-500/);
 });
 
@@ -56,13 +58,13 @@ test('reveals the AI plan in the play area before resolving it', async ({ page }
   await page.goto('/math-duel/index.html');
 
   await expect(page.locator('#status-banner')).toContainText('AI 的行動計畫', { timeout: 10000 });
-  await expect(page.locator('#stage-hand-cards [data-card-id]').first()).toBeVisible({ timeout: 10000 });
-  await expect(page.locator('#stage-center-cards [data-card-id]').first()).toBeVisible({ timeout: 10000 });
-  await expect(page.locator('#plan-continue-btn')).toBeVisible();
+  await expect(page.locator('#black-equation [data-role="stage-hand-cards"] [data-card-id]').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('#black-equation [data-role="stage-center-cards"] [data-card-id]').first()).toBeVisible({ timeout: 10000 });
+  await expect(page.locator('#black-actions [data-role="plan-continue-btn"]')).toBeVisible();
   await expect(page.locator('#status-banner')).toContainText('AI 的行動計畫');
-  await expect(page.locator('#move-preview .equation-line')).toHaveAttribute('data-equation', / = /);
+  await expect(page.locator('#black-equation [data-role="move-preview"] .equation-line')).toHaveAttribute('data-equation', / = /);
 
-  await page.locator('#plan-continue-btn').click();
+  await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
   await expect(page.locator('#status-banner')).toContainText('行動結算中', { timeout: 2000 });
 });
 
@@ -75,7 +77,7 @@ test('keeps the full tabletop fixed inside a portrait phone viewport', async ({ 
     bodyHeight: document.body.scrollHeight,
     viewportHeight: window.innerHeight,
     boardBottom: document.querySelector('#game-board').getBoundingClientRect().bottom,
-    tableTransform: getComputedStyle(document.querySelector('#play-area')).transform,
+    tableTransform: getComputedStyle(document.querySelector('#table-surface')).transform,
     visibleCards: document.querySelectorAll('#white-hand [data-card-id], #black-hand [data-card-id], #center-cards [data-card-id]').length
   }));
 
@@ -123,7 +125,7 @@ test('keeps a no-scroll landscape tabletop with players across from each other',
 
   const layout = await page.evaluate(() => {
     const white = document.querySelector('#white-area').getBoundingClientRect();
-    const play = document.querySelector('#play-area').getBoundingClientRect();
+    const play = document.querySelector('#table-surface').getBoundingClientRect();
     const black = document.querySelector('#black-area').getBoundingClientRect();
     return {
       bodyWidth: document.body.scrollWidth,
@@ -139,7 +141,7 @@ test('keeps a no-scroll landscape tabletop with players across from each other',
   expect(layout.ordered).toBe(true);
 });
 
-test('rotates the entire tabletop toward white after the turn changes', async ({ page }) => {
+test('rotates only equation contents toward white after the turn changes', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 640 });
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
@@ -147,8 +149,8 @@ test('rotates the entire tabletop toward white after the turn changes', async ({
   await page.locator('#black-hand [data-card-id="b1"]').click();
   await page.locator('#black-hand [data-card-id="b5"]').click();
   await page.locator('#center-cards [data-card-id="w9"]').click();
-  await page.locator('[data-op="+"]').click();
-  await page.locator('#main-btn').click();
+  await page.locator('#black-actions [data-op="+"]').click();
+  await page.locator('#black-actions [data-role="main-btn"]').click();
 
   await expect(page.locator('body')).toHaveClass(/is-white-turn/, { timeout: 4000 });
   await expect(page.locator('body')).toHaveClass(/is-turning/);
@@ -157,9 +159,14 @@ test('rotates the entire tabletop toward white after the turn changes', async ({
   const orientation = await page.evaluate(() => {
     const white = document.querySelector('#white-area').getBoundingClientRect();
     const black = document.querySelector('#black-area').getBoundingClientRect();
-    const surfaces = ['#table-area', '#white-area'];
+    const equationTransforms = [...document.querySelectorAll('.equation-zone .equation-content')].map(el => getComputedStyle(el).transform);
     return {
-      transforms: surfaces.map(selector => getComputedStyle(document.querySelector(selector)).transform),
+      equationTransforms,
+      tableTransform: getComputedStyle(document.querySelector('#table-area')).transform,
+      centerTransform: getComputedStyle(document.querySelector('#center-area')).transform,
+      whiteActionTransform: getComputedStyle(document.querySelector('#white-actions .action-content')).transform,
+      blackActionTransform: getComputedStyle(document.querySelector('#black-actions .action-content')).transform,
+      centralZoneCount: document.querySelectorAll('#table-surface > *').length,
       whiteRemainsNearestWhitePlayer: white.top < black.top,
       titleTransform: getComputedStyle(document.querySelector('#ui-title')).transform,
       scrollHeight: document.body.scrollHeight,
@@ -167,7 +174,12 @@ test('rotates the entire tabletop toward white after the turn changes', async ({
     };
   });
 
-  expect(orientation.transforms.every(transform => transform !== 'none')).toBe(true);
+  expect(orientation.equationTransforms.every(transform => transform !== 'none')).toBe(true);
+  expect(orientation.tableTransform).toBe('none');
+  expect(orientation.centerTransform).toBe('none');
+  expect(orientation.whiteActionTransform).not.toBe('none');
+  expect(orientation.blackActionTransform).toBe('none');
+  expect(orientation.centralZoneCount).toBe(5);
   expect(orientation.whiteRemainsNearestWhitePlayer).toBe(true);
   expect(orientation.titleTransform).toBe('none');
   expect(orientation.scrollHeight).toBeLessThanOrEqual(orientation.viewportHeight);
