@@ -80,6 +80,7 @@ test('anchors deselection animation to the live card when history repeats its id
   await expect(page.locator('#white-equation [data-role="stage-hand-cards"] [data-card-id="w1"]')).toBeVisible();
   await page.locator('#center-cards [data-card-id="w1"]').click();
   await expect(page.locator('#black-equation [data-role="stage-center-cards"] [data-card-id="w1"]')).toBeVisible();
+  await expect(page.locator('#white-equation [data-role="stage-hand-cards"] [data-card-id="w1"]')).not.toHaveClass(/ring-/);
   await expect(page.locator('#card-motion-layer')).toHaveCount(1, { timeout: 1000 });
   await expect(page.locator('#card-motion-layer [data-card-id="w1"]')).toHaveCount(0, { timeout: 2000 });
 

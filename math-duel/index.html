@@ -861,19 +861,21 @@
      function generateCardHTML(card, location, isNew = false, displayValue = card.val) {
        const isBlack = card.color === 'b';
        const isStage = location === 'stage-hand' || location === 'stage-center';
+       const isHistory = location === 'history-hand' || location === 'history-center';
        const isTransformed = Number(displayValue) !== Number(card.val);
        const selectionLocation = location === 'stage-center' || location === 'center' ? 'center' : 'hand';
        const isStageSelectable = isStage && game.state === 'PLAYING' && !game.uiBusy && !isAITurn();
        const isSelectable = (game.state === 'PLAYING' && !game.uiBusy && (location === 'center' || (game.turn === 'BLACK' && location === 'black') || (game.turn === 'WHITE' && location === 'white'))) ||
          (game.state === 'DISCARDING' && !game.uiBusy && location === 'center') || isStageSelectable;
-       const isSelected = isStage || (game.state === 'PLAYING' ? (game.selections.hand.includes(card.id) || game.selections.center.includes(card.id)) :
-         (game.state === 'DISCARDING' ? game.discardSelections.includes(card.id) : false));
+       const isSelected = isStage || (!isHistory && (game.state === 'PLAYING' ? (game.selections.hand.includes(card.id) || game.selections.center.includes(card.id)) :
+         (game.state === 'DISCARDING' ? game.discardSelections.includes(card.id) : false)));
 
        const baseClasses = `w-12 h-16 flex items-center justify-center text-2xl font-bold font-mono rounded-lg border-2 shadow-sm transition-all select-none ${isNew ? 'card-pop' : ''}`;
        const colorClasses = isBlack ? "bg-slate-800 text-white border-slate-900" : "bg-white text-slate-800 border-slate-300";
        let interactiveClasses = "opacity-60";
 
-       if (isStage) interactiveClasses = isSelectable ? "ring-2 ring-blue-400 opacity-100 cursor-pointer hover:-translate-y-1" : "ring-2 ring-blue-200 opacity-100";
+       if (isHistory) interactiveClasses = "opacity-100";
+       else if (isStage) interactiveClasses = isSelectable ? "ring-2 ring-blue-400 opacity-100 cursor-pointer hover:-translate-y-1" : "ring-2 ring-blue-200 opacity-100";
        else if (isAITurn() && location !== 'center' && !isSelected) interactiveClasses = "opacity-40";
        else if (isSelectable) interactiveClasses = isSelected ? "ring-4 ring-blue-500 scale-105 opacity-100 cursor-pointer" : "cursor-pointer hover:-translate-y-1 opacity-100";
        else if (isSelected) interactiveClasses = "opacity-100 ring-2 ring-slate-400";
