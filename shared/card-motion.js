@@ -46,8 +46,21 @@
       right: rect.right,
       bottom: rect.bottom,
       centerX: rect.left + rect.width / 2,
-      centerY: rect.top + rect.height / 2
+      centerY: rect.top + rect.height / 2,
+      rotation: getRotation(element)
     };
+  }
+
+  function getRotation(element) {
+    let angle = 0;
+    const view = element.ownerDocument.defaultView;
+    for (let node = element; node && node.nodeType === 1; node = node.parentElement) {
+      const transform = view.getComputedStyle(node).transform;
+      if (transform === 'none') continue;
+      const matrix = new view.DOMMatrixReadOnly(transform);
+      angle += Math.atan2(matrix.b, matrix.a) * 180 / Math.PI;
+    }
+    return angle;
   }
 
   function rectsByCard(doc) {
@@ -118,9 +131,10 @@
   }
 
   function animateGhost(doc, ghost, from, to, options, index) {
-    const dx = to.left - from.left;
-    const dy = to.top - from.top;
-    const rotation = Math.max(-5, Math.min(5, dx / 80));
+    const dx = to.left + to.width / 2 - from.left - from.width / 2;
+    const dy = to.top + to.height / 2 - from.top - from.height / 2;
+    const rotation = from.rotation || 0;
+    const endRotation = rotation + ((((to.rotation || 0) - rotation) % 360 + 540) % 360 - 180);
     const delay = index * options.stagger;
 
     return new Promise((resolve) => {
@@ -133,11 +147,15 @@
 
       const start = () => {
         ghost.style.transition = `transform ${options.duration}ms ${options.easing}, opacity ${Math.max(160, options.duration - 80)}ms ease-out`;
-        ghost.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(0deg)`;
+        ghost.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${endRotation}deg) scale(${to.width / from.width}, ${to.height / from.height})`;
         ghost.addEventListener('transitionend', finish, { once: true });
         setTimeout(finish, options.duration + 100);
       };
 
+      // Rotation is applied around the card center, while position follows its bounds.
+      ghost.style.transformOrigin = 'center center';
+      ghost.style.left = `${from.left}px`;
+      ghost.style.top = `${from.top}px`;
       ghost.style.transform = `translate3d(0, 0, 0) rotate(${rotation}deg)`;
       if (delay) setTimeout(start, delay);
       else {
@@ -163,12 +181,13 @@
 
       const start = () => {
         ghost.style.transition = `transform ${options.duration}ms ${options.easing}, opacity ${Math.max(160, options.duration - 80)}ms ease-in`;
-        ghost.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(18deg) scale(0.7)`;
+        ghost.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${(from.rotation || 0) + 18}deg) scale(0.7)`;
         ghost.style.opacity = '0';
         ghost.addEventListener('transitionend', finish, { once: true });
         setTimeout(finish, options.duration + 100);
       };
 
+      ghost.style.transform = `rotate(${from.rotation || 0}deg)`;
       if (delay) setTimeout(start, delay);
       else {
         const raf = doc.defaultView && doc.defaultView.requestAnimationFrame;
@@ -196,7 +215,10 @@
         transition: element.style.transition
       };
       element.style.transition = 'none';
-      element.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+      const radians = (after.rotation || 0) * Math.PI / 180;
+      const localX = dx * Math.cos(radians) + dy * Math.sin(radians);
+      const localY = -dx * Math.sin(radians) + dy * Math.cos(radians);
+      element.style.transform = `translate3d(${localX}px, ${localY}px, 0)`;
       animated.push(previous);
     });
 

@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=1.6.0">
+  <link rel="stylesheet" href="tabletop.css?v=1.7.0">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -262,14 +262,15 @@
   </div>
 
    <script src="rule-modes.js"></script>
-  <script src="../shared/card-motion.js?v=1"></script>
+  <script src="../shared/card-motion.js?v=2"></script>
   <script src="../shared/equation-witness.js?v=1"></script>
+  <script src="tabletop.js?v=1.7.0"></script>
   <script>
     // ==========================================
     // ⚙️ 系統版本控制
     // 每次你修改了 index.html 或 ai-worker.js 後，
     // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
-    const APP_VERSION = '1.6.0';
+    const APP_VERSION = '1.7.0';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
@@ -297,6 +298,7 @@
         selections: { hand: [], center: [], operator: null },
         discardSelections: [],
         lastMove: null,
+        playerMoves: { BLACK: null, WHITE: null },
         aiMoveInfo: null,
         movePreview: null,
         uiBusy: false
@@ -382,6 +384,7 @@
     function passTurn() {
       if (!isRace2Mode() || game.state !== 'PLAYING' || isAITurn()) return;
       const ended = MathDuelRuleModes.applyPassPoint(game);
+      game.selections = { hand: [], center: [], operator: null };
       if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
       saveState(); render(); checkAITurn();
     }
@@ -470,12 +473,12 @@
        animateSelectionChange(id, location);
      }
 
-    document.querySelectorAll('.op-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.op-btn');
+        if (!btn || btn.disabled) return;
          if (game.state !== 'PLAYING' || game.uiBusy || isAITurn()) return;
-        game.selections.operator = e.target.dataset.op;
+        game.selections.operator = btn.dataset.op;
         render();
-      });
     });
 
      function escapeHtml(value) {
@@ -516,6 +519,8 @@
          cardsA: aiInfo?.cardsA || eqResult.cardsA,
          cardsB: aiInfo?.cardsB || eqResult.cardsB
        };
+       game.playerMoves ||= { BLACK: null, WHITE: null };
+       game.playerMoves[game.turn] = game.lastMove;
 
        game.selections = { hand: [], center: [], operator: null };
        game.discardSelections = aiInfo?.discard?.length === 2 ? [...aiInfo.discard] : [];
@@ -524,6 +529,7 @@
 
      async function playDiscardMove() {
        if (game.state !== 'DISCARDING' || game.discardSelections.length !== 2) return;
+       const session = game;
 
        const keepIds = new Set(game.discardSelections);
        const keepCards = game.center.filter(c => keepIds.has(c.id));
@@ -553,6 +559,7 @@
             options: { duration: 520, stagger: 70 }
          });
        } catch (error) {
+         if (game !== session) return;
          console.error('Card discard animation failed:', error);
          if (!committed) {
            game.center = keepCards;
@@ -560,12 +567,14 @@
          }
        }
 
+        if (game !== session) return;
         game.movePreview = null;
         game.uiBusy = false;
         endTurn();
       }
 
      async function playCardMove(hCards, cCards, op, eqResult) {
+        const session = game;
         const actor = isAITurn() ? 'AI' : 'PLAYER';
         const aiInfo = game.aiMoveInfo;
         game.state = 'ANIMATING';
@@ -594,6 +603,7 @@
            options: { duration: 560, stagger: 70 }
          });
        } catch (error) {
+         if (game !== session) return;
          console.error('Card exchange animation failed:', error);
           if (!committed) {
             applyMoveState(hCards, cCards, op, eqResult);
@@ -602,6 +612,7 @@
           }
        }
 
+       if (game !== session) return;
        game.movePreview = null;
        if (game.center.length > 2) {
          game.uiBusy = false;
@@ -740,6 +751,7 @@
 
     async function revealAiMove(move) {
       if (!isAITurn() || game.state !== 'PLAYING') return;
+      const session = game;
 
       const aiInfo = move.eq ? {
         eq: move.eq,
@@ -772,13 +784,16 @@
           options: { duration: 560, stagger: 70 }
         });
       } catch (error) {
+        if (game !== session) return;
         console.error('AI card reveal animation failed:', error);
         if (!committed) commitPlan();
       }
 
+      if (game !== session) return;
       game.uiBusy = false;
       render();
       if (!CardMotion.prefersReducedMotion(document) && !(await waitForAiPlan(1100))) return;
+      if (game !== session) return;
       handleMainAction();
     }
 
@@ -945,6 +960,7 @@
      }
 
     function render() {
+      syncTabletop(game);
       syncViewOrientation();
       document.body.dataset.gameState = game.state;
       // 1. 靜態 UI 更新 (僅在必要時)
@@ -996,9 +1012,10 @@
       document.getElementById('white-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors ${game.turn === 'WHITE' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
       document.getElementById('black-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4 ${game.turn === 'BLACK' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
 
-      document.querySelectorAll('.op-btn').forEach(btn => {
+      document.querySelectorAll('#action-panel .op-btn').forEach(btn => {
         const isSel = game.selections.operator === btn.dataset.op;
         const isDisabled = game.state !== 'PLAYING' || isAITurn() || game.uiBusy;
+        btn.disabled = isDisabled;
 
         // 基礎樣式
         let classes = `op-btn w-12 h-12 rounded-lg border text-xl font-bold transition-all duration-200 flex items-center justify-center `;
@@ -1116,26 +1133,7 @@
     }
 
     function renderHistory() {
-      const area = document.getElementById('history-area');
-      if (!game.lastMove) {
-        area.className = 'hidden';
-        area.innerHTML = '';
-        return;
-      }
-
-      area.className = 'block';
-
-      const { cardsA = [], cardsB = [], centerCards = [], op, turn } = game.lastMove;
-      const witness = game.lastMove.witness;
-      const displayCardsA = witness?.left?.cards || cardsA;
-      const displayCardsB = witness?.right?.cards || cardsB;
-      const displayTargetCards = witness?.target?.cards || witness?.targetCards || centerCards;
-
-      const turnLabel = turn === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
-      const opChar = witness?.operator || (op === '*' ? '×' : (op === '/' ? '÷' : op));
-      const operandText = (cards, operand) => (operand?.digits || cards.map(card => card.val)).join('');
-      const formula = witness?.eq || `${operandText(displayCardsA, witness?.left)} ${opChar} ${operandText(displayCardsB, witness?.right)} = ${operandText(displayTargetCards, witness?.target)}`;
-      area.innerHTML = `<span data-equation="${escapeHtml(formula)}">${escapeHtml(turnLabel)} · ${escapeHtml(formula)}</span>`;
+      renderPlayerTabletop(game);
     }
 
     function toggleRules(show) {
@@ -1169,20 +1167,19 @@
       else panel.close();
     }
 
-    // The central equation rail rotates as a unit; player seats stay at the edges.
-    const tabletop = document.getElementById('table-area');
+    // Device controls float above the five fixed tabletop regions.
     const toolbar = document.createElement('div');
-    toolbar.className = 'table-toolbar';
+    toolbar.className = 'utility-rail';
     toolbar.innerHTML = '<a href="/" class="table-icon" aria-label="返回目錄" title="返回目錄"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-6h6v6"/></svg></a><button class="table-icon settings-toggle" onclick="toggleSettings(true)" aria-label="設定" title="設定"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg></button>';
-    toolbar.insertBefore(document.getElementById('game-meta'), toolbar.lastChild);
-    tabletop.prepend(toolbar);
-    document.getElementById('play-area').prepend(document.getElementById('center-area'));
+    toolbar.querySelector('a').setAttribute('data-home-link', '');
+    document.body.append(toolbar);
     const settings = document.createElement('dialog');
     settings.id = 'table-settings';
     settings.innerHTML = '<button class="settings-close" onclick="toggleSettings(false)" aria-label="關閉設定">×</button>';
     settings.append(document.querySelector('.app-header'));
     document.body.append(settings);
     settings.querySelector('[data-home-link]').remove();
+    initializeTabletop();
     render(); checkAITurn();
   </script>
 </body>
