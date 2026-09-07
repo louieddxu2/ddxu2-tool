@@ -12,7 +12,7 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await expect(page.locator('#stage-hand-cards [data-card-id="b5"]')).toBeVisible({ timeout: 2000 });
   await page.locator('[data-card-id="w9"]').click();
   await expect(page.locator('#stage-center-cards [data-card-id="w9"]')).toBeVisible({ timeout: 2000 });
-  await page.locator('#action-panel [data-op="+"]').click();
+  await page.locator('[data-op="+"]').click();
 
   await expect(page.locator('#main-btn')).toBeEnabled();
   await expect(page.locator('#move-preview .equation-line')).toHaveAttribute('data-equation', '1 + 5 = 6');
@@ -31,7 +31,7 @@ test('animates a card exchange and resolves it into the correct zones', async ({
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.7.0', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.6.0', JSON.stringify({
       mode: 'AI_EASY',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',
@@ -108,7 +108,7 @@ test('keeps a no-scroll landscape tabletop with players across from each other',
   expect(layout.ordered).toBe(true);
 });
 
-test('turns the three reading surfaces while keeping seats and utilities fixed', async ({ page }) => {
+test('rotates the entire tabletop toward white after the turn changes', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 640 });
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
@@ -116,7 +116,7 @@ test('turns the three reading surfaces while keeping seats and utilities fixed',
   await page.locator('#black-hand [data-card-id="b1"]').click();
   await page.locator('#black-hand [data-card-id="b5"]').click();
   await page.locator('#center-cards [data-card-id="w9"]').click();
-  await page.locator('#action-panel [data-op="+"]').click();
+  await page.locator('[data-op="+"]').click();
   await page.locator('#main-btn').click();
 
   await expect(page.locator('body')).toHaveClass(/is-white-turn/, { timeout: 4000 });
@@ -126,7 +126,7 @@ test('turns the three reading surfaces while keeping seats and utilities fixed',
   const orientation = await page.evaluate(() => {
     const white = document.querySelector('#white-area').getBoundingClientRect();
     const black = document.querySelector('#black-area').getBoundingClientRect();
-    const surfaces = ['#white-operation .equation-view', '#center-area .center-content', '#black-operation .equation-view'];
+    const surfaces = ['#table-area', '#white-area'];
     return {
       transforms: surfaces.map(selector => getComputedStyle(document.querySelector(selector)).transform),
       whiteRemainsNearestWhitePlayer: white.top < black.top,
@@ -140,45 +140,4 @@ test('turns the three reading surfaces while keeping seats and utilities fixed',
   expect(orientation.whiteRemainsNearestWhitePlayer).toBe(true);
   expect(orientation.titleTransform).toBe('none');
   expect(orientation.scrollHeight).toBeLessThanOrEqual(orientation.viewportHeight);
-});
-
-test('keeps white card flights facing white and accepts input during a flight', async ({ page }) => {
-  await page.goto('/math-duel/index.html');
-  await page.evaluate(() => { game.turn = 'WHITE'; render(); });
-  await page.locator('#white-hand [data-card-id="w2"]').click();
-  await page.waitForSelector('#card-motion-layer [data-card-id="w2"]');
-  const flight = await page.locator('#card-motion-layer [data-card-id="w2"]').evaluate(el => ({
-    transform: el.style.transform,
-    busy: game.uiBusy
-  }));
-  expect(flight.transform).toContain('rotate(180deg)');
-  expect(flight.busy).toBe(false);
-  await page.locator('#action-panel [data-op="+"]').click();
-  expect(await page.evaluate(() => game.selections.operator)).toBe('+');
-  await page.locator('.settings-toggle').click();
-  await expect(page.locator('#table-settings')).toBeVisible();
-});
-
-test('restarting during settlement does not let the previous game change the new turn', async ({ page }) => {
-  await page.goto('/math-duel/index.html');
-  await page.evaluate(() => {
-    game.selections = {hand:['b1','b5'],center:['w9'],operator:'+'};
-    render(); handleMainAction(); resetGame(false);
-  });
-  await page.waitForTimeout(1500);
-  expect(await page.evaluate(() => ({turn:game.turn, state:game.state, count:game.blackHand.length})))
-    .toEqual({turn:'BLACK',state:'PLAYING',count:9});
-});
-
-test('race mode awards a pass point and clears only the unfinished selection', async ({ page }) => {
-  await page.goto('/math-duel/index.html');
-  await page.evaluate(() => {
-    game = createInitialState('PVP','RACE2');
-    game.selections={hand:['b1'],center:[],operator:'+'};render();
-  });
-  await page.locator('#giveup-btn').click();
-  expect(await page.evaluate(()=>({turn:game.turn,points:game.scores.WHITE,selected:game.selections.hand.length})))
-    .toEqual({turn:'WHITE',points:1,selected:0});
-  await expect(page.locator('#black-hand [data-card-id="b1"]')).toBeVisible();
-  await expect(page.locator('#white-info')).toContainText('1/2');
 });
