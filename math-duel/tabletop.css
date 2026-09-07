@@ -45,8 +45,10 @@ body.is-pvp #white-area { transform: rotate(180deg); }
   transform-origin: center; transition: transform 520ms cubic-bezier(.65, 0, .35, 1);
 }
 body.is-pvp.is-white-turn #table-area { transform: rotate(180deg); }
-.utility-rail { position: fixed !important; z-index: 1200; right: max(12px, env(safe-area-inset-right)); top: 50%; transform: translate3d(0, -50%, 0) !important; display: flex; flex-direction: column; gap: 10px; padding: 0; pointer-events: none; }
-.table-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; color: #53647b; background: #fffefa; border: 1px solid #cfd7e1; border-radius: 50%; text-decoration: none; box-shadow: 0 3px 12px #26314224; pointer-events: auto; }
+.utility-rail { position: static; display: contents; pointer-events: none; }
+.utility-rail .table-icon { position: fixed; z-index: 1200; right: max(8px, env(safe-area-inset-right)); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; color: #53647b; background: #fffefa; border: 1px solid #cfd7e1; border-radius: 50%; text-decoration: none; box-shadow: 0 5px 16px #26314230, 0 1px 0 #ffffff; pointer-events: auto; }
+.utility-rail .table-icon:first-child { top: calc(50% - 47px); }
+.utility-rail .table-icon:last-child { top: calc(50% + 5px); }
 .table-icon:hover, .table-icon:focus-visible { background: var(--surface-soft); }
 #game-meta { min-width: 0; display: grid; grid-template-rows: 18px 12px; text-align: center; }
 #status-banner { min-width: 0; overflow: hidden; padding: 0 !important; color: var(--blue) !important; background: transparent !important; border: 0 !important; box-shadow: none !important; font-size: 11px !important; line-height: 18px !important; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }

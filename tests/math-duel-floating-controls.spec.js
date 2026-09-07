@@ -5,26 +5,33 @@ test('keeps navigation and settings as usable viewport-floating controls', async
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
 
-  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=1.7.0');
+  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=1.9.0');
   const rail = page.locator('.utility-rail');
-  await expect(rail).toBeVisible();
-  await expect(rail).toHaveCSS('position', 'fixed');
+  const controls = rail.locator('.table-icon');
+  await expect(controls).toHaveCount(2);
+  await expect(controls.nth(0)).toBeVisible();
+  await expect(controls.nth(1)).toBeVisible();
+  await expect(controls.nth(0)).toHaveCSS('position', 'fixed');
+  await expect(controls.nth(1)).toHaveCSS('position', 'fixed');
   await expect(rail.locator('[data-home-link]')).toBeVisible();
   await expect(rail.locator('.settings-toggle')).toBeVisible();
 
   const geometry = await page.evaluate(() => {
-    const rail = document.querySelector('.utility-rail').getBoundingClientRect();
+    const controls = [...document.querySelectorAll('.utility-rail .table-icon')].map((el) => {
+      const rect = el.getBoundingClientRect();
+      return { right: rect.right, y: rect.y, bottom: rect.bottom };
+    });
     return {
-      railRight: rail.right,
-      railWidth: rail.width,
+      controls,
       viewportWidth: innerWidth,
       railIsOutsideGameBoard: !document.querySelector('.utility-rail').closest('#game-board'),
       mountedOnBody: document.querySelector('.utility-rail').parentElement === document.body
     };
   });
 
-  expect(geometry.railRight).toBeLessThanOrEqual(geometry.viewportWidth);
-  expect(geometry.railWidth).toBeGreaterThanOrEqual(36);
+  expect(geometry.controls).toHaveLength(2);
+  expect(geometry.controls.every(({ right }) => right <= geometry.viewportWidth)).toBe(true);
+  expect(geometry.controls[1].y).toBeGreaterThan(geometry.controls[0].bottom);
   expect(geometry.railIsOutsideGameBoard).toBe(true);
   expect(geometry.mountedOnBody).toBe(true);
 
