@@ -85,6 +85,37 @@ test('keeps the full tabletop fixed inside a portrait phone viewport', async ({ 
   expect(layout.visibleCards).toBe(18);
 });
 
+test('fits the tabletop under a short portrait viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 480 });
+  await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
+  await page.goto('/math-duel/index.html');
+
+  const layout = await page.evaluate(() => {
+    const board = document.querySelector('#game-board').getBoundingClientRect();
+    const white = document.querySelector('#white-area').getBoundingClientRect();
+    const black = document.querySelector('#black-area').getBoundingClientRect();
+    const handsFit = ['#white-hand', '#black-hand'].every((selector) => {
+      const area = selector === '#white-hand' ? white : black;
+      return [...document.querySelectorAll(`${selector} [data-card-id]`)].every((card) => {
+        const rect = card.getBoundingClientRect();
+        return rect.top >= area.top && rect.bottom <= area.bottom;
+      });
+    });
+    return {
+      bodyHeight: document.body.scrollHeight,
+      viewportHeight: innerHeight,
+      boardBottom: board.bottom,
+      blackBottom: black.bottom,
+      handsFit
+    };
+  });
+
+  expect(layout.bodyHeight).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.boardBottom).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.blackBottom).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.handsFit).toBe(true);
+});
+
 test('keeps a no-scroll landscape tabletop with players across from each other', async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 360 });
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
