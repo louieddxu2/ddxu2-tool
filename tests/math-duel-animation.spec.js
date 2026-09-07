@@ -25,13 +25,14 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await expect(page.locator('#center-cards [data-card-id="b1"]')).toBeVisible({ timeout: 7000 });
   await expect(page.locator('#center-cards [data-card-id="b5"]')).toBeVisible({ timeout: 7000 });
   await expect(page.locator('#black-hand [data-card-id="w9"]')).toBeVisible({ timeout: 7000 });
+  await expect(page.locator('#black-operation-history .history-equation')).toHaveAttribute('data-equation', / = /);
   await expect(page.locator('#white-area')).toHaveClass(/border-blue-500/);
 });
 
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.6.0', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.7.0', JSON.stringify({
       mode: 'AI_EASY',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',
@@ -99,7 +100,7 @@ test('keeps a no-scroll landscape tabletop with players across from each other',
       bodyHeight: document.body.scrollHeight,
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
-      ordered: white.bottom <= play.top && play.bottom <= black.top
+      ordered: white.bottom <= play.top && play.bottom <= black.bottom && black.top < play.bottom
     };
   });
 
@@ -108,7 +109,7 @@ test('keeps a no-scroll landscape tabletop with players across from each other',
   expect(layout.ordered).toBe(true);
 });
 
-test('rotates the entire tabletop toward white after the turn changes', async ({ page }) => {
+test('rotates the three tabletop content zones toward white after the turn changes', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 640 });
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
@@ -126,11 +127,12 @@ test('rotates the entire tabletop toward white after the turn changes', async ({
   const orientation = await page.evaluate(() => {
     const white = document.querySelector('#white-area').getBoundingClientRect();
     const black = document.querySelector('#black-area').getBoundingClientRect();
-    const surfaces = ['#table-area', '#white-area'];
+    const surfaces = ['#white-zone-content', '#center-area', '#black-zone-content'];
     return {
       transforms: surfaces.map(selector => getComputedStyle(document.querySelector(selector)).transform),
       whiteRemainsNearestWhitePlayer: white.top < black.top,
       titleTransform: getComputedStyle(document.querySelector('#ui-title')).transform,
+      utilityTransform: getComputedStyle(document.querySelector('.utility-rail')).transform,
       scrollHeight: document.body.scrollHeight,
       viewportHeight: innerHeight
     };
@@ -139,5 +141,6 @@ test('rotates the entire tabletop toward white after the turn changes', async ({
   expect(orientation.transforms.every(transform => transform !== 'none')).toBe(true);
   expect(orientation.whiteRemainsNearestWhitePlayer).toBe(true);
   expect(orientation.titleTransform).toBe('none');
+  expect(orientation.utilityTransform).toMatch(/^matrix\(1, 0, 0, 1/);
   expect(orientation.scrollHeight).toBeLessThanOrEqual(orientation.viewportHeight);
 });
