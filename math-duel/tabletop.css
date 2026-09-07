@@ -44,9 +44,18 @@ body.is-pvp #white-area { transform: rotate(180deg); }
   border: 1px solid #d5d8dc; border-radius: 17px; box-shadow: 0 3px 12px #33415512; overflow: hidden;
 }
 .utility-rail { position: static; display: contents; pointer-events: none; }
-.utility-rail .table-icon { position: fixed; z-index: 1200; right: max(8px, env(safe-area-inset-right)); width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; color: #53647b; background: #fffefa; border: 1px solid #cfd7e1; border-radius: 50%; text-decoration: none; box-shadow: 0 5px 16px #26314230, 0 1px 0 #ffffff; pointer-events: auto; }
-.utility-rail .table-icon:first-child { top: calc(50% - 47px); }
-.utility-rail .table-icon:last-child { top: calc(50% + 5px); }
+.utility-rail .table-icon { position: fixed; z-index: 1200; width: 42px; height: 42px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0; color: #53647b; background: #fffefa; border: 1px solid #cfd7e1; border-radius: 50%; text-decoration: none; box-shadow: 0 5px 16px #26314230, 0 1px 0 #ffffff; font: inherit; font-size: 8px; line-height: 9px; pointer-events: auto; }
+.utility-rail-left .table-icon { left: max(8px, env(safe-area-inset-left)); right: auto; }
+.utility-rail-right .table-icon { left: auto; right: max(8px, env(safe-area-inset-right)); }
+.utility-rail-left .table-icon:nth-child(1) { top: calc(50% - 47px); }
+.utility-rail-left .table-icon:nth-child(2) { top: calc(50% + 5px); }
+.utility-rail-right .table-icon:nth-child(1) { top: calc(50% - 99px); }
+.utility-rail-right .table-icon:nth-child(2) { top: calc(50% - 47px); }
+.utility-rail-right .table-icon:nth-child(3) { top: calc(50% + 5px); }
+.utility-rail-right .table-icon:nth-child(4) { top: calc(50% + 57px); }
+.utility-rail .table-icon svg { flex: 0 0 auto; }
+.utility-rail .utility-cycle { width: 44px; height: 44px; }
+.utility-rail .utility-cycle [data-role="utility-label"] { max-width: 38px; overflow: hidden; white-space: nowrap; font-size: 8px; line-height: 9px; font-weight: 700; }
 .table-icon:hover, .table-icon:focus-visible { background: var(--surface-soft); }
 #game-meta { min-width: 0; display: grid; grid-template-rows: 18px 12px; text-align: center; }
 #status-banner { min-width: 0; overflow: hidden; padding: 0 !important; color: var(--blue) !important; background: transparent !important; border: 0 !important; box-shadow: none !important; font-size: 11px !important; line-height: 18px !important; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
@@ -90,15 +99,12 @@ body.is-pvp.is-white-turn #center-area > * { transform: rotate(180deg); }
 [data-role="stage-hand-cards"]:empty::before { content: '··'; letter-spacing: 7px; }
 [data-role="stage-center-cards"]:empty::before { content: '·'; }
 [data-role="move-preview"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-#table-settings { width: min(340px, calc(100vw - 28px)); margin: auto; padding: 38px 16px 18px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 16px 60px #14253940; }
-#table-settings::backdrop { background: #1e293b66; }
-.settings-close { position: absolute; top: 4px; right: 8px; width: 32px; height: 32px; color: var(--muted); background: transparent; border: 0; font-size: 24px; }
+.legacy-header { display: none !important; }
 .app-header { gap: 16px !important; padding: 0 !important; color: var(--ink) !important; background: transparent !important; box-shadow: none !important; }
 .app-header > div { max-width: none; }
 .app-header > div:first-child { flex-wrap: wrap; gap: 10px; }
 .app-header > div:last-child { flex-direction: column; }
 #mode-select, #rule-mode-select { width: 100%; height: 40px; color: var(--ink); background: #f5f3ee; border-color: var(--line); border-radius: 9px; }
-body.is-pvp.is-white-turn #table-settings, body.is-pvp.is-white-turn #rules-modal > div { transform: rotate(180deg); }
 #rules-modal { z-index: 100; }
 button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 @media (orientation: landscape) {

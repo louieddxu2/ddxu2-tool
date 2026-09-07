@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.1.1">
+  <link rel="stylesheet" href="tabletop.css?v=2.2.0">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -391,6 +391,18 @@
       } else {
         document.getElementById('rule-mode-select').value = game.ruleMode;
       }
+    }
+
+    function cycleGameMode() {
+      const modes = ['PVP', 'AI_EASY', 'AI_HARD'];
+      const currentIndex = modes.indexOf(game.mode);
+      changeMode(modes[(currentIndex + 1) % modes.length]);
+    }
+
+    function cycleRuleMode() {
+      const modes = ['CLASSIC', 'RACE2'];
+      const currentIndex = modes.indexOf(game.ruleMode);
+      changeRuleMode(modes[(currentIndex + 1) % modes.length]);
     }
 
     function resetGame(force = false) {
@@ -1049,6 +1061,8 @@
         document.title = titleStr; // 更新瀏覽器分頁標題
         document.getElementById('ui-title').innerText = titleStr;
         document.getElementById('ui-lang-indicator').innerText = LANG === 'zh' ? 'EN' : '中';
+        const utilityLangLabel = document.getElementById('utility-lang-label');
+        if (utilityLangLabel) utilityLangLabel.innerText = LANG === 'zh' ? 'EN' : '中';
         document.querySelector('#mode-select option[value="PVP"]').innerText = t('mode_pvp');
         document.querySelector('#mode-select option[value="AI_EASY"]').innerText = t('mode_ai_easy');
         document.querySelector('#mode-select option[value="AI_HARD"]').innerText = t('mode_ai_hard');
@@ -1088,6 +1102,23 @@
       if (document.getElementById('white-label').innerText !== whiteLabel) document.getElementById('white-label').innerText = whiteLabel;
       if (document.getElementById('black-label').innerText !== blackLabel) document.getElementById('black-label').innerText = blackLabel;
       document.getElementById('rule-mode-select').value = game.ruleMode;
+
+      const utilityMode = document.querySelector('[data-role="utility-mode"]');
+      const utilityRule = document.querySelector('[data-role="utility-rule"]');
+      if (utilityMode) {
+        const modeLabel = LANG === 'zh'
+          ? (game.mode === 'PVP' ? '雙人' : game.mode === 'AI_HARD' ? '大師' : '新手')
+          : (game.mode === 'PVP' ? 'PVP' : game.mode === 'AI_HARD' ? 'Hard' : 'Easy');
+        utilityMode.querySelector('[data-role="utility-label"]').innerText = modeLabel;
+        utilityMode.title = `${LANG === 'zh' ? '模式' : 'Mode'}: ${modeLabel}`;
+        utilityMode.setAttribute('aria-label', utilityMode.title);
+      }
+      if (utilityRule) {
+        const ruleLabel = LANG === 'zh' ? (game.ruleMode === 'RACE2' ? '搶 2' : '基本') : (game.ruleMode === 'RACE2' ? 'Race 2' : 'Basic');
+        utilityRule.querySelector('[data-role="utility-label"]').innerText = ruleLabel;
+        utilityRule.title = `${LANG === 'zh' ? '規則' : 'Rules'}: ${ruleLabel}`;
+        utilityRule.setAttribute('aria-label', utilityRule.title);
+      }
 
       document.getElementById('white-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors ${game.turn === 'WHITE' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
       document.getElementById('black-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4 ${game.turn === 'BLACK' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
@@ -1271,7 +1302,6 @@
     }
 
     function toggleRules(show) {
-      if (show) document.getElementById('table-settings')?.close();
       const modal = document.getElementById('rules-modal');
       const content = modal.querySelector('div');
       if (show) {
@@ -1295,26 +1325,23 @@
       }
     }
 
-    function toggleSettings(show) {
-      const panel = document.getElementById('table-settings');
-      if (show) panel.showModal();
-      else panel.close();
-    }
-
-    // Keep navigation outside the rotating tabletop so it always faces the phone owner.
+    // Keep utility controls outside the rotating tabletop so they always face the phone owner.
     const tabletop = document.getElementById('table-area');
-    const toolbar = document.createElement('div');
-    toolbar.className = 'utility-rail';
-    toolbar.innerHTML = '<a href="/" class="table-icon" aria-label="返回目錄" title="返回目錄"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-6h6v6"/></svg></a><button class="table-icon settings-toggle" onclick="toggleSettings(true)" aria-label="設定" title="設定"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="white"/><circle cx="15" cy="17" r="3" fill="white"/></svg></button>';
-    toolbar.querySelector('a').setAttribute('data-home-link', '');
-    document.body.append(toolbar);
+    const legacyHeader = document.querySelector('.app-header');
+    legacyHeader.classList.add('legacy-header');
+    legacyHeader.setAttribute('aria-hidden', 'true');
+    legacyHeader.querySelector('[data-home-link]')?.remove();
+
+    const leftRail = document.createElement('div');
+    leftRail.className = 'utility-rail utility-rail-left';
+    leftRail.innerHTML = '<a href="/" data-home-link class="table-icon utility-home" aria-label="返回目錄" title="返回目錄"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M9 21v-6h6v6"/></svg></a><button class="table-icon utility-language" onclick="toggleLang()" aria-label="切換語系" title="切換語系"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.2 2.5 3.4 5.5 3.4 9s-1.2 6.5-3.4 9c-2.2-2.5-3.4-5.5-3.4-9S9.8 5.5 12 3Z"/></svg><span id="utility-lang-label" data-role="utility-label">EN</span></button>';
+
+    const rightRail = document.createElement('div');
+    rightRail.className = 'utility-rail utility-rail-right';
+    rightRail.innerHTML = '<button class="table-icon utility-cycle" data-role="utility-mode" onclick="cycleGameMode()" aria-label="切換模式" title="切換模式"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m14.5 6.5 3-3 3 3-3 3"/><path d="M17.5 6.5a7 7 0 0 0-12 5"/><path d="m9.5 17.5-3 3-3-3 3-3"/><path d="M6.5 17.5a7 7 0 0 0 12-5"/></svg><span data-role="utility-label">雙人</span></button><button class="table-icon utility-cycle" data-role="utility-rule" onclick="cycleRuleMode()" aria-label="切換規則" title="切換規則"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2M12 4v1M12 19v1M4.9 7.1l1.1 1.1M18 15.8l1.1 1.1"/></svg><span data-role="utility-label">基本</span></button><button class="table-icon utility-rules" data-role="utility-rules" onclick="toggleRules(true)" aria-label="遊戲規則" title="遊戲規則"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4 2c-1.1.8-1.6 1.2-1.6 2.5M12 17h.01"/></svg></button><button class="table-icon utility-reset" onclick="resetGame(true)" aria-label="重新開始" title="重新開始"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></svg></button>';
+
+    document.body.append(leftRail, rightRail);
     tabletop.prepend(document.getElementById('game-meta'));
-    const settings = document.createElement('dialog');
-    settings.id = 'table-settings';
-    settings.innerHTML = '<button class="settings-close" onclick="toggleSettings(false)" aria-label="關閉設定">×</button>';
-    settings.append(document.querySelector('.app-header'));
-    document.body.append(settings);
-    settings.querySelector('[data-home-link]').remove();
     render(); checkAITurn();
   </script>
 </body>

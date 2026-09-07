@@ -1,20 +1,29 @@
 import { test, expect } from '@playwright/test';
 
-test('keeps navigation and settings as usable viewport-floating controls', async ({ page }) => {
+test('keeps all utility actions as usable viewport-floating controls', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
 
-  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.1.1');
-  const rail = page.locator('.utility-rail');
-  const controls = rail.locator('.table-icon');
-  await expect(controls).toHaveCount(2);
-  await expect(controls.nth(0)).toBeVisible();
-  await expect(controls.nth(1)).toBeVisible();
-  await expect(controls.nth(0)).toHaveCSS('position', 'fixed');
-  await expect(controls.nth(1)).toHaveCSS('position', 'fixed');
-  await expect(rail.locator('[data-home-link]')).toBeVisible();
-  await expect(rail.locator('.settings-toggle')).toBeVisible();
+  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.2.0');
+  const leftRail = page.locator('.utility-rail-left');
+  const rightRail = page.locator('.utility-rail-right');
+  const controls = page.locator('.utility-rail .table-icon');
+  await expect(leftRail.locator('.table-icon')).toHaveCount(2);
+  await expect(rightRail.locator('.table-icon')).toHaveCount(4);
+  await expect(controls).toHaveCount(6);
+  for (const control of await controls.all()) {
+    await expect(control).toBeVisible();
+    await expect(control).toHaveCSS('position', 'fixed');
+  }
+  await expect(leftRail.locator('[data-home-link]')).toBeVisible();
+  await expect(leftRail.locator('.utility-language')).toBeVisible();
+  await expect(rightRail.locator('[data-role="utility-mode"]')).toBeVisible();
+  await expect(rightRail.locator('[data-role="utility-rule"]')).toBeVisible();
+  await expect(rightRail.locator('[data-role="utility-rules"]')).toBeVisible();
+  await expect(rightRail.locator('.utility-reset')).toBeVisible();
+  await expect(page.locator('#table-settings')).toHaveCount(0);
+  await expect(page.locator('.settings-toggle')).toHaveCount(0);
 
   const geometry = await page.evaluate(() => {
     const controls = [...document.querySelectorAll('.utility-rail .table-icon')].map((el) => {
@@ -24,17 +33,22 @@ test('keeps navigation and settings as usable viewport-floating controls', async
     return {
       controls,
       viewportWidth: innerWidth,
-      railIsOutsideGameBoard: !document.querySelector('.utility-rail').closest('#game-board'),
-      mountedOnBody: document.querySelector('.utility-rail').parentElement === document.body
+      railsOutsideGameBoard: [...document.querySelectorAll('.utility-rail')].every((rail) => !rail.closest('#game-board')),
+      mountedOnBody: [...document.querySelectorAll('.utility-rail')].every((rail) => rail.parentElement === document.body)
     };
   });
 
-  expect(geometry.controls).toHaveLength(2);
+  expect(geometry.controls).toHaveLength(6);
   expect(geometry.controls.every(({ right }) => right <= geometry.viewportWidth)).toBe(true);
   expect(geometry.controls[1].y).toBeGreaterThan(geometry.controls[0].bottom);
-  expect(geometry.railIsOutsideGameBoard).toBe(true);
+  expect(geometry.controls[3].y).toBeGreaterThan(geometry.controls[2].bottom);
+  expect(geometry.controls[4].y).toBeGreaterThan(geometry.controls[3].bottom);
+  expect(geometry.controls[5].y).toBeGreaterThan(geometry.controls[4].bottom);
+  expect(geometry.railsOutsideGameBoard).toBe(true);
   expect(geometry.mountedOnBody).toBe(true);
 
-  await rail.locator('.settings-toggle').click();
-  await expect(page.locator('#table-settings')).toBeVisible();
+  await rightRail.locator('[data-role="utility-rules"]').click();
+  await expect(page.locator('#rules-modal')).toBeVisible();
+  await page.locator('#modal-close-btn').click();
+  await expect(page.locator('#rules-modal')).toHaveClass(/hidden/);
 });
