@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.2.0">
+  <link rel="stylesheet" href="tabletop.css?v=2.2.1">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -393,16 +393,43 @@
       }
     }
 
-    function cycleGameMode() {
-      const modes = ['PVP', 'AI_EASY', 'AI_HARD'];
-      const currentIndex = modes.indexOf(game.mode);
-      changeMode(modes[(currentIndex + 1) % modes.length]);
+    function closeUtilityMenus() {
+      document.querySelectorAll('.utility-menu').forEach(menu => {
+        menu.classList.add('hidden');
+        menu.removeAttribute('data-open');
+      });
+      document.querySelectorAll('[aria-haspopup="menu"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
     }
 
-    function cycleRuleMode() {
-      const modes = ['CLASSIC', 'RACE2'];
-      const currentIndex = modes.indexOf(game.ruleMode);
-      changeRuleMode(modes[(currentIndex + 1) % modes.length]);
+    function toggleUtilityMenu(type, anchor) {
+      const menu = document.getElementById(`utility-${type}-menu`);
+      if (!menu) return;
+      const wasOpen = menu.dataset.open === 'true';
+      closeUtilityMenus();
+      if (wasOpen) return;
+
+      menu.classList.remove('hidden');
+      menu.dataset.open = 'true';
+      anchor.setAttribute('aria-expanded', 'true');
+      const rect = anchor.getBoundingClientRect();
+      const gap = 8;
+      const menuWidth = menu.offsetWidth;
+      const menuHeight = menu.offsetHeight;
+      let left = rect.left - menuWidth - gap;
+      if (left < 8) left = rect.right + gap;
+      const top = Math.min(Math.max(8, rect.top), Math.max(8, innerHeight - menuHeight - 8));
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+    }
+
+    function selectUtilityMode(mode) {
+      closeUtilityMenus();
+      if (mode !== game.mode) changeMode(mode);
+    }
+
+    function selectUtilityRule(ruleMode) {
+      closeUtilityMenus();
+      if (ruleMode !== game.ruleMode) changeRuleMode(ruleMode);
     }
 
     function resetGame(force = false) {
@@ -1119,6 +1146,27 @@
         utilityRule.title = `${LANG === 'zh' ? '規則' : 'Rules'}: ${ruleLabel}`;
         utilityRule.setAttribute('aria-label', utilityRule.title);
       }
+      const utilityModeMenu = document.getElementById('utility-mode-menu');
+      if (utilityModeMenu) {
+        utilityModeMenu.querySelector('[data-mode="PVP"]').innerText = t('mode_pvp');
+        utilityModeMenu.querySelector('[data-mode="AI_EASY"]').innerText = t('mode_ai_easy');
+        utilityModeMenu.querySelector('[data-mode="AI_HARD"]').innerText = t('mode_ai_hard');
+        utilityModeMenu.querySelectorAll('[data-mode]').forEach(option => {
+          const isSelected = option.dataset.mode === game.mode;
+          option.classList.toggle('is-selected', isSelected);
+          option.setAttribute('aria-checked', String(isSelected));
+        });
+      }
+      const utilityRuleMenu = document.getElementById('utility-rule-menu');
+      if (utilityRuleMenu) {
+        utilityRuleMenu.querySelector('[data-rule-mode="CLASSIC"]').innerText = LANG === 'zh' ? '基本模式' : 'Classic';
+        utilityRuleMenu.querySelector('[data-rule-mode="RACE2"]').innerText = LANG === 'zh' ? '搶 2 分' : 'Race to 2';
+        utilityRuleMenu.querySelectorAll('[data-rule-mode]').forEach(option => {
+          const isSelected = option.dataset.ruleMode === game.ruleMode;
+          option.classList.toggle('is-selected', isSelected);
+          option.setAttribute('aria-checked', String(isSelected));
+        });
+      }
 
       document.getElementById('white-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors ${game.turn === 'WHITE' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
       document.getElementById('black-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4 ${game.turn === 'BLACK' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
@@ -1338,9 +1386,28 @@
 
     const rightRail = document.createElement('div');
     rightRail.className = 'utility-rail utility-rail-right';
-    rightRail.innerHTML = '<button class="table-icon utility-cycle" data-role="utility-mode" onclick="cycleGameMode()" aria-label="切換模式" title="切換模式"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m14.5 6.5 3-3 3 3-3 3"/><path d="M17.5 6.5a7 7 0 0 0-12 5"/><path d="m9.5 17.5-3 3-3-3 3-3"/><path d="M6.5 17.5a7 7 0 0 0 12-5"/></svg><span data-role="utility-label">雙人</span></button><button class="table-icon utility-cycle" data-role="utility-rule" onclick="cycleRuleMode()" aria-label="切換規則" title="切換規則"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2M12 4v1M12 19v1M4.9 7.1l1.1 1.1M18 15.8l1.1 1.1"/></svg><span data-role="utility-label">基本</span></button><button class="table-icon utility-rules" data-role="utility-rules" onclick="toggleRules(true)" aria-label="遊戲規則" title="遊戲規則"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4 2c-1.1.8-1.6 1.2-1.6 2.5M12 17h.01"/></svg></button><button class="table-icon utility-reset" onclick="resetGame(true)" aria-label="重新開始" title="重新開始"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></svg></button>';
+    rightRail.innerHTML = '<button class="table-icon utility-cycle" data-role="utility-mode" onclick="toggleUtilityMenu(\'mode\', this)" aria-haspopup="menu" aria-expanded="false" aria-label="選擇模式" title="選擇模式"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m14.5 6.5 3-3 3 3-3 3"/><path d="M17.5 6.5a7 7 0 0 0-12 5"/><path d="m9.5 17.5-3 3-3-3 3-3"/><path d="M6.5 17.5a7 7 0 0 0 12-5"/></svg><span data-role="utility-label">雙人</span></button><button class="table-icon utility-cycle" data-role="utility-rule" onclick="toggleUtilityMenu(\'rule\', this)" aria-haspopup="menu" aria-expanded="false" aria-label="選擇規則" title="選擇規則"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2M12 4v1M12 19v1M4.9 7.1l1.1 1.1M18 15.8l1.1 1.1"/></svg><span data-role="utility-label">基本</span></button><button class="table-icon utility-rules" data-role="utility-rules" onclick="toggleRules(true)" aria-label="遊戲規則" title="遊戲規則"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4 2c-1.1.8-1.6 1.2-1.6 2.5M12 17h.01"/></svg></button><button class="table-icon utility-reset" onclick="resetGame(true)" aria-label="重新開始" title="重新開始"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></svg></button>';
 
-    document.body.append(leftRail, rightRail);
+    const modeMenu = document.createElement('div');
+    modeMenu.id = 'utility-mode-menu';
+    modeMenu.className = 'utility-menu hidden';
+    modeMenu.setAttribute('role', 'menu');
+    modeMenu.innerHTML = '<button type="button" role="menuitemradio" data-mode="PVP" onclick="selectUtilityMode(\'PVP\')"></button><button type="button" role="menuitemradio" data-mode="AI_EASY" onclick="selectUtilityMode(\'AI_EASY\')"></button><button type="button" role="menuitemradio" data-mode="AI_HARD" onclick="selectUtilityMode(\'AI_HARD\')"></button>';
+
+    const ruleMenu = document.createElement('div');
+    ruleMenu.id = 'utility-rule-menu';
+    ruleMenu.className = 'utility-menu hidden';
+    ruleMenu.setAttribute('role', 'menu');
+    ruleMenu.innerHTML = '<button type="button" role="menuitemradio" data-rule-mode="CLASSIC" onclick="selectUtilityRule(\'CLASSIC\')"></button><button type="button" role="menuitemradio" data-rule-mode="RACE2" onclick="selectUtilityRule(\'RACE2\')"></button>';
+
+    document.body.append(leftRail, rightRail, modeMenu, ruleMenu);
+    document.addEventListener('click', event => {
+      if (!event.target.closest('.utility-menu, [aria-haspopup="menu"]')) closeUtilityMenus();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeUtilityMenus();
+    });
+    window.addEventListener('resize', closeUtilityMenus);
     tabletop.prepend(document.getElementById('game-meta'));
     render(); checkAITurn();
   </script>

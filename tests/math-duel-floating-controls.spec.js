@@ -5,7 +5,7 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
 
-  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.2.0');
+  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.2.1');
   const leftRail = page.locator('.utility-rail-left');
   const rightRail = page.locator('.utility-rail-right');
   const controls = page.locator('.utility-rail .table-icon');
@@ -25,6 +25,18 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
   await expect(page.locator('#table-settings')).toHaveCount(0);
   await expect(page.locator('.settings-toggle')).toHaveCount(0);
 
+  await rightRail.locator('[data-role="utility-mode"]').click();
+  await expect(page.locator('#utility-mode-menu')).toBeVisible();
+  await expect(page.locator('#utility-mode-menu [data-mode="PVP"]')).toHaveClass(/is-selected/);
+  await rightRail.locator('[data-role="utility-mode"]').click();
+  await expect(page.locator('#utility-mode-menu')).toHaveClass(/hidden/);
+
+  await rightRail.locator('[data-role="utility-rule"]').click();
+  await expect(page.locator('#utility-rule-menu')).toBeVisible();
+  await expect(page.locator('#utility-rule-menu [data-rule-mode="CLASSIC"]')).toHaveClass(/is-selected/);
+  await rightRail.locator('[data-role="utility-rule"]').click();
+  await expect(page.locator('#utility-rule-menu')).toHaveClass(/hidden/);
+
   const geometry = await page.evaluate(() => {
     const controls = [...document.querySelectorAll('.utility-rail .table-icon')].map((el) => {
       const rect = el.getBoundingClientRect();
@@ -33,6 +45,8 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
     return {
       controls,
       viewportWidth: innerWidth,
+      centerLabel: document.getElementById('ui-center-label').getBoundingClientRect(),
+      leftHome: document.querySelector('.utility-home').getBoundingClientRect(),
       railsOutsideGameBoard: [...document.querySelectorAll('.utility-rail')].every((rail) => !rail.closest('#game-board')),
       mountedOnBody: [...document.querySelectorAll('.utility-rail')].every((rail) => rail.parentElement === document.body)
     };
@@ -44,6 +58,7 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
   expect(geometry.controls[3].y).toBeGreaterThan(geometry.controls[2].bottom);
   expect(geometry.controls[4].y).toBeGreaterThan(geometry.controls[3].bottom);
   expect(geometry.controls[5].y).toBeGreaterThan(geometry.controls[4].bottom);
+  expect(geometry.centerLabel.left).toBeGreaterThanOrEqual(geometry.leftHome.right);
   expect(geometry.railsOutsideGameBoard).toBe(true);
   expect(geometry.mountedOnBody).toBe(true);
 
