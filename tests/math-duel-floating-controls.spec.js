@@ -5,7 +5,7 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
 
-  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.2.5');
+  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.2.6');
   await expect(page.locator('#black-turn-status')).toHaveText('輪到你了');
   await expect(page.locator('#white-turn-status')).toHaveText('輪到對手了');
   const leftRail = page.locator('.utility-rail-left');

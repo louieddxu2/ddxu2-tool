@@ -214,18 +214,29 @@ test('keeps a no-scroll landscape tabletop with players across from each other',
     const white = document.querySelector('#white-area').getBoundingClientRect();
     const play = document.querySelector('#table-surface').getBoundingClientRect();
     const black = document.querySelector('#black-area').getBoundingClientRect();
+    const centerArea = document.querySelector('#center-area').getBoundingClientRect();
+    const centerCard = document.querySelector('#center-cards [data-card-id]').getBoundingClientRect();
+    const blackHand = document.querySelector('#black-hand').getBoundingClientRect();
+    const blackLabel = document.querySelector('#black-label').getBoundingClientRect();
+    const blackTurnStatus = document.querySelector('#black-turn-status').getBoundingClientRect();
     return {
       bodyWidth: document.body.scrollWidth,
       bodyHeight: document.body.scrollHeight,
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
-      ordered: white.bottom <= play.top && play.bottom <= black.top
+      ordered: white.bottom <= play.top && play.bottom <= black.top,
+      centerOffset: Math.abs((centerCard.left + centerCard.width / 2) - (centerArea.left + centerArea.width / 2)),
+      blackLabelOnLeft: blackLabel.left < blackHand.left + 40,
+      blackTurnStatusOnRight: blackTurnStatus.right > blackHand.right - 80
     };
   });
 
   expect(layout.bodyWidth).toBeLessThanOrEqual(layout.viewportWidth);
   expect(layout.bodyHeight).toBeLessThanOrEqual(layout.viewportHeight);
   expect(layout.ordered).toBe(true);
+  expect(layout.centerOffset).toBeLessThan(1);
+  expect(layout.blackLabelOnLeft).toBe(true);
+  expect(layout.blackTurnStatusOnRight).toBe(true);
 });
 
 test('rotates only equation contents toward white after the turn changes', async ({ page }) => {
