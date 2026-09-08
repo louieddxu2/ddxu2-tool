@@ -30,6 +30,25 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await expect(page.locator('#white-area')).toHaveClass(/border-blue-500/);
 });
 
+test('does not mirror active control highlights into the opponent action zone', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
+  await page.goto('/math-duel/index.html');
+
+  await page.locator('#black-hand [data-card-id="b1"]').click();
+  await expect(page.locator('#black-equation [data-role="stage-hand-cards"] [data-card-id="b1"]')).toBeVisible({ timeout: 2000 });
+  await page.locator('#black-hand [data-card-id="b5"]').click();
+  await expect(page.locator('#black-equation [data-role="stage-hand-cards"] [data-card-id="b5"]')).toBeVisible({ timeout: 2000 });
+  await page.locator('#center-cards [data-card-id="w9"]').click();
+  await expect(page.locator('#black-equation [data-role="stage-center-cards"] [data-card-id="w9"]')).toBeVisible({ timeout: 2000 });
+  await page.locator('#black-actions [data-op="+"]').click();
+
+  await expect(page.locator('#black-actions [data-op="+"]')).toHaveClass(/bg-blue-600/);
+  await expect(page.locator('#white-actions [data-op="+"]')).not.toHaveClass(/bg-blue-600/);
+  await expect(page.locator('#black-actions [data-role="main-btn"]')).toHaveClass(/bg-blue-600/);
+  await expect(page.locator('#white-actions [data-role="main-btn"]')).not.toHaveClass(/bg-blue-600/);
+  await expect(page.locator('#white-actions [data-role="main-btn"]')).toBeDisabled();
+});
+
 test('anchors deselection animation to the live card when history repeats its id', async ({ page }) => {
   await page.addInitScript(() => {
     const card = (id, val, color) => ({ id, val, color });

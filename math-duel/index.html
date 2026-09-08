@@ -1231,7 +1231,8 @@
       document.getElementById('black-area').className = `bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4 ${game.turn === 'BLACK' && game.state !== 'GAMEOVER' ? 'border-blue-500 bg-blue-50' : 'border-transparent'}`;
 
       document.querySelectorAll('.op-btn').forEach(btn => {
-        const isSel = game.selections.operator === btn.dataset.op;
+        const isActiveZone = btn.closest('.action-zone')?.dataset.side === game.turn;
+        const isSel = isActiveZone && game.selections.operator === btn.dataset.op;
         const isDisabled = game.state !== 'PLAYING' || isAITurn() || game.uiBusy || btn.closest('.action-zone')?.dataset.side !== game.turn;
 
         // 基礎樣式
@@ -1337,7 +1338,12 @@
           const target = zone.querySelector(`[data-role="${role}"]`);
           if (!source || !target) return;
           target.innerText = source.innerText;
-          target.className = source.className;
+          const isHidden = source.classList.contains('hidden');
+          target.className = isHidden
+            ? 'hidden'
+            : role === 'giveup-btn'
+              ? 'w-full py-3 rounded-xl font-semibold border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+              : 'w-full py-3 rounded-xl font-bold shadow-md bg-slate-200 text-slate-500 cursor-not-allowed';
           target.title = source.title;
           target.setAttribute('aria-label', source.getAttribute('aria-label') || '');
           target.disabled = true;
