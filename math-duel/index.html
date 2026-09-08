@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.2.1">
+  <link rel="stylesheet" href="tabletop.css?v=2.2.2">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -1400,6 +1400,12 @@
     ruleMenu.setAttribute('role', 'menu');
     ruleMenu.innerHTML = '<button type="button" role="menuitemradio" data-rule-mode="CLASSIC" onclick="selectUtilityRule(\'CLASSIC\')"></button><button type="button" role="menuitemradio" data-rule-mode="RACE2" onclick="selectUtilityRule(\'RACE2\')"></button>';
 
+    function syncUtilityRailPosition() {
+      const tableRect = tabletop.getBoundingClientRect();
+      const tableCenter = tableRect.top + (tableRect.height / 2);
+      document.documentElement.style.setProperty('--utility-center-y', `${tableCenter}px`);
+    }
+
     document.body.append(leftRail, rightRail, modeMenu, ruleMenu);
     document.addEventListener('click', event => {
       if (!event.target.closest('.utility-menu, [aria-haspopup="menu"]')) closeUtilityMenus();
@@ -1407,8 +1413,12 @@
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape') closeUtilityMenus();
     });
-    window.addEventListener('resize', closeUtilityMenus);
+    window.addEventListener('resize', () => {
+      syncUtilityRailPosition();
+      closeUtilityMenus();
+    });
     tabletop.prepend(document.getElementById('game-meta'));
+    syncUtilityRailPosition();
     render(); checkAITurn();
   </script>
 </body>
