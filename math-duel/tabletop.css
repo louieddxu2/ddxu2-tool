@@ -40,7 +40,7 @@ body.is-pvp #white-area { transform: rotate(180deg); }
 [data-card-id].bg-white { background: #fff; border-color: #bbc7d6; }
 [data-card-id]:hover { transform: none !important; }
 #table-area {
-  min-height: 0; display: grid; grid-template-rows: 34px minmax(0, 1fr); background: var(--surface);
+  min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); background: var(--surface);
   border: 1px solid #d5d8dc; border-radius: 17px; box-shadow: 0 3px 12px #33415512; overflow: hidden;
 }
 .utility-rail { position: static; display: contents; pointer-events: none; }
@@ -62,11 +62,15 @@ body.is-pvp #white-area { transform: rotate(180deg); }
 .utility-menu button { width: 100%; min-height: 34px; padding: 6px 9px; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 12px; line-height: 16px; text-align: left; white-space: nowrap; }
 .utility-menu button:hover, .utility-menu button:focus-visible { color: var(--ink); background: var(--surface-soft); border-color: var(--line); }
 .utility-menu button.is-selected { color: var(--blue); background: #eef4ff; border-color: #c9dafe; font-weight: 700; }
-#game-meta { min-width: 0; display: grid; grid-template-rows: 18px 12px; text-align: center; }
+#game-meta { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); pointer-events: none; }
 #status-banner { min-width: 0; overflow: hidden; padding: 0 !important; color: var(--blue) !important; background: transparent !important; border: 0 !important; box-shadow: none !important; font-size: 11px !important; line-height: 18px !important; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
 #status-banner .text-xl { margin: 0 2px; font-size: 12px; }
 #race2-scoreboard { padding: 0 !important; color: var(--muted) !important; background: transparent !important; border: 0 !important; font-size: 9px; line-height: 12px; }
 #history-area { display: none !important; }
+.player-area-header { position: relative; width: 100%; }
+.player-turn-status { position: absolute; left: 0; top: 50%; max-width: 38%; overflow: hidden; color: var(--muted); font-size: 10px; line-height: 14px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; transform: translateY(-50%); }
+.player-turn-status.is-current { color: var(--blue); }
+.player-score { position: absolute; right: 0; top: 50%; color: var(--muted); font-size: 10px; line-height: 14px; font-weight: 700; transform: translateY(-50%); }
 #table-surface { min-height: 0; display: grid; grid-template-rows: minmax(52px, .82fr) minmax(48px, 1fr) minmax(54px, .95fr) minmax(48px, 1fr) minmax(52px, .82fr); background: transparent; }
 .table-zone { min-height: 0; min-width: 0; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border-bottom: 1px solid var(--line); }
 .table-zone:last-child { border-bottom: 0; }
@@ -121,7 +125,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .hand-grid { width: 100%; min-height: 42px; flex-wrap: nowrap; justify-content: space-around; gap: 6px; }
   .hand-grid [data-card-id], .hand-card-slot { width: 34px; height: 42px; flex-basis: 34px; }
   .hand-grid [data-card-id] { font-size: 22px; }
-  #table-area { grid-template-rows: 32px minmax(0, 1fr); }
+  #table-area { grid-template-rows: minmax(0, 1fr); }
   #table-surface { grid-template-rows: minmax(35px, .8fr) minmax(34px, 1fr) minmax(40px, .9fr) minmax(34px, 1fr) minmax(35px, .8fr); }
   .action-content { grid-template-columns: minmax(0, 1fr) 92px; grid-template-rows: 18px 20px; gap: 3px 6px; padding: 2px 12px; }
   .op-btn { width: 34px !important; height: 20px !important; font-size: 16px; }
@@ -140,7 +144,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .hand-grid { min-height: 34px; gap: 2px; }
   .hand-grid [data-card-id], .hand-card-slot { width: 29px; height: 34px; flex-basis: 29px; }
   .hand-grid [data-card-id] { font-size: 19px; }
-  #table-area { grid-template-rows: 29px minmax(0, 1fr); }
+  #table-area { grid-template-rows: minmax(0, 1fr); }
   #table-surface { grid-template-rows: minmax(28px, .8fr) minmax(25px, 1fr) minmax(35px, .9fr) minmax(25px, 1fr) minmax(28px, .8fr); }
   .action-content { grid-template-columns: minmax(0, 1fr) 76px; grid-template-rows: 14px 16px; gap: 2px 4px; padding: 1px 6px; }
   .operator-group { gap: 3px; }
@@ -162,7 +166,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .hand-grid { width: min(100%, 220px); min-height: 70px; gap: 3px; }
   .hand-grid [data-card-id], .hand-card-slot { width: 32px; height: 36px; flex-basis: 32px; }
   .hand-grid [data-card-id] { font-size: 20px; }
-  #table-area { grid-template-rows: 31px minmax(0, 1fr); }
+  #table-area { grid-template-rows: minmax(0, 1fr); }
   #table-surface { grid-template-rows: minmax(42px, .78fr) minmax(34px, 1fr) minmax(40px, .9fr) minmax(34px, 1fr) minmax(42px, .78fr); }
   .action-content { grid-template-columns: minmax(0, 1fr) 84px; grid-template-rows: 18px 20px; gap: 2px 4px; padding: 2px 8px; }
   .operator-group { gap: 4px; }

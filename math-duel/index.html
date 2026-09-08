@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.2.2">
+  <link rel="stylesheet" href="tabletop.css?v=2.2.4">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -62,6 +62,10 @@
         discard_hint: '⚠️ 場中央超過兩張，請選擇 2 張保留',
         confirm_keep: '確認保留',
         turn_label: '現在輪到：',
+        turn_you: '輪到你了',
+        turn_opponent: '輪到對手了',
+        turn_ai: 'AI 回合',
+        turn_wait: '等待中',
         waiting_first: '等待第一手...',
         last_turn_white: '白方上回',
         last_turn_black: '黑方上回',
@@ -108,6 +112,10 @@
         discard_hint: '⚠️ More than 2 cards in center, keep 2.',
         confirm_keep: 'Confirm Keep',
         turn_label: 'Turn: ',
+        turn_you: 'Your turn',
+        turn_opponent: "Opponent's turn",
+        turn_ai: 'AI turn',
+        turn_wait: 'Waiting',
         waiting_first: 'Waiting for first move...',
         last_turn_white: 'White Last',
         last_turn_black: 'Black Last',
@@ -173,17 +181,20 @@
     </div>
   </header>
 
-  <main id="game-board" class="game-board flex-grow w-full max-w-md mx-auto">
-    <div id="game-meta" class="game-meta">
+  <div id="game-meta" class="game-meta">
       <div id="status-banner"
         class="bg-blue-100 text-blue-800 text-center font-bold shadow-sm border border-blue-200"></div>
       <div id="race2-scoreboard"
         class="hidden bg-emerald-50 text-emerald-800 text-center font-bold border border-emerald-200"></div>
       <div id="history-area" class="hidden"></div>
-    </div>
+  </div>
+
+  <main id="game-board" class="game-board flex-grow w-full max-w-md mx-auto">
 
     <section id="white-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors">
-      <div class="flex justify-between items-center mb-3">
+      <div class="player-area-header">
+        <span id="white-turn-status" class="player-turn-status" aria-live="polite"></span>
+        <span id="white-score" class="player-score hidden" aria-live="polite"></span>
         <h2 class="text-sm font-bold text-slate-500" id="white-label"></h2>
       </div>
       <div id="white-hand" class="hand-grid"></div>
@@ -255,7 +266,9 @@
     </section>
 
     <section id="black-area" class="bg-white rounded-2xl p-4 border-2 shadow-sm transition-colors mb-4">
-      <div class="flex justify-between items-center mb-3">
+      <div class="player-area-header">
+        <span id="black-turn-status" class="player-turn-status" aria-live="polite"></span>
+        <span id="black-score" class="player-score hidden" aria-live="polite"></span>
         <h2 class="text-sm font-bold text-slate-500" id="black-label"></h2>
       </div>
       <div id="black-hand" class="hand-grid"></div>
@@ -1079,6 +1092,43 @@
        lastViewTurnKey = nextKey;
      }
 
+    function getPlayerTurnStatus(side) {
+      const isAiMode = game.mode.startsWith('AI');
+      const isAiSide = isAiMode && game.aiSide === side;
+      const isHumanSide = isAiMode && game.playerColor === (side === 'BLACK' ? 'b' : 'w');
+
+      if (game.state === 'GAMEOVER') {
+        return game.winner === side
+          ? (LANG === 'zh' ? '勝利' : 'Won')
+          : (LANG === 'zh' ? '對局結束' : 'Game over');
+      }
+      if (game.state === 'ANIMATING') {
+        return game.movePreview?.actor === 'AI'
+          ? (isAiSide ? (LANG === 'zh' ? 'AI 行動中' : 'AI resolving') : t('turn_wait'))
+          : (isHumanSide || (!isAiMode && game.turn === side) ? (LANG === 'zh' ? '行動結算中' : 'Resolving') : t('turn_wait'));
+      }
+      if (game.state === 'DISCARDING') {
+        return game.turn === side
+          ? (isAiSide ? (LANG === 'zh' ? 'AI 整理中' : 'AI arranging') : (LANG === 'zh' ? '請選擇棄牌' : 'Choose discards'))
+          : t('turn_wait');
+      }
+      if (isAiMode) {
+        if (game.turn === side) return isAiSide ? (game.aiMoveInfo ? t('ai_plan') : t('turn_ai')) : t('turn_you');
+        return isAiSide ? t('turn_wait') : (LANG === 'zh' ? '等待 AI' : 'Waiting for AI');
+      }
+      return game.turn === side ? t('turn_you') : t('turn_opponent');
+    }
+
+    function updatePlayerTurnStatuses() {
+      [['WHITE', 'white-turn-status'], ['BLACK', 'black-turn-status']].forEach(([side, id]) => {
+        const status = document.getElementById(id);
+        if (!status) return;
+        const isCurrent = game.state !== 'GAMEOVER' && game.turn === side;
+        status.innerText = getPlayerTurnStatus(side);
+        status.className = `player-turn-status ${isCurrent ? 'is-current' : ''}`;
+      });
+    }
+
     function render() {
       syncViewOrientation();
       document.body.dataset.gameState = game.state;
@@ -1128,6 +1178,15 @@
 
       if (document.getElementById('white-label').innerText !== whiteLabel) document.getElementById('white-label').innerText = whiteLabel;
       if (document.getElementById('black-label').innerText !== blackLabel) document.getElementById('black-label').innerText = blackLabel;
+      updatePlayerTurnStatuses();
+      const whiteScore = document.getElementById('white-score');
+      const blackScore = document.getElementById('black-score');
+      const showRaceScores = isRace2Mode();
+      [whiteScore, blackScore].forEach(score => score?.classList.toggle('hidden', !showRaceScores));
+      if (showRaceScores) {
+        whiteScore.innerText = LANG === 'zh' ? `白 ${game.scores.WHITE}` : `W ${game.scores.WHITE}`;
+        blackScore.innerText = LANG === 'zh' ? `黑 ${game.scores.BLACK}` : `B ${game.scores.BLACK}`;
+      }
       document.getElementById('rule-mode-select').value = game.ruleMode;
 
       const utilityMode = document.querySelector('[data-role="utility-mode"]');
@@ -1417,7 +1476,6 @@
       syncUtilityRailPosition();
       closeUtilityMenus();
     });
-    tabletop.prepend(document.getElementById('game-meta'));
     syncUtilityRailPosition();
     render(); checkAITurn();
   </script>
