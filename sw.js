@@ -1,4 +1,5 @@
 const CACHE_NAME = 'ddxu2-launcher-v34';
+const CACHE_NAME_PREFIX = 'ddxu2-launcher-';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -7,7 +8,9 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.map((key) => caches.delete(key))
+      keys
+        .filter((key) => key.startsWith(CACHE_NAME_PREFIX) && key !== CACHE_NAME)
+        .map((key) => caches.delete(key))
     ))
   );
   self.clients.claim();
@@ -48,19 +51,19 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
           return res;
         })
-        .catch(() => caches.match(req))
+        .catch(() => caches.open(CACHE_NAME).then((cache) => cache.match(req)))
     );
     return;
   }
 
   // 3. Assets: Cache-First
   event.respondWith(
-    caches.match(req).then((cached) => {
+    caches.open(CACHE_NAME).then((cache) => cache.match(req).then((cached) => {
       return cached || fetch(req).then((res) => {
         const copy = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        cache.put(req, copy);
         return res;
       });
-    })
+    }))
   );
 });
