@@ -301,7 +301,8 @@ window.forceSyncExistingCards = async () => {
     let sentToAllConnections = true;
     for (const c of activeConns) {
       try {
-        await sendCardChunked(c, card);
+        const sent = await sendCardChunked(c, card);
+        if (!sent) sentToAllConnections = false;
       } catch (err) {
         sentToAllConnections = false;
         logSync(`強制廣播失敗 ${card.number || card.id}: ${err.message || err}`, "error");
@@ -351,7 +352,7 @@ function startJoin(id) {
 }
 
 async function sendCardChunked(targetConn, card) {
-  if (!targetConn || !targetConn.open) return;
+  if (!targetConn || !targetConn.open) return false;
   const buffer = await card.blob.arrayBuffer();
   const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE);
   targetConn.send({ type: 'CARD_START', cardId: card.id, totalChunks: totalChunks, metadata: { ...card, blob: null } });
@@ -362,6 +363,26 @@ async function sendCardChunked(targetConn, card) {
     targetConn.send({ type: 'CARD_CHUNK', cardId: card.id, index: i, chunk: chunk });
     if (i % 5 === 0) await new Promise(r => setTimeout(r, 10));
   }
+  return true;
+}
+
+async function relayCardToOtherConnections(sourceConn, card) {
+  if (localStorage.getItem('bg_sync_role') !== 'host') return true;
+
+  let sentToAllConnections = true;
+  for (const targetConn of window.connections) {
+    if (targetConn === sourceConn || !targetConn.open) continue;
+
+    try {
+      const sent = await sendCardChunked(targetConn, card);
+      if (!sent) sentToAllConnections = false;
+    } catch (err) {
+      sentToAllConnections = false;
+      logSync(`轉發卡片失敗 ${card.number || card.id}: ${err.message || err}`, "error");
+    }
+  }
+
+  return sentToAllConnections;
 }
 
 function getIncomingChunkKey(peerId, cardId) {
@@ -510,14 +531,17 @@ window.setupConnection = function(c) {
       const sessionGame = localStorage.getItem('bg_session_game') || '';
       const sessionCards = window.dbCards.filter(x => x.timestamp >= sessionStart && x.game === sessionGame);
 
-      const missingOnClient = sessionCards.filter(card => {
-        const peerMeta = data.metas.find(m => m.id === card.id);
-        return !peerMeta || (peerMeta.timestamp || 0) < (card.timestamp || 0);
-      }).map(card => card.id);
+      // The peer's metadata is the source of truth for cards the host may have
+      // missed while it was asleep or disconnected. REQUEST_CARDS asks the
+      // recipient to send its local copy back to the host.
+      const missingFromHost = data.metas.filter(meta => {
+        const local = sessionCards.find(card => card.id === meta.id);
+        return !local || (local.timestamp || 0) < (meta.timestamp || 0);
+      }).map(meta => meta.id);
 
-      if (missingOnClient.length > 0) {
-        logSync(`Client missing ${missingOnClient.length} card(s); requesting backfill send.`);
-        c.send({ type: 'REQUEST_CARDS', ids: missingOnClient });
+      if (missingFromHost.length > 0) {
+        logSync(`Host missing ${missingFromHost.length} card(s); requesting peer backfill.`);
+        c.send({ type: 'REQUEST_CARDS', ids: missingFromHost });
       }
     }
 
@@ -597,6 +621,10 @@ window.setupConnection = function(c) {
             }
             return;
         }
+
+        // Host acts as the relay for the star topology. Never echo the card
+        // back to the connection that delivered it.
+        await relayCardToOtherConnections(c, card);
         
         // Smart Refresh Logic: Only refresh if the card matches current filters
         const gQ = document.getElementById("inp-game")?.value.toLowerCase().trim() || "";
@@ -702,7 +730,8 @@ window.idbKeyval.set = async function(key, value, isFromSync = false) {
         for (const c of activeConns) {
           // Sequential send to avoid interleaving messages on the data channel
           try {
-            await sendCardChunked(c, card);
+            const sent = await sendCardChunked(c, card);
+            if (!sent) sentToAllConnections = false;
           } catch (err) {
             sentToAllConnections = false;
             logSync(`Broadcast failed for ${card.number || card.id}: ${err.message || err}`, "error");
@@ -786,8 +815,6 @@ window.addEventListener('beforeunload', () => {
     peer.destroy();
   }
 });
-
-
 
 
 

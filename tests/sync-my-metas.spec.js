@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('sync my-metas backfill', () => {
-  test('host requests cards that client is missing', async ({ page }) => {
+  test('host requests cards that it missed from the client', async ({ page }) => {
     await page.goto('/Chinese-card/index.html');
     await page.waitForFunction(() => window.dbCards !== undefined && typeof window.setupConnection === 'function');
 
@@ -18,7 +18,7 @@ test.describe('sync my-metas backfill', () => {
 
       window.dbCards.length = 0;
       window.dbCards.push({
-        id: 'host-card-1',
+        id: 'local-card-1',
         game: 'MetaTest',
         type: 'T',
         number: 'M-001',
@@ -42,13 +42,13 @@ test.describe('sync my-metas backfill', () => {
 
       await window.p2pDataCallback({
         type: 'MY_METAS',
-        metas: [],
+        metas: [{ id: 'client-card-1', timestamp: now }],
       });
     });
 
     await page.waitForTimeout(100);
     const request = await page.evaluate(() => window.p2pSentMessages.find(x => x.type === 'REQUEST_CARDS'));
     expect(request).toBeTruthy();
-    expect(request.ids).toContain('host-card-1');
+    expect(request.ids).toContain('client-card-1');
   });
 });

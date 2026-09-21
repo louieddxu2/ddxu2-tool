@@ -68,39 +68,123 @@ test.describe('sync behavior simulation', () => {
     expect(result.secondStarts).toBe(1);
   });
 
-  test('B receives sync-added card: should not echo back to A', async ({ page }) => {
+  test('host relays a received card to B without echoing it to A', async ({ page }) => {
     await page.goto('/Chinese-card/index.html');
     await page.waitForFunction(() => window.dbCards && window.connections && typeof window.setupConnection === 'function');
     await seedBlob(page);
 
     const outcome = await page.evaluate(async () => {
-      const outbound = [];
+      const sourceOutbound = [];
+      const recipientOutbound = [];
       localStorage.setItem('bg_sync_role', 'host');
       localStorage.setItem('bg_session_start_time', String(Date.now() - 1000));
       localStorage.setItem('bg_session_game', 'EchoGame');
 
-      const conn = {
+      const sourceConn = {
         open: true,
-        peer: 'peer-1',
-        send: (d) => outbound.push(d),
+        peer: 'peer-a',
+        send: (d) => sourceOutbound.push(d),
         on: (event, cb) => {
-          if (event === 'data') window.__onData = cb;
+          if (event === 'data') window.__sourceData = cb;
           if (event === 'open') setTimeout(cb, 0);
         },
         close: () => {},
       };
-      window.setupConnection(conn);
+      const recipientConn = {
+        open: true,
+        peer: 'peer-b',
+        send: (d) => recipientOutbound.push(d),
+        on: (event, cb) => {
+          if (event === 'data') window.__recipientData = cb;
+          if (event === 'open') setTimeout(cb, 0);
+        },
+        close: () => {},
+      };
+      window.setupConnection(sourceConn);
+      window.setupConnection(recipientConn);
       await new Promise(r => setTimeout(r, 20));
-      outbound.length = 0;
+      sourceOutbound.length = 0;
+      recipientOutbound.length = 0;
 
       const buffer = await window.__testBlob.arrayBuffer();
-      await window.__onData({ type: 'CARD_START', cardId: 'recv-1', totalChunks: 1, metadata: { id: 'recv-1', game: 'EchoGame', type: 'T', number: 'R1', timestamp: Date.now(), blob: null } });
-      await window.__onData({ type: 'CARD_CHUNK', cardId: 'recv-1', index: 0, chunk: buffer });
+      const metadata = { id: 'recv-1', game: 'EchoGame', type: 'T', number: 'R1', timestamp: Date.now(), blob: null };
+      await window.__sourceData({ type: 'CARD_START', cardId: 'recv-1', totalChunks: 1, metadata });
+      await window.__sourceData({ type: 'CARD_CHUNK', cardId: 'recv-1', index: 0, chunk: buffer });
       await new Promise(r => setTimeout(r, 50));
 
-      return { cardStartOutbound: outbound.filter(x => x.type === 'CARD_START').length };
+      return {
+        sourceStarts: sourceOutbound.filter(x => x.type === 'CARD_START').length,
+        recipientStarts: recipientOutbound.filter(x => x.type === 'CARD_START').length,
+        recipientChunks: recipientOutbound.filter(x => x.type === 'CARD_CHUNK').length,
+      };
     });
 
-    expect(outcome.cardStartOutbound).toBe(0);
+    expect(outcome.sourceStarts).toBe(0);
+    expect(outcome.recipientStarts).toBe(1);
+    expect(outcome.recipientChunks).toBe(1);
+  });
+
+  test('host requests a missed card after waking and relays the recovered card to B', async ({ page }) => {
+    await page.goto('/Chinese-card/index.html');
+    await page.waitForFunction(() => window.dbCards && window.connections && typeof window.setupConnection === 'function');
+    await seedBlob(page);
+
+    const outcome = await page.evaluate(async () => {
+      const sourceOutbound = [];
+      const recipientOutbound = [];
+      const now = Date.now();
+      localStorage.setItem('bg_sync_role', 'host');
+      localStorage.setItem('bg_session_start_time', String(now - 1000));
+      localStorage.setItem('bg_session_game', 'WakeGame');
+      window.dbCards.length = 0;
+
+      const sourceConn = {
+        open: true,
+        peer: 'peer-a',
+        send: (d) => sourceOutbound.push(d),
+        on: (event, cb) => {
+          if (event === 'data') window.__wakeSourceData = cb;
+          if (event === 'open') setTimeout(cb, 0);
+        },
+        close: () => {},
+      };
+      const recipientConn = {
+        open: true,
+        peer: 'peer-b',
+        send: (d) => recipientOutbound.push(d),
+        on: (event, cb) => {
+          if (event === 'data') window.__wakeRecipientData = cb;
+          if (event === 'open') setTimeout(cb, 0);
+        },
+        close: () => {},
+      };
+      window.setupConnection(sourceConn);
+      window.setupConnection(recipientConn);
+      await new Promise(r => setTimeout(r, 20));
+      sourceOutbound.length = 0;
+      recipientOutbound.length = 0;
+
+      await window.__wakeSourceData({
+        type: 'MY_METAS',
+        metas: [{ id: 'wake-card', timestamp: now }],
+      });
+
+      const request = sourceOutbound.find(x => x.type === 'REQUEST_CARDS');
+      const buffer = await window.__testBlob.arrayBuffer();
+      const metadata = { id: 'wake-card', game: 'WakeGame', type: 'T', number: 'W1', timestamp: now, blob: null };
+      await window.__wakeSourceData({ type: 'CARD_START', cardId: 'wake-card', totalChunks: 1, metadata });
+      await window.__wakeSourceData({ type: 'CARD_CHUNK', cardId: 'wake-card', index: 0, chunk: buffer });
+      await new Promise(r => setTimeout(r, 50));
+
+      return {
+        requestedId: request?.ids?.[0],
+        hostHasCard: window.dbCards.some(card => card.id === 'wake-card'),
+        recipientStarts: recipientOutbound.filter(x => x.type === 'CARD_START').length,
+      };
+    });
+
+    expect(outcome.requestedId).toBe('wake-card');
+    expect(outcome.hostHasCard).toBe(true);
+    expect(outcome.recipientStarts).toBe(1);
   });
 });
