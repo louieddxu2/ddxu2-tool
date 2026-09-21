@@ -127,52 +127,93 @@ async function detectSharedBlobKind(blob) {
   return { kind: "unknown", type: declaredType };
 }
 
-// Check for cached shared image
-window.addEventListener("load", async () => {
-  if (window.location.search.includes("shared=1") && "caches" in window) {
-    try {
-      const cache = await caches.open("share-target-cache");
-      
-      // Handle image share
-      const imgRes = await cache.match("/_shared_image");
-      if (imgRes) {
-        const blob = await imgRes.blob();
-        const file = new File([blob], "shared_image.jpg", {
-          type: blob.type || "image/jpeg",
+let sharedContentCheckPromise = null;
+
+async function consumeCachedSharedContent() {
+  if (!("caches" in window)) return false;
+
+  const currentUrl = new URL(window.location.href);
+  const hasSharedFlag = currentUrl.searchParams.get("shared") === "1";
+
+  try {
+    const cache = await caches.open("share-target-cache");
+    const [imgRes, zipRes] = await Promise.all([
+      cache.match("/_shared_image"),
+      cache.match("/_shared_zip"),
+    ]);
+    let consumed = false;
+
+    if (hasSharedFlag || imgRes || zipRes) {
+      console.info("[share-target] cached payload check", {
+        hasSharedFlag,
+        hasImage: Boolean(imgRes),
+        hasZip: Boolean(zipRes),
+      });
+    }
+
+    // The cache is authoritative. Android may resume an existing PWA window
+    // without preserving the ?shared=1 launch URL.
+    if (imgRes) {
+      const blob = await imgRes.blob();
+      const file = new File([blob], "shared_image.jpg", {
+        type: blob.type || "image/jpeg",
+      });
+      handleSharedImage(file);
+      await cache.delete("/_shared_image");
+      consumed = true;
+    }
+
+    if (zipRes) {
+      const blob = await zipRes.blob();
+      const detected = await detectSharedBlobKind(blob);
+      if (detected.kind === "image") {
+        const file = new File([blob], "shared_image", {
+          type: detected.type,
         });
         handleSharedImage(file);
-        await cache.delete("/_shared_image");
-      }
-
-      // Handle zip share
-      const zipRes = await cache.match("/_shared_zip");
-      if (zipRes) {
-        const blob = await zipRes.blob();
-        const detected = await detectSharedBlobKind(blob);
-        if (detected.kind === "image") {
-          const file = new File([blob], "shared_image", {
-            type: detected.type,
-          });
-          handleSharedImage(file);
+      } else {
+        const file = new File([blob], "shared_backup.zip", {
+          type: "application/zip",
+        });
+        if (typeof processZipFile === "function") {
+          processZipFile(file);
         } else {
-          const file = new File([blob], "shared_backup.zip", {
-            type: "application/zip",
-          });
-          if (typeof processZipFile === "function") {
-            processZipFile(file);
-          } else {
-            window.addEventListener("DOMContentLoaded", () => processZipFile(file), { once: true });
-          }
+          window.addEventListener("DOMContentLoaded", () => processZipFile(file), { once: true });
         }
-        await cache.delete("/_shared_zip");
       }
-
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } catch (e) {
-      console.error("Failed to load shared content", e);
+      await cache.delete("/_shared_zip");
+      consumed = true;
     }
+
+    if (hasSharedFlag) {
+      currentUrl.searchParams.delete("shared");
+      window.history.replaceState(
+        {},
+        document.title,
+        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+      );
+    }
+    return consumed;
+  } catch (error) {
+    console.error("[share-target] failed to consume cached content", error);
+    return false;
   }
+}
+
+function checkForSharedContent() {
+  if (!sharedContentCheckPromise) {
+    sharedContentCheckPromise = consumeCachedSharedContent()
+      .finally(() => {
+        sharedContentCheckPromise = null;
+      });
+  }
+  return sharedContentCheckPromise;
+}
+
+window.addEventListener("load", checkForSharedContent);
+window.addEventListener("pageshow", checkForSharedContent);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") checkForSharedContent();
 });
 
 function handleSharedImage(file) {

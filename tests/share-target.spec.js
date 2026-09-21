@@ -90,6 +90,33 @@ test('recovers an image that an older service worker stored as a zip', async ({ 
   await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
 });
 
+test('consumes a cached image when PWA navigation drops the shared query flag', async ({ page }) => {
+  await shareGeneratedPng(page, {
+    fieldName: 'image',
+    fileName: 'camera.png',
+    type: 'image/png',
+  });
+
+  await page.goto('/Chinese-card/index.html');
+  await expect(page.locator('#view-crop')).toBeVisible();
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
+});
+
+test('consumes a cached image when Android resumes an existing PWA window', async ({ page }) => {
+  await page.goto('/Chinese-card/index.html');
+  await shareGeneratedPng(page, {
+    fieldName: 'image',
+    fileName: 'camera.png',
+    type: 'image/png',
+  });
+
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(page.locator('#view-crop')).toBeVisible();
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
+});
+
 test('keeps zip files on the import path', async ({ page }) => {
   await page.evaluate(async () => {
     const form = new FormData();
