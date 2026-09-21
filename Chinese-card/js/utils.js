@@ -64,6 +64,69 @@
   localStorage.setItem(storageKey, JSON.stringify(launcherData));
 })();
 
+const CHINESE_CARD_SW_VERSION = "v27";
+if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
+  navigator.serviceWorker
+    .register(`/sw.js?${CHINESE_CARD_SW_VERSION}`)
+    .catch(() => { });
+}
+
+async function detectSharedBlobKind(blob) {
+  const declaredType = String(blob.type || "").toLowerCase();
+  if (declaredType.startsWith("image/")) {
+    return { kind: "image", type: declaredType };
+  }
+
+  const bytes = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+  const startsWith = (...signature) =>
+    signature.every((value, index) => bytes[index] === value);
+  const asciiAt = (offset, text) =>
+    Array.from(text).every(
+      (character, index) => bytes[offset + index] === character.charCodeAt(0),
+    );
+
+  if (startsWith(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) {
+    return { kind: "image", type: "image/png" };
+  }
+  if (startsWith(0xff, 0xd8, 0xff)) {
+    return { kind: "image", type: "image/jpeg" };
+  }
+  if (asciiAt(0, "GIF87a") || asciiAt(0, "GIF89a")) {
+    return { kind: "image", type: "image/gif" };
+  }
+  if (asciiAt(0, "RIFF") && asciiAt(8, "WEBP")) {
+    return { kind: "image", type: "image/webp" };
+  }
+  if (asciiAt(0, "BM")) {
+    return { kind: "image", type: "image/bmp" };
+  }
+  if (
+    startsWith(0x49, 0x49, 0x2a, 0x00) ||
+    startsWith(0x4d, 0x4d, 0x00, 0x2a)
+  ) {
+    return { kind: "image", type: "image/tiff" };
+  }
+  if (asciiAt(4, "ftyp")) {
+    const brand = String.fromCharCode(...bytes.slice(8, 12)).toLowerCase();
+    if (["avif", "avis"].includes(brand)) {
+      return { kind: "image", type: "image/avif" };
+    }
+    if (["heic", "heix", "hevc", "hevx", "mif1", "msf1"].includes(brand)) {
+      return { kind: "image", type: "image/heic" };
+    }
+  }
+  if (
+    declaredType === "application/zip" ||
+    declaredType === "application/x-zip-compressed" ||
+    startsWith(0x50, 0x4b, 0x03, 0x04) ||
+    startsWith(0x50, 0x4b, 0x05, 0x06) ||
+    startsWith(0x50, 0x4b, 0x07, 0x08)
+  ) {
+    return { kind: "zip", type: "application/zip" };
+  }
+  return { kind: "unknown", type: declaredType };
+}
+
 // Check for cached shared image
 window.addEventListener("load", async () => {
   if (window.location.search.includes("shared=1") && "caches" in window) {
@@ -85,13 +148,21 @@ window.addEventListener("load", async () => {
       const zipRes = await cache.match("/_shared_zip");
       if (zipRes) {
         const blob = await zipRes.blob();
-        const file = new File([blob], "shared_backup.zip", {
-          type: "application/zip",
-        });
-        if (typeof processZipFile === "function") {
-          processZipFile(file);
+        const detected = await detectSharedBlobKind(blob);
+        if (detected.kind === "image") {
+          const file = new File([blob], "shared_image", {
+            type: detected.type,
+          });
+          handleSharedImage(file);
         } else {
-          window.addEventListener("DOMContentLoaded", () => processZipFile(file), { once: true });
+          const file = new File([blob], "shared_backup.zip", {
+            type: "application/zip",
+          });
+          if (typeof processZipFile === "function") {
+            processZipFile(file);
+          } else {
+            window.addEventListener("DOMContentLoaded", () => processZipFile(file), { once: true });
+          }
         }
         await cache.delete("/_shared_zip");
       }

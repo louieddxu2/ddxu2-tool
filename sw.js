@@ -1,5 +1,46 @@
-const CACHE_NAME = 'ddxu2-launcher-v35';
+const CACHE_NAME = 'ddxu2-launcher-v36';
 const CACHE_NAME_PREFIX = 'ddxu2-launcher-';
+const SHARE_CACHE_NAME = 'share-target-cache';
+const SHARED_IMAGE_KEY = '/_shared_image';
+const SHARED_ZIP_KEY = '/_shared_zip';
+
+function getSharedFileKind(file, fieldName) {
+  const type = String(file.type || '').toLowerCase();
+  const name = String(file.name || '').toLowerCase();
+
+  if (type.startsWith('image/') || /\.(?:avif|bmp|gif|heic|heif|jpe?g|png|tiff?|webp)$/.test(name)) {
+    return 'image';
+  }
+  if (type === 'application/zip' || type === 'application/x-zip-compressed' || /\.zip$/.test(name)) {
+    return 'zip';
+  }
+
+  // Preserve the manifest field meanings when the sender omits useful metadata.
+  if (fieldName === 'image') return 'image';
+  if (fieldName === 'file') return 'zip';
+  return null;
+}
+
+function getSharedImageContentType(file) {
+  const type = String(file.type || '').toLowerCase();
+  if (type.startsWith('image/')) return type;
+
+  const extension = String(file.name || '').toLowerCase().match(/\.([^.]+)$/)?.[1];
+  const typesByExtension = {
+    avif: 'image/avif',
+    bmp: 'image/bmp',
+    gif: 'image/gif',
+    heic: 'image/heic',
+    heif: 'image/heif',
+    jpeg: 'image/jpeg',
+    jpg: 'image/jpeg',
+    png: 'image/png',
+    tif: 'image/tiff',
+    tiff: 'image/tiff',
+    webp: 'image/webp',
+  };
+  return typesByExtension[extension] || 'image/jpeg';
+}
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -25,11 +66,32 @@ self.addEventListener('fetch', (event) => {
     event.respondWith((async () => {
       try {
         const formData = await req.formData();
-        const imageFile = formData.get('image');
-        const zipFile = formData.get('file');
-        const cache = await caches.open('share-target-cache');
-        if (imageFile) await cache.put('/_shared_image', new Response(imageFile, { headers: { 'Content-Type': imageFile.type } }));
-        if (zipFile) await cache.put('/_shared_zip', new Response(zipFile, { headers: { 'Content-Type': zipFile.type || 'application/zip' } }));
+        const sharedFiles = Array.from(formData.entries())
+          .filter(([, value]) => value && typeof value !== 'string')
+          .map(([fieldName, file]) => ({
+            file,
+            kind: getSharedFileKind(file, fieldName),
+          }));
+        const imageFile = sharedFiles.find(({ kind }) => kind === 'image')?.file;
+        const zipFile = sharedFiles.find(({ kind }) => kind === 'zip')?.file;
+        const cache = await caches.open(SHARE_CACHE_NAME);
+
+        // Each invocation represents a new share operation; never mix in stale payloads.
+        await Promise.all([
+          cache.delete(SHARED_IMAGE_KEY),
+          cache.delete(SHARED_ZIP_KEY),
+        ]);
+
+        if (imageFile) {
+          await cache.put(SHARED_IMAGE_KEY, new Response(imageFile, {
+            headers: { 'Content-Type': getSharedImageContentType(imageFile) },
+          }));
+        }
+        if (zipFile) {
+          await cache.put(SHARED_ZIP_KEY, new Response(zipFile, {
+            headers: { 'Content-Type': zipFile.type || 'application/zip' },
+          }));
+        }
         return Response.redirect('/Chinese-card/index.html?shared=1', 303);
       } catch (e) {
         return Response.redirect('/Chinese-card/index.html', 303);
