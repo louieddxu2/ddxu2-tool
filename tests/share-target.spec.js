@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 const SHARE_CACHE = 'share-target-cache';
+const SHARED_PAYLOAD = '/_shared_payload';
+const SHARED_STATUS = '/_shared_status';
 const SHARED_IMAGE = '/_shared_image';
 const SHARED_ZIP = '/_shared_zip';
 
@@ -15,7 +17,10 @@ async function clearSharedFiles(page) {
   await page.evaluate(async ({ cacheName, keys }) => {
     const cache = await caches.open(cacheName);
     await Promise.all(keys.map((key) => cache.delete(key)));
-  }, { cacheName: SHARE_CACHE, keys: [SHARED_IMAGE, SHARED_ZIP] });
+  }, {
+    cacheName: SHARE_CACHE,
+    keys: [SHARED_PAYLOAD, SHARED_STATUS, SHARED_IMAGE, SHARED_ZIP],
+  });
 }
 
 async function shareGeneratedPng(page, { fieldName, fileName, type }) {
@@ -54,6 +59,10 @@ test('opens crop view when an image uses the manifest image field', async ({ pag
   await expect(page.locator('#view-crop')).toBeVisible();
   await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
   await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
+  await expect.poll(() => page.evaluate(async ({ cacheName, payloadKey }) => {
+    const cache = await caches.open(cacheName);
+    return Boolean(await cache.match(payloadKey));
+  }, { cacheName: SHARE_CACHE, payloadKey: SHARED_PAYLOAD })).toBe(false);
 });
 
 test('opens crop view when a phone sends an image through the generic file field', async ({ page }) => {
@@ -69,22 +78,30 @@ test('opens crop view when a phone sends an image through the generic file field
   await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
 });
 
-test('sniffs an extensionless generic Android file before choosing the cache slot', async ({ page }) => {
+test('stores an extensionless generic Android file as one raw payload', async ({ page }) => {
   const targetUrl = await shareGeneratedPng(page, {
     fieldName: 'file',
     fileName: 'camera',
     type: 'application/octet-stream',
   });
 
-  const cached = await page.evaluate(async ({ cacheName, imageKey, zipKey }) => {
+  const cached = await page.evaluate(async ({ cacheName, payloadKey, imageKey, zipKey }) => {
     const cache = await caches.open(cacheName);
+    const payload = await cache.match(payloadKey);
     return {
+      payload: Boolean(payload),
+      field: payload?.headers.get('X-Share-Field'),
       image: Boolean(await cache.match(imageKey)),
       zip: Boolean(await cache.match(zipKey)),
     };
-  }, { cacheName: SHARE_CACHE, imageKey: SHARED_IMAGE, zipKey: SHARED_ZIP });
+  }, {
+    cacheName: SHARE_CACHE,
+    payloadKey: SHARED_PAYLOAD,
+    imageKey: SHARED_IMAGE,
+    zipKey: SHARED_ZIP,
+  });
 
-  expect(cached).toEqual({ image: true, zip: false });
+  expect(cached).toEqual({ payload: true, field: 'file', image: false, zip: false });
   await page.goto(targetUrl);
   await expect(page.locator('#view-crop')).toBeVisible();
   await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
@@ -202,13 +219,90 @@ test('keeps zip files on the import path', async ({ page }) => {
     await fetch('/_share-target/chinese-card', { method: 'POST', body: form });
   });
 
-  const cached = await page.evaluate(async ({ cacheName, imageKey, zipKey }) => {
+  const cached = await page.evaluate(async ({ cacheName, payloadKey, imageKey, zipKey }) => {
     const cache = await caches.open(cacheName);
+    const payload = await cache.match(payloadKey);
     return {
+      payload: Boolean(payload),
+      contentType: payload?.headers.get('Content-Type'),
       image: Boolean(await cache.match(imageKey)),
       zip: Boolean(await cache.match(zipKey)),
     };
-  }, { cacheName: SHARE_CACHE, imageKey: SHARED_IMAGE, zipKey: SHARED_ZIP });
+  }, {
+    cacheName: SHARE_CACHE,
+    payloadKey: SHARED_PAYLOAD,
+    imageKey: SHARED_IMAGE,
+    zipKey: SHARED_ZIP,
+  });
 
-  expect(cached).toEqual({ image: false, zip: true });
+  expect(cached).toEqual({
+    payload: true,
+    contentType: 'application/zip',
+    image: false,
+    zip: false,
+  });
+});
+
+test('shows a visible diagnostic when Android opens the target without a file', async ({ page }) => {
+  const targetUrl = await page.evaluate(async () => {
+    const form = new FormData();
+    form.append('text', 'camera provider did not attach a file');
+    const response = await fetch('/_share-target/chinese-card', {
+      method: 'POST',
+      body: form,
+    });
+    return response.url;
+  });
+
+  await page.goto(targetUrl);
+  const error = page.locator('#share-target-error');
+  await expect(error).toBeVisible();
+  await expect(error).toHaveAttribute('data-share-error', 'sw-no-file');
+});
+
+test('waits for a payload that arrives after the PWA page resumes', async ({ page }) => {
+  await page.goto('/Chinese-card/?shared=1');
+
+  await page.evaluate(async ({ cacheName, payloadKey }) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 3;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#a855f7';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    const png = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    const cache = await caches.open(cacheName);
+    await cache.put(payloadKey, new Response(png, {
+      headers: {
+        'Content-Type': 'image/png',
+        'X-Share-Name': 'camera.png',
+      },
+    }));
+  }, { cacheName: SHARE_CACHE, payloadKey: SHARED_PAYLOAD });
+
+  await expect(page.locator('#view-crop')).toBeVisible();
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
+});
+
+test('keeps an undecodable payload and reports the page processing stage', async ({ page }) => {
+  await page.evaluate(async ({ cacheName, payloadKey }) => {
+    const cache = await caches.open(cacheName);
+    await cache.put(payloadKey, new Response(new Uint8Array([1, 2, 3, 4]), {
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'X-Share-Name': 'broken.jpg',
+      },
+    }));
+  }, { cacheName: SHARE_CACHE, payloadKey: SHARED_PAYLOAD });
+
+  await page.goto('/Chinese-card/?shared=1');
+  const error = page.locator('#share-target-error');
+  await expect(error).toBeVisible();
+  await expect(error).toHaveAttribute('data-share-error', 'page-process-failed');
+  await expect.poll(() => page.evaluate(async ({ cacheName, payloadKey }) => {
+    const cache = await caches.open(cacheName);
+    return Boolean(await cache.match(payloadKey));
+  }, { cacheName: SHARE_CACHE, payloadKey: SHARED_PAYLOAD })).toBe(true);
 });

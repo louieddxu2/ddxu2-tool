@@ -1,8 +1,44 @@
-const CACHE_NAME = 'ddxu2-launcher-v37';
+const CACHE_NAME = 'ddxu2-launcher-v38';
 const CACHE_NAME_PREFIX = 'ddxu2-launcher-';
 const SHARE_CACHE_NAME = 'share-target-cache';
+const SHARED_PAYLOAD_KEY = '/_shared_payload';
+const SHARED_STATUS_KEY = '/_shared_status';
 const SHARED_IMAGE_KEY = '/_shared_image';
 const SHARED_ZIP_KEY = '/_shared_zip';
+
+function getShareRedirectUrl(params = {}) {
+  const url = new URL('/Chinese-card/', self.location.origin);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  });
+  return url.href;
+}
+
+async function writeShareStatus(cache, status) {
+  await cache.put(SHARED_STATUS_KEY, new Response(JSON.stringify({
+    timestamp: Date.now(),
+    ...status,
+  }), {
+    headers: { 'Content-Type': 'application/json' },
+  }));
+}
+
+async function notifyShareClients(status) {
+  try {
+    const windows = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true,
+    });
+    windows.forEach((client) => client.postMessage({
+      type: 'chinese-card-share-ready',
+      status,
+    }));
+  } catch (_) {
+    // Redirect + foreground polling remain the authoritative delivery path.
+  }
+}
 
 function getImageTypeFromExtension(name) {
   const extension = String(name || '').toLowerCase().match(/\.([^.]+)$/)?.[1];
@@ -121,37 +157,95 @@ self.addEventListener('fetch', (event) => {
   // 1. Share Target (Essential for PWA functionality)
   if (req.method === 'POST' && url.pathname === '/_share-target/chinese-card') {
     event.respondWith((async () => {
+      let cache;
       try {
         const formData = await req.formData();
-        const sharedFiles = await Promise.all(Array.from(formData.entries())
+        const entries = Array.from(formData.entries());
+        const sharedFiles = await Promise.all(entries
           .filter(([, value]) => value && typeof value !== 'string')
           .map(async ([fieldName, file]) => ({
+            fieldName,
             file,
             info: await getSharedFileInfo(file, fieldName),
           })));
-        const imageEntry = sharedFiles.find(({ info }) => info.kind === 'image');
-        const zipEntry = sharedFiles.find(({ info }) => info.kind === 'zip');
-        const cache = await caches.open(SHARE_CACHE_NAME);
+        cache = await caches.open(SHARE_CACHE_NAME);
 
         // Each invocation represents a new share operation; never mix in stale payloads.
         await Promise.all([
+          cache.delete(SHARED_PAYLOAD_KEY),
+          cache.delete(SHARED_STATUS_KEY),
           cache.delete(SHARED_IMAGE_KEY),
           cache.delete(SHARED_ZIP_KEY),
         ]);
 
-        if (imageEntry) {
-          await cache.put(SHARED_IMAGE_KEY, new Response(imageEntry.file, {
-            headers: { 'Content-Type': imageEntry.info.type || 'image/jpeg' },
-          }));
+        const selectedEntry = sharedFiles.find(({ info }) => info.kind === 'image')
+          || sharedFiles[0];
+
+        if (!selectedEntry) {
+          const status = {
+            ok: false,
+            stage: 'sw-no-file',
+            fields: entries.map(([fieldName, value]) => ({
+              fieldName,
+              valueType: typeof value,
+            })),
+          };
+          await writeShareStatus(cache, status);
+          await notifyShareClients(status);
+          return Response.redirect(getShareRedirectUrl({
+            shared: '1',
+            share_error: status.stage,
+          }), 303);
         }
-        if (zipEntry) {
-          await cache.put(SHARED_ZIP_KEY, new Response(zipEntry.file, {
-            headers: { 'Content-Type': 'application/zip' },
-          }));
+
+        const contentType = selectedEntry.info.type
+          || selectedEntry.file.type
+          || 'application/octet-stream';
+        const status = {
+          ok: true,
+          stage: 'sw-stored',
+          fieldName: selectedEntry.fieldName,
+          fileName: selectedEntry.file.name || '',
+          declaredType: selectedEntry.file.type || '',
+          detectedKind: selectedEntry.info.kind || 'unknown',
+          detectedType: selectedEntry.info.type || '',
+          size: selectedEntry.file.size,
+          fileCount: sharedFiles.length,
+        };
+
+        // Store one untouched payload. Format routing belongs to the foreground
+        // page, where failures can be reported instead of silently redirecting.
+        await cache.put(SHARED_PAYLOAD_KEY, new Response(selectedEntry.file, {
+          headers: {
+            'Content-Type': contentType,
+            'X-Share-Field': encodeURIComponent(selectedEntry.fieldName),
+            'X-Share-Name': encodeURIComponent(selectedEntry.file.name || ''),
+          },
+        }));
+        try {
+          await writeShareStatus(cache, status);
+        } catch (_) {
+          // Diagnostics must not turn a stored photo into a failed share.
         }
-        return Response.redirect('/Chinese-card/?shared=1', 303);
-      } catch (e) {
-        return Response.redirect('/Chinese-card/', 303);
+        await notifyShareClients(status);
+        return Response.redirect(getShareRedirectUrl({ shared: '1' }), 303);
+      } catch (error) {
+        const status = {
+          ok: false,
+          stage: 'sw-receive-failed',
+          error: error instanceof Error ? error.message : String(error),
+        };
+        try {
+          cache = cache || await caches.open(SHARE_CACHE_NAME);
+          await writeShareStatus(cache, status);
+          await notifyShareClients(status);
+        } catch (_) {
+          // The URL error code remains available even when Cache Storage fails.
+        }
+        return Response.redirect(getShareRedirectUrl({
+          shared: '1',
+          share_error: status.stage,
+        }), 303);
       }
     })());
     return;

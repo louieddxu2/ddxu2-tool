@@ -120,80 +120,158 @@ async function detectSharedBlobKind(blob) {
   return { kind: "unknown", type: declaredType };
 }
 
+const SHARED_PAYLOAD_KEY = "/_shared_payload";
+const SHARED_STATUS_KEY = "/_shared_status";
+const LEGACY_SHARED_IMAGE_KEY = "/_shared_image";
+const LEGACY_SHARED_ZIP_KEY = "/_shared_zip";
 let sharedContentCheckPromise = null;
+
+function waitForSharedContent(delayMs) {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+async function waitForWindowFunction(name, timeoutMs = 5000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (typeof window[name] === "function") return window[name];
+    await waitForSharedContent(25);
+  }
+  throw new Error(`${name} was not ready within ${timeoutMs}ms`);
+}
+
+function showSharedContentError(code, details = "") {
+  console.error("[share-target] share failed", { code, details });
+
+  let banner = document.getElementById("share-target-error");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "share-target-error";
+    banner.className = "fixed inset-x-3 top-3 z-[200] rounded-2xl bg-red-600 px-4 py-3 text-sm font-bold text-white shadow-2xl";
+    banner.setAttribute("role", "alert");
+    document.body.appendChild(banner);
+  }
+  banner.dataset.shareError = code;
+  banner.textContent = `照片分享失敗（${code}）。${details || "請保留此畫面並回報代碼。"}`;
+}
+
+async function readShareStatus(response) {
+  if (!response) return null;
+  try {
+    return await response.json();
+  } catch (_) {
+    return null;
+  }
+}
+
+async function processSharedZip(blob) {
+  const processZip = await waitForWindowFunction("processZipFile");
+  const file = new File([blob], "shared_backup.zip", {
+    type: "application/zip",
+  });
+  await processZip(file);
+}
 
 async function consumeCachedSharedContent() {
   if (!("caches" in window)) return false;
 
   const currentUrl = new URL(window.location.href);
   const hasSharedFlag = currentUrl.searchParams.get("shared") === "1";
+  const urlError = currentUrl.searchParams.get("share_error");
 
   try {
     const cache = await caches.open("share-target-cache");
-    const [imgRes, zipRes] = await Promise.all([
-      cache.match("/_shared_image"),
-      cache.match("/_shared_zip"),
-    ]);
-    let consumed = false;
+    const attempts = hasSharedFlag || urlError ? 30 : 1;
+    let payloadRes = null;
+    let imgRes = null;
+    let zipRes = null;
+    let statusRes = null;
+    let status = null;
 
-    if (hasSharedFlag || imgRes || zipRes) {
-      console.info("[share-target] cached payload check", {
-        hasSharedFlag,
-        hasImage: Boolean(imgRes),
-        hasZip: Boolean(zipRes),
-      });
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      [payloadRes, imgRes, zipRes, statusRes] = await Promise.all([
+        cache.match(SHARED_PAYLOAD_KEY),
+        cache.match(LEGACY_SHARED_IMAGE_KEY),
+        cache.match(LEGACY_SHARED_ZIP_KEY),
+        cache.match(SHARED_STATUS_KEY),
+      ]);
+      status = await readShareStatus(statusRes);
+      if (payloadRes || imgRes || zipRes || (status && status.ok === false)) break;
+      if (attempt + 1 < attempts) await waitForSharedContent(100);
     }
 
-    // The cache is authoritative. Android may resume an existing PWA window
-    // without preserving the ?shared=1 launch URL.
-    if (imgRes) {
-      const blob = await imgRes.blob();
-      const detected = await detectSharedBlobKind(blob);
-      const file = new File([blob], "shared_image.jpg", {
-        // Older service workers copied the provider MIME verbatim. Treat the
-        // image slot as authoritative when Android supplied a generic MIME.
-        type: detected.kind === "image"
-          ? detected.type
-          : (blob.type.startsWith("image/") ? blob.type : "image/jpeg"),
-      });
-      handleSharedImage(file);
-      await cache.delete("/_shared_image");
-      consumed = true;
+    console.info("[share-target] payload check", {
+      hasSharedFlag,
+      urlError,
+      hasPayload: Boolean(payloadRes),
+      hasLegacyImage: Boolean(imgRes),
+      hasLegacyZip: Boolean(zipRes),
+      status,
+    });
+
+    if ((urlError || (status && status.ok === false)) && !payloadRes && !imgRes && !zipRes) {
+      const code = urlError || status.stage || "sw-unknown";
+      const details = status && status.error ? status.error : "分享資料未成功進入工具。";
+      showSharedContentError(code, details);
+      return false;
     }
 
-    if (zipRes) {
-      const blob = await zipRes.blob();
-      const detected = await detectSharedBlobKind(blob);
-      if (detected.kind === "image") {
-        const file = new File([blob], "shared_image", {
-          type: detected.type,
-        });
-        handleSharedImage(file);
-      } else {
-        const file = new File([blob], "shared_backup.zip", {
-          type: "application/zip",
-        });
-        if (typeof processZipFile === "function") {
-          processZipFile(file);
-        } else {
-          window.addEventListener("DOMContentLoaded", () => processZipFile(file), { once: true });
-        }
+    let consumedKey = null;
+    let blob = null;
+    let forcedImageSlot = false;
+
+    if (payloadRes) {
+      consumedKey = SHARED_PAYLOAD_KEY;
+      blob = await payloadRes.blob();
+    } else if (imgRes) {
+      consumedKey = LEGACY_SHARED_IMAGE_KEY;
+      blob = await imgRes.blob();
+      forcedImageSlot = true;
+    } else if (zipRes) {
+      consumedKey = LEGACY_SHARED_ZIP_KEY;
+      blob = await zipRes.blob();
+    }
+
+    if (!blob) {
+      if (hasSharedFlag) {
+        showSharedContentError("page-no-payload", "工具已開啟，但找不到 Android 傳入的檔案。");
       }
-      await cache.delete("/_shared_zip");
-      consumed = true;
+      return false;
     }
 
-    if (hasSharedFlag) {
-      currentUrl.searchParams.delete("shared");
-      window.history.replaceState(
-        {},
-        document.title,
-        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
-      );
+    const detected = await detectSharedBlobKind(blob);
+    if (detected.kind === "image" || forcedImageSlot) {
+      const fileName = payloadRes
+        ? decodeURIComponent(payloadRes.headers.get("X-Share-Name") || "shared_image")
+        : "shared_image";
+      const imageType = detected.kind === "image"
+        ? detected.type
+        : (blob.type.startsWith("image/") ? blob.type : "image/jpeg");
+      const file = new File([blob], fileName, { type: imageType });
+      await handleSharedImage(file);
+    } else if (detected.kind === "zip") {
+      await processSharedZip(blob);
+    } else {
+      throw new Error(`Unrecognized shared payload: type=${blob.type || "empty"}, size=${blob.size}`);
     }
-    return consumed;
+
+    await Promise.all([
+      cache.delete(consumedKey),
+      cache.delete(SHARED_STATUS_KEY),
+      cache.delete(LEGACY_SHARED_IMAGE_KEY),
+      cache.delete(LEGACY_SHARED_ZIP_KEY),
+    ]);
+
+    currentUrl.searchParams.delete("shared");
+    currentUrl.searchParams.delete("share_error");
+    window.history.replaceState(
+      {},
+      document.title,
+      `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+    );
+    return true;
   } catch (error) {
-    console.error("[share-target] failed to consume cached content", error);
+    const message = error instanceof Error ? error.message : String(error);
+    showSharedContentError("page-process-failed", message);
     return false;
   }
 }
@@ -208,46 +286,57 @@ function checkForSharedContent() {
   return sharedContentCheckPromise;
 }
 
-window.addEventListener("load", checkForSharedContent);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", checkForSharedContent, { once: true });
+} else {
+  checkForSharedContent();
+}
 window.addEventListener("pageshow", checkForSharedContent);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") checkForSharedContent();
 });
-
-function handleSharedImage(file) {
-  if (file && file.type.startsWith("image/")) {
-    const url = URL.createObjectURL(file);
-    
-    const triggerCrop = () => {
-      if (typeof openCropView === "function") {
-        openCropView(url);
-      } else {
-        window.addEventListener(
-          "DOMContentLoaded",
-          () => openCropView(url),
-          { once: true },
-        );
-      }
-    };
-
-    // 解決 Race Condition: 確保 IndexedDB 的歷史卡牌已經載入，才能讓裁切器正確參考過去的比例
-    if (window.UIState && window.UIState.isDBReady) {
-      triggerCrop();
-    } else {
-      const checkDB = setInterval(() => {
-        if (window.UIState && window.UIState.isDBReady) {
-          clearInterval(checkDB);
-          triggerCrop();
-        }
-      }, 50);
-      
-      // 避免無限等待，設定 2.5 秒的 Timeout
-      setTimeout(() => {
-        clearInterval(checkDB);
-        if (!(window.UIState && window.UIState.isDBReady)) {
-          triggerCrop();
-        }
-      }, 2500);
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "chinese-card-share-ready") {
+      checkForSharedContent();
     }
+  });
+}
+
+async function handleSharedImage(file) {
+  if (!file || !file.type.startsWith("image/")) {
+    throw new Error(`Shared file is not an image: ${file ? file.type : "missing"}`);
   }
+
+  const openCrop = await waitForWindowFunction("openCropView");
+  const url = URL.createObjectURL(file);
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      callback(value);
+    };
+    const timeout = setTimeout(() => {
+      URL.revokeObjectURL(url);
+      finish(reject, new Error("Image decoding timed out"));
+    }, 15000);
+
+    try {
+      openCrop(url, file.name || "", {
+        onLoad: () => {
+          clearTimeout(timeout);
+          finish(resolve, true);
+        },
+        onError: (error) => {
+          clearTimeout(timeout);
+          finish(reject, error instanceof Error ? error : new Error("Image decoding failed"));
+        },
+      });
+    } catch (error) {
+      clearTimeout(timeout);
+      URL.revokeObjectURL(url);
+      finish(reject, error);
+    }
+  });
 }

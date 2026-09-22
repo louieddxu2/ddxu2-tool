@@ -316,7 +316,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-window.openCropView = (src, filename = "") => {
+window.openCropView = (src, filename = "", callbacks = {}) => {
   UIState.isCropViewOpen = true;
   document.getElementById("view-crop").classList.remove("hidden");
   document.getElementById("crop-loading").classList.remove("hidden");
@@ -376,7 +376,17 @@ window.openCropView = (src, filename = "") => {
       snapToEdge(w, h);
       drawLines();
       document.getElementById("crop-loading").classList.add("hidden");
+      if (typeof callbacks.onLoad === "function") callbacks.onLoad();
     }, 50);
+  };
+  img.onerror = () => {
+    if (src.startsWith("blob:")) window.URL.revokeObjectURL(src);
+    UIState.isCropViewOpen = false;
+    document.getElementById("crop-loading").classList.add("hidden");
+    document.getElementById("view-crop").classList.add("hidden");
+    if (typeof callbacks.onError === "function") {
+      callbacks.onError(new Error("The shared image could not be decoded"));
+    }
   };
   img.src = src;
 };
