@@ -154,6 +154,10 @@ function showSharedContentError(code, details = "") {
   banner.textContent = `照片分享失敗（${code}）。${details || "請保留此畫面並回報代碼。"}`;
 }
 
+function clearSharedContentError() {
+  document.getElementById("share-target-error")?.remove();
+}
+
 async function readShareStatus(response) {
   if (!response) return null;
   try {
@@ -177,6 +181,8 @@ async function consumeCachedSharedContent() {
   const currentUrl = new URL(window.location.href);
   const hasSharedFlag = currentUrl.searchParams.get("shared") === "1";
   const urlError = currentUrl.searchParams.get("share_error");
+
+  if (!hasSharedFlag && !urlError) clearSharedContentError();
 
   try {
     const cache = await caches.open("share-target-cache");
@@ -208,10 +214,10 @@ async function consumeCachedSharedContent() {
       status,
     });
 
-    if ((urlError || (status && status.ok === false)) && !payloadRes && !imgRes && !zipRes) {
+    if ((urlError || (hasSharedFlag && status && status.ok === false)) && !payloadRes && !imgRes && !zipRes) {
       const code = urlError || status.stage || "sw-unknown";
       const receivedFields = status && Array.isArray(status.fields)
-        ? status.fields.map((field) => field.fieldName).filter(Boolean)
+        ? status.fields.map((field) => field.name || field.fieldName).filter(Boolean)
         : [];
       const details = status && status.error
         ? status.error
@@ -219,6 +225,13 @@ async function consumeCachedSharedContent() {
           ? `Android 只送出欄位：${receivedFields.join(", ")}，沒有附加檔案。`
           : "分享資料未成功進入工具。");
       showSharedContentError(code, details);
+      currentUrl.searchParams.delete("shared");
+      currentUrl.searchParams.delete("share_error");
+      window.history.replaceState(
+        {},
+        document.title,
+        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
+      );
       return false;
     }
 

@@ -23,8 +23,13 @@ async function clearSharedFiles(page) {
   });
 }
 
-async function shareGeneratedPng(page, { fieldName, fileName, type }) {
-  return page.evaluate(async ({ fieldName, fileName, type }) => {
+async function shareGeneratedPng(page, {
+  fieldName = 'image',
+  fileName = 'translated-image.png',
+  type = 'image/png',
+  path = '/_share-target/chinese-card',
+} = {}) {
+  return page.evaluate(async ({ fieldName, fileName, type, path }) => {
     const canvas = document.createElement('canvas');
     canvas.width = 2;
     canvas.height = 3;
@@ -34,13 +39,15 @@ async function shareGeneratedPng(page, { fieldName, fileName, type }) {
     const png = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
     const file = new File([await png.arrayBuffer()], fileName, { type });
     const form = new FormData();
+    form.append('title', 'Google 圖片翻譯');
+    form.append('text', '這是一段應被忽略的分享文字');
     form.append(fieldName, file);
-    const response = await fetch('/_share-target/chinese-card', {
+    const response = await fetch(path, {
       method: 'POST',
       body: form,
     });
     return response.url;
-  }, { fieldName, fileName, type });
+  }, { fieldName, fileName, type, path });
 }
 
 test.beforeEach(async ({ page }) => {
@@ -48,85 +55,39 @@ test.beforeEach(async ({ page }) => {
   await clearSharedFiles(page);
 });
 
-test('manifest maps every supported share file through one Android field', async ({ request }) => {
+test('manifest exposes one image-only Android share field', async ({ request }) => {
   const response = await request.get('/manifest.webmanifest');
   expect(response.ok()).toBe(true);
   const manifest = await response.json();
   const files = manifest.share_target.params.files;
 
+  expect(manifest.share_target.action).toBe('/_share-target/chinese-card');
+  expect(manifest.share_target.method).toBe('POST');
+  expect(manifest.share_target.enctype).toBe('multipart/form-data');
+  expect(manifest.share_target.params.title).toBe('title');
+  expect(manifest.share_target.params.text).toBe('text');
   expect(files).toHaveLength(1);
-  expect(files[0].name).toBe('media');
-  expect(files[0].accept).toEqual(expect.arrayContaining([
-    'image/*',
-    'image/jpeg',
-    'image/png',
-    '.jpg',
-    '.png',
-    'application/octet-stream',
-    'application/zip',
-    '.ccpack',
-    '.zip',
-  ]));
+  expect(files[0]).toEqual({
+    name: 'image',
+    accept: ['image/*'],
+  });
 });
 
-test('opens crop view when an image uses the manifest media field', async ({ page }) => {
-  const targetUrl = await shareGeneratedPng(page, {
-    fieldName: 'media',
-    fileName: 'camera.png',
-    type: 'image/png',
-  });
+test('opens crop view for a Google image translation share', async ({ page }) => {
+  const targetUrl = await shareGeneratedPng(page);
 
   await page.goto(targetUrl);
   await expect(page.locator('#view-crop')).toBeVisible();
-  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
-  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
+  const canvasSize = await page.locator('#canvas-source').evaluate((canvas) => ({
+    width: canvas.width,
+    height: canvas.height,
+  }));
+  expect(canvasSize.width).toBeGreaterThan(0);
+  expect(canvasSize.height).toBeGreaterThan(0);
   await expect.poll(() => page.evaluate(async ({ cacheName, payloadKey }) => {
     const cache = await caches.open(cacheName);
     return Boolean(await cache.match(payloadKey));
   }, { cacheName: SHARE_CACHE, payloadKey: SHARED_PAYLOAD })).toBe(false);
-});
-
-test('opens crop view when a phone sends an image through the generic file field', async ({ page }) => {
-  const targetUrl = await shareGeneratedPng(page, {
-    fieldName: 'file',
-    fileName: 'camera.png',
-    type: 'application/octet-stream',
-  });
-
-  await page.goto(targetUrl);
-  await expect(page.locator('#view-crop')).toBeVisible();
-  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
-  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
-});
-
-test('stores an extensionless generic Android media file as one raw payload', async ({ page }) => {
-  const targetUrl = await shareGeneratedPng(page, {
-    fieldName: 'media',
-    fileName: 'camera',
-    type: 'application/octet-stream',
-  });
-
-  const cached = await page.evaluate(async ({ cacheName, payloadKey, imageKey, zipKey }) => {
-    const cache = await caches.open(cacheName);
-    const payload = await cache.match(payloadKey);
-    return {
-      payload: Boolean(payload),
-      field: payload?.headers.get('X-Share-Field'),
-      image: Boolean(await cache.match(imageKey)),
-      zip: Boolean(await cache.match(zipKey)),
-    };
-  }, {
-    cacheName: SHARE_CACHE,
-    payloadKey: SHARED_PAYLOAD,
-    imageKey: SHARED_IMAGE,
-    zipKey: SHARED_ZIP,
-  });
-
-  expect(cached).toEqual({ payload: true, field: 'media', image: false, zip: false });
-  await page.goto(targetUrl);
-  await expect(page.locator('#view-crop')).toBeVisible();
-  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
-  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
 });
 
 test('recovers an image that an older service worker stored as a zip', async ({ page }) => {
@@ -186,13 +147,13 @@ test('opens crop view from a top-level multipart share navigation', async ({ pag
   await page.goto('http://127.0.0.1:3000/__share_source__');
   await page.setContent(`
     <form method="POST" enctype="multipart/form-data" action="http://localhost:3000/_share-target/chinese-card">
-      <input id="shared-file" type="file" name="media">
+      <input id="shared-file" type="file" name="image">
       <button type="submit">share</button>
     </form>
   `);
   await page.locator('#shared-file').setInputFiles({
-    name: 'camera',
-    mimeType: 'application/octet-stream',
+    name: 'translated-image.png',
+    mimeType: 'image/png',
     buffer: Buffer.from(pngBytes),
   });
 
@@ -207,11 +168,7 @@ test('opens crop view from a top-level multipart share navigation', async ({ pag
 });
 
 test('consumes a cached image when PWA navigation drops the shared query flag', async ({ page }) => {
-  await shareGeneratedPng(page, {
-    fieldName: 'media',
-    fileName: 'camera.png',
-    type: 'image/png',
-  });
+  await shareGeneratedPng(page);
 
   await page.goto('/Chinese-card/index.html');
   await expect(page.locator('#view-crop')).toBeVisible();
@@ -221,11 +178,7 @@ test('consumes a cached image when PWA navigation drops the shared query flag', 
 
 test('consumes a cached image when Android resumes an existing PWA window', async ({ page }) => {
   await page.goto('/Chinese-card/index.html');
-  await shareGeneratedPng(page, {
-    fieldName: 'media',
-    fileName: 'camera.png',
-    type: 'image/png',
-  });
+  await shareGeneratedPng(page);
 
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect(page.locator('#view-crop')).toBeVisible();
@@ -233,41 +186,42 @@ test('consumes a cached image when Android resumes an existing PWA window', asyn
   await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
 });
 
-test('keeps zip files on the import path', async ({ page }) => {
+test('does not accept zip files from an unrelated share field', async ({ page }) => {
   await page.evaluate(async () => {
     const form = new FormData();
     form.append('file', new File(['PK\u0003\u0004'], 'backup.zip', { type: 'application/zip' }));
     await fetch('/_share-target/chinese-card', { method: 'POST', body: form });
   });
 
-  const cached = await page.evaluate(async ({ cacheName, payloadKey, imageKey, zipKey }) => {
+  const cached = await page.evaluate(async ({ cacheName, payloadKey, imageKey, zipKey, statusKey }) => {
     const cache = await caches.open(cacheName);
     const payload = await cache.match(payloadKey);
+    const status = await cache.match(statusKey);
     return {
       payload: Boolean(payload),
-      contentType: payload?.headers.get('Content-Type'),
       image: Boolean(await cache.match(imageKey)),
       zip: Boolean(await cache.match(zipKey)),
+      status: status ? await status.json() : null,
     };
   }, {
     cacheName: SHARE_CACHE,
     payloadKey: SHARED_PAYLOAD,
     imageKey: SHARED_IMAGE,
     zipKey: SHARED_ZIP,
+    statusKey: SHARED_STATUS,
   });
 
-  expect(cached).toEqual({
-    payload: true,
-    contentType: 'application/zip',
-    image: false,
-    zip: false,
-  });
+  expect(cached.payload).toBe(false);
+  expect(cached.image).toBe(false);
+  expect(cached.zip).toBe(false);
+  expect(cached.status.stage).toBe('sw-no-image');
 });
 
-test('shows a visible diagnostic when Android opens the target without a file', async ({ page }) => {
+test('records sw-no-image for title and text without an image', async ({ page }) => {
   const targetUrl = await page.evaluate(async () => {
     const form = new FormData();
-    form.append('text', 'camera provider did not attach a file');
+    form.append('title', 'Google 圖片翻譯');
+    form.append('text', '這是一段應被忽略的分享文字');
     const response = await fetch('/_share-target/chinese-card', {
       method: 'POST',
       body: form,
@@ -275,10 +229,45 @@ test('shows a visible diagnostic when Android opens the target without a file', 
     return response.url;
   });
 
+  const status = await page.evaluate(async ({ cacheName, statusKey }) => {
+    const cache = await caches.open(cacheName);
+    const response = await cache.match(statusKey);
+    return response ? response.json() : null;
+  }, { cacheName: SHARE_CACHE, statusKey: SHARED_STATUS });
+
+  expect(status.stage).toBe('sw-no-image');
+  expect(status.fields).toEqual([
+    { name: 'title', kind: 'text' },
+    { name: 'text', kind: 'text' },
+  ]);
+  expect(JSON.stringify(status)).not.toContain('Google 圖片翻譯');
+  expect(JSON.stringify(status)).not.toContain('這是一段應被忽略的分享文字');
+
   await page.goto(targetUrl);
+  await expect(page.locator('#view-crop')).toBeHidden();
   const error = page.locator('#share-target-error');
   await expect(error).toBeVisible();
-  await expect(error).toHaveAttribute('data-share-error', 'sw-no-file');
+  await expect(error).toHaveAttribute('data-share-error', 'sw-no-image');
+
+  await expect(page).toHaveURL(/\/Chinese-card\/$/);
+  await page.reload();
+  await expect(page.locator('#share-target-error')).toHaveCount(0);
+
+  const savedStatus = await page.evaluate(async ({ cacheName, statusKey }) => {
+    const cache = await caches.open(cacheName);
+    const response = await cache.match(statusKey);
+    return response ? response.json() : null;
+  }, { cacheName: SHARE_CACHE, statusKey: SHARED_STATUS });
+  expect(savedStatus.stage).toBe('sw-no-image');
+});
+
+test('accepts the share target path with a trailing slash', async ({ page }) => {
+  const targetUrl = await shareGeneratedPng(page, {
+    path: '/_share-target/chinese-card/',
+  });
+
+  await page.goto(targetUrl);
+  await expect(page.locator('#view-crop')).toBeVisible();
 });
 
 test('waits for a payload that arrives after the PWA page resumes', async ({ page }) => {
