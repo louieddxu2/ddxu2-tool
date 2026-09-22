@@ -30,7 +30,20 @@
       "files": [
         {
           "name": "image",
-          "accept": ["image/*"]
+          "accept": [
+            "image/*",
+            ".avif",
+            ".bmp",
+            ".gif",
+            ".heic",
+            ".heif",
+            ".jpeg",
+            ".jpg",
+            ".png",
+            ".tif",
+            ".tiff",
+            ".webp"
+          ]
         },
         {
           "name": "file",

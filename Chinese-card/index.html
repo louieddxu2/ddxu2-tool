@@ -5,6 +5,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>卡牌翻譯圖庫 (終極抗干擾版)</title>
+  <script>
+    // The share target opens this page directly, bypassing the launcher. Keep
+    // the root service worker fresh from this entry point as well.
+    if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        .then((registration) => registration.update())
+        .catch(() => {});
+    }
+  </script>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@0.542.0"></script>
@@ -841,7 +850,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="js/db.js?v=32"></script>
   <script src="js/sync.js?v=32"></script>
-  <script src="js/utils.js?v=34"></script>
+  <script src="js/utils.js?v=35"></script>
   <script src="js/ui.js?v=32"></script>
   <script src="js/gallery.js?v=32"></script>
   <script src="js/io.js?v=32"></script>

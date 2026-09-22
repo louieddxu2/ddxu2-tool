@@ -64,13 +64,6 @@
   localStorage.setItem(storageKey, JSON.stringify(launcherData));
 })();
 
-const CHINESE_CARD_SW_VERSION = "v27";
-if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
-  navigator.serviceWorker
-    .register(`/sw.js?${CHINESE_CARD_SW_VERSION}`)
-    .catch(() => { });
-}
-
 async function detectSharedBlobKind(blob) {
   const declaredType = String(blob.type || "").toLowerCase();
   if (declaredType.startsWith("image/")) {
@@ -111,7 +104,7 @@ async function detectSharedBlobKind(blob) {
     if (["avif", "avis"].includes(brand)) {
       return { kind: "image", type: "image/avif" };
     }
-    if (["heic", "heix", "hevc", "hevx", "mif1", "msf1"].includes(brand)) {
+    if (["heic", "heix", "hevc", "hevx", "heim", "heis", "mif1", "msf1"].includes(brand)) {
       return { kind: "image", type: "image/heic" };
     }
   }
@@ -155,8 +148,13 @@ async function consumeCachedSharedContent() {
     // without preserving the ?shared=1 launch URL.
     if (imgRes) {
       const blob = await imgRes.blob();
+      const detected = await detectSharedBlobKind(blob);
       const file = new File([blob], "shared_image.jpg", {
-        type: blob.type || "image/jpeg",
+        // Older service workers copied the provider MIME verbatim. Treat the
+        // image slot as authoritative when Android supplied a generic MIME.
+        type: detected.kind === "image"
+          ? detected.type
+          : (blob.type.startsWith("image/") ? blob.type : "image/jpeg"),
       });
       handleSharedImage(file);
       await cache.delete("/_shared_image");

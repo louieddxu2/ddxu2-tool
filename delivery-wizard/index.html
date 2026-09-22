@@ -2210,7 +2210,9 @@ async function exportExcel(){
 // BOOT
 // =============================================================
 if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+    .then((registration) => registration.update())
+    .catch(() => {});
 }
 init();
 </script>
