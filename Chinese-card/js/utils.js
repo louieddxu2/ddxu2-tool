@@ -210,7 +210,14 @@ async function consumeCachedSharedContent() {
 
     if ((urlError || (status && status.ok === false)) && !payloadRes && !imgRes && !zipRes) {
       const code = urlError || status.stage || "sw-unknown";
-      const details = status && status.error ? status.error : "分享資料未成功進入工具。";
+      const receivedFields = status && Array.isArray(status.fields)
+        ? status.fields.map((field) => field.fieldName).filter(Boolean)
+        : [];
+      const details = status && status.error
+        ? status.error
+        : (receivedFields.length
+          ? `Android 只送出欄位：${receivedFields.join(", ")}，沒有附加檔案。`
+          : "分享資料未成功進入工具。");
       showSharedContentError(code, details);
       return false;
     }

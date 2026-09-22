@@ -48,9 +48,30 @@ test.beforeEach(async ({ page }) => {
   await clearSharedFiles(page);
 });
 
-test('opens crop view when an image uses the manifest image field', async ({ page }) => {
+test('manifest maps every supported share file through one Android field', async ({ request }) => {
+  const response = await request.get('/manifest.webmanifest');
+  expect(response.ok()).toBe(true);
+  const manifest = await response.json();
+  const files = manifest.share_target.params.files;
+
+  expect(files).toHaveLength(1);
+  expect(files[0].name).toBe('media');
+  expect(files[0].accept).toEqual(expect.arrayContaining([
+    'image/*',
+    'image/jpeg',
+    'image/png',
+    '.jpg',
+    '.png',
+    'application/octet-stream',
+    'application/zip',
+    '.ccpack',
+    '.zip',
+  ]));
+});
+
+test('opens crop view when an image uses the manifest media field', async ({ page }) => {
   const targetUrl = await shareGeneratedPng(page, {
-    fieldName: 'image',
+    fieldName: 'media',
     fileName: 'camera.png',
     type: 'image/png',
   });
@@ -78,9 +99,9 @@ test('opens crop view when a phone sends an image through the generic file field
   await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
 });
 
-test('stores an extensionless generic Android file as one raw payload', async ({ page }) => {
+test('stores an extensionless generic Android media file as one raw payload', async ({ page }) => {
   const targetUrl = await shareGeneratedPng(page, {
-    fieldName: 'file',
+    fieldName: 'media',
     fileName: 'camera',
     type: 'application/octet-stream',
   });
@@ -101,7 +122,7 @@ test('stores an extensionless generic Android file as one raw payload', async ({
     zipKey: SHARED_ZIP,
   });
 
-  expect(cached).toEqual({ payload: true, field: 'file', image: false, zip: false });
+  expect(cached).toEqual({ payload: true, field: 'media', image: false, zip: false });
   await page.goto(targetUrl);
   await expect(page.locator('#view-crop')).toBeVisible();
   await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
@@ -165,7 +186,7 @@ test('opens crop view from a top-level multipart share navigation', async ({ pag
   await page.goto('http://127.0.0.1:3000/__share_source__');
   await page.setContent(`
     <form method="POST" enctype="multipart/form-data" action="http://localhost:3000/_share-target/chinese-card">
-      <input id="shared-file" type="file" name="file">
+      <input id="shared-file" type="file" name="media">
       <button type="submit">share</button>
     </form>
   `);
@@ -187,7 +208,7 @@ test('opens crop view from a top-level multipart share navigation', async ({ pag
 
 test('consumes a cached image when PWA navigation drops the shared query flag', async ({ page }) => {
   await shareGeneratedPng(page, {
-    fieldName: 'image',
+    fieldName: 'media',
     fileName: 'camera.png',
     type: 'image/png',
   });
@@ -201,7 +222,7 @@ test('consumes a cached image when PWA navigation drops the shared query flag', 
 test('consumes a cached image when Android resumes an existing PWA window', async ({ page }) => {
   await page.goto('/Chinese-card/index.html');
   await shareGeneratedPng(page, {
-    fieldName: 'image',
+    fieldName: 'media',
     fileName: 'camera.png',
     type: 'image/png',
   });

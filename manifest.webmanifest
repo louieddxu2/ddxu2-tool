@@ -29,25 +29,36 @@
       "text": "text",
       "files": [
         {
-          "name": "image",
+          "name": "media",
           "accept": [
             "image/*",
+            "image/avif",
+            "image/bmp",
+            "image/gif",
+            "image/heic",
+            "image/heif",
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/tiff",
+            "image/webp",
             ".avif",
             ".bmp",
             ".gif",
             ".heic",
             ".heif",
+            ".jfif",
             ".jpeg",
             ".jpg",
             ".png",
             ".tif",
             ".tiff",
-            ".webp"
+            ".webp",
+            "application/octet-stream",
+            "application/zip",
+            ".ccpack",
+            ".zip"
           ]
-        },
-        {
-          "name": "file",
-          "accept": [".ccpack", ".zip", "application/octet-stream", "application/zip"]
         }
       ]
     }
