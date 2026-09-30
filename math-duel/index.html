@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.2.7">
+  <link rel="stylesheet" href="tabletop.css?v=2.2.8">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -118,7 +118,7 @@
         turn_opponent: "Opponent's turn",
         turn_ai: 'AI turn',
         turn_wait: 'Waiting',
-        play_hint_select: 'Tap hand cards, an operator and a table result.',
+        play_hint_select: 'Tap cards, an operator and a result.',
         play_hint_arrange: 'Auto-arranged; tap in any order.',
         waiting_first: 'Waiting for first move...',
         last_turn_white: 'White Last',
@@ -202,9 +202,6 @@
         <h2 class="text-sm font-bold text-slate-500" id="white-label"></h2>
       </div>
       <div id="white-hand" class="hand-grid"></div>
-      <p id="white-play-hint" class="player-play-hint" aria-hidden="true">
-        <span data-hint="select"></span><span data-hint="arrange"></span>
-      </p>
     </section>
 
     <section id="table-area">
@@ -234,6 +231,9 @@
               </div>
             </div>
             <div data-role="move-preview" aria-live="polite" class="hidden operation-result"></div>
+            <p id="white-play-hint" class="play-hint" aria-hidden="true">
+              <span data-hint="select"></span><span data-hint="arrange"></span>
+            </p>
           </div>
         </section>
 
@@ -254,6 +254,9 @@
               </div>
             </div>
             <div data-role="move-preview" aria-live="polite" class="hidden operation-result"></div>
+            <p id="black-play-hint" class="play-hint" aria-hidden="true">
+              <span data-hint="select"></span><span data-hint="arrange"></span>
+            </p>
           </div>
         </section>
 
@@ -279,9 +282,6 @@
         <h2 class="text-sm font-bold text-slate-500" id="black-label"></h2>
       </div>
       <div id="black-hand" class="hand-grid"></div>
-      <p id="black-play-hint" class="player-play-hint" aria-hidden="true">
-        <span data-hint="select"></span><span data-hint="arrange"></span>
-      </p>
     </section>
   </main>
 

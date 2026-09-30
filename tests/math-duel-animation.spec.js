@@ -9,6 +9,9 @@ test('keeps the play hint after selections and moves it to the next human player
   await expect(blackHint).toBeVisible();
   await expect(blackHint).toContainText('系統自動排列算式，不必依順序點選');
   await expect(whiteHint).toBeHidden();
+  await expect(page.locator('#black-equation #black-play-hint')).toBeVisible();
+  await expect(page.locator('#white-equation #white-play-hint')).toHaveCount(1);
+  await expect(page.locator('#white-area .play-hint, #black-area .play-hint')).toHaveCount(0);
   const tableBefore = await page.locator('#table-area').boundingBox();
 
   await page.locator('#center-cards [data-card-id="w9"]').click();
@@ -21,6 +24,8 @@ test('keeps the play hint after selections and moves it to the next human player
   await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeEnabled();
   await expect(blackHint).toBeVisible();
   expect(await page.locator('#table-area').boundingBox()).toEqual(tableBefore);
+  await expect(page.locator('#card-motion-layer [data-card-id]')).toHaveCount(0, { timeout: 2000 });
+  await page.screenshot({ path: testInfo.outputPath('black-player-hint-after-selection.png') });
 
   await page.locator('.utility-language').click();
   await expect(blackHint).toContainText('tap in any order');
@@ -33,16 +38,19 @@ test('keeps the play hint after selections and moves it to the next human player
 
   const history = page.locator('#black-equation [data-role="stage-hand-cards"]');
   const historyBefore = await history.innerHTML();
-  const whiteGeometry = await page.evaluate(() => {
-    const hint = document.querySelector('#white-play-hint').getBoundingClientRect();
-    const hand = document.querySelector('#white-hand').getBoundingClientRect();
-    return { hintBelowCardsFromWhiteView: hint.bottom <= hand.top };
-  });
-  expect(whiteGeometry.hintBelowCardsFromWhiteView).toBe(true);
   await page.locator('#white-hand [data-card-id="w2"]').click();
   await expect(whiteHint).toBeVisible();
-  expect(await history.innerHTML()).toBe(historyBefore);
+  await expect(page.locator('#card-motion-layer [data-card-id]')).toHaveCount(0, { timeout: 2000 });
+  const whiteGeometry = await page.evaluate(() => {
+    const hint = document.querySelector('#white-play-hint').getBoundingClientRect();
+    const playedCards = document.querySelector('#white-equation .play-stage-grid').getBoundingClientRect();
+    const cards = [...document.querySelectorAll('#white-equation [data-card-id]')].map(card => card.getBoundingClientRect().toJSON());
+    const cardsClearOfHint = cards.every(card => card.top >= hint.bottom);
+    return { hintBelowCardsFromWhiteView: hint.bottom <= playedCards.top && cardsClearOfHint, hint: hint.toJSON(), playedCards: playedCards.toJSON(), cards };
+  });
   await page.screenshot({ path: testInfo.outputPath('white-player-hint-after-selection.png') });
+  expect(whiteGeometry.hintBelowCardsFromWhiteView, JSON.stringify(whiteGeometry)).toBe(true);
+  expect(await history.innerHTML()).toBe(historyBefore);
 
   page.on('dialog', dialog => dialog.accept());
   await page.locator('#white-actions [data-role="giveup-btn"]').click();
@@ -50,19 +58,38 @@ test('keeps the play hint after selections and moves it to the next human player
   await expect(blackHint).toBeHidden();
 });
 
-test('fits readable play hints below the hands on compact screens in both languages', async ({ page }, testInfo) => {
+test('fits persistent hints below played cards in both orientations and languages', async ({ page }, testInfo) => {
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
-  for (const viewport of [{ width: 320, height: 480 }, { width: 800, height: 360 }, { width: 900, height: 500 }]) {
+  for (const viewport of [{ width: 320, height: 480 }, { width: 360, height: 640 }, { width: 390, height: 844 }, { width: 800, height: 360 }, { width: 900, height: 500 }]) {
     await page.setViewportSize(viewport);
     await page.goto('/math-duel/index.html');
     for (const language of ['zh', 'en']) {
-      if (language === 'en') await page.locator('.utility-language').click();
+      if (language === 'en') {
+        await page.locator('.utility-language').click();
+        await page.locator('#black-hand [data-card-id="b1"]').click();
+        await page.locator('#black-hand [data-card-id="b5"]').click();
+        await page.locator('#center-cards [data-card-id="w9"]').click();
+        await page.locator('#black-actions [data-op="+"]').click();
+        await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeEnabled();
+        await expect(page.locator('#card-motion-layer [data-card-id]')).toHaveCount(0, { timeout: 2000 });
+      }
       await expect(page.locator('#black-play-hint')).toBeVisible();
       const layout = await page.evaluate(() => {
         const hint = document.querySelector('#black-play-hint');
         const hintRect = hint.getBoundingClientRect();
-        const area = document.querySelector('#black-area').getBoundingClientRect();
-        const hand = document.querySelector('#black-hand').getBoundingClientRect();
+        const area = document.querySelector('#black-equation').getBoundingClientRect();
+        const playedCards = document.querySelector('#black-equation .play-stage-grid').getBoundingClientRect();
+        const textRects = [...hint.querySelectorAll('span')].flatMap(span => {
+          const range = document.createRange();
+          range.selectNodeContents(span);
+          return [...range.getClientRects()];
+        });
+        const controls = [...document.querySelectorAll('.utility-rail .table-icon')].map(control => control.getBoundingClientRect());
+        const hintClearOfControls = textRects.every(text => controls.every(control => text.bottom <= control.top || text.top >= control.bottom || text.right <= control.left || text.left >= control.right));
+        const playedCardsFit = [...document.querySelectorAll('#black-equation [data-card-id]')].every(card => {
+          const rect = card.getBoundingClientRect();
+          return rect.top >= area.top && rect.bottom <= hintRect.top && rect.left >= area.left && rect.right <= area.right;
+        });
         const handsFit = ['white', 'black'].every(side => {
           const seat = document.querySelector(`#${side}-area`).getBoundingClientRect();
           return [...document.querySelectorAll(`#${side}-hand [data-card-id]`)].every(card => {
@@ -78,8 +105,10 @@ test('fits readable play hints below the hands on compact screens in both langua
           });
         });
         return {
-          hintInsideSeat: hintRect.top >= area.top && hintRect.bottom <= area.bottom && hintRect.left >= area.left && hintRect.right <= area.right,
-          hintBelowHand: hintRect.top >= hand.bottom,
+          hintInsidePlayArea: hintRect.top >= area.top && hintRect.bottom <= area.bottom && hintRect.left >= area.left && hintRect.right <= area.right,
+          hintBelowPlayedCards: hintRect.top >= playedCards.bottom,
+          hintClearOfControls,
+          playedCardsFit,
           textFits: hint.scrollWidth <= hint.clientWidth && hint.scrollHeight <= hint.clientHeight,
           handsFit,
           headersClear,
@@ -87,8 +116,10 @@ test('fits readable play hints below the hands on compact screens in both langua
         };
       });
       expect(layout, `${viewport.width}x${viewport.height}, ${language}`).toEqual({
-        hintInsideSeat: true,
-        hintBelowHand: true,
+        hintInsidePlayArea: true,
+        hintBelowPlayedCards: true,
+        hintClearOfControls: true,
+        playedCardsFit: true,
         textFits: true,
         handsFit: true,
         headersClear: true,
