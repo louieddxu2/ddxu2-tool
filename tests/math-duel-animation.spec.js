@@ -1,5 +1,104 @@
 import { test, expect } from '@playwright/test';
 
+test('keeps the play hint after selections and moves it to the next human player', async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
+  await page.goto('/math-duel/index.html');
+
+  const blackHint = page.locator('#black-play-hint');
+  const whiteHint = page.locator('#white-play-hint');
+  await expect(blackHint).toBeVisible();
+  await expect(blackHint).toContainText('系統自動排列算式，不必依順序點選');
+  await expect(whiteHint).toBeHidden();
+  const tableBefore = await page.locator('#table-area').boundingBox();
+
+  await page.locator('#center-cards [data-card-id="w9"]').click();
+  await expect(blackHint).toBeVisible();
+  await page.locator('#black-actions [data-op="+"]').click();
+  await expect(blackHint).toBeVisible();
+  await page.locator('#black-hand [data-card-id="b5"]').click();
+  await expect(blackHint).toBeVisible();
+  await page.locator('#black-hand [data-card-id="b1"]').click();
+  await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeEnabled();
+  await expect(blackHint).toBeVisible();
+  expect(await page.locator('#table-area').boundingBox()).toEqual(tableBefore);
+
+  await page.locator('.utility-language').click();
+  await expect(blackHint).toContainText('tap in any order');
+  await expect(blackHint).toBeVisible();
+  await page.locator('#black-actions [data-role="main-btn"]').click();
+  await expect(whiteHint).toBeVisible({ timeout: 7000 });
+  await expect(blackHint).toBeHidden();
+  await expect(page.locator('body')).not.toHaveClass(/is-turning/, { timeout: 2000 });
+  expect(await page.locator('#table-area').boundingBox()).toEqual(tableBefore);
+
+  const history = page.locator('#black-equation [data-role="stage-hand-cards"]');
+  const historyBefore = await history.innerHTML();
+  const whiteGeometry = await page.evaluate(() => {
+    const hint = document.querySelector('#white-play-hint').getBoundingClientRect();
+    const hand = document.querySelector('#white-hand').getBoundingClientRect();
+    return { hintBelowCardsFromWhiteView: hint.bottom <= hand.top };
+  });
+  expect(whiteGeometry.hintBelowCardsFromWhiteView).toBe(true);
+  await page.locator('#white-hand [data-card-id="w2"]').click();
+  await expect(whiteHint).toBeVisible();
+  expect(await history.innerHTML()).toBe(historyBefore);
+  await page.screenshot({ path: testInfo.outputPath('white-player-hint-after-selection.png') });
+
+  page.on('dialog', dialog => dialog.accept());
+  await page.locator('#white-actions [data-role="giveup-btn"]').click();
+  await expect(whiteHint).toBeHidden();
+  await expect(blackHint).toBeHidden();
+});
+
+test('fits readable play hints below the hands on compact screens in both languages', async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
+  for (const viewport of [{ width: 320, height: 480 }, { width: 800, height: 360 }, { width: 900, height: 500 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/math-duel/index.html');
+    for (const language of ['zh', 'en']) {
+      if (language === 'en') await page.locator('.utility-language').click();
+      await expect(page.locator('#black-play-hint')).toBeVisible();
+      const layout = await page.evaluate(() => {
+        const hint = document.querySelector('#black-play-hint');
+        const hintRect = hint.getBoundingClientRect();
+        const area = document.querySelector('#black-area').getBoundingClientRect();
+        const hand = document.querySelector('#black-hand').getBoundingClientRect();
+        const handsFit = ['white', 'black'].every(side => {
+          const seat = document.querySelector(`#${side}-area`).getBoundingClientRect();
+          return [...document.querySelectorAll(`#${side}-hand [data-card-id]`)].every(card => {
+            const rect = card.getBoundingClientRect();
+            return rect.top >= seat.top && rect.bottom <= seat.bottom && rect.left >= seat.left && rect.right <= seat.right;
+          });
+        });
+        const headersClear = ['white', 'black'].every(side => {
+          const labels = [...document.querySelectorAll(`#${side}-label, #${side}-turn-status`)].map(label => label.getBoundingClientRect());
+          return [...document.querySelectorAll(`#${side}-hand [data-card-id]`)].every(card => {
+            const rect = card.getBoundingClientRect();
+            return labels.every(label => rect.bottom <= label.top || rect.top >= label.bottom || rect.right <= label.left || rect.left >= label.right);
+          });
+        });
+        return {
+          hintInsideSeat: hintRect.top >= area.top && hintRect.bottom <= area.bottom && hintRect.left >= area.left && hintRect.right <= area.right,
+          hintBelowHand: hintRect.top >= hand.bottom,
+          textFits: hint.scrollWidth <= hint.clientWidth && hint.scrollHeight <= hint.clientHeight,
+          handsFit,
+          headersClear,
+          noPageOverflow: document.body.scrollHeight <= innerHeight && document.body.scrollWidth <= innerWidth
+        };
+      });
+      expect(layout, `${viewport.width}x${viewport.height}, ${language}`).toEqual({
+        hintInsideSeat: true,
+        hintBelowHand: true,
+        textFits: true,
+        handsFit: true,
+        headersClear: true,
+        noPageOverflow: true
+      });
+      await page.screenshot({ path: testInfo.outputPath(`play-hint-${viewport.width}-${language}.png`) });
+    }
+  }
+});
+
 test('animates a card exchange and resolves it into the correct zones', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
@@ -145,6 +244,8 @@ test('reveals the AI plan in the play area before resolving it', async ({ page }
   await page.goto('/math-duel/index.html');
 
   await expect(page.locator('#status-banner')).toContainText('AI 的行動計畫', { timeout: 10000 });
+  await expect(page.locator('#black-play-hint')).toBeHidden();
+  await expect(page.locator('#white-play-hint')).toBeHidden();
   await expect(page.locator('#black-equation [data-role="stage-hand-cards"] [data-card-id]').first()).toBeVisible({ timeout: 10000 });
   await expect(page.locator('#black-equation [data-role="stage-center-cards"] [data-card-id]').first()).toBeVisible({ timeout: 10000 });
   await expect(page.locator('#black-actions [data-role="plan-continue-btn"]')).toBeVisible();

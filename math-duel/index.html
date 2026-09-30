@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.2.6">
+  <link rel="stylesheet" href="tabletop.css?v=2.2.7">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -66,6 +66,8 @@
         turn_opponent: '輪到對手了',
         turn_ai: 'AI 回合',
         turn_wait: '等待中',
+        play_hint_select: '點選手牌、運算符號與場牌（結果）',
+        play_hint_arrange: '系統自動排列算式，不必依順序點選',
         waiting_first: '等待第一手...',
         last_turn_white: '白方上回',
         last_turn_black: '黑方上回',
@@ -116,6 +118,8 @@
         turn_opponent: "Opponent's turn",
         turn_ai: 'AI turn',
         turn_wait: 'Waiting',
+        play_hint_select: 'Tap hand cards, an operator and a table result.',
+        play_hint_arrange: 'Auto-arranged; tap in any order.',
         waiting_first: 'Waiting for first move...',
         last_turn_white: 'White Last',
         last_turn_black: 'Black Last',
@@ -198,6 +202,9 @@
         <h2 class="text-sm font-bold text-slate-500" id="white-label"></h2>
       </div>
       <div id="white-hand" class="hand-grid"></div>
+      <p id="white-play-hint" class="player-play-hint" aria-hidden="true">
+        <span data-hint="select"></span><span data-hint="arrange"></span>
+      </p>
     </section>
 
     <section id="table-area">
@@ -272,6 +279,9 @@
         <h2 class="text-sm font-bold text-slate-500" id="black-label"></h2>
       </div>
       <div id="black-hand" class="hand-grid"></div>
+      <p id="black-play-hint" class="player-play-hint" aria-hidden="true">
+        <span data-hint="select"></span><span data-hint="arrange"></span>
+      </p>
     </section>
   </main>
 
@@ -1126,6 +1136,15 @@
         const isCurrent = game.state !== 'GAMEOVER' && game.turn === side;
         status.innerText = getPlayerTurnStatus(side);
         status.className = `player-turn-status ${isCurrent ? 'is-current' : ''}`;
+        const hint = document.getElementById(`${side.toLowerCase()}-play-hint`);
+        const showHint = game.state === 'PLAYING' && game.turn === side && !isAITurn();
+        hint.classList.toggle('is-visible', showHint);
+        hint.setAttribute('aria-hidden', String(!showHint));
+        for (const part of ['select', 'arrange']) {
+          const line = hint.querySelector(`[data-hint="${part}"]`);
+          const text = t(`play_hint_${part}`);
+          if (line.textContent !== text) line.textContent = text;
+        }
       });
     }
 
