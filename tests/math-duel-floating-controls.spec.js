@@ -2,10 +2,13 @@ import { test, expect } from '@playwright/test';
 
 test('keeps all utility actions as usable viewport-floating controls', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
+  await page.addInitScript(() => {
+    localStorage.setItem('mathDuelLang', 'zh');
+    localStorage.setItem('mathDuelGuide_v2', JSON.stringify({ dontShow: true, completed: false }));
+  });
   await page.goto('/math-duel/index.html');
 
-  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.2.8');
+  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.3.0');
   await expect(page.locator('#black-turn-status')).toHaveText('輪到你了');
   await expect(page.locator('#white-turn-status')).toHaveText('輪到對手了');
   const leftRail = page.locator('.utility-rail-left');
@@ -74,6 +77,7 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
 
   await rightRail.locator('[data-role="utility-rules"]').click();
   await expect(page.locator('#rules-modal')).toBeVisible();
+  await expect(page.locator('#rules-start-tutorial')).toHaveText('再次教學');
   await page.locator('#modal-close-btn').click();
   await expect(page.locator('#rules-modal')).toHaveClass(/hidden/);
 });

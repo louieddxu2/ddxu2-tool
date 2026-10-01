@@ -10,7 +10,7 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.2.8">
+  <link rel="stylesheet" href="tabletop.css?v=2.3.0">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -68,6 +68,19 @@
         turn_wait: '等待中',
         play_hint_select: '點選手牌、運算符號與場牌（結果）',
         play_hint_arrange: '系統自動排列算式，不必依順序點選',
+        welcome_title: '開始遊玩',
+        welcome_detail: '完成五次行動，邊玩邊學。',
+        welcome_rules: '查看文字規則',
+        welcome_hide: '不再顯示',
+        tutorial_start: '開始教學',
+        tutorial_replay: '再次教學',
+        tutorial_skip: '直接遊玩',
+        tutorial_exit: '略過教學',
+        tutorial_retry: '重新開始教學',
+        tutorial_help: '本步提示',
+        tutorial_continue: '繼續',
+        tutorial_restart_confirm: '目前這局將重新開始，確定開始教學？',
+        tutorial_practice: '教學',
         waiting_first: '等待第一手...',
         last_turn_white: '白方上回',
         last_turn_black: '黑方上回',
@@ -120,6 +133,19 @@
         turn_wait: 'Waiting',
         play_hint_select: 'Tap cards, an operator and a result.',
         play_hint_arrange: 'Auto-arranged; tap in any order.',
+        welcome_title: 'Start playing',
+        welcome_detail: 'Learn by playing five moves.',
+        welcome_rules: 'Read the rules',
+        welcome_hide: "Don't show again",
+        tutorial_start: 'Start tutorial',
+        tutorial_replay: 'Replay tutorial',
+        tutorial_skip: 'Just play',
+        tutorial_exit: 'Skip tutorial',
+        tutorial_retry: 'Restart tutorial',
+        tutorial_help: 'Help with this step',
+        tutorial_continue: 'Continue',
+        tutorial_restart_confirm: 'This will restart the current game. Start the tutorial?',
+        tutorial_practice: 'Practice',
         waiting_first: 'Waiting for first move...',
         last_turn_white: 'White Last',
         last_turn_black: 'Black Last',
@@ -285,53 +311,86 @@
     </section>
   </main>
 
-  <!-- Rules Modal -->
-  <div id="rules-modal"
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
-    <div
-      class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300">
-      <div class="bg-slate-800 p-4 text-white flex justify-between items-center">
-        <h3 class="font-bold text-lg" id="modal-rules-title"></h3>
-        <button onclick="toggleRules(false)" class="p-1 hover:bg-slate-700 rounded-full"><i data-lucide="x"
-            class="w-6 h-6"></i></button>
+  <!-- Entry and rules stay outside the rotating tabletop. -->
+  <div id="welcome-modal" class="game-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="welcome-title" aria-describedby="welcome-detail">
+    <div class="dialog-card welcome-card">
+      <div class="dialog-heading">
+        <h3 id="welcome-title"></h3>
+        <button type="button" class="dialog-close" onclick="closeGameDialog()" data-dialog-close aria-label="關閉">×</button>
       </div>
-      <div class="p-6 space-y-4 text-slate-600 text-sm leading-relaxed max-h-[70vh] overflow-y-auto">
+      <div class="welcome-body">
+        <p id="welcome-detail"></p>
+        <button type="button" class="dialog-primary" id="welcome-start" onclick="startTutorial()"></button>
+        <button type="button" class="dialog-secondary" id="welcome-rules" onclick="toggleRules(true)"></button>
+        <label class="welcome-preference"><input type="checkbox" id="welcome-dont-show" onchange="setWelcomePreference(this.checked)"><span id="welcome-hide-label"></span></label>
+        <button type="button" class="dialog-quiet" id="welcome-play" onclick="closeGameDialog()"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rules-modal"
+    class="game-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="modal-rules-title">
+    <div class="dialog-card">
+      <div class="dialog-heading">
+        <h3 id="modal-rules-title"></h3>
+        <button type="button" class="dialog-close" onclick="toggleRules(false)" data-dialog-close aria-label="關閉">×</button>
+      </div>
+      <div class="rules-body">
         <p id="rule-1"></p>
         <p id="rule-2"></p>
         <p id="rule-3"></p>
         <p id="rule-4"></p>
         <p id="rule-5"></p>
       </div>
-      <div class="p-4 bg-slate-50 border-t flex justify-end">
-        <button onclick="toggleRules(false)"
-          class="px-6 py-2 bg-slate-800 text-white rounded-xl font-bold shadow-md hover:bg-slate-700 transition-colors"
-          id="modal-close-btn"></button>
+      <div class="dialog-actions">
+        <button type="button" id="rules-start-tutorial" class="dialog-secondary" onclick="startTutorial()"></button>
+        <button type="button" id="rules-step-help" class="dialog-secondary" onclick="requestTutorialHelp()" hidden></button>
+        <button type="button" id="rules-skip-tutorial" class="dialog-secondary" onclick="endTutorial(); closeGameDialog()" hidden></button>
+        <button type="button" onclick="toggleRules(false)" class="dialog-primary" id="modal-close-btn"></button>
       </div>
     </div>
   </div>
 
    <script src="rule-modes.js"></script>
+  <script src="../shared/flow-guide.js?v=1"></script>
+  <script src="tutorial.js?v=2"></script>
   <script src="../shared/card-motion.js?v=2"></script>
   <script src="../shared/equation-witness.js?v=1"></script>
   <script>
     // ==========================================
     // ⚙️ 系統版本控制
-    // 每次你修改了 index.html 或 ai-worker.js 後，
-    // 請將這個數字往上加（例如 '1.0.0' 改為 '1.0.1'）
+    // 遊戲存檔與 AI Worker 的相容版號。
+    // 介面與教學資源使用各自的版本，避免清除既有對局。
     const APP_VERSION = '1.6.0';
     // ==========================================
 
     // --- 1. 載入外部 Worker 檔案 (加上版號破解快取) ---
-    const worker = new Worker(`ai-worker.js?v=${APP_VERSION}`);
+    let worker = null;
     let aiTimeoutToken = null;
     let aiPlanTimer = null;
     let aiPlanResolver = null;
+    let aiRequestPending = false;
+    let workerAwaitingReply = false;
+    const gameTaskTimers = new Set();
+    let sessionSerial = 1;
+    let gameSession = { id: sessionSerial, action: 0, activeAction: null };
+    let guideEventSerial = 0;
+    let tutorialGate = null;
+    let completedLesson = false;
+    let currentDialog = null;
+    let dialogOpener = null;
+    const dialogWaiters = new Set();
 
     // --- 2. 存檔 Key 也綁定版號 (徹底預防讀取到舊版卡死狀態) ---
     const SAVE_KEY = `mathDuelState_v${APP_VERSION}`;
+    let tutorialSession = null;
+    function tutorialStorage() {
+      try { return window.localStorage; } catch { return null; }
+    }
+    let tutorialPreferences = MathDuelTutorial.readPreferences(tutorialStorage());
 
-    function createInitialState(mode = 'PVP', ruleMode = MathDuelRuleModes.RULE_MODE.CLASSIC) {
-      const aiSide = (mode.startsWith('AI')) ? (Math.random() < 0.5 ? 'BLACK' : 'WHITE') : null;
+    function createInitialState(mode = 'PVP', ruleMode = MathDuelRuleModes.RULE_MODE.CLASSIC, preferredAiSide = null) {
+      const aiSide = (mode.startsWith('AI')) ? (preferredAiSide || (Math.random() < 0.5 ? 'BLACK' : 'WHITE')) : null;
       const gameState = {
         mode: mode,
         ruleMode: ruleMode,
@@ -358,10 +417,10 @@
     document.getElementById('mode-select').value = game.mode;
     document.getElementById('rule-mode-select').value = game.ruleMode;
 
-    // ... 後續的 saveState, loadState 與遊戲邏輯保持不變 ...
-
-
-    function saveState() { localStorage.setItem(SAVE_KEY, JSON.stringify(game)); }
+    function saveState() {
+      if (game.uiBusy || game.state === 'ANIMATING') return;
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(game)); } catch { /* Play remains available without storage. */ }
+    }
     function loadState() {
       try {
         const saved = localStorage.getItem(SAVE_KEY);
@@ -370,6 +429,177 @@
       } catch (e) {
         return null;
       }
+    }
+
+    function setWelcomePreference(dontShow) {
+      tutorialPreferences = { ...tutorialPreferences, dontShow };
+      MathDuelTutorial.writePreferences(tutorialStorage(), tutorialPreferences);
+    }
+
+    function clearGameMotion() {
+      document.getElementById('card-motion-layer')?.remove();
+      if (viewTurnTimer) clearTimeout(viewTurnTimer);
+      viewTurnTimer = null;
+      lastViewTurnKey = null;
+      document.body.classList.remove('is-turning');
+      document.body.removeAttribute('aria-busy');
+      lastRenderState = { ...lastRenderState, white: '', black: '', center: '' };
+    }
+
+    function finishTutorialGate(proceed) {
+      const gate = tutorialGate;
+      tutorialGate = null;
+      gate?.resolve(proceed && game === gate.game);
+    }
+
+    function emitGuideEvent(event) {
+      if (!tutorialSession) return;
+      const session = tutorialSession;
+      if (event.type === 'selection.changed') session.rejected = false;
+      if (event.type === 'turn.completed') { session.help = false; session.rejected = false; }
+      const result = FlowGuide.advanceGuide(session.state, MathDuelTutorial.definition,
+        { id: `${gameSession.id}:event:${++guideEventSerial}`, ...event },
+        { game, help: session.help, rejected: session.rejected });
+      session.state = result.state;
+      session.view = result.view;
+      result.effects.forEach(effect => {
+        if (effect.type === 'release') finishTutorialGate(effect.proceed);
+      });
+      if (session.state.status === 'completed') {
+        completedLesson = game.state === 'GAMEOVER' && game.winner === 'BLACK' && MathDuelTutorial.isExpectedBoard(5, game);
+        if (completedLesson) {
+          tutorialPreferences = { ...tutorialPreferences, completed: true };
+          MathDuelTutorial.writePreferences(tutorialStorage(), tutorialPreferences);
+        }
+        tutorialSession = null;
+      }
+    }
+
+    function stopTutorial(type = 'skip', resume = true) {
+      if (!tutorialSession) return;
+      emitGuideEvent({ type });
+      tutorialSession = null;
+      finishTutorialGate(type === 'skip');
+      if (resume) { saveState(); render(); checkAITurn(); }
+    }
+
+    function endTutorial() { stopTutorial('skip'); }
+
+    function cancelGameWork() {
+      stopTutorial('cancel', false);
+      finishTutorialGate(false);
+      cancelAiPlanWait();
+      if (aiTimeoutToken) clearTimeout(aiTimeoutToken);
+      aiTimeoutToken = null;
+      gameTaskTimers.forEach(clearTimeout);
+      gameTaskTimers.clear();
+      dialogWaiters.forEach(resolve => resolve(false));
+      dialogWaiters.clear();
+      worker?.terminate();
+      worker = null;
+      aiRequestPending = false;
+      workerAwaitingReply = false;
+    }
+
+    function replaceGame(nextGame) {
+      cancelGameWork();
+      game = nextGame;
+      gameSession = { id: ++sessionSerial, action: 0, activeAction: null };
+      completedLesson = false;
+      clearGameMotion();
+      closeUtilityMenus();
+      resetAiWorker();
+    }
+
+    function startTutorial(alreadyConfirmed = false) {
+      const hasProgress = Boolean(game.lastMove || game.state !== 'PLAYING' || game.selections.hand.length ||
+        game.selections.center.length || game.selections.operator || (tutorialSession && tutorialSession.state.stepIndex > 0));
+      if (hasProgress && !alreadyConfirmed && !confirm(t('tutorial_restart_confirm'))) return;
+      replaceGame(createInitialState('AI_EASY', MathDuelRuleModes.RULE_MODE.CLASSIC, 'WHITE'));
+      tutorialSession = { state: FlowGuide.createGuideState(MathDuelTutorial.definition), view: null, help: false, rejected: false };
+      emitGuideEvent({ type: 'start' });
+      saveState();
+      closeGameDialog();
+      render();
+    }
+
+    function requestTutorialHelp() {
+      if (tutorialSession) {
+        tutorialSession.help = true;
+        emitGuideEvent({ type: 'view.changed' });
+      }
+      closeGameDialog();
+      render();
+    }
+
+    function waitForTutorial(key) {
+      if (!tutorialSession || !MathDuelTutorial.definition.steps[tutorialSession.state.stepIndex].checkpoints[key]?.length) return Promise.resolve(true);
+      return new Promise(resolve => {
+        tutorialGate = { key, game, resolve };
+        emitGuideEvent({ type: 'checkpoint', key });
+        saveState();
+        render();
+      });
+    }
+
+    function refreshDialogText() {
+      document.getElementById('welcome-title').textContent = t('welcome_title');
+      document.getElementById('welcome-detail').textContent = t('welcome_detail');
+      document.getElementById('welcome-start').textContent = t('tutorial_start');
+      document.getElementById('welcome-rules').textContent = t('welcome_rules');
+      document.getElementById('welcome-play').textContent = t('tutorial_skip');
+      document.getElementById('welcome-hide-label').textContent = t('welcome_hide');
+      document.getElementById('welcome-dont-show').checked = tutorialPreferences.dontShow;
+      document.getElementById('modal-rules-title').textContent = t('rules_title');
+      ['init', 'action', 'limit', 'special', 'win'].forEach((key, index) => {
+        document.getElementById(`rule-${index + 1}`).textContent = t(`rules_${key}`);
+      });
+      document.getElementById('modal-close-btn').textContent = t('close');
+      document.getElementById('rules-start-tutorial').textContent = t('tutorial_replay');
+      document.getElementById('rules-step-help').textContent = t('tutorial_help');
+      document.getElementById('rules-skip-tutorial').textContent = t('tutorial_exit');
+      document.getElementById('rules-step-help').hidden = !tutorialSession;
+      document.getElementById('rules-skip-tutorial').hidden = !tutorialSession;
+      document.querySelectorAll('[data-dialog-close]').forEach(button => button.setAttribute('aria-label', t('close')));
+    }
+
+    function openGameDialog(id) {
+      if (!currentDialog) dialogOpener = document.activeElement;
+      currentDialog = id;
+      closeUtilityMenus();
+      refreshDialogText();
+      document.querySelectorAll('.game-dialog').forEach(modal => modal.classList.toggle('hidden', modal.id !== id));
+      document.querySelectorAll('#game-board, .utility-rail, .utility-menu').forEach(element => { element.inert = true; });
+      const modal = document.getElementById(id);
+      (modal.querySelector('#welcome-start') || modal.querySelector('[data-dialog-close]')).focus();
+    }
+
+    function closeGameDialog() {
+      currentDialog = null;
+      document.querySelectorAll('.game-dialog').forEach(modal => modal.classList.add('hidden'));
+      document.querySelectorAll('#game-board, .utility-rail, .utility-menu').forEach(element => { element.inert = false; });
+      const opener = dialogOpener;
+      dialogOpener = null;
+      if (opener?.isConnected && !opener.closest('.hidden') && opener !== document.body) opener.focus();
+      else document.querySelector('.utility-rules')?.focus();
+      dialogWaiters.forEach(resolve => resolve(true));
+      dialogWaiters.clear();
+      checkAITurn();
+    }
+
+    function waitForGameDialog(capturedGame) {
+      if (!currentDialog) return Promise.resolve(game === capturedGame);
+      return new Promise(resolve => dialogWaiters.add(proceed => resolve(proceed && game === capturedGame)));
+    }
+
+    function scheduleGameTask(callback, delay) {
+      const scheduledGame = game;
+      const token = setTimeout(() => {
+        gameTaskTimers.delete(token);
+        if (game === scheduledGame) callback();
+      }, delay);
+      gameTaskTimers.add(token);
+      return token;
     }
 
     function finishAiPlanWait(shouldContinue) {
@@ -389,6 +619,7 @@
     }
 
     function continueAiPlan() {
+      if (tutorialGate) { emitGuideEvent({ type: 'continue' }); render(); return; }
       finishAiPlanWait(true);
     }
 
@@ -398,8 +629,7 @@
 
     function changeMode(newMode) {
       if (confirm(t('confirm_change_mode'))) {
-        cancelAiPlanWait();
-        game = createInitialState(newMode, game.ruleMode);
+        replaceGame(createInitialState(newMode, game.ruleMode));
         saveState(); render(); checkAITurn();
       } else {
         document.getElementById('mode-select').value = game.mode;
@@ -408,8 +638,7 @@
 
     function changeRuleMode(newRuleMode) {
       if (confirm(t('confirm_change_mode'))) {
-        cancelAiPlanWait();
-        game = createInitialState(game.mode, newRuleMode);
+        replaceGame(createInitialState(game.mode, newRuleMode));
         saveState(); render(); checkAITurn();
       } else {
         document.getElementById('rule-mode-select').value = game.ruleMode;
@@ -457,8 +686,8 @@
 
     function resetGame(force = false) {
       if (force && !confirm(t('confirm_reset'))) return;
-      cancelAiPlanWait();
-      game = createInitialState(game.mode, game.ruleMode);
+      if (tutorialSession) { startTutorial(true); return; }
+      replaceGame(createInitialState(game.mode, game.ruleMode));
       saveState(); render();
       checkAITurn();
     }
@@ -544,6 +773,7 @@
       }
 
       function animateSelectionChange(id, location) {
+       const selectingGame = game;
        const ids = location === 'hand' ? game.selections.hand : game.selections.center;
        const max = location === 'hand' ? 4 : 2;
        const idx = ids.indexOf(id);
@@ -553,31 +783,37 @@
        let committed = false;
         CardMotion.playExchange({
            moves: [{ id }],
-           find: cardId => findSelectionCard(cardId, location),
+           find: cardId => game === selectingGame ? findSelectionCard(cardId, location) : null,
            commit: () => {
+             if (game !== selectingGame) return;
              if (adding) ids.push(id);
              else ids.splice(idx, 1);
              committed = true;
+             emitGuideEvent({ type: 'selection.changed' });
              render();
            },
            options: { duration: 420, stagger: 0 }
          }).catch((error) => {
+         if (game !== selectingGame) return;
          console.error('Card selection animation failed:', error);
          if (!committed) {
            if (adding) ids.push(id);
            else ids.splice(idx, 1);
+           emitGuideEvent({ type: 'selection.changed' });
            render();
          }
        });
      }
 
      function toggleSelect(id, location) {
+       if (currentDialog) return;
        if (game.state === 'GAMEOVER' || game.state === 'ANIMATING' || game.uiBusy || isAITurn()) return;
        if (game.state === 'DISCARDING') {
          if (location !== 'center') return;
          const idx = game.discardSelections.indexOf(id);
          if (idx > -1) game.discardSelections.splice(idx, 1);
          else if (game.discardSelections.length < 2) game.discardSelections.push(id);
+         emitGuideEvent({ type: 'selection.changed' });
          render(); return;
        }
        if (location !== 'hand' && location !== 'center') return;
@@ -588,7 +824,9 @@
       const btn = event.target.closest('.op-btn');
       if (!btn || btn.disabled || game.state !== 'PLAYING' || game.uiBusy || isAITurn()) return;
       if (btn.closest('.action-zone')?.dataset.side !== game.turn) return;
+      if (currentDialog) return;
       game.selections.operator = btn.dataset.op;
+      emitGuideEvent({ type: 'selection.changed' });
       render();
     });
 
@@ -634,10 +872,13 @@
        game.selections = { hand: [], center: [], operator: null };
        game.discardSelections = aiInfo?.discard?.length === 2 ? [...aiInfo.discard] : [];
        game.aiMoveInfo = null;
+       gameSession.activeAction = { id: `${gameSession.id}:action:${gameSession.action + 1}`, number: gameSession.action + 1, actor: game.turn };
+       emitGuideEvent({ type: 'exchange.completed', actor: game.turn });
      }
 
      async function playDiscardMove() {
        if (game.state !== 'DISCARDING' || game.discardSelections.length !== 2) return;
+       const movingGame = game;
 
        const keepIds = new Set(game.discardSelections);
        const keepCards = game.center.filter(c => keepIds.has(c.id));
@@ -657,8 +898,9 @@
         try {
           await CardMotion.playRemoval({
             ids: discardedCards.map(c => c.id),
-            find: cardId => findCardIn('#center-cards', cardId),
+            find: cardId => game === movingGame ? findCardIn('#center-cards', cardId) : null,
             commit: () => {
+             if (game !== movingGame) return;
              game.center = keepCards;
              game.discardSelections = [];
              committed = true;
@@ -668,6 +910,7 @@
             options: { duration: 520, stagger: 70 }
          });
        } catch (error) {
+         if (game !== movingGame) return;
          console.error('Card discard animation failed:', error);
          if (!committed) {
            game.center = keepCards;
@@ -675,12 +918,18 @@
          }
        }
 
+        if (game !== movingGame) return;
         game.movePreview = null;
         game.uiBusy = false;
+        emitGuideEvent({ type: 'keep.completed', actor: game.turn });
         endTurn();
       }
 
      async function playCardMove(hCards, cCards, op, eqResult) {
+        const movingGame = game;
+        const movingSide = game.turn.toLowerCase();
+        const playedIds = new Set(hCards.map(card => card.id));
+        const collectedIds = new Set(cCards.map(card => card.id));
         const actor = isAITurn() ? 'AI' : 'PLAYER';
         const aiInfo = game.aiMoveInfo;
         game.state = 'ANIMATING';
@@ -701,8 +950,14 @@
              ...hCards.map(c => ({ id: c.id, destination: 'center' })),
               ...cCards.map(c => ({ id: c.id, destination: 'hand' }))
             ],
-            find: cardId => findActiveGameCard(cardId),
+            find: cardId => {
+              if (game !== movingGame) return null;
+              if (committed && playedIds.has(cardId)) return findCardIn('#center-cards', cardId);
+              if (committed && collectedIds.has(cardId)) return findCardIn(`#${movingSide}-hand`, cardId);
+              return findActiveGameCard(cardId);
+            },
             commit: () => {
+             if (game !== movingGame) return;
              applyMoveState(hCards, cCards, op, eqResult);
              committed = true;
              render();
@@ -710,6 +965,7 @@
            options: { duration: 560, stagger: 70 }
          });
        } catch (error) {
+         if (game !== movingGame) return;
          console.error('Card exchange animation failed:', error);
           if (!committed) {
             applyMoveState(hCards, cCards, op, eqResult);
@@ -718,12 +974,18 @@
           }
        }
 
+       if (game !== movingGame) return;
        game.movePreview = null;
        if (game.center.length > 2) {
          game.uiBusy = false;
          game.state = 'DISCARDING';
+         saveState();
          render();
-         if (isAITurn() && game.discardSelections.length === 2) await playDiscardMove();
+         if (isAITurn() && game.discardSelections.length === 2) {
+           if (!(await waitForTutorial('before-keep')) || game !== movingGame) return;
+           if (!(await waitForGameDialog(movingGame)) || game !== movingGame) return;
+           await playDiscardMove();
+         }
        } else {
          game.uiBusy = false;
          endTurn();
@@ -731,9 +993,15 @@
      }
 
      function handleMainAction() {
+       if (currentDialog || tutorialGate) return;
        if (game.state === 'ANIMATING' || game.uiBusy) return;
        if (game.state === 'DISCARDING') {
          if (game.discardSelections.length !== 2) return alert(t('discard_err'));
+         if (tutorialSession && !MathDuelTutorial.matchesTask(tutorialSession.state.stepIndex, game, 'keep')) {
+           tutorialSession.rejected = true;
+           emitGuideEvent({ type: 'task.rejected' });
+           render(); return;
+         }
          playDiscardMove();
          return;
        }
@@ -750,12 +1018,21 @@
 
        const eqResult = checkEquation(hCards, op, cCards);
        if (!eqResult.success) return alert(t('eq_error'));
+       if (tutorialSession && !MathDuelTutorial.matchesTask(tutorialSession.state.stepIndex, game)) {
+         tutorialSession.rejected = true;
+         emitGuideEvent({ type: 'task.rejected' });
+         render(); return;
+       }
        playCardMove(hCards, cCards, op, eqResult);
      }
 
     function endTurn() {
       game.uiBusy = false;
       const turnJustEnded = game.turn;
+      const completedAction = gameSession.activeAction;
+      gameSession.activeAction = null;
+      aiRequestPending = false;
+      workerAwaitingReply = false;
       if (isRace2Mode()) {
         const ended = MathDuelRuleModes.applyColorMatchPoint(game, turnJustEnded);
         if (!ended) {
@@ -772,12 +1049,24 @@
           game.state = 'PLAYING';
         }
       }
+      if (completedAction) {
+        gameSession.action = completedAction.number;
+        emitGuideEvent({ type: 'turn.completed', id: `${completedAction.id}:turn`, actor: turnJustEnded, action: completedAction.number });
+      }
+      if (game.state === 'GAMEOVER') { emitGuideEvent({ type: 'game.over', actor: turnJustEnded }); stopTutorial('cancel', false); }
       saveState(); render();
       checkAITurn();
     }
 
     function checkAITurn() {
+      if (currentDialog || aiRequestPending) return;
+      if (game.state === 'DISCARDING' && isAITurn() && game.discardSelections.length === 2) {
+        aiRequestPending = true;
+        scheduleGameTask(() => playDiscardMove(), 100);
+        return;
+      }
       if (game.state !== 'PLAYING') return;
+      if (tutorialSession && !MathDuelTutorial.isExpectedBoard(tutorialSession.state.stepIndex, game)) stopTutorial('skip', false);
 
       // 檢查當前行動方是否還有路走 (死局判定)
       const currentHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
@@ -786,21 +1075,36 @@
           const ended = MathDuelRuleModes.applyPassPoint(game);
           if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
           saveState(); render();
-          setTimeout(() => checkAITurn(), 200);
+          scheduleGameTask(() => checkAITurn(), 200);
           return;
         }
-        setTimeout(() => {
+        scheduleGameTask(() => {
           const winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
           const msg = game.turn === 'BLACK' ? (LANG === 'zh' ? '你已無路可走！' : 'No moves left!') : (LANG === 'zh' ? 'AI 已無路可走！' : 'AI has no moves left!');
           alert(msg);
           game.winner = winner;
           game.state = 'GAMEOVER';
+          stopTutorial('cancel', false);
           saveState(); render();
         }, 300);
         return;
       }
 
       if (isAITurn()) {
+        aiRequestPending = true;
+        if (tutorialSession) {
+          const lesson = tutorialSession;
+          const move = MathDuelTutorial.createAiMove(lesson.state.stepIndex, game, checkEquation);
+          if (move) {
+            scheduleGameTask(() => {
+              if (tutorialSession === lesson) revealAiMove(move);
+              else { aiRequestPending = false; checkAITurn(); }
+            }, 350);
+            return;
+          }
+          stopTutorial('skip', false);
+        }
+        if (game.aiMoveInfo) { resumeAiPlan(game); return; }
         const difficulty = game.mode === 'AI_HARD' ? 'hard' : 'easy';
         document.getElementById('status-banner').innerHTML = `<span class="ai-thinking">🧠 ${difficulty === 'hard' ? t('ai_thinking_hard') : t('ai_thinking_easy')}</span>`;
 
@@ -809,17 +1113,20 @@
         const oppHand = game.turn === 'BLACK' ? game.whiteHand : game.blackHand;
 
         if (aiTimeoutToken) clearTimeout(aiTimeoutToken);
-        aiTimeoutToken = setTimeout(() => {
+        aiTimeoutToken = scheduleGameTask(() => {
           if (!isAITurn() || game.state !== 'PLAYING') return;
           if (isRace2Mode()) {
             const ended = MathDuelRuleModes.applyPassPoint(game);
             if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+            aiRequestPending = false;
             saveState(); render(); checkAITurn();
             return;
           }
           giveUp();
         }, 5500);
 
+        if (!worker) resetAiWorker();
+        workerAwaitingReply = true;
         worker.postMessage({
           difficulty,
           aiSide: game.aiSide,
@@ -835,15 +1142,18 @@
       }
     }
 
-    worker.onmessage = function (e) {
+    function handleAiWorkerMessage(e, sourceWorker) {
+      if (sourceWorker !== worker || !workerAwaitingReply) return;
+      workerAwaitingReply = false;
       if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
       if (!isAITurn() || game.state !== 'PLAYING') return;
       const move = e.data;
       if (!move) {
-        setTimeout(() => {
+        scheduleGameTask(() => {
           if (isRace2Mode() && isAITurn() && game.state === 'PLAYING') {
             const ended = MathDuelRuleModes.applyPassPoint(game);
             if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+            aiRequestPending = false;
             saveState(); render(); checkAITurn();
             return;
           }
@@ -851,11 +1161,30 @@
         }, 1500);
         return;
       }
-      setTimeout(() => revealAiMove(move), 350);
-    };
+      scheduleGameTask(() => revealAiMove(move), 350);
+    }
+
+    function resetAiWorker() {
+      worker?.terminate();
+      const nextWorker = new Worker(`ai-worker.js?v=${APP_VERSION}`);
+      worker = nextWorker;
+      workerAwaitingReply = false;
+      nextWorker.onmessage = event => handleAiWorkerMessage(event, nextWorker);
+      nextWorker.onerror = () => handleAiWorkerError(nextWorker);
+    }
+
+    async function resumeAiPlan(plannedGame) {
+      if (tutorialSession) {
+        if (!(await waitForTutorial('before-exchange'))) return;
+      } else if (!CardMotion.prefersReducedMotion(document) && !(await waitForAiPlan(1100))) return;
+      if (game !== plannedGame || !(await waitForGameDialog(plannedGame)) || game !== plannedGame) return;
+      handleMainAction();
+    }
 
     async function revealAiMove(move) {
       if (!isAITurn() || game.state !== 'PLAYING') return;
+      const plannedGame = game;
+      if (!(await waitForGameDialog(plannedGame)) || game !== plannedGame) return;
 
       const aiInfo = move.eq ? {
         eq: move.eq,
@@ -873,51 +1202,61 @@
       render();
       let committed = false;
       const commitPlan = () => {
+        if (game !== plannedGame) return;
         game.selections.hand = [...move.hand];
         game.selections.center = [...move.center];
         game.selections.operator = move.op;
         game.aiMoveInfo = aiInfo;
         committed = true;
+        emitGuideEvent({ type: 'selection.changed', actor: game.turn });
         render();
       };
 
       try {
         await CardMotion.playExchange({
           moves,
-          find: cardId => findActiveGameCard(cardId),
+          find: cardId => game === plannedGame ? findActiveGameCard(cardId) : null,
           commit: commitPlan,
           options: { duration: 560, stagger: 70 }
         });
       } catch (error) {
+        if (game !== plannedGame) return;
         console.error('AI card reveal animation failed:', error);
         if (!committed) commitPlan();
       }
 
+      if (game !== plannedGame) return;
       game.uiBusy = false;
+      saveState();
       render();
-      if (!CardMotion.prefersReducedMotion(document) && !(await waitForAiPlan(1100))) return;
-      handleMainAction();
+      await resumeAiPlan(plannedGame);
     }
 
-    worker.onerror = function () {
+    function handleAiWorkerError(sourceWorker) {
+      if (sourceWorker !== worker) return;
+      workerAwaitingReply = false;
       if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
       if (isAITurn() && game.state === 'PLAYING') {
-        setTimeout(() => {
+        scheduleGameTask(() => {
           if (isRace2Mode()) {
             const ended = MathDuelRuleModes.applyPassPoint(game);
             if (!ended) game.turn = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
+            aiRequestPending = false;
             saveState(); render(); checkAITurn();
           } else {
             giveUp();
           }
         }, 600);
       }
-    };
+    }
 
     function giveUp() {
       if (game.turn === 'BLACK' || game.mode === 'PVP') if (!confirm(t('giveup_confirm'))) return;
       game.winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
-      game.state = 'GAMEOVER'; saveState(); render();
+      game.state = 'GAMEOVER';
+      stopTutorial('cancel', false);
+      aiRequestPending = false;
+      saveState(); render();
     }
 
      function generateCardHTML(card, location, isNew = false, displayValue = card.val) {
@@ -1398,6 +1737,73 @@
       }
        renderMovePreview();
        renderHistory();
+       renderTutorial();
+    }
+
+    function renderTutorial() {
+      const active = Boolean(tutorialSession);
+      document.body.classList.toggle('is-tutorial', active);
+      document.querySelectorAll('[data-tutorial-focus]').forEach(element => element.removeAttribute('data-tutorial-focus'));
+      document.querySelectorAll('.action-zone').forEach(zone => zone.classList.remove('is-guide-control'));
+      document.getElementById('mode-select').value = game.mode;
+      document.getElementById('rule-mode-select').value = game.ruleMode;
+      refreshDialogText();
+      const helpButton = document.querySelector('.utility-rules');
+      helpButton.setAttribute('aria-label', t('rules_title'));
+      helpButton.title = t('rules_title');
+      const resetButton = document.querySelector('.utility-reset');
+      const resetLabel = active ? t('tutorial_retry') : (LANG === 'zh' ? '重新開始' : 'Restart');
+      resetButton.setAttribute('aria-label', resetLabel);
+      resetButton.title = resetLabel;
+      if (!active) {
+        document.body.removeAttribute('data-tutorial-step');
+        document.body.removeAttribute('data-tutorial-checkpoint');
+        if (!completedLesson) return;
+      } else {
+        document.querySelector('[data-role="utility-mode"] [data-role="utility-label"]').textContent = t('tutorial_practice');
+        document.body.dataset.tutorialStep = `move-${tutorialSession.state.stepIndex + 1}`;
+        const checkpoint = tutorialSession.state.checkpoint;
+        if (checkpoint) document.body.dataset.tutorialCheckpoint = `${checkpoint.key}:${checkpoint.index}`;
+        else document.body.removeAttribute('data-tutorial-checkpoint');
+      }
+      const guidance = completedLesson ? { hint: 'complete', detail: 'completeDetail', focus: [] }
+        : tutorialSession.state.checkpoint ? tutorialSession.view
+        : MathDuelTutorial.getGuidance(tutorialSession.state.stepIndex, { game, help: tutorialSession.help, rejected: tutorialSession.rejected });
+      const hint = document.getElementById('black-play-hint');
+      hint.classList.add('is-visible');
+      hint.setAttribute('aria-hidden', 'false');
+      for (const [part, key] of [['select', 'hint'], ['arrange', 'detail']]) {
+        const line = hint.querySelector(`[data-hint="${part}"]`);
+        const prefix = active && part === 'select' ? `${tutorialSession.state.stepIndex + 1}/5 · ` : '';
+        const text = prefix + MathDuelTutorial.text(guidance[key], LANG);
+        if (line.textContent !== text) line.textContent = text;
+      }
+      guidance.focus.forEach(target => {
+        const side = target.side.toLowerCase();
+        const mark = element => element?.setAttribute('data-tutorial-focus', target.area);
+        if (target.area === 'hand') target.cardIds.forEach(id => mark(findCardIn(`#${side}-hand`, id)));
+        if (target.area === 'center') target.cardIds.forEach(id => mark(findCardIn('#center-cards', id)));
+        if (target.area === 'operator') mark(document.querySelector(`#${side}-actions [data-op="${target.operator}"]`));
+        if (target.area === 'send') mark(document.querySelector(`#${side}-actions [data-role="main-btn"]`));
+        if (target.area.startsWith('equation-') && game.turn === target.side && game.aiMoveInfo) {
+          const role = target.area === 'equation-hand' ? 'stage-hand-cards' : 'stage-center-cards';
+          target.cardIds.forEach(id => mark(findCardIn(`#${side}-equation [data-role="${role}"]`, id)));
+        }
+      });
+      if (active) {
+        document.querySelectorAll('[data-role="plan-continue-btn"]').forEach(button => { button.classList.add('hidden'); });
+        if (tutorialGate) {
+          const actions = document.getElementById('black-actions');
+          actions.classList.add('is-guide-control');
+          const button = actions.querySelector('[data-role="plan-continue-btn"]');
+          actions.querySelector('[data-role="giveup-btn"]').classList.add('hidden');
+          button.className = 'bg-blue-600 text-white';
+          button.textContent = t('tutorial_continue');
+          button.title = t('tutorial_continue');
+          button.setAttribute('aria-label', t('tutorial_continue'));
+          button.disabled = false;
+        }
+      }
     }
 
     function renderHistory() {
@@ -1434,27 +1840,8 @@
     }
 
     function toggleRules(show) {
-      const modal = document.getElementById('rules-modal');
-      const content = modal.querySelector('div');
-      if (show) {
-        document.getElementById('modal-rules-title').innerText = t('rules_title');
-        document.getElementById('rule-1').innerText = t('rules_init');
-        document.getElementById('rule-2').innerText = t('rules_action');
-        document.getElementById('rule-3').innerText = t('rules_limit');
-        document.getElementById('rule-4').innerText = t('rules_special');
-        document.getElementById('rule-5').innerText = t('rules_win');
-        document.getElementById('modal-close-btn').innerText = t('close');
-
-        modal.classList.remove('hidden');
-        setTimeout(() => {
-          modal.classList.remove('opacity-0');
-          content.classList.remove('scale-95');
-        }, 10);
-      } else {
-        modal.classList.add('opacity-0');
-        content.classList.add('scale-95');
-        setTimeout(() => modal.classList.add('hidden'), 300);
-      }
+      if (show) openGameDialog('rules-modal');
+      else closeGameDialog();
     }
 
     // Keep utility controls outside the rotating tabletop so they always face the phone owner.
@@ -1471,6 +1858,13 @@
     const rightRail = document.createElement('div');
     rightRail.className = 'utility-rail utility-rail-right';
     rightRail.innerHTML = '<button class="table-icon utility-cycle" data-role="utility-mode" onclick="toggleUtilityMenu(\'mode\', this)" aria-haspopup="menu" aria-expanded="false" aria-label="選擇模式" title="選擇模式"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m14.5 6.5 3-3 3 3-3 3"/><path d="M17.5 6.5a7 7 0 0 0-12 5"/><path d="m9.5 17.5-3 3-3-3 3-3"/><path d="M6.5 17.5a7 7 0 0 0 12-5"/></svg><span data-role="utility-label">雙人</span></button><button class="table-icon utility-cycle" data-role="utility-rule" onclick="toggleUtilityMenu(\'rule\', this)" aria-haspopup="menu" aria-expanded="false" aria-label="選擇規則" title="選擇規則"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2M12 4v1M12 19v1M4.9 7.1l1.1 1.1M18 15.8l1.1 1.1"/></svg><span data-role="utility-label">基本</span></button><button class="table-icon utility-rules" data-role="utility-rules" onclick="toggleRules(true)" aria-label="遊戲規則" title="遊戲規則"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 4 2c-1.1.8-1.6 1.2-1.6 2.5M12 17h.01"/></svg></button><button class="table-icon utility-reset" onclick="resetGame(true)" aria-label="重新開始" title="重新開始"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></svg></button>';
+    const helpButton = rightRail.querySelector('.utility-rules');
+    helpButton.setAttribute('aria-controls', 'rules-modal');
+    helpButton.setAttribute('aria-haspopup', 'dialog');
+
+    document.querySelectorAll('.equation-zone').forEach(zone => {
+      zone.querySelector('.play-hint').setAttribute('aria-live', 'polite');
+    });
 
     const modeMenu = document.createElement('div');
     modeMenu.id = 'utility-mode-menu';
@@ -1495,14 +1889,32 @@
       if (!event.target.closest('.utility-menu, [aria-haspopup="menu"]')) closeUtilityMenus();
     });
     document.addEventListener('keydown', event => {
-      if (event.key === 'Escape') closeUtilityMenus();
+      if (event.key === 'Escape') {
+        if (currentDialog) closeGameDialog();
+        closeUtilityMenus();
+      }
+      if (event.key === 'Tab' && currentDialog) {
+        const controls = [...document.getElementById(currentDialog).querySelectorAll('button, input')].filter(element => !element.hidden && !element.disabled);
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
     });
     window.addEventListener('resize', () => {
       syncUtilityRailPosition();
       closeUtilityMenus();
     });
+    window.addEventListener('pagehide', () => { cancelGameWork(); game = { ...game }; });
+    window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });
+    document.querySelectorAll('.game-dialog').forEach(modal => {
+      modal.addEventListener('click', event => { if (event.target === modal) closeGameDialog(); });
+    });
     syncUtilityRailPosition();
-    render(); checkAITurn();
+    resetAiWorker();
+    render();
+    if (MathDuelTutorial.shouldOffer(tutorialPreferences)) openGameDialog('welcome-modal');
+    else checkAITurn();
   </script>
 </body>
 

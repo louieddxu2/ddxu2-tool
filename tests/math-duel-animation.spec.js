@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('mathDuelGuide_v2', JSON.stringify({ dontShow: true, completed: false })));
+});
+
 test('keeps the play hint after selections and moves it to the next human player', async ({ page }, testInfo) => {
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');
