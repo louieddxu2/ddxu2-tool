@@ -115,7 +115,7 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
     }
     if (explanation === 2) {
       await expect(page.locator('#black-play-hint')).toContainText('算式中的每個數最多兩位數');
-      await expect(page.locator('#black-play-hint')).toContainText('1、2 組成 12，再加 6；這側用了 3 張手牌');
+      await expect(page.locator('#black-play-hint')).toContainText('1、2 組成 12，再加 6；共出 3 張手牌');
       await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'example');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
@@ -220,7 +220,7 @@ test('uses observation arrows for AI and restores the same focus after help', as
   await focus(page, '#white-equation [data-tutorial-focus="equation-hand"]', 3);
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-mode', 'observe');
   await expect(page.locator('#black-play-hint')).toContainText('白 1、2 能排成 12');
-  await expect(page.locator('#black-play-hint')).toContainText('這側的 3 張手牌分成 12 和 6');
+  await expect(page.locator('#black-play-hint')).toContainText('這三張手牌分成 12 和 6');
   await expect(page.locator('#black-score')).toHaveText('2/5');
   await expect(page.locator('#black-turn-status')).toHaveText('看看對手');
   await expect(page.locator('#black-equation [data-tutorial-focus]')).toHaveCount(0);

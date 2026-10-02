@@ -161,7 +161,7 @@ test('separates AI observation cues from tap tasks without per-checkpoint button
   assert.equal(explanations['before-exchange'][0].mode, 'observe');
   assert.equal(explanations['before-exchange'][0].hintKind, 'demonstration');
   assert.equal(explanations['before-exchange'][0].detailKind, 'description');
-  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'zh'), /3 張手牌分成 12 和 6/);
+  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'zh'), /這三張手牌分成 12 和 6/);
   assert.match(tutorial.text(explanations['before-exchange'][1].detail, 'zh'), /黑 1、8 組成 18.*12 \+ 6 = 18/);
   assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'en'), /3 hand cards split into 12 and 6/);
   assert.match(tutorial.text(explanations['before-exchange'][1].detail, 'en'), /Black 1, 8 make 18: 12 \+ 6 = 18/);
@@ -203,7 +203,7 @@ test('the opening explanation introduces the goal before the first of five actio
   assert.equal(digitRule.view.hintKind, 'rule');
   assert.equal(digitRule.view.detailKind, 'example');
   assert.match(tutorial.text(digitRule.view.hint, 'zh'), /每個數最多兩位數/);
-  assert.match(tutorial.text(digitRule.view.detail, 'zh'), /組成 12.*這側.*3 張手牌/);
+  assert.match(tutorial.text(digitRule.view.detail, 'zh'), /組成 12.*共出 3 張手牌/);
   assert.match(tutorial.text(digitRule.view.hint, 'en'), /Each number.*2 digits/);
   assert.match(tutorial.text(digitRule.view.detail, 'en'), /3 hand cards/);
   const begun = guide.advanceGuide(digitRule.state, tutorial.definition, { type: 'continue' }, { game });
