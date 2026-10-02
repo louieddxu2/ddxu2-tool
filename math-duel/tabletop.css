@@ -104,7 +104,12 @@ body.is-pvp.is-white-turn #center-area > #ui-center-label { transform: translate
 #center-cards { min-height: 44px !important; display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 5px !important; }
 #center-cards [data-card-id] { width: 31px; height: 45px; font-size: 23px; border-width: 1px; opacity: 1; }
 .play-stage-grid { position: relative; width: 100%; height: 100%; min-height: 0; margin-inline: auto; display: grid; grid-template-columns: minmax(0, 1fr) 26px minmax(0, 1fr); align-items: center; gap: 6px; padding-inline: 12px; }
-[data-tutorial-focus] { outline: 2px dashed #6b8bc1; outline-offset: 2px; }
+.play-hint.is-guidance { justify-self: center; width: calc(100% - 88px); height: 100%; padding: 1px 5px; color: #664719; background: #fff8e5; border: 1px solid #e5c477; border-radius: 7px; font-size: 11px; line-height: 12px; }
+.play-hint.is-guidance span { display: block; margin-inline: 0; }
+.play-hint.is-guidance [data-hint="select"] { font-weight: 700; }
+.play-hint.is-guidance [data-hint="arrange"] { color: #735e3d; }
+.play-hint.is-guide-intro { position: absolute; left: 50%; top: 50%; height: auto; padding: 8px 5px; font-size: 12px; line-height: 17px; transform: translate(-50%, -50%); }
+.action-content [data-tutorial-focus="continue"] { border: 2px solid #e5c477; font-weight: 700; }
 .utility-menu button:disabled, .utility-cycle:disabled { opacity: .55; cursor: default; }
 .play-stage-slot { height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; }
 [data-role="stage-hand-slot"] { justify-content: flex-end; }
@@ -161,6 +166,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .hand-grid [data-card-id] { font-size: 22px; }
   .equation-content { grid-template-rows: minmax(0, 1fr) 24px; }
   .play-hint { font-size: 10px; line-height: 12px; }
+  .play-hint.is-guidance { font-size: 10px; line-height: 11px; }
   #table-area { grid-template-rows: minmax(0, 1fr); }
   #table-surface { grid-template-rows: minmax(35px, .8fr) minmax(34px, 1fr) minmax(40px, .9fr) minmax(34px, 1fr) minmax(35px, .8fr); }
   .action-content { grid-template-columns: 76px minmax(0, 1fr) 92px; grid-template-rows: minmax(0, 1fr); gap: 6px; padding: 2px 12px; }
@@ -182,6 +188,8 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .hand-grid [data-card-id] { font-size: 19px; }
   .equation-content { grid-template-rows: minmax(0, 1fr) auto; padding-block: 2px; }
   .play-hint { font-size: 9px; }
+  .play-hint.is-guidance { min-height: 24px; font-size: 9px; line-height: 11px; }
+  .play-hint.is-guide-intro { padding-block: 4px; font-size: 10px; line-height: 13px; }
   .play-hint span { display: inline; }
   .play-hint span + span { margin-inline-start: .5em; }
   #table-area { grid-template-rows: minmax(0, 1fr); }
@@ -210,6 +218,8 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .hand-grid [data-card-id] { font-size: 19px; }
   .equation-content { grid-template-rows: minmax(0, 1fr) 24px; }
   .play-hint { font-size: 9px; line-height: 12px; }
+  .play-hint.is-guidance { font-size: 9px; line-height: 11px; }
+  .play-hint.is-guide-intro { padding-block: 4px; font-size: 10px; line-height: 13px; }
   #table-area { grid-template-rows: minmax(0, 1fr); }
   #table-surface { grid-template-rows: minmax(42px, .78fr) minmax(34px, 1fr) minmax(40px, .9fr) minmax(34px, 1fr) minmax(42px, .78fr); }
   .action-content { grid-template-columns: 64px minmax(0, 1fr) 84px; grid-template-rows: minmax(0, 1fr); gap: 4px; padding: 2px 8px; }

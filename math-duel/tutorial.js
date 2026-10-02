@@ -14,40 +14,70 @@
 
   const COPY = {
     zh: {
-      choose: '點黑 1 和 8', goal: '把黑牌換成白牌就能獲勝',
-      anyOrder: '順序不限；再點一次可取消', operator: '點 ＋，選擇加法',
-      target: '點場牌 9，作為結果', automatic: '系統會自動組成算式',
-      ready: '點「送出算式」', exchange: '打出的牌留下，收回結果牌',
+      objective: '你是黑方，把手牌全換成白色就贏了',
+      objectiveDetail: '下面這些黑牌，就是你要換掉的牌', howToTrade: '怎麼換牌',
+      corePlay: '湊出算式，就能交換牌',
+      coreDetail: '出牌留在場上，結果牌拿回手裡', beginPlay: '開始出牌',
+      choose: '先點黑 1 和 8', goal: '這回合先把場上的白 9 換回來',
+      anyOrder: '順序不限；再點一次可取消', operator: '再點 ＋，我們來做加法',
+      selected: '已選 {selected}/{total} 張；再點可取消',
+      undoHand: '點出牌區的{cards}，取消選取',
+      undoTarget: '點結果區的{cards}，取消選取',
+      requiredOne: '這步需要黑 1、8', requiredThree: '這步需要黑 3、5、6、7',
+      requiredFive: '這步需要黑 2、4、9 和白 9',
+      subtract: '再點 −，我們來做減法', divide: '再點 ÷，這次用除法',
+      targetThree: '接著點場牌白 1 和 2，當作結果',
+      targetFive: '接著點場牌白 4，當作結果',
+      undoKeep: '點 {cards}，取消保留', keepCount: '已保留 {selected}/2 張；其餘會移出',
+      practiceSelect: '先選出牌；已選 {selected} 張',
+      practiceOperator: '接著點 ÷，選擇除法', practiceTarget: '接著選場牌，作為算式結果',
+      nextTarget: '看結果', nextExchange: '看換牌', nextKeep: '看保留',
+      target: '接著點場牌 9，當作結果', automatic: '不用排順序，我們會幫你湊算式',
+      ready: '可以了，按「送出算式」', exchange: '你出的牌留下，結果牌拿回手裡',
       taskOne: '這步請用黑 1、8 和 ＋', taskOneDetail: '點場牌 9 作結果；再點可取消',
-      waiting: '看 AI 示範下一步', resolving: '正在交換牌', history: '上一手會留在出牌區給對手看',
-      three: '三張手牌能組成二位數與個位數', threeDetail: '白 1、2 組成 12，再加白 6',
-      targetTwo: '兩張場牌能組成二位數結果', targetTwoDetail: '黑 1、8 在這手作為 18',
-      aiKeep: '場牌超過兩張，這手留下白 1、2', aiKeepDetail: '其餘場牌移出；點「繼續」觀看',
-      four: '選黑 3、5、6、7 和 −', fourDetail: '點白 1、2 作結果，自動排列',
-      keepThree: '點黑 3 和 6，留在中央', keepDetail: '其餘場牌會移出遊戲',
-      keepReady: '點「確認保留」', taskKeep: '請留下這步指定的兩張牌',
-      flip: '場牌 6 也能當成 9', flipDetail: '4 加 5 得到 9，系統自動翻轉',
-      division: '用除法把剩下的黑牌換掉', divisionHelp: '選黑 2、4、9 和白 9，點 ÷',
+      waiting: '先看對手這回合怎麼換牌', resolving: '正在換牌，看看它們去了哪裡', history: '上一手留在原位，對手也看得懂',
+      three: '白 1、2 能排成 12，再加白 6', threeDetail: '三張牌也能算，不一定只出兩張',
+      targetTwo: '結果也能用兩張牌來湊', targetTwoDetail: '黑 1、8 當成 18，一起拿回手裡',
+      aiKeep: '白 1、2 留下，白 6 就離場了', aiKeepDetail: '場上最多兩張；按「看保留」繼續',
+      four: '點黑 3、5、6、7', fourDetail: '這回合練習湊出兩個二位數',
+      keepThree: '點黑 3 和 6，讓它們留在場上', keepDetail: '只留兩張，其他牌就離場了',
+      keepReady: '選好了，按「確認保留」', taskKeep: '請留下這步指定的兩張牌',
+      flip: '看這張：黑 6 也能當成 9', flipDetail: '不用另外翻牌，系統會幫你處理',
+      division: '用除法把剩下的黑牌換掉', divisionHelp: '選黑 2、4、9 和白 9',
       divisionTarget: '點白 4 作結果；6 與 9 可互換',
       keepFive: '點黑 9 和白 9，留在中央',
       wrongFive: '這步請用指定的除法牌組',
-      complete: '教學完成，你已換成全白手牌', completeDetail: '可從問號「再次教學」重玩'
+      complete: '手牌全變成白色，你贏了！', completeDetail: '想再練一次，就到問號按「再次教學」'
     },
     en: {
-      choose: 'Tap black 1 and 8.', goal: 'Trade your black cards for white to win.',
+      objective: 'You are black. Make your hand all white to win.',
+      objectiveDetail: 'These black cards are the ones to trade.', howToTrade: 'How to trade',
+      corePlay: 'Make an equation to trade cards.',
+      coreDetail: 'Your play stays here; take the result cards.', beginPlay: 'Start playing',
+      choose: 'First, tap black 1 and 8.', goal: 'This turn, bring table white 9 into your hand.',
       anyOrder: 'Any order; tap again to undo.', operator: 'Tap + for addition.',
+      selected: 'Selected {selected}/{total}; tap again to undo.',
+      undoHand: 'Tap played {cards} to undo.', undoTarget: 'Tap result {cards} to undo.',
+      requiredOne: 'This move needs black 1, 8.', requiredThree: 'This move needs black 3, 5, 6, 7.',
+      requiredFive: 'Use black 2, 4, 9 and white 9.',
+      subtract: 'Tap − for subtraction.', divide: 'Tap ÷ for division.',
+      targetThree: 'Tap table white 1 and 2 as the result.', targetFive: 'Tap table white 4 as the result.',
+      undoKeep: 'Tap {cards} to undo retention.', keepCount: 'Kept {selected}/2; the rest leave play.',
+      practiceSelect: 'Choose cards first; {selected} selected.',
+      practiceOperator: 'Next, tap ÷ for division.', practiceTarget: 'Next, choose the table result.',
+      nextTarget: 'See result', nextExchange: 'See trade', nextKeep: 'See keep',
       target: 'Tap table 9 as the result.', automatic: 'The equation arranges itself.',
       ready: 'Tap Send Equation.', exchange: 'Play your cards; take the result cards.',
       taskOne: 'Use black 1, 8 and + for this move.', taskOneDetail: 'Target table 9; tap again to undo.',
       waiting: 'Watch the AI demonstrate.', resolving: 'Cards are changing places.', history: 'Your last move stays for your opponent.',
-      three: 'Three cards: two digits plus one digit.', threeDetail: 'White 1, 2 form 12; add white 6.',
-      targetTwo: 'Two table cards make a two-digit result.', targetTwoDetail: 'Black 1 and 8 are the target 18.',
-      aiKeep: 'Keep white 1, 2; remove the extras.', aiKeepDetail: 'Tap Continue to watch.',
-      four: 'Use black 3, 5, 6, 7 and −.', fourDetail: 'Target white 1, 2; we arrange it.',
+      three: 'White 1, 2 make 12; add 6.', threeDetail: 'Three cards can work, not just two.',
+      targetTwo: 'The result can use two cards too.', targetTwoDetail: 'Black 1, 8 make 18; take them both.',
+      aiKeep: 'Keep white 1, 2; remove white 6.', aiKeepDetail: 'At most two remain; tap See keep.',
+      four: 'Tap black 3, 5, 6, 7.', fourDetail: 'This turn, make two two-digit numbers.',
       keepThree: 'Keep black 3 and 6 on the table.', keepDetail: 'Other table cards leave the game.',
       keepReady: 'Tap Confirm Keep.', taskKeep: 'Keep the two cards for this task.',
-      flip: 'Table 6 can also count as 9.', flipDetail: '4 + 5 is 9; the card flips for you.',
-      division: 'Trade your black cards using ÷.', divisionHelp: 'Use black 2, 4, 9 and white 9; tap ÷.',
+      flip: 'Look: black 6 can count as 9.', flipDetail: 'No need to flip it; we do that for you.',
+      division: 'Trade your black cards using ÷.', divisionHelp: 'Use black 2, 4, 9 and white 9.',
       divisionTarget: 'Target white 4; 6 and 9 can swap.', keepFive: 'Keep black 9 and white 9.',
       wrongFive: 'Use the division cards for this task.',
       complete: 'Lesson complete: your hand is all white.', completeDetail: 'Replay from the question-mark button.'
@@ -56,7 +86,8 @@
 
   const sameIds = (actual, expected) => actual.length === expected.length && new Set(actual).size === actual.length && expected.every(id => actual.includes(id));
   const focus = (area, side, cardIds = [], operator = null) => ({ area, side, cardIds, operator });
-  const view = (hint, detail, targets = []) => ({ hint, detail, focus: targets });
+  const view = (hint, detail, targets = [], values = {}) => ({ hint, detail, focus: targets, values, mode: 'tap' });
+  const observe = (hint, detail, targets, continueLabel) => ({ ...view(hint, detail, targets), mode: 'observe', continueLabel });
 
   // Expected identity sets are derived from ordinary exchange/keep operations.
   const initialBoard = { BLACK: Array.from({ length: 9 }, (_, i) => `b${i + 1}`), WHITE: Array.from({ length: 8 }, (_, i) => `w${i + 1}`), center: ['w9'] };
@@ -83,23 +114,34 @@
   function getGuidance(index, { game, help = false, rejected = false }) {
     const action = actions[index];
     if (game.state === 'ANIMATING') return view('resolving', 'exchange');
-    if (action.side === 'WHITE') return view('waiting', 'history');
+    if (action.side === 'WHITE') return { ...view('waiting', 'history', [focus('equation', 'WHITE')]), mode: 'observe' };
     if (game.state === 'DISCARDING') {
+      const wrongKeep = game.discardSelections.filter(id => !action.keep.includes(id));
+      if (wrongKeep.length) return view(rejected ? 'taskKeep' : 'undoKeep', rejected ? 'undoKeep' : 'keepDetail',
+        [focus('center', 'BLACK', wrongKeep)], { cards: wrongKeep });
       const keepMatches = matchesTask(index, game, 'keep');
-      return view(keepMatches ? 'keepReady' : index === 2 ? 'keepThree' : 'keepFive', rejected ? 'taskKeep' : 'keepDetail',
-        keepMatches ? [focus('send', 'BLACK')] : [focus('center', 'BLACK', action.keep.filter(id => !game.discardSelections.includes(id)))]);
+      return view(keepMatches ? 'keepReady' : index === 2 ? 'keepThree' : 'keepFive', keepMatches ? 'keepDetail' : 'keepCount',
+        keepMatches ? [focus('send', 'BLACK')] : [focus('center', 'BLACK', action.keep.filter(id => !game.discardSelections.includes(id)))], { selected: game.discardSelections.length });
     }
     const selection = game.selections;
     const ready = matchesTask(index, game);
-    if (index === 4 && !help && !rejected) return view('division', ready ? 'ready' : null, ready ? [focus('send', 'BLACK')] : []);
+    // Final practice still points to the current control, without giving away the cards.
+    if (index === 4 && !help && !rejected) {
+      if (ready) return view('ready', 'exchange', [focus('send', 'BLACK')]);
+      if (!sameIds(selection.hand, action.hand)) return view('division', 'practiceSelect', [focus('hand-area', 'BLACK')], { selected: selection.hand.length });
+      if (selection.operator !== action.op) return view('division', 'practiceOperator', [focus('operator', 'BLACK', [], '/')]);
+      return view('division', 'practiceTarget', [focus('center-area', 'BLACK')]);
+    }
     if (ready) return view('ready', index === 0 ? 'exchange' : 'automatic', [focus('send', 'BLACK')]);
-    if (index === 2) return view('four', 'fourDetail', [focus('hand', 'BLACK', action.hand.filter(id => !selection.hand.includes(id)))]);
-    if (index === 4) return view(rejected ? 'wrongFive' : 'divisionHelp', 'divisionTarget', [focus('hand', 'BLACK', action.hand.filter(id => !selection.hand.includes(id))), focus('operator', 'BLACK', [], '/')]);
-    const wrong = selection.hand.some(id => !action.hand.includes(id)) || selection.center.some(id => !action.center.includes(id)) || (selection.operator && selection.operator !== action.op);
-    if (wrong || rejected) return view('taskOne', 'taskOneDetail');
-    if (!sameIds(selection.hand, action.hand)) return view('choose', selection.hand.length || selection.center.length || selection.operator ? 'anyOrder' : 'goal', [focus('hand', 'BLACK', action.hand.filter(id => !selection.hand.includes(id)))]);
-    if (!selection.operator) return view('operator', 'anyOrder', [focus('operator', 'BLACK', [], '+')]);
-    return view('target', 'automatic', [focus('center', 'BLACK', action.center)]);
+    const wrongHand = selection.hand.filter(id => !action.hand.includes(id));
+    const wrongCenter = selection.center.filter(id => !action.center.includes(id));
+    if (wrongHand.length) return view(rejected && index === 0 ? 'taskOne' : 'undoHand', rejected && index === 0 ? 'undoHand' : index === 0 ? 'requiredOne' : index === 2 ? 'requiredThree' : 'requiredFive',
+      [focus('equation-hand', 'BLACK', wrongHand)], { cards: wrongHand });
+    if (wrongCenter.length) return view('undoTarget', index === 0 ? 'target' : index === 2 ? 'targetThree' : 'targetFive', [focus('equation-target', 'BLACK', wrongCenter)], { cards: wrongCenter });
+    if (!sameIds(selection.hand, action.hand)) return view(index === 0 ? 'choose' : index === 2 ? 'four' : 'divisionHelp', !selection.hand.length && index === 0 ? 'goal' : !selection.hand.length && index === 2 ? 'fourDetail' : 'selected',
+      [focus('hand', 'BLACK', action.hand.filter(id => !selection.hand.includes(id)))], { selected: selection.hand.length, total: action.hand.length });
+    if (selection.operator !== action.op) return view(index === 0 ? 'operator' : index === 2 ? 'subtract' : 'divide', 'automatic', [focus('operator', 'BLACK', [], action.op)]);
+    return view(index === 0 ? 'target' : index === 2 ? 'targetThree' : 'targetFive', 'automatic', [focus('center', 'BLACK', action.center.filter(id => !selection.center.includes(id)))]);
   }
 
   const definition = {
@@ -108,11 +150,14 @@
       id: `move-${index + 1}`,
       complete: event => event.type === 'turn.completed' && event.actor === action.side && event.action === index + 1,
       view: snapshot => getGuidance(index, snapshot),
-      checkpoints: index === 1 ? {
-        'before-exchange': [view('three', 'threeDetail', [focus('equation-hand', 'WHITE', action.hand)]), view('targetTwo', 'targetTwoDetail', [focus('equation-target', 'WHITE', action.center)])],
-        'before-keep': [view('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)])]
+      checkpoints: index === 0 ? {
+        opening: [observe('objective', 'objectiveDetail', [focus('hand-area', 'BLACK')], 'howToTrade'),
+          observe('corePlay', 'coreDetail', [focus('center', 'BLACK', ['w9'])], 'beginPlay')]
+      } : index === 1 ? {
+        'before-exchange': [observe('three', 'threeDetail', [focus('equation-hand', 'WHITE', action.hand)], 'nextTarget'), observe('targetTwo', 'targetTwoDetail', [focus('equation-target', 'WHITE', action.center)], 'nextExchange')],
+        'before-keep': [observe('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)], 'nextKeep')]
       } : index === 3 ? {
-        'before-exchange': [view('flip', 'flipDetail', [focus('equation-target', 'WHITE', action.center)])]
+        'before-exchange': [observe('flip', 'flipDetail', [focus('equation-target', 'WHITE', action.center)], 'nextExchange')]
       } : {}
     }))
   };
@@ -141,6 +186,13 @@
   global.MathDuelTutorial = Object.freeze({
     STORAGE_KEY, actions, definition, sameIds, matchesTask, isExpectedBoard, createAiMove, getGuidance,
     readPreferences, writePreferences, shouldOffer: preferences => !preferences.dontShow && !preferences.completed,
-    text: (key, language) => key ? (COPY[language] || COPY.zh)[key] || key : ''
+    text: (key, language, values = {}) => {
+      const copy = key ? (COPY[language] || COPY.zh)[key] || key : '';
+      return copy.replace(/\{(\w+)\}/g, (_, name) => {
+        const value = values[name];
+        if (name === 'cards' && Array.isArray(value)) return value.map(id => `${language === 'en' ? id[0] === 'b' ? 'black ' : 'white ' : id[0] === 'b' ? '黑 ' : '白 '}${id.slice(1)}`).join(language === 'en' ? ', ' : '、');
+        return value == null ? '' : String(value);
+      });
+    }
   });
 })(typeof window !== 'undefined' ? window : globalThis);

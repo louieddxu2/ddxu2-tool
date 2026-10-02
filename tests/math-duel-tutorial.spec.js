@@ -17,9 +17,17 @@ const checkpoint = (page, step, key) => Promise.all([
   expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', key)
 ]);
 
+async function beginPlay(page) {
+  await checkpoint(page, 1, 'opening:0');
+  await continueButton(page).click();
+  await checkpoint(page, 1, 'opening:1');
+  await continueButton(page).click();
+}
+
 async function startLesson(page) {
   await page.goto('/math-duel/index.html');
   await page.locator('#welcome-start').click();
+  await beginPlay(page);
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
 }
 
@@ -254,6 +262,7 @@ test('confirms a manual restart, lets mode and rule changes end the lesson, and 
   await page.locator('.utility-rules').click();
   await page.locator('#rules-start-tutorial').click();
   expect(await page.evaluate(() => game.ruleMode)).toBe('CLASSIC');
+  await beginPlay(page);
   await page.locator('#black-actions [data-role="giveup-btn"]').click();
   await expect(page.locator('body')).toHaveAttribute('data-game-state', 'GAMEOVER');
   expect(await page.evaluate(() => game.winner)).toBe('WHITE');
@@ -272,6 +281,7 @@ test('reloads a paused lesson as an ordinary saved game and safely leaves via ho
   await page.locator('.utility-rules').click();
   page.once('dialog', dialog => dialog.accept());
   await page.locator('#rules-start-tutorial').click();
+  await beginPlay(page);
   await send(page, ['b1', 'b8'], ['w9'], '+');
   await checkpoint(page, 2, 'before-exchange:0');
   await page.locator('.utility-home').click();
@@ -314,7 +324,7 @@ test('holds the teaching AI after real animations while language and help remain
   expect(await page.evaluate(() => ({ gate: Boolean(tutorialGate), automaticTimer: Boolean(aiPlanResolver), busy: game.uiBusy }))).toEqual({ gate: true, automaticTimer: false, busy: false });
   await page.locator('.utility-language').click();
   await expect(page.locator('#black-play-hint')).toContainText('Three cards');
-  await expect(continueButton(page)).toHaveText('Continue');
+  await expect(continueButton(page)).toHaveText('See result');
   await page.locator('.utility-rules').click();
   await page.locator('#modal-close-btn').click();
   await checkpoint(page, 2, 'before-exchange:0');
@@ -340,6 +350,7 @@ test('fits welcome, help and long teaching hints in portrait and short landscape
         expect(box.y + box.height).toBeLessThanOrEqual(size.height);
       }
       await page.locator('#welcome-start').click();
+      await beginPlay(page);
       await send(page, ['b1', 'b8'], ['w9'], '+');
       await checkpoint(page, 2, 'before-exchange:0');
       for (const key of ['before-exchange:0', 'before-exchange:1', 'before-keep:0']) {
@@ -356,6 +367,7 @@ test('fits welcome, help and long teaching hints in portrait and short landscape
             noOverflow: document.body.scrollHeight <= innerHeight && document.body.scrollWidth <= innerWidth,
             hintInside: hintBox.top >= equation.top - 1 && hintBox.bottom <= equation.bottom + 1,
             noCollision: textBoxes.every(text => controls.every(control => text.bottom <= control.top || text.top >= control.bottom || text.right <= control.left || text.left >= control.right)),
+            textFits: textBoxes.every(text => text.top >= hintBox.top && text.bottom <= hintBox.bottom && text.left >= hintBox.left && text.right <= hintBox.right),
             textLines: textBoxes.map(text => ({ top: text.top, bottom: text.bottom })),
             hint: hintBox.toJSON(), equation: equation.toJSON()
           };
@@ -363,6 +375,7 @@ test('fits welcome, help and long teaching hints in portrait and short landscape
         expect(layout.noOverflow, JSON.stringify(layout)).toBe(true);
         expect(layout.hintInside, JSON.stringify(layout)).toBe(true);
         expect(layout.noCollision, JSON.stringify(layout)).toBe(true);
+        expect(layout.textFits, JSON.stringify(layout)).toBe(true);
         await continueButton(page).click();
       }
       await page.locator('.utility-rules').click();

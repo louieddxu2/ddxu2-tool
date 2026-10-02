@@ -1,0 +1,15 @@
+/* Passive teaching cues. No target is reparented or made modal. */
+.guide-spotlight {
+  --guide-gold: #f5c45c;
+  position: fixed; inset: 0; z-index: 1000; pointer-events: none;
+}
+.guide-spotlight[hidden] { display: none; }
+.guide-spotlight > svg { display: block; overflow: hidden; }
+.guide-spotlight-shade { fill: #182334; fill-opacity: .38; }
+.guide-spotlight-ring { fill: none; stroke: var(--guide-gold); stroke-width: 2.5; }
+.guide-pointer-disc { fill: #fff8e5; stroke: #b67c20; stroke-width: 1; }
+.guide-tap-hand { fill: #f5c45c; stroke: #5e411a; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.guide-observe-arrow { fill: none; stroke: #895b15; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.guide-spotlight[data-mode="tap"] .guide-pointer-cue { animation: guide-tap 1.5s ease-in-out infinite; }
+@keyframes guide-tap { 0%, 100% { transform: translateY(1px); } 50% { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .guide-pointer-cue { animation: none !important; } }

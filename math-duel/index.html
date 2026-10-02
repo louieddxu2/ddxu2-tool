@@ -10,7 +10,8 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="tabletop.css?v=2.3.0">
+  <link rel="stylesheet" href="../shared/guide-spotlight.css?v=1">
+  <link rel="stylesheet" href="tabletop.css?v=2.4.0">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -353,7 +354,8 @@
 
    <script src="rule-modes.js"></script>
   <script src="../shared/flow-guide.js?v=1"></script>
-  <script src="tutorial.js?v=2"></script>
+  <script src="../shared/guide-spotlight.js?v=1"></script>
+  <script src="tutorial.js?v=3"></script>
   <script src="../shared/card-motion.js?v=2"></script>
   <script src="../shared/equation-witness.js?v=1"></script>
   <script>
@@ -375,6 +377,7 @@
     let sessionSerial = 1;
     let gameSession = { id: sessionSerial, action: 0, activeAction: null };
     let guideEventSerial = 0;
+    let tutorialSpotlight = null;
     let tutorialGate = null;
     let completedLesson = false;
     let currentDialog = null;
@@ -487,6 +490,7 @@
 
     function cancelGameWork() {
       stopTutorial('cancel', false);
+      tutorialSpotlight?.clear();
       finishTutorialGate(false);
       cancelAiPlanWait();
       if (aiTimeoutToken) clearTimeout(aiTimeoutToken);
@@ -521,6 +525,9 @@
       saveState();
       closeGameDialog();
       render();
+      // Establish the goal on the real opening board before teaching any taps.
+      // This checkpoint does not perform or count a game action.
+      void waitForTutorial('opening');
     }
 
     function requestTutorialHelp() {
@@ -566,6 +573,7 @@
     function openGameDialog(id) {
       if (!currentDialog) dialogOpener = document.activeElement;
       currentDialog = id;
+      tutorialSpotlight?.clear();
       closeUtilityMenus();
       refreshDialogText();
       document.querySelectorAll('.game-dialog').forEach(modal => modal.classList.toggle('hidden', modal.id !== id));
@@ -584,6 +592,7 @@
       else document.querySelector('.utility-rules')?.focus();
       dialogWaiters.forEach(resolve => resolve(true));
       dialogWaiters.clear();
+      renderTutorial();
       checkAITurn();
     }
 
@@ -1745,6 +1754,10 @@
       document.body.classList.toggle('is-tutorial', active);
       document.querySelectorAll('[data-tutorial-focus]').forEach(element => element.removeAttribute('data-tutorial-focus'));
       document.querySelectorAll('.action-zone').forEach(zone => zone.classList.remove('is-guide-control'));
+      const hint = document.getElementById('black-play-hint');
+      hint.classList.toggle('is-guidance', active);
+      const opening = active && tutorialSession.state.checkpoint?.key === 'opening';
+      hint.classList.toggle('is-guide-intro', opening);
       document.getElementById('mode-select').value = game.mode;
       document.getElementById('rule-mode-select').value = game.ruleMode;
       refreshDialogText();
@@ -1756,6 +1769,7 @@
       resetButton.setAttribute('aria-label', resetLabel);
       resetButton.title = resetLabel;
       if (!active) {
+        tutorialSpotlight?.clear();
         document.body.removeAttribute('data-tutorial-step');
         document.body.removeAttribute('data-tutorial-checkpoint');
         if (!completedLesson) return;
@@ -1769,23 +1783,32 @@
       const guidance = completedLesson ? { hint: 'complete', detail: 'completeDetail', focus: [] }
         : tutorialSession.state.checkpoint ? tutorialSession.view
         : MathDuelTutorial.getGuidance(tutorialSession.state.stepIndex, { game, help: tutorialSession.help, rejected: tutorialSession.rejected });
-      const hint = document.getElementById('black-play-hint');
       hint.classList.add('is-visible');
       hint.setAttribute('aria-hidden', 'false');
       for (const [part, key] of [['select', 'hint'], ['arrange', 'detail']]) {
         const line = hint.querySelector(`[data-hint="${part}"]`);
-        const prefix = active && part === 'select' ? `${tutorialSession.state.stepIndex + 1}/5 · ` : '';
-        const text = prefix + MathDuelTutorial.text(guidance[key], LANG);
+        const prefix = active && !opening && part === 'select' ? `${tutorialSession.state.stepIndex + 1}/5 · ${game.turn === 'WHITE' ? 'AI · ' : ''}` : '';
+        const text = prefix + MathDuelTutorial.text(guidance[key], LANG, guidance.values);
         if (line.textContent !== text) line.textContent = text;
       }
+      const targets = [];
+      const context = game.aiMoveInfo || game.movePreview || game.selections.hand.length || game.selections.center.length
+        ? [getEquationZone(game.turn)?.querySelector('.play-stage-grid')] : [];
       guidance.focus.forEach(target => {
         const side = target.side.toLowerCase();
-        const mark = element => element?.setAttribute('data-tutorial-focus', target.area);
+        const mark = element => {
+          if (!element) return;
+          element.setAttribute('data-tutorial-focus', target.area);
+          targets.push(element);
+        };
         if (target.area === 'hand') target.cardIds.forEach(id => mark(findCardIn(`#${side}-hand`, id)));
+        if (target.area === 'hand-area') mark(document.getElementById(`${side}-hand`));
         if (target.area === 'center') target.cardIds.forEach(id => mark(findCardIn('#center-cards', id)));
+        if (target.area === 'center-area') mark(document.getElementById('center-cards'));
         if (target.area === 'operator') mark(document.querySelector(`#${side}-actions [data-op="${target.operator}"]`));
         if (target.area === 'send') mark(document.querySelector(`#${side}-actions [data-role="main-btn"]`));
-        if (target.area.startsWith('equation-') && game.turn === target.side && game.aiMoveInfo) {
+        if (target.area === 'equation' && game.turn === target.side) mark(getEquationZone(target.side).querySelector('.play-stage-grid'));
+        if (target.area.startsWith('equation-') && game.turn === target.side) {
           const role = target.area === 'equation-hand' ? 'stage-hand-cards' : 'stage-center-cards';
           target.cardIds.forEach(id => mark(findCardIn(`#${side}-equation [data-role="${role}"]`, id)));
         }
@@ -1798,11 +1821,17 @@
           const button = actions.querySelector('[data-role="plan-continue-btn"]');
           actions.querySelector('[data-role="giveup-btn"]').classList.add('hidden');
           button.className = 'bg-blue-600 text-white';
-          button.textContent = t('tutorial_continue');
-          button.title = t('tutorial_continue');
-          button.setAttribute('aria-label', t('tutorial_continue'));
+          const label = MathDuelTutorial.text(guidance.continueLabel, LANG) || t('tutorial_continue');
+          button.textContent = label;
+          button.title = label;
+          button.setAttribute('aria-label', label);
+          button.setAttribute('data-tutorial-focus', 'continue');
           button.disabled = false;
+          context.push(button);
         }
+      }
+      if (active && !currentDialog) {
+        tutorialSpotlight?.update({ hint, targets, context, mode: guidance.mode, avoid: [...document.querySelectorAll('.utility-rail .table-icon')] });
       }
     }
 
@@ -1885,6 +1914,7 @@
     }
 
     document.body.append(leftRail, rightRail, modeMenu, ruleMenu);
+    tutorialSpotlight = GuideSpotlight.create();
     document.addEventListener('click', event => {
       if (!event.target.closest('.utility-menu, [aria-haspopup="menu"]')) closeUtilityMenus();
     });

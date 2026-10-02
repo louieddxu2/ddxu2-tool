@@ -88,7 +88,8 @@ test('distinguishes another legal equation from the fixed teaching task', () => 
   game.selections = { hand: ['b1', 'b5'], center: ['w9'], operator: '+' };
   assert.equal(context.MathDuelEquation.checkEquation(game.blackHand.filter(card => game.selections.hand.includes(card.id)), '+', game.center).success, true);
   assert.equal(context.MathDuelTutorial.matchesTask(0, game), false);
-  assert.equal(context.MathDuelTutorial.getGuidance(0, { game }).hint, 'taskOne');
+  assert.equal(context.MathDuelTutorial.getGuidance(0, { game }).hint, 'undoHand');
+  assert.equal(context.MathDuelTutorial.getGuidance(0, { game, rejected: true }).hint, 'taskOne');
 });
 
 test('does not repair an unexpected board or create an illegal teaching AI move', () => {
@@ -107,10 +108,83 @@ test('the final action is goal-only until help is requested, and keep guidance r
   const game = readGame(context);
   const tutorial = context.MathDuelTutorial;
   assert.equal(tutorial.getGuidance(4, { game }).hint, 'division');
-  assert.equal(tutorial.getGuidance(4, { game }).detail, null);
+  assert.equal(tutorial.getGuidance(4, { game }).detail, 'practiceSelect');
   assert.equal(tutorial.getGuidance(4, { game, help: true }).hint, 'divisionHelp');
   game.state = 'DISCARDING';
   assert.equal(tutorial.getGuidance(4, { game }).hint, 'keepFive');
+});
+
+test('walks each learner move through hand, operator, result, and send without stale focus', () => {
+  const { MathDuelTutorial: tutorial } = makeContext();
+  for (const index of [0, 2, 4]) {
+    const action = tutorial.actions[index];
+    const game = { state: 'PLAYING', turn: 'BLACK', selections: { hand: [], center: [], operator: null } };
+    const guidance = () => tutorial.getGuidance(index, { game, help: true });
+    assert.equal(guidance().focus[0].area, 'hand');
+    game.selections.hand = [action.hand[0]];
+    assert.equal(guidance().values.selected, 1);
+    assert.ok(!guidance().focus[0].cardIds.includes(action.hand[0]));
+    game.selections.hand = [...action.hand].reverse();
+    assert.equal(guidance().focus[0].area, 'operator');
+    assert.equal(guidance().focus[0].operator, action.op);
+    game.selections.operator = action.op;
+    assert.equal(guidance().focus[0].area, 'center');
+    game.selections.center = [...action.center].reverse();
+    assert.equal(guidance().focus[0].area, 'send');
+    game.selections.hand.pop();
+    assert.equal(guidance().focus[0].area, 'hand', 'deselection must lead back to the missing card');
+  }
+});
+
+test('points at live played cards for correction and counts retention separately', () => {
+  const { MathDuelTutorial: tutorial } = makeContext();
+  const game = { turn: 'BLACK', state: 'PLAYING', selections: { hand: ['b1', 'b5'], center: ['w9'], operator: '+' }, discardSelections: [] };
+  const wrongHand = tutorial.getGuidance(0, { game });
+  assert.equal(wrongHand.focus[0].area, 'equation-hand');
+  assert.deepEqual(Array.from(wrongHand.focus[0].cardIds), ['b5']);
+  assert.equal(tutorial.text(wrongHand.hint, 'zh', wrongHand.values), '點出牌區的黑 5，取消選取');
+  game.selections = { hand: ['b3', 'b5', 'b6', 'b7'], center: ['w1', 'w6'], operator: '-' };
+  assert.equal(tutorial.getGuidance(2, { game }).focus[0].area, 'equation-target');
+  game.state = 'DISCARDING';
+  game.discardSelections = ['b3'];
+  assert.equal(tutorial.getGuidance(2, { game }).values.selected, 1);
+  assert.deepEqual(Array.from(tutorial.getGuidance(2, { game }).focus[0].cardIds), ['b6']);
+  game.discardSelections = ['b3', 'b7'];
+  const wrongKeep = tutorial.getGuidance(2, { game });
+  assert.equal(wrongKeep.hint, 'undoKeep');
+  assert.deepEqual(Array.from(wrongKeep.focus[0].cardIds), ['b7']);
+});
+
+test('separates AI observation cues from tap tasks and names what each continue does', () => {
+  const { MathDuelTutorial: tutorial } = makeContext();
+  const explanations = tutorial.definition.steps[1].checkpoints;
+  assert.equal(explanations['before-exchange'][0].mode, 'observe');
+  assert.equal(explanations['before-exchange'][0].continueLabel, 'nextTarget');
+  assert.equal(explanations['before-exchange'][1].continueLabel, 'nextExchange');
+  assert.equal(explanations['before-keep'][0].continueLabel, 'nextKeep');
+  const game = { turn: 'BLACK', state: 'PLAYING', selections: { hand: [], center: [], operator: null } };
+  assert.equal(tutorial.getGuidance(0, { game }).mode, 'tap');
+  game.state = 'ANIMATING';
+  assert.equal(tutorial.getGuidance(0, { game }).focus.length, 0, 'the dimmer must get out of the way of card movement');
+});
+
+test('the opening explanation introduces the goal before the first of five actions', () => {
+  const { MathDuelTutorial: tutorial, FlowGuide: guide } = makeContext();
+  const game = { state: 'PLAYING', turn: 'BLACK', selections: { hand: [], center: [], operator: null } };
+  const opened = guide.advanceGuide(guide.createGuideState(tutorial.definition), tutorial.definition, { type: 'checkpoint', key: 'opening' }, { game });
+  assert.equal(opened.view.hint, 'objective');
+  assert.equal(opened.view.detail, 'objectiveDetail');
+  assert.equal(opened.view.continueLabel, 'howToTrade');
+  assert.equal(opened.view.mode, 'observe');
+  assert.equal(opened.state.stepIndex, 0);
+  const rules = guide.advanceGuide(opened.state, tutorial.definition, { type: 'continue' }, { game });
+  assert.equal(rules.view.hint, 'corePlay');
+  assert.equal(rules.view.detail, 'coreDetail');
+  assert.equal(rules.view.continueLabel, 'beginPlay');
+  const begun = guide.advanceGuide(rules.state, tutorial.definition, { type: 'continue' }, { game });
+  assert.equal(begun.view.hint, 'choose');
+  assert.equal(begun.state.stepIndex, 0, 'reading the objective is not a game action');
+  assert.equal(tutorial.actions.length, 5);
 });
 
 test('welcome settings are independent of replay and ignore the old one-move completion', () => {
