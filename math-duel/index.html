@@ -10,8 +10,8 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="../shared/guide-spotlight.css?v=1">
-  <link rel="stylesheet" href="tabletop.css?v=2.4.0">
+  <link rel="stylesheet" href="../shared/guide-spotlight.css?v=2">
+  <link rel="stylesheet" href="tabletop.css?v=2.4.1">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -79,7 +79,7 @@
         tutorial_exit: '略過教學',
         tutorial_retry: '重新開始教學',
         tutorial_help: '本步提示',
-        tutorial_continue: '繼續',
+        tutorial_continue: '下一步',
         tutorial_restart_confirm: '目前這局將重新開始，確定開始教學？',
         tutorial_practice: '教學',
         waiting_first: '等待第一手...',
@@ -144,7 +144,7 @@
         tutorial_exit: 'Skip tutorial',
         tutorial_retry: 'Restart tutorial',
         tutorial_help: 'Help with this step',
-        tutorial_continue: 'Continue',
+        tutorial_continue: 'Next',
         tutorial_restart_confirm: 'This will restart the current game. Start the tutorial?',
         tutorial_practice: 'Practice',
         waiting_first: 'Waiting for first move...',
@@ -354,8 +354,8 @@
 
    <script src="rule-modes.js"></script>
   <script src="../shared/flow-guide.js?v=1"></script>
-  <script src="../shared/guide-spotlight.js?v=1"></script>
-  <script src="tutorial.js?v=3"></script>
+  <script src="../shared/guide-spotlight.js?v=2"></script>
+  <script src="tutorial.js?v=4"></script>
   <script src="../shared/card-motion.js?v=2"></script>
   <script src="../shared/equation-witness.js?v=1"></script>
   <script>
@@ -1813,25 +1813,26 @@
           target.cardIds.forEach(id => mark(findCardIn(`#${side}-equation [data-role="${role}"]`, id)));
         }
       });
+      let nextAction = null;
       if (active) {
         document.querySelectorAll('[data-role="plan-continue-btn"]').forEach(button => { button.classList.add('hidden'); });
         if (tutorialGate) {
           const actions = document.getElementById('black-actions');
           actions.classList.add('is-guide-control');
           const button = actions.querySelector('[data-role="plan-continue-btn"]');
-          actions.querySelector('[data-role="giveup-btn"]').classList.add('hidden');
-          button.className = 'bg-blue-600 text-white';
-          const label = MathDuelTutorial.text(guidance.continueLabel, LANG) || t('tutorial_continue');
+          actions.querySelectorAll('[data-role="operator-group"], [data-role="main-btn"], [data-role="giveup-btn"], [data-role="pass-btn"]').forEach(control => control.classList.add('hidden'));
+          button.className = 'guide-next';
+          const label = t('tutorial_continue');
           button.textContent = label;
           button.title = label;
           button.setAttribute('aria-label', label);
           button.setAttribute('data-tutorial-focus', 'continue');
           button.disabled = false;
-          context.push(button);
+          nextAction = button;
         }
       }
       if (active && !currentDialog) {
-        tutorialSpotlight?.update({ hint, targets, context, mode: guidance.mode, avoid: [...document.querySelectorAll('.utility-rail .table-icon')] });
+        tutorialSpotlight?.update({ hint, targets, context, action: nextAction, mode: guidance.mode, avoid: [...document.querySelectorAll('.utility-rail .table-icon')] });
       }
     }
 

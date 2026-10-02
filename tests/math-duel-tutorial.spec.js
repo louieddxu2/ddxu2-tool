@@ -324,7 +324,7 @@ test('holds the teaching AI after real animations while language and help remain
   expect(await page.evaluate(() => ({ gate: Boolean(tutorialGate), automaticTimer: Boolean(aiPlanResolver), busy: game.uiBusy }))).toEqual({ gate: true, automaticTimer: false, busy: false });
   await page.locator('.utility-language').click();
   await expect(page.locator('#black-play-hint')).toContainText('Three cards');
-  await expect(continueButton(page)).toHaveText('See result');
+  await expect(continueButton(page)).toHaveText('Next');
   await page.locator('.utility-rules').click();
   await page.locator('#modal-close-btn').click();
   await checkpoint(page, 2, 'before-exchange:0');

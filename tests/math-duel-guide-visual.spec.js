@@ -23,6 +23,49 @@ async function focus(page, selector, count = 1) {
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-target-count', String(count));
 }
 
+async function expectNextAction(page, language = 'zh') {
+  const next = page.locator('#black-actions [data-role="plan-continue-btn"]');
+  const label = language === 'zh' ? '下一步' : 'Next';
+  await expect(next).toHaveText(label);
+  await expect(next).toHaveAccessibleName(label);
+  await expect(next).toBeEnabled();
+  await expect(page.locator('[data-role="plan-continue-btn"]:visible')).toHaveCount(1);
+  await expect(page.locator('#black-actions [data-role="operator-group"]')).toBeHidden();
+  await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeHidden();
+  await expect(page.locator('#black-actions [data-role="giveup-btn"]')).toBeHidden();
+  await expect(page.locator('.guide-spotlight-action-ring')).toHaveCount(1);
+  await expect(page.locator('[data-cue="action"] .guide-tap-hand')).toHaveCount(1);
+  const layout = await page.evaluate(() => {
+    const button = document.querySelector('#black-actions [data-role="plan-continue-btn"]');
+    const rect = button.getBoundingClientRect();
+    const zone = document.getElementById('black-actions').getBoundingClientRect();
+    const ring = document.querySelector('.guide-spotlight-action-ring').getBoundingClientRect();
+    const hand = document.querySelector('[data-cue="action"]').getBoundingClientRect();
+    const style = getComputedStyle(button);
+    return {
+      centered: Math.abs(rect.x + rect.width / 2 - zone.x - zone.width / 2) < 1,
+      contained: rect.left >= zone.left && rect.right <= zone.right && rect.top >= zone.top && rect.bottom <= zone.bottom,
+      width: rect.width, height: rect.height, font: parseFloat(style.fontSize),
+      ringAligned: Math.abs(rect.x + rect.width / 2 - ring.x - ring.width / 2) < 1 && Math.abs(rect.y + rect.height / 2 - ring.y - ring.height / 2) < 1,
+      handFits: hand.left >= 0 && hand.right <= innerWidth && hand.top >= 0 && hand.bottom <= innerHeight,
+      handInControlRow: hand.top >= zone.top && hand.bottom <= zone.bottom,
+      topElement: document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === button,
+      passive: getComputedStyle(document.querySelector('.guide-spotlight')).pointerEvents
+    };
+  });
+  expect(layout.centered, JSON.stringify(layout)).toBe(true);
+  expect(layout.contained, JSON.stringify(layout)).toBe(true);
+  expect(layout.ringAligned, JSON.stringify(layout)).toBe(true);
+  expect(layout.handFits, JSON.stringify(layout)).toBe(true);
+  expect(layout.handInControlRow, JSON.stringify(layout)).toBe(true);
+  expect(layout.topElement).toBe(true);
+  expect(layout.passive).toBe('none');
+  expect(layout.width).toBeGreaterThanOrEqual(144);
+  expect(layout.height).toBeGreaterThanOrEqual(28);
+  expect(layout.font).toBeGreaterThanOrEqual(14);
+  return next;
+}
+
 async function firstMove(page) {
   for (const id of ['b1', 'b8']) await page.locator(`#black-hand [data-card-id="${id}"]`).click();
   await page.locator('#black-actions [data-op="+"]').click();
@@ -53,6 +96,7 @@ test('teaches the objective and exchange rule on the normal opening before any t
       await page.setViewportSize(size);
       for (const language of ['zh', 'en']) {
         await page.evaluate(lang => { LANG = lang; render(); }, language);
+        await expectNextAction(page, language);
         const fits = await page.evaluate(() => {
           const hint = document.getElementById('black-play-hint');
           const box = hint.getBoundingClientRect();
@@ -69,10 +113,15 @@ test('teaches the objective and exchange rule on the normal opening before any t
   }
   await page.evaluate(() => { LANG = 'zh'; render(); });
   const begin = page.locator('#black-actions [data-role="plan-continue-btn"]');
-  await expect(begin).toHaveText('開始出牌');
+  await expect(begin).toHaveText('下一步');
   await begin.click();
   await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
   await expect(page.locator('#black-play-hint')).toContainText('1/5 · 先點黑 1 和 8');
+  await expect(page.locator('#black-actions')).not.toHaveClass(/is-guide-control/);
+  await expect(page.locator('#black-actions [data-role="operator-group"]')).toBeVisible();
+  await expect(page.locator('#black-actions [data-role="giveup-btn"]')).toBeVisible();
+  await expect(page.locator('.guide-spotlight-action-ring')).toHaveCount(0);
+  await expect(page.locator('[data-cue="action"]')).toHaveCount(0);
   expect(await page.evaluate(() => gameSession.action)).toBe(0);
 });
 
@@ -133,26 +182,48 @@ test('uses observation arrows for AI and restores the same focus after help', as
   await expect(page.locator('#black-play-hint')).toContainText('2/5 · AI · 白 1、2 能排成 12');
   await expect(page.locator('#black-equation [data-tutorial-focus]')).toHaveCount(0);
   const next = page.locator('#black-actions [data-role="plan-continue-btn"]');
-  await expect(next).toHaveText('看結果');
+  await expectNextAction(page);
   await next.click();
   await focus(page, '#white-equation [data-tutorial-focus="equation-target"]', 2);
-  await expect(next).toHaveText('看換牌');
+  await expectNextAction(page);
   await page.screenshot({ path: testInfo.outputPath('ai-focused-result.png') });
   await page.locator('.utility-rules').click();
   await expect(page.locator('.guide-spotlight')).toBeHidden();
   await page.locator('#modal-close-btn').click();
   await focus(page, '#white-equation [data-tutorial-focus="equation-target"]', 2);
   await page.locator('.utility-language').click();
-  await expect(next).toHaveText('See trade');
+  await expectNextAction(page, 'en');
   await next.click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'before-keep:0');
   await focus(page, '#center-cards [data-tutorial-focus="center"]', 2);
-  await expect(next).toHaveText('See keep');
+  await expectNextAction(page, 'en');
   await page.locator('.utility-rules').click();
   await page.locator('#rules-skip-tutorial').click();
   await expect(page.locator('.guide-spotlight')).toBeHidden();
   await expect(page.locator('[data-tutorial-focus]')).toHaveCount(0);
   await expect(page.locator('#black-play-hint')).not.toHaveClass(/is-guidance/);
+  await expect(page.locator('.guide-spotlight-action-ring')).toHaveCount(0);
+  await expect(page.locator('[data-cue="action"]')).toHaveCount(0);
+});
+
+test('keeps the same centered next action through every AI explanation in portrait and landscape', async ({ page }, testInfo) => {
+  await start(page);
+  await firstMove(page);
+  for (const checkpoint of ['before-exchange:0', 'before-exchange:1', 'before-keep:0']) {
+    await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', checkpoint);
+    for (const size of [{ width: 320, height: 480 }, { width: 390, height: 844 }, { width: 800, height: 360 }]) {
+      await page.setViewportSize(size);
+      for (const language of ['zh', 'en']) {
+        await page.evaluate(lang => { LANG = lang; render(); }, language);
+        await expectNextAction(page, language);
+      }
+      await page.screenshot({ path: testInfo.outputPath(`next-${checkpoint.replace(':', '-')}-${size.width}.png`) });
+    }
+    await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
+  }
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-3');
+  await expect(page.locator('.guide-spotlight-action-ring')).toHaveCount(0);
+  await expect(page.locator('#black-actions [data-role="operator-group"]')).toBeVisible();
 });
 
 test('keeps mask, rings and complete hints aligned after resizing, in both languages', async ({ page }, testInfo) => {

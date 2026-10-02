@@ -83,6 +83,16 @@ body.is-pvp #white-area { transform: rotate(180deg); }
 .action-zone { background: var(--surface); transition: opacity 180ms ease, background-color 180ms ease; }
 .action-zone:not(.is-active) { background: #fbfaf7; opacity: .66; }
 .action-zone.is-guide-control { opacity: 1; }
+.action-zone.is-guide-control .action-content { grid-template-columns: minmax(0, 1fr); padding: 2px 12px; }
+.action-zone.is-guide-control .action-content [data-role="plan-continue-btn"] {
+  grid-area: 1 / 1; justify-self: center; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  width: min(184px, 100%); height: min(44px, 100%); min-height: 28px; padding: 2px 14px !important;
+  color: #fff; background: var(--blue); border: 2px solid #e5c477; font-size: 15px; line-height: 18px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+.action-zone.is-guide-control .guide-next::after { content: '→'; font-size: 20px; line-height: 1; }
+.action-zone.is-guide-control .guide-next:hover { background: #1d4ed8; }
+.action-zone.is-guide-control .guide-next:active { background: #1e40af; }
 .action-content { width: min(100%, 460px); height: 100%; min-height: 0; display: grid; grid-template-columns: 74px minmax(0, 1fr) 92px; grid-template-rows: minmax(0, 1fr); align-items: center; gap: 8px; padding: 4px 12px; transform-origin: center; }
 .action-zone[data-side="WHITE"] .action-content { transform: rotate(180deg); }
 .operator-group { grid-area: 1 / 2; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 4px; }
@@ -109,7 +119,6 @@ body.is-pvp.is-white-turn #center-area > #ui-center-label { transform: translate
 .play-hint.is-guidance [data-hint="select"] { font-weight: 700; }
 .play-hint.is-guidance [data-hint="arrange"] { color: #735e3d; }
 .play-hint.is-guide-intro { position: absolute; left: 50%; top: 50%; height: auto; padding: 8px 5px; font-size: 12px; line-height: 17px; transform: translate(-50%, -50%); }
-.action-content [data-tutorial-focus="continue"] { border: 2px solid #e5c477; font-weight: 700; }
 .utility-menu button:disabled, .utility-cycle:disabled { opacity: .55; cursor: default; }
 .play-stage-slot { height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; }
 [data-role="stage-hand-slot"] { justify-content: flex-end; }

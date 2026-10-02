@@ -15,9 +15,9 @@
   const COPY = {
     zh: {
       objective: '你是黑方，把手牌全換成白色就贏了',
-      objectiveDetail: '下面這些黑牌，就是你要換掉的牌', howToTrade: '怎麼換牌',
+      objectiveDetail: '下面這些黑牌，就是你要換掉的牌',
       corePlay: '湊出算式，就能交換牌',
-      coreDetail: '出牌留在場上，結果牌拿回手裡', beginPlay: '開始出牌',
+      coreDetail: '出牌留在場上，結果牌拿回手裡',
       choose: '先點黑 1 和 8', goal: '這回合先把場上的白 9 換回來',
       anyOrder: '順序不限；再點一次可取消', operator: '再點 ＋，我們來做加法',
       selected: '已選 {selected}/{total} 張；再點可取消',
@@ -31,14 +31,13 @@
       undoKeep: '點 {cards}，取消保留', keepCount: '已保留 {selected}/2 張；其餘會移出',
       practiceSelect: '先選出牌；已選 {selected} 張',
       practiceOperator: '接著點 ÷，選擇除法', practiceTarget: '接著選場牌，作為算式結果',
-      nextTarget: '看結果', nextExchange: '看換牌', nextKeep: '看保留',
       target: '接著點場牌 9，當作結果', automatic: '不用排順序，我們會幫你湊算式',
       ready: '可以了，按「送出算式」', exchange: '你出的牌留下，結果牌拿回手裡',
       taskOne: '這步請用黑 1、8 和 ＋', taskOneDetail: '點場牌 9 作結果；再點可取消',
       waiting: '先看對手這回合怎麼換牌', resolving: '正在換牌，看看它們去了哪裡', history: '上一手留在原位，對手也看得懂',
       three: '白 1、2 能排成 12，再加白 6', threeDetail: '三張牌也能算，不一定只出兩張',
       targetTwo: '結果也能用兩張牌來湊', targetTwoDetail: '黑 1、8 當成 18，一起拿回手裡',
-      aiKeep: '白 1、2 留下，白 6 就離場了', aiKeepDetail: '場上最多兩張；按「看保留」繼續',
+      aiKeep: '白 1、2 留下，白 6 就離場了', aiKeepDetail: '場上最多兩張，其他牌會移出',
       four: '點黑 3、5、6、7', fourDetail: '這回合練習湊出兩個二位數',
       keepThree: '點黑 3 和 6，讓它們留在場上', keepDetail: '只留兩張，其他牌就離場了',
       keepReady: '選好了，按「確認保留」', taskKeep: '請留下這步指定的兩張牌',
@@ -51,9 +50,9 @@
     },
     en: {
       objective: 'You are black. Make your hand all white to win.',
-      objectiveDetail: 'These black cards are the ones to trade.', howToTrade: 'How to trade',
+      objectiveDetail: 'These black cards are the ones to trade.',
       corePlay: 'Make an equation to trade cards.',
-      coreDetail: 'Your play stays here; take the result cards.', beginPlay: 'Start playing',
+      coreDetail: 'Your play stays here; take the result cards.',
       choose: 'First, tap black 1 and 8.', goal: 'This turn, bring table white 9 into your hand.',
       anyOrder: 'Any order; tap again to undo.', operator: 'Tap + for addition.',
       selected: 'Selected {selected}/{total}; tap again to undo.',
@@ -65,14 +64,13 @@
       undoKeep: 'Tap {cards} to undo retention.', keepCount: 'Kept {selected}/2; the rest leave play.',
       practiceSelect: 'Choose cards first; {selected} selected.',
       practiceOperator: 'Next, tap ÷ for division.', practiceTarget: 'Next, choose the table result.',
-      nextTarget: 'See result', nextExchange: 'See trade', nextKeep: 'See keep',
       target: 'Tap table 9 as the result.', automatic: 'The equation arranges itself.',
       ready: 'Tap Send Equation.', exchange: 'Play your cards; take the result cards.',
       taskOne: 'Use black 1, 8 and + for this move.', taskOneDetail: 'Target table 9; tap again to undo.',
       waiting: 'Watch the AI demonstrate.', resolving: 'Cards are changing places.', history: 'Your last move stays for your opponent.',
       three: 'White 1, 2 make 12; add 6.', threeDetail: 'Three cards can work, not just two.',
       targetTwo: 'The result can use two cards too.', targetTwoDetail: 'Black 1, 8 make 18; take them both.',
-      aiKeep: 'Keep white 1, 2; remove white 6.', aiKeepDetail: 'At most two remain; tap See keep.',
+      aiKeep: 'Keep white 1, 2; remove white 6.', aiKeepDetail: 'Only two stay; the others leave.',
       four: 'Tap black 3, 5, 6, 7.', fourDetail: 'This turn, make two two-digit numbers.',
       keepThree: 'Keep black 3 and 6 on the table.', keepDetail: 'Other table cards leave the game.',
       keepReady: 'Tap Confirm Keep.', taskKeep: 'Keep the two cards for this task.',
@@ -87,7 +85,7 @@
   const sameIds = (actual, expected) => actual.length === expected.length && new Set(actual).size === actual.length && expected.every(id => actual.includes(id));
   const focus = (area, side, cardIds = [], operator = null) => ({ area, side, cardIds, operator });
   const view = (hint, detail, targets = [], values = {}) => ({ hint, detail, focus: targets, values, mode: 'tap' });
-  const observe = (hint, detail, targets, continueLabel) => ({ ...view(hint, detail, targets), mode: 'observe', continueLabel });
+  const observe = (hint, detail, targets) => ({ ...view(hint, detail, targets), mode: 'observe' });
 
   // Expected identity sets are derived from ordinary exchange/keep operations.
   const initialBoard = { BLACK: Array.from({ length: 9 }, (_, i) => `b${i + 1}`), WHITE: Array.from({ length: 8 }, (_, i) => `w${i + 1}`), center: ['w9'] };
@@ -151,13 +149,13 @@
       complete: event => event.type === 'turn.completed' && event.actor === action.side && event.action === index + 1,
       view: snapshot => getGuidance(index, snapshot),
       checkpoints: index === 0 ? {
-        opening: [observe('objective', 'objectiveDetail', [focus('hand-area', 'BLACK')], 'howToTrade'),
-          observe('corePlay', 'coreDetail', [focus('center', 'BLACK', ['w9'])], 'beginPlay')]
+        opening: [observe('objective', 'objectiveDetail', [focus('hand-area', 'BLACK')]),
+          observe('corePlay', 'coreDetail', [focus('center', 'BLACK', ['w9'])])]
       } : index === 1 ? {
-        'before-exchange': [observe('three', 'threeDetail', [focus('equation-hand', 'WHITE', action.hand)], 'nextTarget'), observe('targetTwo', 'targetTwoDetail', [focus('equation-target', 'WHITE', action.center)], 'nextExchange')],
-        'before-keep': [observe('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)], 'nextKeep')]
+        'before-exchange': [observe('three', 'threeDetail', [focus('equation-hand', 'WHITE', action.hand)]), observe('targetTwo', 'targetTwoDetail', [focus('equation-target', 'WHITE', action.center)])],
+        'before-keep': [observe('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)])]
       } : index === 3 ? {
-        'before-exchange': [observe('flip', 'flipDetail', [focus('equation-target', 'WHITE', action.center)], 'nextExchange')]
+        'before-exchange': [observe('flip', 'flipDetail', [focus('equation-target', 'WHITE', action.center)])]
       } : {}
     }))
   };

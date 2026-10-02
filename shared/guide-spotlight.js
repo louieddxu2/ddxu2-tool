@@ -55,6 +55,8 @@
       const height = win.innerHeight;
       const targets = [...new Set(current.targets || [])].map(bounds).filter(Boolean);
       const hint = bounds(current.hint);
+      const action = bounds(current.action);
+      const context = (current.context || []).map(bounds).filter(Boolean);
       if (!targets.length || !hint) { root.hidden = true; return; }
       root.hidden = false;
       root.dataset.mode = current.mode || 'tap';
@@ -66,33 +68,40 @@
         element.setAttribute('width', width);
         element.setAttribute('height', height);
       }
-      holes.replaceChildren(...[hint, ...targets, ...(current.context || []).map(bounds).filter(Boolean)]
+      holes.replaceChildren(...[hint, ...targets, ...context, ...(action ? [action] : [])]
         .map(rect => make('rect', box(rect, 5, width, height))));
       rings.replaceChildren(...targets.map(rect => make('rect', { ...box(rect, 4, width, height), class: 'guide-spotlight-ring' })));
+      if (action) rings.append(make('rect', { ...box(action, 4, width, height), class: 'guide-spotlight-action-ring' }));
 
-      // One cue, not one bouncing hand per card. After a tap it follows the next target.
-      const target = targets[0];
-      const size = 24;
-      const cx = target.left + target.width / 2;
-      const cy = target.top + target.height / 2;
-      const candidates = [
-        { x: cx - size / 2, y: target.top - size - 7, rotate: 180 },
-        { x: cx - size / 2, y: target.bottom + 7, rotate: 0 },
-        { x: target.left - size - 7, y: cy - size / 2, rotate: 90 },
-        { x: target.right + 7, y: cy - size / 2, rotate: -90 }
-      ];
-      const obstacles = [hint, ...targets.slice(1), ...(current.avoid || []).map(bounds).filter(Boolean)];
-      const placement = candidates.find(item => item.x >= 2 && item.y >= 2 && item.x + size <= width - 2 && item.y + size <= height - 2 && !obstacles.some(rect => intersects({ ...item, size }, rect)));
       pointer.replaceChildren();
-      if (placement) {
-        pointer.setAttribute('transform', `translate(${placement.x} ${placement.y}) rotate(${placement.rotate} 12 12)`);
-        pointer.append(make('rect', { x: -2, y: -2, width: 28, height: 28, rx: 14, class: 'guide-pointer-disc' }));
-        const cue = make('g', { class: 'guide-pointer-cue' });
-        cue.append(current.mode === 'observe'
+      const avoid = (current.avoid || []).map(bounds).filter(Boolean);
+      function appendPointer(target, mode, kind) {
+        const size = 24;
+        const cx = target.left + target.width / 2;
+        const cy = target.top + target.height / 2;
+        const candidates = [
+          { x: cx - size / 2, y: target.top - size - 7, rotate: 180 },
+          { x: cx - size / 2, y: target.bottom + 7, rotate: 0 },
+          { x: target.left - size - 7, y: cy - size / 2, rotate: 90 },
+          { x: target.right + 7, y: cy - size / 2, rotate: -90 }
+        ];
+        const obstacles = [hint, ...targets.filter(rect => rect !== target), ...context, ...avoid, ...(action && action !== target ? [action] : [])];
+        // A side cue stays in the control row, so it cannot look like a tap on the hand below.
+        const ordered = kind === 'action' ? [candidates[2], candidates[3], candidates[0], candidates[1]] : candidates;
+        const placement = ordered.find(item => item.x >= 4 && item.y >= 4 && item.x + size <= width - 4 && item.y + size <= height - 4 && !obstacles.some(rect => intersects({ ...item, size: size + 4, x: item.x - 2, y: item.y - 2 }, rect)));
+        if (!placement) return;
+        const group = make('g', { 'data-cue': kind, transform: `translate(${placement.x} ${placement.y}) rotate(${placement.rotate} 12 12)` });
+        group.append(make('rect', { x: -2, y: -2, width: 28, height: 28, rx: 14, class: 'guide-pointer-disc' }));
+        const cue = make('g', { class: 'guide-pointer-cue', 'data-mode': mode });
+        cue.append(mode === 'observe'
           ? make('path', { d: 'M12 3v17M6 9l6-6 6 6', class: 'guide-observe-arrow' })
           : make('path', { d: 'M9 12V4a2 2 0 0 1 4 0v6l2-1 2 2 2 1v5c0 3-2 5-5 5h-3c-2 0-3-1-4-3l-3-5a2 2 0 0 1 3-2l2 2', class: 'guide-tap-hand' }));
-        pointer.append(cue);
+        group.append(cue);
+        pointer.append(group);
       }
+      // Keep the observation arrow on the lesson subject; point a hand at the real next action.
+      appendPointer(targets[0], current.mode || 'tap', 'focus');
+      if (action) appendPointer(action, 'tap', 'action');
     }
 
     function schedule() {
@@ -120,7 +129,7 @@
         if (destroyed) return;
         current = options;
         observer?.disconnect();
-        [...new Set([options.hint, ...(options.targets || []), ...(options.context || [])])].filter(Boolean).forEach(element => observer?.observe(element));
+        [...new Set([options.hint, options.action, ...(options.targets || []), ...(options.context || [])])].filter(Boolean).forEach(element => observer?.observe(element));
         schedule();
       },
       clear,

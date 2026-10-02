@@ -155,13 +155,15 @@ test('points at live played cards for correction and counts retention separately
   assert.deepEqual(Array.from(wrongKeep.focus[0].cardIds), ['b7']);
 });
 
-test('separates AI observation cues from tap tasks and names what each continue does', () => {
+test('separates AI observation cues from tap tasks without per-checkpoint button labels', () => {
   const { MathDuelTutorial: tutorial } = makeContext();
   const explanations = tutorial.definition.steps[1].checkpoints;
   assert.equal(explanations['before-exchange'][0].mode, 'observe');
-  assert.equal(explanations['before-exchange'][0].continueLabel, 'nextTarget');
-  assert.equal(explanations['before-exchange'][1].continueLabel, 'nextExchange');
-  assert.equal(explanations['before-keep'][0].continueLabel, 'nextKeep');
+  for (const step of tutorial.definition.steps) {
+    for (const views of Object.values(step.checkpoints)) {
+      for (const view of views) assert.equal(Object.hasOwn(view, 'continueLabel'), false);
+    }
+  }
   const game = { turn: 'BLACK', state: 'PLAYING', selections: { hand: [], center: [], operator: null } };
   assert.equal(tutorial.getGuidance(0, { game }).mode, 'tap');
   game.state = 'ANIMATING';
@@ -174,13 +176,11 @@ test('the opening explanation introduces the goal before the first of five actio
   const opened = guide.advanceGuide(guide.createGuideState(tutorial.definition), tutorial.definition, { type: 'checkpoint', key: 'opening' }, { game });
   assert.equal(opened.view.hint, 'objective');
   assert.equal(opened.view.detail, 'objectiveDetail');
-  assert.equal(opened.view.continueLabel, 'howToTrade');
   assert.equal(opened.view.mode, 'observe');
   assert.equal(opened.state.stepIndex, 0);
   const rules = guide.advanceGuide(opened.state, tutorial.definition, { type: 'continue' }, { game });
   assert.equal(rules.view.hint, 'corePlay');
   assert.equal(rules.view.detail, 'coreDetail');
-  assert.equal(rules.view.continueLabel, 'beginPlay');
   const begun = guide.advanceGuide(rules.state, tutorial.definition, { type: 'continue' }, { game });
   assert.equal(begun.view.hint, 'choose');
   assert.equal(begun.state.stepIndex, 0, 'reading the objective is not a game action');

@@ -113,8 +113,9 @@ async function onUpload() {
 const spotlight = GuideSpotlight.create();
 spotlight.update({
   hint: document.getElementById('current-tip'), // 既有提示，不再印一份
-  targets: [document.getElementById('next-button')],
+  targets: [document.getElementById('current-target')],
   context: [document.getElementById('current-result')],
+  action: document.getElementById('next-button'), // 選用：講解時指向可點按的下一步
   avoid: [document.getElementById('help-button')],
   mode: 'tap' // 'observe' 改用觀看箭頭，適合暫停的 AI 行動
 });
@@ -124,11 +125,15 @@ spotlight.update({
 
 `targets` 是當下要點按或看的目標；`context` 是仍需要看清楚的相關內容，例如已排好的完整算式。兩者都透出遮罩，只有目標有光圈。每次應用完成 render 後，重新傳入現存元素，避免元素更新後還指著舊位置。尺寸改變時會自動重新定位，支援減少動態效果設定；遮罩與標記永遠不接收點按。
 
+觀看中的 `targets` 和下一步 `action` 分開：箭頭標示正在講解的牌，手指標示可點按的下一步。`action` 使用應用既有按鈕，不另建標籤或接管點按；結束等待後傳入 `null`，下一步光圈與手指就會消失。
+
 引導器仍只提供語意資料，轉接層把 `focus` 對應成 DOM 元素，呈現器完全不需要知道遊戲規則。同一套呈現器也能接在上傳、表單或其他卡牌遊戲的引導器上。
 
 ## Math Duel 的分工
 
-教學先在正常開局分別介紹「怎麼贏」與「怎麼換牌」，按「開始出牌」才進入第一個操作。這兩段使用 `opening` 等待點，不增加五次行動的計數。每回合先交代要練習的概念，再用口語短句帶領點按；例如「這回合先把場上的白 9 換回來」、「不用排順序，我們會幫你湊算式」。
+教學先在正常開局分別介紹「怎麼贏」與「怎麼換牌」，兩段都按「下一步」，才進入第一個操作。這兩段使用 `opening` 等待點，不增加五次行動的計數。每回合先交代要練習的概念，再用口語短句帶領點按；例如「這回合先把場上的白 9 換回來」、「不用排順序，我們會幫你湊算式」。
+
+所有等待點都使用同一個「下一步」按鈕（英文 `Next`），固定在玩家側操作列中央。講解時收起該列不能操作的符號與送出按鈕，下一步維持清楚的大字、光圈與點按手指；每段解說不再自行定義不同的按鈕名稱。一般出牌與保留仍使用原本的操作列。
 
 `math-duel/tutorial.js` 定義五次正式出牌、指定牌組、教學 AI 與雙語提示；遊戲頁面只轉接選牌、交換、保留與回合結束事件。教學與普通 AI 都使用原求解器及出牌流程。
 
