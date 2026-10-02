@@ -126,6 +126,15 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
       for (const language of ['zh', 'en']) {
         await page.evaluate(lang => { LANG = lang; render(); }, language);
         await expectNextAction(page, language);
+        if (explanation === 1) {
+          const labels = await page.evaluate(() => {
+            const rule = document.querySelector('#black-play-hint .hint-kind[data-kind="rule"]');
+            const description = document.querySelector('#black-play-hint .hint-kind[data-kind="description"]');
+            return { size: parseFloat(getComputedStyle(rule).fontSize), colors: [getComputedStyle(rule).color, getComputedStyle(description).color] };
+          });
+          expect(labels.size, `rule label size ${size.width} ${language}`).toBeGreaterThanOrEqual(9);
+          expect(labels.colors[0], `rule and description colors ${size.width} ${language}`).not.toBe(labels.colors[1]);
+        }
         const fits = await page.evaluate(() => {
           const hint = document.getElementById('black-play-hint');
           const box = hint.getBoundingClientRect();
