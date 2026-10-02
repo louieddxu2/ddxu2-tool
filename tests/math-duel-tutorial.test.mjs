@@ -163,8 +163,8 @@ test('separates AI observation cues from tap tasks without per-checkpoint button
   assert.equal(explanations['before-exchange'][0].detailKind, 'description');
   assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'zh'), /這三張手牌分成 12 和 6/);
   assert.match(tutorial.text(explanations['before-exchange'][1].detail, 'zh'), /黑 1、8 組成 18.*12 \+ 6 = 18/);
-  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'en'), /3 hand cards split into 12 and 6/);
-  assert.match(tutorial.text(explanations['before-exchange'][1].detail, 'en'), /Black 1, 8 make 18: 12 \+ 6 = 18/);
+  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'en'), /3 hand cards form 12 \+ 6/);
+  assert.match(tutorial.text(explanations['before-exchange'][1].detail, 'en'), /12 \+ 6 = 18; black 1, 8/);
   assert.equal(tutorial.label('rule', 'zh'), '規則');
   assert.equal(tutorial.label('description', 'zh'), '描述');
   assert.equal(tutorial.label('example', 'en'), 'Example');
@@ -179,6 +179,11 @@ test('separates AI observation cues from tap tasks without per-checkpoint button
   const resolving = tutorial.getGuidance(0, { game });
   assert.equal(resolving.focus.length, 0, 'the dimmer must get out of the way of card movement');
   assert.equal(resolving.hintKind, 'status');
+  assert.equal(resolving.detail, 'exchange', 'the learner is the actor during their own move');
+  const opponentResolving = tutorial.getGuidance(1, { game: { turn: 'WHITE', state: 'ANIMATING' } });
+  assert.equal(opponentResolving.detail, 'opponentExchange');
+  assert.equal(tutorial.text(opponentResolving.detail, 'zh'), '對手的牌留在場上；結果牌回手裡。');
+  assert.equal(tutorial.text(opponentResolving.detail, 'en'), 'AI takes results; its cards stay.');
 });
 
 test('the opening explanation introduces the goal before the first of five actions', () => {

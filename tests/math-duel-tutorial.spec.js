@@ -212,6 +212,8 @@ test('restarts a held lesson and rejects the old worker and repeated continue ca
     oldLessonWorker.onmessage({ data: { hand: ['w1', 'w2'], center: ['b1'], op: '+' } });
     continueAiPlan(); continueAiPlan();
   });
+  await checkpoint(page, 1, 'opening:2');
+  await continueButton(page).click();
   expect(await fieldIds(page)).toEqual(['w9']);
   expect(await page.evaluate(() => ({ action: gameSession.action, hand: game.blackHand.length, turn: game.turn, busy: game.uiBusy }))).toEqual({ action: 0, hand: 9, turn: 'BLACK', busy: false });
   await send(page, ['b1', 'b8'], ['w9'], '+');
@@ -342,7 +344,7 @@ test('holds the teaching AI after real animations while language and help remain
   await reachSecondMove(page);
   expect(await page.evaluate(() => ({ gate: Boolean(tutorialGate), automaticTimer: Boolean(aiPlanResolver), busy: game.uiBusy }))).toEqual({ gate: true, automaticTimer: false, busy: false });
   await page.locator('.utility-language').click();
-  await expect(page.locator('#black-play-hint')).toContainText('3 cards work');
+  await expect(page.locator('#black-play-hint')).toContainText('White 1, 2 make 12; add 6.');
   await expect(continueButton(page)).toHaveText('Next');
   await page.locator('.utility-rules').click();
   await page.locator('#modal-close-btn').click();

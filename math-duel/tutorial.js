@@ -41,6 +41,7 @@
       keepLimit: '只留兩張；再點已選的牌可取消',
       target: '接著點場牌 9，當作結果', automatic: '不用排順序，我們會幫你湊算式',
       ready: '可以了，按「送出算式」', exchange: '你出的牌留下，結果牌拿回手裡',
+      opponentExchange: '對手的牌留在場上；結果牌回手裡。',
       taskOne: '這步請用黑 1、8 和 ＋', taskOneDetail: '點場牌 9 作結果；再點可取消',
       waiting: '先看對手這回合怎麼換牌', resolving: '正在換牌，看看它們去了哪裡', history: '上一手留在原位，對手也看得懂',
       three: '白 1、2 排成 12，再加白 6', threeDetail: '這三張手牌分成 12 和 6。',
@@ -66,7 +67,7 @@
       coreDetail: 'Played cards stay; the matched table cards go to your hand.',
       digitLimit: 'Each number in the equation is at most 2 digits.',
       digitLimitExample: '1, 2 make 12; add 6, using 3 hand cards.',
-      firstTrade: 'White 9 is now in your hand!', firstTradeDetail: 'Black 1, 8 stay. Your opponent is next.',
+      firstTrade: 'White 9 is now in your hand!', firstTradeDetail: 'Black 1, 8 stay; AI moves next.',
       choose: 'First, tap black 1 and 8.', goal: 'This turn, bring table white 9 into your hand.',
       anyOrder: 'Any order; tap again to undo.', operator: 'Tap + for addition.',
       selected: 'Selected {selected}/{total}; tap again to undo.',
@@ -84,10 +85,11 @@
       keepLimit: 'Keep two; tap a chosen card to undo.',
       target: 'Tap table 9 as the result.', automatic: 'The equation arranges itself.',
       ready: 'Tap Send Equation.', exchange: 'Play your cards; take the result cards.',
+      opponentExchange: 'AI takes results; its cards stay.',
       taskOne: 'Use black 1, 8 and + for this move.', taskOneDetail: 'Target table 9; tap again to undo.',
       waiting: 'Watch the AI demonstrate.', resolving: 'Cards are changing places.', history: 'Your last move stays for your opponent.',
-      three: 'White 1, 2 make 12; add 6.', threeDetail: 'These 3 hand cards split into 12 and 6.',
-      targetTwo: 'The result can use two cards too.', targetTwoDetail: 'Black 1, 8 make 18: 12 + 6 = 18.',
+      three: 'White 1, 2 make 12; add 6.', threeDetail: '3 hand cards form 12 + 6.',
+      targetTwo: 'The result can use two cards too.', targetTwoDetail: '12 + 6 = 18; black 1, 8.',
       aiKeep: 'Keep white 1, 2; remove white 6.', aiKeepDetail: 'Only two stay; the others leave.',
       four: 'Tap black 3, 5, 6, 7.', fourDetail: 'Use subtraction to take white 1, 2.',
       keepConcept: 'Only two stay; the other cards leave.', keepConceptDetail: 'Keep black 3, 6 for your opponent.',
@@ -147,7 +149,10 @@
 
   function getTaskGuidance(index, { game, help = false, rejected = false }) {
     const action = actions[index];
-    if (game.state === 'ANIMATING' || game.uiBusy) return view('resolving', 'exchange', [], {}, 'status', 'description');
+    if (game.state === 'ANIMATING' || game.uiBusy) {
+      const exchangeDetail = action.side === 'WHITE' ? 'opponentExchange' : 'exchange';
+      return view('resolving', exchangeDetail, [], {}, 'status', 'description');
+    }
     if (action.side === 'WHITE') return { ...view('waiting', 'history', game.aiMoveInfo ? [focus('equation', 'WHITE')] : [], {}, 'demonstration', 'description'), mode: 'observe' };
     if (game.state === 'DISCARDING') {
       if (index === actions.length - 1 && game.center) {

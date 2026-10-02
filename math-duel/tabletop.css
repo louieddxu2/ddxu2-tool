@@ -243,7 +243,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .hand-grid [data-card-id] { font-size: 19px; }
   .equation-content { grid-template-rows: minmax(0, 1fr) 24px; }
   .play-hint { font-size: 9px; line-height: 12px; }
-  .play-hint.is-guidance { font-size: 9px; line-height: 11px; }
+  .play-hint.is-guidance { padding-block: 0; font-size: 9px; line-height: 11px; }
   .play-hint.is-guide-intro { padding-block: 4px; font-size: 10px; line-height: 13px; }
   #table-area { grid-template-rows: minmax(0, 1fr); }
   #table-surface { grid-template-rows: minmax(42px, .78fr) minmax(34px, 1fr) minmax(40px, .9fr) minmax(34px, 1fr) minmax(42px, .78fr); }

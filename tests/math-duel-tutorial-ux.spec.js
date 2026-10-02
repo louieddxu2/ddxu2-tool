@@ -90,13 +90,17 @@ async function expectHintFits(page) {
     const progress = document.getElementById('black-score').getBoundingClientRect();
     const label = document.getElementById('black-label').getBoundingClientRect();
     const separate = (a, b) => a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom;
+    const hintBox = { top: box.top, bottom: box.bottom, left: box.left, right: box.right };
+    const overflowingText = [...hint.querySelectorAll('span')].filter(span => span.children.length === 0).flatMap(span => {
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      return [...range.getClientRects()].filter(rect => rect.top < box.top || rect.bottom > box.bottom || rect.left < box.left || rect.right > box.right)
+        .map(rect => ({ hint: span.dataset.hint || span.dataset.hintLabel || '', text: span.textContent.trim(), top: Math.round(rect.top), bottom: Math.round(rect.bottom), left: Math.round(rect.left), right: Math.round(rect.right), hintBox }));
+    });
     return {
       inPlayedArea: box.top >= equation.top && box.bottom <= equation.bottom,
-      linesFit: [...hint.querySelectorAll('span')].every(span => {
-        const range = document.createRange();
-        range.selectNodeContents(span);
-        return [...range.getClientRects()].every(rect => rect.top >= box.top && rect.bottom <= box.bottom && rect.left >= box.left && rect.right <= box.right);
-      }),
+      linesFit: overflowingText.length === 0,
+      overflowingText,
       headerFits: [status, progress, label].every(rect => rect.left >= 0 && rect.right <= innerWidth) &&
         separate(status, label) && separate(progress, label) && separate(status, progress),
       equationFits: [...document.querySelectorAll('#black-equation [data-card-id], #black-equation .operand-divider')].every(element => {
@@ -107,7 +111,7 @@ async function expectHintFits(page) {
       scroll: document.documentElement.scrollHeight > innerHeight || document.documentElement.scrollWidth > innerWidth
     };
   });
-  expect(layout, JSON.stringify(layout)).toEqual({ inPlayedArea: true, linesFit: true, headerFits: true, equationFits: true, scroll: false });
+  expect(layout, JSON.stringify(layout)).toEqual({ inPlayedArea: true, linesFit: true, overflowingText: [], headerFits: true, equationFits: true, scroll: false });
 }
 
 test('keeps opening explanations read-only, supports back, and does not skip on double-click or key repeat', async ({ page }) => {
@@ -193,6 +197,26 @@ test('reviews the real first trade before requesting AI, while help and bilingua
   await next(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-3');
   expect((await board(page)).actions).toBe(2);
+});
+
+test('uses the opponent as the subject while the AI move is animating', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 320, height: 480 });
+  await firstTrade(page);
+  await next(page).click();
+  await held(page, 'before-exchange:0');
+  await next(page).click();
+  await held(page, 'before-exchange:1');
+  await next(page).click();
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-phase', 'resolving');
+  await expect(page.locator('#black-play-hint')).toContainText('對手的牌留在場上');
+  await expect(page.locator('#black-play-hint')).not.toContainText('你出的牌留下');
+  await expectHintFits(page);
+  await page.evaluate(() => { LANG = 'en'; render(); });
+  await expect(page.locator('#black-play-hint')).toContainText('AI takes results; its cards stay.');
+  await expectHintFits(page);
+  await page.setViewportSize({ width: 800, height: 360 });
+  await expectHintFits(page);
 });
 
 for (const exit of ['skip', 'reload']) {
