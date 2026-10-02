@@ -159,6 +159,11 @@ test('separates AI observation cues from tap tasks without per-checkpoint button
   const { MathDuelTutorial: tutorial } = makeContext();
   const explanations = tutorial.definition.steps[1].checkpoints;
   assert.equal(explanations['before-exchange'][0].mode, 'observe');
+  assert.equal(explanations['before-exchange'][0].hintKind, 'demonstration');
+  assert.equal(explanations['before-exchange'][0].detailKind, 'description');
+  assert.equal(tutorial.label('rule', 'zh'), '規則');
+  assert.equal(tutorial.label('description', 'zh'), '描述');
+  assert.equal(tutorial.label('example', 'en'), 'Example');
   for (const step of tutorial.definition.steps) {
     for (const views of Object.values(step.checkpoints)) {
       for (const view of views) assert.equal(Object.hasOwn(view, 'continueLabel'), false);
@@ -167,7 +172,9 @@ test('separates AI observation cues from tap tasks without per-checkpoint button
   const game = { turn: 'BLACK', state: 'PLAYING', selections: { hand: [], center: [], operator: null } };
   assert.equal(tutorial.getGuidance(0, { game }).mode, 'tap');
   game.state = 'ANIMATING';
-  assert.equal(tutorial.getGuidance(0, { game }).focus.length, 0, 'the dimmer must get out of the way of card movement');
+  const resolving = tutorial.getGuidance(0, { game });
+  assert.equal(resolving.focus.length, 0, 'the dimmer must get out of the way of card movement');
+  assert.equal(resolving.hintKind, 'status');
 });
 
 test('the opening explanation introduces the goal before the first of five actions', () => {
@@ -176,12 +183,20 @@ test('the opening explanation introduces the goal before the first of five actio
   const opened = guide.advanceGuide(guide.createGuideState(tutorial.definition), tutorial.definition, { type: 'checkpoint', key: 'opening' }, { game });
   assert.equal(opened.view.hint, 'objective');
   assert.equal(opened.view.detail, 'objectiveDetail');
+  assert.equal(opened.view.hintKind, 'objective');
+  assert.equal(opened.view.detailKind, 'description');
   assert.equal(opened.view.mode, 'observe');
   assert.equal(opened.state.stepIndex, 0);
   const rules = guide.advanceGuide(opened.state, tutorial.definition, { type: 'continue' }, { game });
   assert.equal(rules.view.hint, 'corePlay');
   assert.equal(rules.view.detail, 'coreDetail');
-  const begun = guide.advanceGuide(rules.state, tutorial.definition, { type: 'continue' }, { game });
+  assert.equal(rules.view.hintKind, 'rule');
+  const digitRule = guide.advanceGuide(rules.state, tutorial.definition, { type: 'continue' }, { game });
+  assert.equal(digitRule.view.hint, 'digitLimit');
+  assert.equal(digitRule.view.hintKind, 'rule');
+  assert.equal(digitRule.view.detailKind, 'example');
+  assert.match(tutorial.text(digitRule.view.hint, 'zh'), /最多兩位/);
+  const begun = guide.advanceGuide(digitRule.state, tutorial.definition, { type: 'continue' }, { game });
   assert.equal(begun.view.hint, 'choose');
   assert.equal(begun.state.stepIndex, 0, 'reading the objective is not a game action');
   assert.equal(tutorial.actions.length, 5);

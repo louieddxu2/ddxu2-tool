@@ -75,7 +75,8 @@ body.is-pvp #white-area { transform: rotate(180deg); }
 .player-turn-status.is-current { color: var(--blue); }
 .play-hint { align-self: center; margin: 0; padding-inline: 44px; color: var(--muted); font-size: 11px; line-height: 14px; text-align: center; visibility: hidden; pointer-events: none; }
 .play-hint.is-visible { visibility: visible; }
-.play-hint span { display: block; }
+.play-hint > .hint-line { display: block; }
+.play-hint .hint-kind { display: none; }
 .player-score { position: absolute; right: 0; top: 50%; color: var(--muted); font-size: 10px; line-height: 14px; font-weight: 700; transform: translateY(-50%); }
 #table-surface { min-height: 0; display: grid; grid-template-rows: minmax(52px, .82fr) minmax(48px, 1fr) minmax(54px, .95fr) minmax(48px, 1fr) minmax(52px, .82fr); background: transparent; }
 .table-zone { min-height: 0; min-width: 0; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border-bottom: 1px solid var(--line); }
@@ -119,7 +120,9 @@ body.is-pvp.is-white-turn #center-area > #ui-center-label { transform: translate
 #center-cards [data-card-id] { width: 31px; height: 45px; font-size: 23px; border-width: 1px; opacity: 1; }
 .play-stage-grid { position: relative; width: 100%; height: 100%; min-height: 0; margin-inline: auto; display: grid; grid-template-columns: minmax(0, 1fr) 26px minmax(0, 1fr); align-items: center; gap: 6px; padding-inline: 12px; }
 .play-hint.is-guidance { justify-self: center; width: calc(100% - 88px); height: 100%; padding: 1px 5px; color: #664719; background: #fff8e5; border: 1px solid #e5c477; border-radius: 7px; font-size: 11px; line-height: 12px; }
-.play-hint.is-guidance span { display: block; margin-inline: 0; }
+.play-hint.is-guidance > .hint-line { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 4px; margin-inline: 0; text-align: left; }
+.play-hint.is-guidance .hint-kind { display: inline-flex; align-items: center; justify-content: center; padding: 0 3px; color: #735e3d; background: #f5e8c4; border-radius: 4px; font-size: .82em; line-height: 1.2; font-weight: 700; white-space: nowrap; }
+.play-hint.is-guidance [data-hint] { display: block; min-width: 0; }
 .play-hint.is-guidance [data-hint="select"] { font-weight: 700; }
 .play-hint.is-guidance [data-hint="arrange"] { color: #735e3d; }
 .play-hint.is-guide-intro { position: absolute; left: 50%; top: 50%; height: auto; padding: 8px 5px; font-size: 12px; line-height: 17px; transform: translate(-50%, -50%); }
@@ -206,8 +209,9 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .play-hint { font-size: 9px; }
   .play-hint.is-guidance { min-height: 24px; font-size: 9px; line-height: 11px; }
   .play-hint.is-guide-intro { padding-block: 4px; font-size: 10px; line-height: 13px; }
-  .play-hint span { display: inline; }
-  .play-hint span + span { margin-inline-start: .5em; }
+  .play-hint:not(.is-guidance) > .hint-line { display: inline; }
+  .play-hint:not(.is-guidance) > .hint-line + .hint-line { margin-inline-start: .5em; }
+  .play-hint.is-guidance > .hint-line { display: grid; }
   #table-area { grid-template-rows: minmax(0, 1fr); }
   #table-surface { grid-template-rows: minmax(28px, .8fr) minmax(25px, 1fr) minmax(35px, .9fr) minmax(25px, 1fr) minmax(28px, .8fr); }
   .action-content { grid-template-columns: 62px minmax(0, 1fr) 76px; grid-template-rows: minmax(0, 1fr); gap: 4px; padding: 1px 6px; }

@@ -10,8 +10,8 @@
   <link rel="icon"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
-  <link rel="stylesheet" href="../shared/guide-spotlight.css?v=2">
-  <link rel="stylesheet" href="tabletop.css?v=2.5.0">
+  <link rel="stylesheet" href="../shared/guide-spotlight.css?v=3">
+  <link rel="stylesheet" href="tabletop.css?v=2.6.0">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -103,7 +103,7 @@
         rules_init: '【初始設定】黑方拿 1~9，白方拿 1~8，場中央放白方 9。',
         rules_action: '【行動規則】輪到你時，打出 2~4 張牌，配上一個四則運算符號，湊出場中央的數字。湊成後，把場中央被湊成的牌收回手牌，打出的牌留在場上。',
         rules_limit: '【場地限制】場中央若超過 2 張牌，當回合玩家需選擇保留 2 張，其餘移出遊戲。',
-        rules_special: '【特殊規則】數字 6 與 9 可以自由翻轉互換。手中或場中的 2 張牌可以自由結合成二位數（如 1 和 2 可視為 12 或 21）。',
+        rules_special: '【數字位數】每個數字最多由 2 張牌組成二位數；例如 1、2 可組成 12 或 21。數字 6 與 9 可以翻轉互換。',
         rules_win: '【獲勝條件】回合結束時，手牌全部變成對手的顏色；或對手無牌可出、無法湊出算式。',
         close: '關閉'
       },
@@ -172,7 +172,7 @@
         rules_init: '[Initial] Black: 1-9, White: 1-8, Center: White 9.',
         rules_action: '[Action] Use 2-4 hand cards + 1 operator to match center. Take center cards, leave played cards.',
         rules_limit: '[Limit] If center > 2 cards, keep 2 and discard others.',
-        rules_special: '[Special] 6 and 9 are interchangeable. 2 cards can form a 2-digit number (e.g., 1 & 2 = 12 or 21).',
+        rules_special: '[Number length] Each number is at most two digits, made from at most 2 cards (e.g., 1 and 2 make 12 or 21). 6 and 9 can be flipped.',
         rules_win: '[Victory] All your cards match opponent\'s color, or opponent has no valid moves.',
         close: 'Close'
       }
@@ -268,7 +268,8 @@
             </div>
             <div data-role="move-preview" aria-live="polite" class="hidden operation-result"></div>
             <p id="white-play-hint" class="play-hint" aria-hidden="true">
-              <span data-hint="select"></span><span data-hint="arrange"></span>
+              <span class="hint-line"><span class="hint-kind" data-hint-label="select"></span><span data-hint="select"></span></span>
+              <span class="hint-line"><span class="hint-kind" data-hint-label="arrange"></span><span data-hint="arrange"></span></span>
             </p>
           </div>
         </section>
@@ -291,7 +292,8 @@
             </div>
             <div data-role="move-preview" aria-live="polite" class="hidden operation-result"></div>
             <p id="black-play-hint" class="play-hint" aria-hidden="true">
-              <span data-hint="select"></span><span data-hint="arrange"></span>
+              <span class="hint-line"><span class="hint-kind" data-hint-label="select"></span><span data-hint="select"></span></span>
+              <span class="hint-line"><span class="hint-kind" data-hint-label="arrange"></span><span data-hint="arrange"></span></span>
             </p>
           </div>
         </section>
@@ -364,8 +366,8 @@
 
    <script src="rule-modes.js"></script>
   <script src="../shared/flow-guide.js?v=2"></script>
-  <script src="../shared/guide-spotlight.js?v=2"></script>
-  <script src="tutorial.js?v=5"></script>
+  <script src="../shared/guide-spotlight.js?v=3"></script>
+  <script src="tutorial.js?v=6"></script>
   <script src="../shared/card-motion.js?v=2"></script>
   <script src="../shared/equation-witness.js?v=1"></script>
   <script>
@@ -1825,7 +1827,7 @@
         if (checkpoint) document.body.dataset.tutorialCheckpoint = `${checkpoint.key}:${checkpoint.index}`;
         else document.body.removeAttribute('data-tutorial-checkpoint');
       }
-      const guidance = completedLesson ? { hint: 'complete', detail: 'completeDetail', focus: [{ area: 'hand-area', side: 'BLACK' }], mode: 'observe' }
+      const guidance = completedLesson ? { hint: 'complete', detail: 'completeDetail', hintKind: 'result', detailKind: 'description', focus: [{ area: 'hand-area', side: 'BLACK' }], mode: 'observe' }
         : tutorialSession.state.checkpoint ? tutorialSession.view
         : MathDuelTutorial.getGuidance(tutorialSession.state.stepIndex, { game, help: tutorialSession.help, rejected: tutorialSession.rejected, notice: tutorialSession.notice });
       const phase = completedLesson ? 'complete' : opening ? 'intro' : tutorialGate?.key === 'after-player-exchange' ? 'review' :
@@ -1845,6 +1847,9 @@
         const line = hint.querySelector(`[data-hint="${part}"]`);
         const text = MathDuelTutorial.text(guidance[key], LANG, guidance.values);
         if (line.textContent !== text) line.textContent = text;
+        const category = hint.querySelector(`[data-hint-label="${part}"]`);
+        const label = MathDuelTutorial.label(guidance[`${key}Kind`], LANG);
+        if (category.textContent !== label) category.textContent = label;
       }
       const targets = [];
       const context = game.aiMoveInfo || game.movePreview || game.selections.hand.length || game.selections.center.length

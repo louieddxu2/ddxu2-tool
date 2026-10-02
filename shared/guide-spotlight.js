@@ -53,7 +53,9 @@
       if (!current || destroyed) return;
       const width = doc.documentElement.clientWidth;
       const height = win.innerHeight;
-      const targets = [...new Set(current.targets || [])].map(bounds).filter(Boolean);
+      const targetEntries = [...new Set(current.targets || [])]
+        .map(element => ({ element, rect: bounds(element) })).filter(entry => entry.rect);
+      const targets = targetEntries.map(entry => entry.rect);
       const hint = bounds(current.hint);
       const action = bounds(current.action);
       const context = (current.context || []).map(bounds).filter(Boolean);
@@ -68,9 +70,21 @@
         element.setAttribute('width', width);
         element.setAttribute('height', height);
       }
-      holes.replaceChildren(...[hint, ...targets, ...context, ...(action ? [action] : [])]
-        .map(rect => make('rect', box(rect, 5, width, height))));
-      rings.replaceChildren(...targets.map(rect => make('rect', { ...box(rect, 4, width, height), class: 'guide-spotlight-ring' })));
+      const cardTarget = element => element.matches?.('[data-card-id]') === true;
+      const holeBoxes = [
+        { rect: hint, padding: 5 },
+        ...targetEntries.map(({ element, rect }) => ({ rect, padding: cardTarget(element) ? 1 : 5 })),
+        ...context.map(rect => ({ rect, padding: 5 })),
+        ...(action ? [{ rect: action, padding: 5 }] : [])
+      ];
+      holes.replaceChildren(...holeBoxes.map(({ rect, padding }) => make('rect', box(rect, padding, width, height))));
+      rings.replaceChildren(...targetEntries.map(({ element, rect }) => {
+        const isCard = cardTarget(element);
+        return make('rect', {
+          ...box(rect, isCard ? 0 : 4, width, height),
+          class: `guide-spotlight-ring${isCard ? ' guide-spotlight-card-ring' : ''}`
+        });
+      }));
       if (action) rings.append(make('rect', { ...box(action, 4, width, height), class: 'guide-spotlight-action-ring' }));
 
       pointer.replaceChildren();

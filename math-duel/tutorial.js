@@ -14,10 +14,13 @@
 
   const COPY = {
     zh: {
-      objective: '你是黑方，把手牌全換成白色就贏了',
-      objectiveDetail: '下面這些黑牌，就是你要換掉的牌',
-      corePlay: '湊出算式，就能交換牌',
-      coreDetail: '出牌留在場上，結果牌拿回手裡',
+      labels: { objective: '目標', rule: '規則', description: '描述', example: '例子', demonstration: '示範', result: '結果', status: '狀態', next: '操作', tip: '提示' },
+      objective: '黑方手牌全白就能贏',
+      objectiveDetail: '這些黑牌就是你要換掉的',
+      corePlay: '算出場中央的數字，就能換牌',
+      coreDetail: '出牌留場，結果牌拿回手裡',
+      digitLimit: '每個數字最多兩位',
+      digitLimitExample: '1、2 組成 12，再加 6。',
       firstTrade: '白 9 換回手裡了！', firstTradeDetail: '黑 1、8 留在場上，接著換對手',
       choose: '先點黑 1 和 8', goal: '這回合先把場上的白 9 換回來',
       anyOrder: '順序不限；再點一次可取消', operator: '再點 ＋，我們來做加法',
@@ -40,7 +43,7 @@
       ready: '可以了，按「送出算式」', exchange: '你出的牌留下，結果牌拿回手裡',
       taskOne: '這步請用黑 1、8 和 ＋', taskOneDetail: '點場牌 9 作結果；再點可取消',
       waiting: '先看對手這回合怎麼換牌', resolving: '正在換牌，看看它們去了哪裡', history: '上一手留在原位，對手也看得懂',
-      three: '白 1、2 能排成 12，再加白 6', threeDetail: '三張牌也能算，不一定只出兩張',
+      three: '白 1、2 排成 12，再加白 6', threeDetail: '每個數字最多兩位；算式可用三張牌',
       targetTwo: '結果也能用兩張牌來湊', targetTwoDetail: '黑 1、8 當成 18，一起拿回手裡',
       aiKeep: '白 1、2 留下，白 6 就離場了', aiKeepDetail: '場上最多兩張，其他牌會移出',
       four: '點黑 3、5、6、7', fourDetail: '用減法，把白 1、2 換回來',
@@ -56,10 +59,13 @@
       complete: '手牌全變成白色，你贏了！', completeDetail: '接下來，試試自己玩一局'
     },
     en: {
-      objective: 'You are black. Make your hand all white to win.',
-      objectiveDetail: 'These black cards are the ones to trade.',
-      corePlay: 'Make an equation to trade cards.',
-      coreDetail: 'Your play stays here; take the result cards.',
+      labels: { objective: 'Goal', rule: 'Rule', description: 'Description', example: 'Example', demonstration: 'Demo', result: 'Result', status: 'Status', next: 'Next', tip: 'Tip' },
+      objective: 'Win with an all-white hand.',
+      objectiveDetail: 'Trade away these black cards.',
+      corePlay: 'Match the center number to trade.',
+      coreDetail: 'Play stays; take the result.',
+      digitLimit: 'Each number: max two digits.',
+      digitLimitExample: '1, 2 make 12; add 6.',
       firstTrade: 'White 9 is now in your hand!', firstTradeDetail: 'Black 1, 8 stay. Your opponent is next.',
       choose: 'First, tap black 1 and 8.', goal: 'This turn, bring table white 9 into your hand.',
       anyOrder: 'Any order; tap again to undo.', operator: 'Tap + for addition.',
@@ -80,7 +86,7 @@
       ready: 'Tap Send Equation.', exchange: 'Play your cards; take the result cards.',
       taskOne: 'Use black 1, 8 and + for this move.', taskOneDetail: 'Target table 9; tap again to undo.',
       waiting: 'Watch the AI demonstrate.', resolving: 'Cards are changing places.', history: 'Your last move stays for your opponent.',
-      three: 'White 1, 2 make 12; add 6.', threeDetail: 'Three cards can work, not just two.',
+      three: 'White 1, 2 make 12; add 6.', threeDetail: 'Two digits max; 3 cards work.',
       targetTwo: 'The result can use two cards too.', targetTwoDetail: 'Black 1, 8 make 18; take them both.',
       aiKeep: 'Keep white 1, 2; remove white 6.', aiKeepDetail: 'Only two stay; the others leave.',
       four: 'Tap black 3, 5, 6, 7.', fourDetail: 'Use subtraction to take white 1, 2.',
@@ -98,8 +104,8 @@
 
   const sameIds = (actual, expected) => actual.length === expected.length && new Set(actual).size === actual.length && expected.every(id => actual.includes(id));
   const focus = (area, side, cardIds = [], operator = null) => ({ area, side, cardIds, operator });
-  const view = (hint, detail, targets = [], values = {}) => ({ hint, detail, focus: targets, values, mode: 'tap' });
-  const observe = (hint, detail, targets) => ({ ...view(hint, detail, targets), mode: 'observe' });
+  const view = (hint, detail, targets = [], values = {}, hintKind = 'next', detailKind = 'tip') => ({ hint, detail, focus: targets, values, mode: 'tap', hintKind, detailKind });
+  const observe = (hint, detail, targets, hintKind = 'demonstration', detailKind = 'description') => ({ ...view(hint, detail, targets, {}, hintKind, detailKind), mode: 'observe' });
 
   // Expected identity sets are derived from ordinary exchange/keep operations.
   const initialBoard = { BLACK: Array.from({ length: 9 }, (_, i) => `b${i + 1}`), WHITE: Array.from({ length: 8 }, (_, i) => `w${i + 1}`), center: ['w9'] };
@@ -141,9 +147,8 @@
 
   function getTaskGuidance(index, { game, help = false, rejected = false }) {
     const action = actions[index];
-    if (game.state === 'ANIMATING') return view('resolving', 'exchange');
-    if (game.uiBusy) return view('resolving', 'exchange');
-    if (action.side === 'WHITE') return { ...view('waiting', 'history', game.aiMoveInfo ? [focus('equation', 'WHITE')] : []), mode: 'observe' };
+    if (game.state === 'ANIMATING' || game.uiBusy) return view('resolving', 'exchange', [], {}, 'status', 'description');
+    if (action.side === 'WHITE') return { ...view('waiting', 'history', game.aiMoveInfo ? [focus('equation', 'WHITE')] : [], {}, 'demonstration', 'description'), mode: 'observe' };
     if (game.state === 'DISCARDING') {
       if (index === actions.length - 1 && game.center) {
         const ready = matchesTask(index, game, 'keep');
@@ -192,17 +197,18 @@
       complete: event => event.type === 'turn.completed' && event.actor === action.side && event.action === index + 1,
       view: snapshot => getGuidance(index, snapshot),
       checkpoints: index === 0 ? {
-        opening: [observe('objective', 'objectiveDetail', [focus('hand-area', 'BLACK')]),
-          observe('corePlay', 'coreDetail', [focus('center', 'BLACK', ['w9'])])]
+        opening: [observe('objective', 'objectiveDetail', [focus('hand-area', 'BLACK')], 'objective', 'description'),
+          observe('corePlay', 'coreDetail', [focus('center', 'BLACK', ['w9'])], 'rule', 'description'),
+          observe('digitLimit', 'digitLimitExample', [focus('hand', 'BLACK', ['b1', 'b2', 'b6'])], 'rule', 'example')]
       } : index === 1 ? {
-        'after-player-exchange': [{ ...observe('firstTrade', 'firstTradeDetail', [focus('hand', 'BLACK', ['w9'])]),
+        'after-player-exchange': [{ ...observe('firstTrade', 'firstTradeDetail', [focus('hand', 'BLACK', ['w9'])], 'result', 'description'),
           actionNumber: 1, context: [focus('center-area', 'BLACK')] }],
-        'before-exchange': [observe('three', 'threeDetail', [focus('equation-hand', 'WHITE', action.hand)]), observe('targetTwo', 'targetTwoDetail', [focus('equation-target', 'WHITE', action.center)])],
-        'before-keep': [observe('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)])]
+        'before-exchange': [observe('three', 'threeDetail', [focus('equation-hand', 'WHITE', action.hand)], 'demonstration', 'description'), observe('targetTwo', 'targetTwoDetail', [focus('equation-target', 'WHITE', action.center)], 'result', 'description')],
+        'before-keep': [observe('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)], 'result', 'description')]
       } : index === 2 ? {
-        'before-keep': [observe('keepConcept', 'keepConceptDetail', [focus('center-area', 'BLACK')])]
+        'before-keep': [observe('keepConcept', 'keepConceptDetail', [focus('center-area', 'BLACK')], 'rule', 'description')]
       } : index === 3 ? {
-        'before-exchange': [observe('flip', 'flipDetail', [focus('equation-target', 'WHITE', action.center)])]
+        'before-exchange': [observe('flip', 'flipDetail', [focus('equation-target', 'WHITE', action.center)], 'rule', 'description')]
       } : {}
     }))
   };
@@ -231,6 +237,7 @@
   global.MathDuelTutorial = Object.freeze({
     STORAGE_KEY, actions, definition, sameIds, matchesTask, isExpectedBoard, createAiMove, getGuidance,
     readPreferences, writePreferences, shouldOffer: preferences => !preferences.dontShow && !preferences.completed,
+    label: (kind, language) => (COPY[language] || COPY.zh).labels[kind] || COPY.zh.labels[kind] || kind || '',
     text: (key, language, values = {}) => {
       const copy = key ? (COPY[language] || COPY.zh)[key] || key : '';
       return copy.replace(/\{(\w+)\}/g, (_, name) => {

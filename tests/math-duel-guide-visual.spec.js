@@ -15,6 +15,7 @@ async function start(page) {
   await page.locator('#welcome-start').click();
   await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
   await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
+  await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
   await expect(page.locator('.guide-spotlight')).toBeVisible();
 }
 
@@ -79,23 +80,34 @@ async function firstMove(page) {
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'before-exchange:0');
 }
 
-test('teaches the objective and exchange rule on the normal opening before any tap task', async ({ page }, testInfo) => {
+test('separates the goal, exchange rule and two-digit limit before any tap task', async ({ page }, testInfo) => {
   await page.goto('/math-duel/index.html');
   await page.locator('#welcome-start').click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'opening:0');
-  await expect(page.locator('#black-play-hint')).toContainText('把手牌全換成白色就贏了');
+  await expect(page.locator('#black-play-hint')).toContainText('黑方手牌全白就能贏');
   await expect(page.locator('#black-play-hint')).not.toContainText('交換牌');
   await expect(page.locator('#black-play-hint')).not.toContainText('點黑 1');
+  await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('目標');
+  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('描述');
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-mode', 'observe');
   expect(await page.evaluate(() => ({ actions: gameSession.action, black: game.blackHand.length, white: game.whiteHand.length, field: game.center.map(card => card.id) }))).toEqual({ actions: 0, black: 9, white: 8, field: ['w9'] });
-  for (const explanation of [0, 1]) {
-    if (explanation === 1) {
+  for (const explanation of [0, 1, 2]) {
+    if (explanation > 0) {
       await page.evaluate(() => { LANG = 'zh'; render(); });
       await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
-      await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'opening:1');
-      await expect(page.locator('#black-play-hint')).toContainText('湊出算式，就能交換牌');
-      await expect(page.locator('#black-play-hint')).toContainText('出牌留在場上，結果牌拿回手裡');
+      await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', `opening:${explanation}`);
+    }
+    if (explanation === 1) {
+      await expect(page.locator('#black-play-hint')).toContainText('算出場中央的數字，就能換牌');
+      await expect(page.locator('#black-play-hint')).toContainText('出牌留場，結果牌拿回手裡');
+      await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
       await focus(page, '#center-cards [data-card-id="w9"][data-tutorial-focus="center"]');
+    }
+    if (explanation === 2) {
+      await expect(page.locator('#black-play-hint')).toContainText('每個數字最多兩位');
+      await expect(page.locator('#black-play-hint')).toContainText('黑 1、2 組成 12');
+      await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
+      await focus(page, '#black-hand [data-tutorial-focus="hand"]', 3);
     }
     for (const size of [{ width: 320, height: 480 }, { width: 390, height: 844 }, { width: 800, height: 360 }]) {
       await page.setViewportSize(size);
@@ -132,11 +144,11 @@ test('teaches the objective and exchange rule on the normal opening before any t
   expect(await page.evaluate(() => gameSession.action)).toBe(0);
 });
 
-for (const explanation of [0, 1]) {
+for (const explanation of [0, 1, 2]) {
   test(`can skip opening concept ${explanation} without making a move or completing the lesson`, async ({ page }) => {
     await page.goto('/math-duel/index.html');
     await page.locator('#welcome-start').click();
-    if (explanation === 1) await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
+    for (let index = 0; index < explanation; index++) await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
     await page.locator('.utility-rules').click();
     await page.locator('#rules-skip-tutorial').click();
     await expect(page.locator('body')).not.toHaveClass(/is-tutorial/);
@@ -277,6 +289,25 @@ test('keeps mask, rings and complete hints aligned after resizing, in both langu
       await page.screenshot({ path: testInfo.outputPath(`spotlight-${size.width}-${language}.png`) });
     }
   }
+});
+
+test('keeps adjacent AI equation cards readable under spotlight', async ({ page }, testInfo) => {
+  await start(page);
+  await firstMove(page);
+  await focus(page, '#white-equation [data-tutorial-focus="equation-hand"]', 3);
+  const geometry = await page.evaluate(() => {
+    const rings = [...document.querySelectorAll('.guide-spotlight-card-ring')].map(element => element.getBoundingClientRect());
+    const separated = rings.every((a, index) => rings.slice(index + 1).every(b =>
+      a.right + 1 <= b.left || b.right + 1 <= a.left || a.bottom + 1 <= b.top || b.bottom + 1 <= a.top));
+    return {
+      count: rings.length,
+      separated,
+      stroke: getComputedStyle(document.querySelector('.guide-spotlight-card-ring')).strokeWidth,
+      targetCount: document.querySelectorAll('#white-equation [data-tutorial-focus="equation-hand"]').length
+    };
+  });
+  expect(geometry).toEqual({ count: 3, separated: true, stroke: '2px', targetCount: 3 });
+  await page.screenshot({ path: testInfo.outputPath('ai-card-focus-separated.png') });
 });
 
 test('the reusable presenter preserves DOM and game state, and disposes cleanly', async ({ page }) => {

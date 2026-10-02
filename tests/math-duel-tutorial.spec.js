@@ -32,6 +32,8 @@ async function beginPlay(page) {
   await continueButton(page).click();
   await checkpoint(page, 1, 'opening:1');
   await continueButton(page).click();
+  await checkpoint(page, 1, 'opening:2');
+  await continueButton(page).click();
 }
 
 async function startLesson(page) {
@@ -340,7 +342,7 @@ test('holds the teaching AI after real animations while language and help remain
   await reachSecondMove(page);
   expect(await page.evaluate(() => ({ gate: Boolean(tutorialGate), automaticTimer: Boolean(aiPlanResolver), busy: game.uiBusy }))).toEqual({ gate: true, automaticTimer: false, busy: false });
   await page.locator('.utility-language').click();
-  await expect(page.locator('#black-play-hint')).toContainText('Three cards');
+  await expect(page.locator('#black-play-hint')).toContainText('3 cards work');
   await expect(continueButton(page)).toHaveText('Next');
   await page.locator('.utility-rules').click();
   await page.locator('#modal-close-btn').click();

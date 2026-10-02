@@ -7,6 +7,7 @@
 .guide-spotlight > svg { display: block; overflow: hidden; }
 .guide-spotlight-shade { fill: #182334; fill-opacity: .38; }
 .guide-spotlight-ring { fill: none; stroke: var(--guide-gold); stroke-width: 2.5; }
+.guide-spotlight-card-ring { stroke-width: 2; }
 .guide-spotlight-action-ring { fill: none; stroke: var(--guide-gold); stroke-width: 3; }
 .guide-pointer-disc { fill: #fff8e5; stroke: #b67c20; stroke-width: 1; }
 .guide-tap-hand { fill: #f5c45c; stroke: #5e411a; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }

@@ -26,6 +26,8 @@ async function start(page) {
   await next(page).click();
   await held(page, 'opening:1');
   await next(page).click();
+  await held(page, 'opening:2');
+  await next(page).click();
   await phase(page, 'play');
 }
 
@@ -133,7 +135,20 @@ test('keeps opening explanations read-only, supports back, and does not skip on 
   await expect(next(page)).toBeFocused();
   expect(await board(page)).toEqual(opening);
   await next(page).click();
+  await held(page, 'opening:1');
   await next(page).click();
+  await held(page, 'opening:2');
+  await expect(page.locator('#black-play-hint')).toContainText('每個數字最多兩位');
+  await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
+  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
+  await back(page).click();
+  await held(page, 'opening:1');
+  await back(page).click();
+  await held(page, 'opening:0');
+  await next(page).click();
+  await next(page).click();
+  await next(page).click();
+  await phase(page, 'play');
   await hand(page, 'b1').click();
   expect((await board(page)).hand).toEqual(['b1']);
 });
