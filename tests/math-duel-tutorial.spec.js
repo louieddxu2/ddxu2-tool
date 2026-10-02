@@ -17,6 +17,16 @@ const checkpoint = (page, step, key) => Promise.all([
   expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', key)
 ]);
 
+async function acknowledgeFirstTrade(page) {
+  await checkpoint(page, 2, 'after-player-exchange:0');
+  await continueButton(page).click();
+}
+
+async function acknowledgeKeepRule(page) {
+  await checkpoint(page, 3, 'before-keep:0');
+  await continueButton(page).click();
+}
+
 async function beginPlay(page) {
   await checkpoint(page, 1, 'opening:0');
   await continueButton(page).click();
@@ -45,6 +55,7 @@ async function send(page, hand, targets, op) {
 async function reachSecondMove(page) {
   await startLesson(page);
   await send(page, ['b8', 'b1'], ['w9'], '+');
+  await acknowledgeFirstTrade(page);
   await checkpoint(page, 2, 'before-exchange:0');
 }
 
@@ -60,6 +71,7 @@ async function finishSecondMove(page) {
 async function reachFourthMove(page) {
   await finishSecondMove(page);
   await send(page, ['b7', 'b3', 'b6', 'b5'], ['w2', 'w1'], '-');
+  await acknowledgeKeepRule(page);
   await expect(page.locator('body')).toHaveAttribute('data-game-state', 'DISCARDING');
   await page.locator('#center-cards [data-card-id="b6"]').click();
   await page.locator('#center-cards [data-card-id="b3"]').click();
@@ -109,6 +121,7 @@ test('finishes five real moves with AI pauses, division and the ordinary win con
   await continueButton(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-3');
   await send(page, ['b7', 'b3', 'b6', 'b5'], ['w2', 'w1'], '-');
+  await acknowledgeKeepRule(page);
   await expect(page.locator('body')).toHaveAttribute('data-game-state', 'DISCARDING');
   await expect(page.locator('#white-equation [data-tutorial-focus]')).toHaveCount(0);
   await page.locator('#center-cards [data-card-id="b3"]').click();
@@ -183,6 +196,7 @@ test('rejects a different legal task without changing the board or claiming bad 
   await page.locator('#black-equation [data-card-id="b5"]').click();
   await page.locator('#black-hand [data-card-id="b8"]').click();
   await page.locator('#black-actions [data-role="main-btn"]').click();
+  await acknowledgeFirstTrade(page);
   await checkpoint(page, 2, 'before-exchange:0');
 });
 
@@ -199,6 +213,7 @@ test('restarts a held lesson and rejects the old worker and repeated continue ca
   expect(await fieldIds(page)).toEqual(['w9']);
   expect(await page.evaluate(() => ({ action: gameSession.action, hand: game.blackHand.length, turn: game.turn, busy: game.uiBusy }))).toEqual({ action: 0, hand: 9, turn: 'BLACK', busy: false });
   await send(page, ['b1', 'b8'], ['w9'], '+');
+  await acknowledgeFirstTrade(page);
   await checkpoint(page, 2, 'before-exchange:0');
   await page.evaluate(() => { continueAiPlan(); continueAiPlan(); continueAiPlan(); });
   await checkpoint(page, 2, 'before-keep:0');
@@ -211,6 +226,7 @@ test('keeps a wrong retention choice reversible without advancing the teaching a
   await reachSecondMove(page);
   await finishSecondMove(page);
   await send(page, ['b3', 'b5', 'b6', 'b7'], ['w1', 'w2'], '-');
+  await acknowledgeKeepRule(page);
   await expect(page.locator('body')).toHaveAttribute('data-game-state', 'DISCARDING');
   const before = await fieldIds(page);
   for (const id of ['b5', 'b7']) await page.locator(`#center-cards [data-card-id="${id}"]`).click();
@@ -283,6 +299,7 @@ test('reloads a paused lesson as an ordinary saved game and safely leaves via ho
   await page.locator('#rules-start-tutorial').click();
   await beginPlay(page);
   await send(page, ['b1', 'b8'], ['w9'], '+');
+  await acknowledgeFirstTrade(page);
   await checkpoint(page, 2, 'before-exchange:0');
   await page.locator('.utility-home').click();
   await expect(page).toHaveURL(/home=1/);
@@ -352,6 +369,7 @@ test('fits welcome, help and long teaching hints in portrait and short landscape
       await page.locator('#welcome-start').click();
       await beginPlay(page);
       await send(page, ['b1', 'b8'], ['w9'], '+');
+      await acknowledgeFirstTrade(page);
       await checkpoint(page, 2, 'before-exchange:0');
       for (const key of ['before-exchange:0', 'before-exchange:1', 'before-keep:0']) {
         await checkpoint(page, 2, key);

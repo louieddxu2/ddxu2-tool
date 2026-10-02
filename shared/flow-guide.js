@@ -41,6 +41,8 @@
       const explanations = step.checkpoints[state.checkpoint.key];
       if (state.checkpoint.index + 1 < explanations.length) state.checkpoint.index += 1;
       else release(true);
+    } else if (event.type === 'back' && state.checkpoint) {
+      state.checkpoint.index = Math.max(0, state.checkpoint.index - 1);
     } else if (!state.checkpoint && step.complete?.(event, snapshot)) {
       state.stepIndex += 1;
       if (state.stepIndex === definition.steps.length) state.status = 'completed';

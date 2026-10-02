@@ -35,7 +35,7 @@ async function expectNextAction(page, language = 'zh') {
   await expect(page.locator('#black-actions [data-role="giveup-btn"]')).toBeHidden();
   await expect(page.locator('.guide-spotlight-action-ring')).toHaveCount(1);
   await expect(page.locator('[data-cue="action"] .guide-tap-hand')).toHaveCount(1);
-  const layout = await page.evaluate(() => {
+  const measure = () => page.evaluate(() => {
     const button = document.querySelector('#black-actions [data-role="plan-continue-btn"]');
     const rect = button.getBoundingClientRect();
     const zone = document.getElementById('black-actions').getBoundingClientRect();
@@ -53,6 +53,9 @@ async function expectNextAction(page, language = 'zh') {
       passive: getComputedStyle(document.querySelector('.guide-spotlight')).pointerEvents
     };
   });
+  // The passive presenter measures on the next frame after resize/render.
+  await expect.poll(measure).toMatchObject({ ringAligned: true, handFits: true, handInControlRow: true });
+  const layout = await measure();
   expect(layout.centered, JSON.stringify(layout)).toBe(true);
   expect(layout.contained, JSON.stringify(layout)).toBe(true);
   expect(layout.ringAligned, JSON.stringify(layout)).toBe(true);
@@ -71,6 +74,8 @@ async function firstMove(page) {
   await page.locator('#black-actions [data-op="+"]').click();
   await page.locator('#center-cards [data-card-id="w9"]').click();
   await page.locator('#black-actions [data-role="main-btn"]').click();
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'after-player-exchange:0');
+  await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'before-exchange:0');
 }
 
@@ -116,7 +121,9 @@ test('teaches the objective and exchange rule on the normal opening before any t
   await expect(begin).toHaveText('下一步');
   await begin.click();
   await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
-  await expect(page.locator('#black-play-hint')).toContainText('1/5 · 先點黑 1 和 8');
+  await expect(page.locator('#black-play-hint')).toContainText('先點黑 1 和 8');
+  await expect(page.locator('#black-score')).toHaveText('1/5');
+  await expect(page.locator('#black-turn-status')).toHaveText('你來出牌');
   await expect(page.locator('#black-actions')).not.toHaveClass(/is-guide-control/);
   await expect(page.locator('#black-actions [data-role="operator-group"]')).toBeVisible();
   await expect(page.locator('#black-actions [data-role="giveup-btn"]')).toBeVisible();
@@ -179,7 +186,9 @@ test('uses observation arrows for AI and restores the same focus after help', as
   await firstMove(page);
   await focus(page, '#white-equation [data-tutorial-focus="equation-hand"]', 3);
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-mode', 'observe');
-  await expect(page.locator('#black-play-hint')).toContainText('2/5 · AI · 白 1、2 能排成 12');
+  await expect(page.locator('#black-play-hint')).toContainText('白 1、2 能排成 12');
+  await expect(page.locator('#black-score')).toHaveText('2/5');
+  await expect(page.locator('#black-turn-status')).toHaveText('看看對手');
   await expect(page.locator('#black-equation [data-tutorial-focus]')).toHaveCount(0);
   const next = page.locator('#black-actions [data-role="plan-continue-btn"]');
   await expectNextAction(page);

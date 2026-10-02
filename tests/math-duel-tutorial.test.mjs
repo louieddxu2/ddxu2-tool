@@ -111,7 +111,7 @@ test('the final action is goal-only until help is requested, and keep guidance r
   assert.equal(tutorial.getGuidance(4, { game }).detail, 'practiceSelect');
   assert.equal(tutorial.getGuidance(4, { game, help: true }).hint, 'divisionHelp');
   game.state = 'DISCARDING';
-  assert.equal(tutorial.getGuidance(4, { game }).hint, 'keepFive');
+  assert.equal(tutorial.getGuidance(4, { game }).hint, 'keepPractice');
 });
 
 test('walks each learner move through hand, operator, result, and send without stale focus', () => {
@@ -201,4 +201,73 @@ test('welcome settings are independent of replay and ignore the old one-move com
   assert.equal(tutorial.shouldOffer(tutorial.readPreferences(storage)), true);
   assert.equal(tutorial.shouldOffer(tutorial.readPreferences({ getItem() { throw new Error('blocked'); } })), true);
   assert.doesNotThrow(() => tutorial.writePreferences({ setItem() { throw new Error('blocked'); } }, {}));
+});
+
+function playAction(context, action, keep = action.keep) {
+  const game = readGame(context);
+  game.selections = { hand: [...action.hand], center: [...action.center], operator: action.op };
+  const hand = game.blackHand.filter(card => action.hand.includes(card.id));
+  const activeHand = action.side === 'BLACK' ? hand : game.whiteHand.filter(card => action.hand.includes(card.id));
+  const center = game.center.filter(card => action.center.includes(card.id));
+  const equation = context.MathDuelEquation.checkEquation(activeHand, action.op, center);
+  assert.equal(equation.success, true);
+  context.hand = activeHand; context.center = center; context.op = action.op; context.equation = equation;
+  vm.runInContext('applyMoveState(hand, center, op, equation)', context);
+  if (game.center.length > 2) {
+    game.center = game.center.filter(card => keep.includes(card.id));
+    game.discardSelections = [];
+  }
+  vm.runInContext('endTurn()', context);
+}
+
+test('accepts another winning division and any two real retention cards in final practice', () => {
+  for (const ids of [['b2', 'b4', 'b9'], ['b2', 'b4', 'b9', 'w9']]) {
+    const context = makeContext();
+    const tutorial = context.MathDuelTutorial;
+    tutorial.actions.slice(0, 4).forEach(action => playAction(context, action));
+    const game = readGame(context);
+    game.selections = { hand: ids, center: ['w4'], operator: '/' };
+    assert.equal(tutorial.matchesTask(4, game), true);
+    assert.equal(tutorial.getGuidance(4, { game }).hint, 'ready');
+    assert.equal(tutorial.getGuidance(4, { game, help: true }).hint, 'ready', 'help must not reject an alternate winning answer');
+    const finalAction = { side: 'BLACK', hand: ids, center: ['w4'], op: '/', keep: ['b2', 'b4'] };
+    const retainedGame = { ...game, center: ids.map(id => game.blackHand.find(card => card.id === id)), discardSelections: ['b2', 'b4'] };
+    assert.equal(tutorial.matchesTask(4, retainedGame, 'keep'), true);
+    assert.equal(tutorial.matchesTask(4, { ...retainedGame, discardSelections: ['b2', 'not-a-card'] }, 'keep'), false);
+    playAction(context, finalAction);
+    assert.equal(game.state, 'GAMEOVER');
+    assert.equal(game.winner, 'BLACK');
+    assert.ok(game.blackHand.every(card => card.color === 'w'));
+    assert.equal(vm.runInContext('gameSession.action', context), 5);
+  }
+});
+
+test('final practice still requires legal division and trading all remaining black cards', () => {
+  const context = makeContext();
+  const tutorial = context.MathDuelTutorial;
+  tutorial.actions.slice(0, 4).forEach(action => playAction(context, action));
+  const game = readGame(context);
+  game.selections = { hand: ['b4', 'w1'], center: ['w4'], operator: '/' };
+  assert.equal(context.MathDuelEquation.checkEquation(game.blackHand.filter(card => game.selections.hand.includes(card.id)), '/', game.center.filter(card => game.selections.center.includes(card.id))).success, true);
+  assert.equal(tutorial.matchesTask(4, game), false, 'a legal equation that leaves black cards is not the lesson goal');
+  assert.equal(tutorial.getGuidance(4, { game, rejected: true }).hint, 'division', 'retry should reinforce the goal, not reveal the reference answer');
+  game.selections = { hand: ['b2', 'b4', 'b9', 'unknown'], center: ['w4'], operator: '/' };
+  assert.equal(tutorial.matchesTask(4, game), false);
+  game.selections = { hand: ['b2', 'b4', 'b9', 'b9'], center: ['w4'], operator: '/' };
+  assert.equal(tutorial.matchesTask(4, game), false);
+  game.selections = { hand: ['b2', 'b4', 'b9'], center: ['w4'], operator: '+' };
+  assert.equal(tutorial.matchesTask(4, game), false);
+});
+
+test('explains selection limits and room for missing black cards without changing the game', () => {
+  const context = makeContext();
+  const tutorial = context.MathDuelTutorial;
+  tutorial.actions.slice(0, 4).forEach(action => playAction(context, action));
+  const game = readGame(context);
+  game.selections = { hand: ['b2', 'w1', 'w2', 'w9'], center: ['w4'], operator: '/' };
+  const before = JSON.stringify(game);
+  assert.equal(tutorial.getGuidance(4, { game }).detail, 'practiceMakeRoom');
+  assert.equal(tutorial.getGuidance(4, { game }).focus[0].area, 'equation-hand');
+  assert.equal(tutorial.getGuidance(4, { game, notice: 'hand' }).detail, 'handLimit');
+  assert.equal(JSON.stringify(game), before);
 });

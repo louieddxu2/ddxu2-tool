@@ -52,6 +52,24 @@ test('deduplicates completed actions and finishes only after the last step', () 
   assert.equal(last.view, null);
 });
 
+test('revisits only the current explanation without releasing or undoing application work', () => {
+  const snapshot = Object.freeze({ ready: true });
+  const held = advanceGuide(createGuideState(definition), definition, { type: 'checkpoint', key: 'review' }, snapshot);
+  const second = advanceGuide(held.state, definition, { type: 'continue' }, snapshot);
+  const back = advanceGuide(second.state, definition, { type: 'back' }, snapshot);
+  assert.equal(back.view.hint, 'first');
+  assert.equal(back.state.stepIndex, 0);
+  assert.equal(back.effects.length, 0);
+  assert.equal(second.state.checkpoint.index, 1, 'the previous guide state must not be mutated');
+  const boundary = advanceGuide(back.state, definition, { type: 'back' }, snapshot);
+  assert.equal(boundary.state.checkpoint.index, 0);
+  const last = advanceGuide(advanceGuide(back.state, definition, { type: 'continue' }, snapshot).state, definition, { type: 'continue' }, snapshot);
+  assert.equal(last.effects[0].type, 'release');
+  const afterRelease = advanceGuide(last.state, definition, { type: 'back' }, snapshot);
+  assert.equal(afterRelease.state.checkpoint, null, 'back must never cross an already committed checkpoint');
+  assert.equal(afterRelease.effects.length, 0);
+});
+
 for (const [type, proceed] of [['skip', true], ['cancel', false]]) {
   test(`${type} releases a held operation with proceed=${proceed} and rejects later events`, () => {
     const held = advanceGuide(createGuideState(definition), definition, { type: 'checkpoint', key: 'review' }, {});

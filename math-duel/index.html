@@ -11,7 +11,7 @@
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
   <link rel="stylesheet" href="../shared/guide-spotlight.css?v=2">
-  <link rel="stylesheet" href="tabletop.css?v=2.4.1">
+  <link rel="stylesheet" href="tabletop.css?v=2.5.0">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -70,7 +70,7 @@
         play_hint_select: '點選手牌、運算符號與場牌（結果）',
         play_hint_arrange: '系統自動排列算式，不必依順序點選',
         welcome_title: '開始遊玩',
-        welcome_detail: '完成五次行動，邊玩邊學。',
+        welcome_detail: '你出三手、對手示範兩手，邊玩邊學。隨時點「？」查看提示或略過。',
         welcome_rules: '查看文字規則',
         welcome_hide: '不再顯示',
         tutorial_start: '開始教學',
@@ -78,8 +78,12 @@
         tutorial_skip: '直接遊玩',
         tutorial_exit: '略過教學',
         tutorial_retry: '重新開始教學',
-        tutorial_help: '本步提示',
+        tutorial_help: '提示',
         tutorial_continue: '下一步',
+        tutorial_back: '上一段說明', tutorial_play: '開始遊玩', tutorial_menu: '教學與規則',
+        tutorial_status_intro: '先看玩法', tutorial_status_review: '換牌完成', tutorial_status_watch: '看看對手',
+        tutorial_status_play: '你來出牌', tutorial_status_keep: '選保留牌', tutorial_status_complete: '教學完成',
+        tutorial_status_resolving: '換牌中',
         tutorial_restart_confirm: '目前這局將重新開始，確定開始教學？',
         tutorial_practice: '教學',
         waiting_first: '等待第一手...',
@@ -135,7 +139,7 @@
         play_hint_select: 'Tap cards, an operator and a result.',
         play_hint_arrange: 'Auto-arranged; tap in any order.',
         welcome_title: 'Start playing',
-        welcome_detail: 'Learn by playing five moves.',
+        welcome_detail: 'Play three moves and watch two. Tap ? anytime for help or to skip.',
         welcome_rules: 'Read the rules',
         welcome_hide: "Don't show again",
         tutorial_start: 'Start tutorial',
@@ -143,8 +147,12 @@
         tutorial_skip: 'Just play',
         tutorial_exit: 'Skip tutorial',
         tutorial_retry: 'Restart tutorial',
-        tutorial_help: 'Help with this step',
+        tutorial_help: 'Hint',
         tutorial_continue: 'Next',
+        tutorial_back: 'Previous explanation', tutorial_play: 'Play a game', tutorial_menu: 'Tutorial and rules',
+        tutorial_status_intro: 'How to play', tutorial_status_review: 'Trade done', tutorial_status_watch: 'Watch AI',
+        tutorial_status_play: 'Your turn', tutorial_status_keep: 'Keep two', tutorial_status_complete: 'Complete',
+        tutorial_status_resolving: 'Trading',
         tutorial_restart_confirm: 'This will restart the current game. Start the tutorial?',
         tutorial_practice: 'Practice',
         waiting_first: 'Waiting for first move...',
@@ -240,7 +248,8 @@
               <button class="op-btn" data-op="*">×</button><button class="op-btn" data-op="/">÷</button>
             </div>
             <button data-role="main-btn" onclick="handleMainAction()"></button>
-            <button data-role="plan-continue-btn" onclick="continueAiPlan()" class="hidden"></button>
+            <button type="button" data-role="plan-continue-btn" onclick="continueAiPlan(event)" class="hidden"></button>
+            <button type="button" data-role="guide-back-btn" onclick="backTutorial()" class="guide-back" hidden>‹</button>
             <button data-role="giveup-btn" onclick="giveUp()"></button>
             <button data-role="pass-btn" onclick="passTurn()" class="hidden"></button>
           </div>
@@ -294,7 +303,8 @@
               <button class="op-btn" data-op="*">×</button><button class="op-btn" data-op="/">÷</button>
             </div>
             <button data-role="main-btn" onclick="handleMainAction()"></button>
-            <button data-role="plan-continue-btn" onclick="continueAiPlan()" class="hidden"></button>
+            <button type="button" data-role="plan-continue-btn" onclick="continueAiPlan(event)" class="hidden"></button>
+            <button type="button" data-role="guide-back-btn" onclick="backTutorial()" class="guide-back" hidden>‹</button>
             <button data-role="giveup-btn" onclick="giveUp()"></button>
             <button data-role="pass-btn" onclick="passTurn()" class="hidden"></button>
           </div>
@@ -353,9 +363,9 @@
   </div>
 
    <script src="rule-modes.js"></script>
-  <script src="../shared/flow-guide.js?v=1"></script>
+  <script src="../shared/flow-guide.js?v=2"></script>
   <script src="../shared/guide-spotlight.js?v=2"></script>
-  <script src="tutorial.js?v=4"></script>
+  <script src="tutorial.js?v=5"></script>
   <script src="../shared/card-motion.js?v=2"></script>
   <script src="../shared/equation-witness.js?v=1"></script>
   <script>
@@ -458,18 +468,19 @@
     function emitGuideEvent(event) {
       if (!tutorialSession) return;
       const session = tutorialSession;
-      if (event.type === 'selection.changed') session.rejected = false;
-      if (event.type === 'turn.completed') { session.help = false; session.rejected = false; }
+      if (event.type === 'selection.changed') { session.rejected = false; session.notice = null; }
+      if (event.type === 'limit.reached') session.notice = event.area;
+      if (event.type === 'turn.completed') { session.help = false; session.rejected = false; session.notice = null; }
       const result = FlowGuide.advanceGuide(session.state, MathDuelTutorial.definition,
         { id: `${gameSession.id}:event:${++guideEventSerial}`, ...event },
-        { game, help: session.help, rejected: session.rejected });
+        { game, help: session.help, rejected: session.rejected, notice: session.notice });
       session.state = result.state;
       session.view = result.view;
       result.effects.forEach(effect => {
         if (effect.type === 'release') finishTutorialGate(effect.proceed);
       });
       if (session.state.status === 'completed') {
-        completedLesson = game.state === 'GAMEOVER' && game.winner === 'BLACK' && MathDuelTutorial.isExpectedBoard(5, game);
+        completedLesson = game.state === 'GAMEOVER' && game.winner === 'BLACK' && gameSession.action === 5;
         if (completedLesson) {
           tutorialPreferences = { ...tutorialPreferences, completed: true };
           MathDuelTutorial.writePreferences(tutorialStorage(), tutorialPreferences);
@@ -533,10 +544,18 @@
     function requestTutorialHelp() {
       if (tutorialSession) {
         tutorialSession.help = true;
+        tutorialSession.notice = null;
         emitGuideEvent({ type: 'view.changed' });
       }
-      closeGameDialog();
+      if (currentDialog) closeGameDialog();
       render();
+    }
+
+    function backTutorial() {
+      if (!tutorialSession?.state.checkpoint || currentDialog) return;
+      emitGuideEvent({ type: 'back' });
+      render();
+      document.querySelector('#black-actions [data-role="plan-continue-btn"]').focus({ preventScroll: true });
     }
 
     function waitForTutorial(key) {
@@ -546,6 +565,7 @@
         emitGuideEvent({ type: 'checkpoint', key });
         saveState();
         render();
+        if (!currentDialog) document.querySelector('#black-actions [data-role="plan-continue-btn"]').focus({ preventScroll: true });
       });
     }
 
@@ -627,7 +647,9 @@
       });
     }
 
-    function continueAiPlan() {
+    function continueAiPlan(event) {
+      // A double-click should not skip the next explanation. Ordinary taps stay immediate.
+      if (tutorialGate && (currentDialog || event?.detail > 1 || event?.repeat)) return;
       if (tutorialGate) { emitGuideEvent({ type: 'continue' }); render(); return; }
       finishAiPlanWait(true);
     }
@@ -696,7 +718,8 @@
     function resetGame(force = false) {
       if (force && !confirm(t('confirm_reset'))) return;
       if (tutorialSession) { startTutorial(true); return; }
-      replaceGame(createInitialState(game.mode, game.ruleMode));
+      // Keep the learner's seat for the first ordinary game after the lesson.
+      replaceGame(createInitialState(game.mode, game.ruleMode, completedLesson ? game.aiSide : null));
       saveState(); render();
       checkAITurn();
     }
@@ -787,7 +810,11 @@
        const max = location === 'hand' ? 4 : 2;
        const idx = ids.indexOf(id);
        const adding = idx === -1;
-       if (adding && ids.length >= max) return;
+       if (adding && ids.length >= max) {
+         emitGuideEvent({ type: 'limit.reached', area: location === 'hand' ? 'hand' : 'target' });
+         if (tutorialSession) render();
+         return;
+       }
 
        let committed = false;
         CardMotion.playExchange({
@@ -815,13 +842,18 @@
      }
 
      function toggleSelect(id, location) {
-       if (currentDialog) return;
+       if (currentDialog || tutorialGate) return;
        if (game.state === 'GAMEOVER' || game.state === 'ANIMATING' || game.uiBusy || isAITurn()) return;
        if (game.state === 'DISCARDING') {
          if (location !== 'center') return;
          const idx = game.discardSelections.indexOf(id);
          if (idx > -1) game.discardSelections.splice(idx, 1);
          else if (game.discardSelections.length < 2) game.discardSelections.push(id);
+         else {
+           emitGuideEvent({ type: 'limit.reached', area: 'keep' });
+           if (tutorialSession) render();
+           return;
+         }
          emitGuideEvent({ type: 'selection.changed' });
          render(); return;
        }
@@ -833,7 +865,7 @@
       const btn = event.target.closest('.op-btn');
       if (!btn || btn.disabled || game.state !== 'PLAYING' || game.uiBusy || isAITurn()) return;
       if (btn.closest('.action-zone')?.dataset.side !== game.turn) return;
-      if (currentDialog) return;
+      if (currentDialog || tutorialGate) return;
       game.selections.operator = btn.dataset.op;
       emitGuideEvent({ type: 'selection.changed' });
       render();
@@ -990,6 +1022,9 @@
          game.state = 'DISCARDING';
          saveState();
          render();
+         if (tutorialSession && !isAITurn()) {
+           if (!(await waitForTutorial('before-keep')) || game !== movingGame) return;
+         }
          if (isAITurn() && game.discardSelections.length === 2) {
            if (!(await waitForTutorial('before-keep')) || game !== movingGame) return;
            if (!(await waitForGameDialog(movingGame)) || game !== movingGame) return;
@@ -1064,11 +1099,16 @@
       }
       if (game.state === 'GAMEOVER') { emitGuideEvent({ type: 'game.over', actor: turnJustEnded }); stopTutorial('cancel', false); }
       saveState(); render();
-      checkAITurn();
+      if (tutorialSession && completedAction?.number === 1) {
+        const reviewedGame = game;
+        void waitForTutorial('after-player-exchange').then(proceed => {
+          if (proceed && game === reviewedGame) checkAITurn();
+        });
+      } else checkAITurn();
     }
 
     function checkAITurn() {
-      if (currentDialog || aiRequestPending) return;
+      if (currentDialog || aiRequestPending || tutorialGate) return;
       if (game.state === 'DISCARDING' && isAITurn() && game.discardSelections.length === 2) {
         aiRequestPending = true;
         scheduleGameTask(() => playDiscardMove(), 100);
@@ -1275,8 +1315,8 @@
        const isTransformed = Number(displayValue) !== Number(card.val);
        const selectionLocation = location === 'stage-center' || location === 'center' ? 'center' : 'hand';
        const isStageSelectable = isStage && game.state === 'PLAYING' && !game.uiBusy && !isAITurn();
-       const isSelectable = (game.state === 'PLAYING' && !game.uiBusy && (location === 'center' || (game.turn === 'BLACK' && location === 'black') || (game.turn === 'WHITE' && location === 'white'))) ||
-         (game.state === 'DISCARDING' && !game.uiBusy && location === 'center') || isStageSelectable;
+       const isSelectable = !tutorialGate && ((game.state === 'PLAYING' && !game.uiBusy && (location === 'center' || (game.turn === 'BLACK' && location === 'black') || (game.turn === 'WHITE' && location === 'white'))) ||
+         (game.state === 'DISCARDING' && !game.uiBusy && location === 'center') || isStageSelectable);
        const isSelected = isStage || (!isHistory && (game.state === 'PLAYING' ? (game.selections.hand.includes(card.id) || game.selections.center.includes(card.id)) :
          (game.state === 'DISCARDING' ? game.discardSelections.includes(card.id) : false)));
 
@@ -1479,6 +1519,7 @@
 
     function updatePlayerTurnStatuses() {
       [['WHITE', 'white-turn-status'], ['BLACK', 'black-turn-status']].forEach(([side, id]) => {
+        if (side === 'BLACK' && (tutorialSession || completedLesson)) return;
         const status = document.getElementById(id);
         if (!status) return;
         const isCurrent = game.state !== 'GAMEOVER' && game.turn === side;
@@ -1752,18 +1793,22 @@
     function renderTutorial() {
       const active = Boolean(tutorialSession);
       document.body.classList.toggle('is-tutorial', active);
+      document.body.classList.toggle('is-lesson-complete', completedLesson);
       document.querySelectorAll('[data-tutorial-focus]').forEach(element => element.removeAttribute('data-tutorial-focus'));
       document.querySelectorAll('.action-zone').forEach(zone => zone.classList.remove('is-guide-control'));
+      document.querySelectorAll('[data-role="guide-back-btn"]').forEach(button => { button.hidden = true; });
+      document.querySelectorAll('.is-guide-help').forEach(button => { button.classList.remove('is-guide-help'); button.removeAttribute('aria-label'); button.title = ''; });
+      document.querySelectorAll('[data-guide-action]').forEach(button => { button.removeAttribute('data-guide-action'); button.removeAttribute('aria-label'); button.title = ''; });
       const hint = document.getElementById('black-play-hint');
-      hint.classList.toggle('is-guidance', active);
+      hint.classList.toggle('is-guidance', active || completedLesson);
       const opening = active && tutorialSession.state.checkpoint?.key === 'opening';
       hint.classList.toggle('is-guide-intro', opening);
       document.getElementById('mode-select').value = game.mode;
       document.getElementById('rule-mode-select').value = game.ruleMode;
       refreshDialogText();
       const helpButton = document.querySelector('.utility-rules');
-      helpButton.setAttribute('aria-label', t('rules_title'));
-      helpButton.title = t('rules_title');
+      helpButton.setAttribute('aria-label', t(active ? 'tutorial_menu' : 'rules_title'));
+      helpButton.title = t(active ? 'tutorial_menu' : 'rules_title');
       const resetButton = document.querySelector('.utility-reset');
       const resetLabel = active ? t('tutorial_retry') : (LANG === 'zh' ? '重新開始' : 'Restart');
       resetButton.setAttribute('aria-label', resetLabel);
@@ -1772,7 +1817,7 @@
         tutorialSpotlight?.clear();
         document.body.removeAttribute('data-tutorial-step');
         document.body.removeAttribute('data-tutorial-checkpoint');
-        if (!completedLesson) return;
+        if (!completedLesson) { document.body.removeAttribute('data-tutorial-phase'); return; }
       } else {
         document.querySelector('[data-role="utility-mode"] [data-role="utility-label"]').textContent = t('tutorial_practice');
         document.body.dataset.tutorialStep = `move-${tutorialSession.state.stepIndex + 1}`;
@@ -1780,27 +1825,35 @@
         if (checkpoint) document.body.dataset.tutorialCheckpoint = `${checkpoint.key}:${checkpoint.index}`;
         else document.body.removeAttribute('data-tutorial-checkpoint');
       }
-      const guidance = completedLesson ? { hint: 'complete', detail: 'completeDetail', focus: [] }
+      const guidance = completedLesson ? { hint: 'complete', detail: 'completeDetail', focus: [{ area: 'hand-area', side: 'BLACK' }], mode: 'observe' }
         : tutorialSession.state.checkpoint ? tutorialSession.view
-        : MathDuelTutorial.getGuidance(tutorialSession.state.stepIndex, { game, help: tutorialSession.help, rejected: tutorialSession.rejected });
+        : MathDuelTutorial.getGuidance(tutorialSession.state.stepIndex, { game, help: tutorialSession.help, rejected: tutorialSession.rejected, notice: tutorialSession.notice });
+      const phase = completedLesson ? 'complete' : opening ? 'intro' : tutorialGate?.key === 'after-player-exchange' ? 'review' :
+        game.state === 'ANIMATING' || (game.state === 'DISCARDING' && game.uiBusy) ? 'resolving' :
+        isAITurn() ? 'watch' : game.state === 'DISCARDING' ? 'keep' : 'play';
+      document.body.dataset.tutorialPhase = phase;
+      const status = document.getElementById('black-turn-status');
+      if (status.textContent !== t(`tutorial_status_${phase}`)) status.textContent = t(`tutorial_status_${phase}`);
+      status.className = 'player-turn-status is-current';
+      const progress = document.getElementById('black-score');
+      const progressText = `${completedLesson ? 5 : guidance.actionNumber || tutorialSession.state.stepIndex + 1}/5`;
+      if (progress.textContent !== progressText) progress.textContent = progressText;
+      progress.classList.remove('hidden');
       hint.classList.add('is-visible');
       hint.setAttribute('aria-hidden', 'false');
       for (const [part, key] of [['select', 'hint'], ['arrange', 'detail']]) {
         const line = hint.querySelector(`[data-hint="${part}"]`);
-        const prefix = active && !opening && part === 'select' ? `${tutorialSession.state.stepIndex + 1}/5 · ${game.turn === 'WHITE' ? 'AI · ' : ''}` : '';
-        const text = prefix + MathDuelTutorial.text(guidance[key], LANG, guidance.values);
+        const text = MathDuelTutorial.text(guidance[key], LANG, guidance.values);
         if (line.textContent !== text) line.textContent = text;
       }
       const targets = [];
       const context = game.aiMoveInfo || game.movePreview || game.selections.hand.length || game.selections.center.length
         ? [getEquationZone(game.turn)?.querySelector('.play-stage-grid')] : [];
-      guidance.focus.forEach(target => {
+      context.push(document.querySelector('#black-area .player-area-header'));
+      function resolveTarget(target) {
+        const elements = [];
         const side = target.side.toLowerCase();
-        const mark = element => {
-          if (!element) return;
-          element.setAttribute('data-tutorial-focus', target.area);
-          targets.push(element);
-        };
+        const mark = element => { if (element) elements.push(element); };
         if (target.area === 'hand') target.cardIds.forEach(id => mark(findCardIn(`#${side}-hand`, id)));
         if (target.area === 'hand-area') mark(document.getElementById(`${side}-hand`));
         if (target.area === 'center') target.cardIds.forEach(id => mark(findCardIn('#center-cards', id)));
@@ -1812,7 +1865,15 @@
           const role = target.area === 'equation-hand' ? 'stage-hand-cards' : 'stage-center-cards';
           target.cardIds.forEach(id => mark(findCardIn(`#${side}-equation [data-role="${role}"]`, id)));
         }
+        return elements;
+      }
+      guidance.focus.forEach(target => {
+        resolveTarget(target).forEach(element => {
+          element.setAttribute('data-tutorial-focus', target.area);
+          targets.push(element);
+        });
       });
+      (guidance.context || []).forEach(target => context.push(...resolveTarget(target)));
       let nextAction = null;
       if (active) {
         document.querySelectorAll('[data-role="plan-continue-btn"]').forEach(button => { button.classList.add('hidden'); });
@@ -1826,12 +1887,39 @@
           button.textContent = label;
           button.title = label;
           button.setAttribute('aria-label', label);
+          button.setAttribute('aria-describedby', 'black-play-hint');
           button.setAttribute('data-tutorial-focus', 'continue');
           button.disabled = false;
           nextAction = button;
+          const back = actions.querySelector('[data-role="guide-back-btn"]');
+          back.hidden = tutorialSession.state.checkpoint.index === 0;
+          back.disabled = back.hidden;
+          back.setAttribute('aria-label', t('tutorial_back'));
+          back.title = t('tutorial_back');
+          if (!back.hidden) context.push(back);
+        } else if (tutorialSession.state.stepIndex === 4 && game.state === 'PLAYING') {
+          const help = document.querySelector('#black-actions [data-role="giveup-btn"]');
+          help.classList.add('is-guide-help');
+          help.textContent = t('tutorial_help');
+          help.setAttribute('aria-label', t('tutorial_help'));
+          help.title = t('tutorial_help');
+          help.onclick = requestTutorialHelp;
+          context.push(help);
         }
       }
-      if (active && !currentDialog) {
+      if (completedLesson) {
+        const actions = document.getElementById('black-actions');
+        actions.classList.add('is-guide-control');
+        const button = actions.querySelector('[data-role="main-btn"]');
+        button.className = 'guide-next';
+        button.textContent = t('tutorial_play');
+        button.dataset.guideAction = 'finish';
+        button.setAttribute('aria-label', t('tutorial_play'));
+        button.setAttribute('aria-describedby', 'black-play-hint');
+        button.setAttribute('data-tutorial-focus', 'finish');
+        nextAction = button;
+      }
+      if ((active || completedLesson) && !currentDialog) {
         tutorialSpotlight?.update({ hint, targets, context, action: nextAction, mode: guidance.mode, avoid: [...document.querySelectorAll('.utility-rail .table-icon')] });
       }
     }
@@ -1920,6 +2008,7 @@
       if (!event.target.closest('.utility-menu, [aria-haspopup="menu"]')) closeUtilityMenus();
     });
     document.addEventListener('keydown', event => {
+      if (event.repeat && event.target.closest('[data-role="plan-continue-btn"], [data-role="guide-back-btn"]')) { event.preventDefault(); return; }
       if (event.key === 'Escape') {
         if (currentDialog) closeGameDialog();
         closeUtilityMenus();
