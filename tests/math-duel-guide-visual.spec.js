@@ -83,6 +83,14 @@ async function firstMove(page) {
 test('separates the goal, exchange rule and two-digit limit before any tap task', async ({ page }, testInfo) => {
   await page.goto('/math-duel/index.html');
   await page.locator('#welcome-start').click();
+  await page.locator('.utility-rules').click();
+  await expect(page.locator('#rule-4')).toContainText('每個數最多 2 位');
+  await expect(page.locator('#rule-4')).toContainText('不是全式只能出 2 張牌');
+  await page.evaluate(() => { LANG = 'en'; render(); });
+  await expect(page.locator('#rule-4')).toContainText('Each number in the equation is at most 2 digits');
+  await expect(page.locator('#rule-4')).toContainText('not a 2-card limit for the whole equation');
+  await page.evaluate(() => { LANG = 'zh'; render(); });
+  await page.locator('#modal-close-btn').click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'opening:0');
   await expect(page.locator('#black-play-hint')).toContainText('黑方手牌全白就能贏');
   await expect(page.locator('#black-play-hint')).not.toContainText('交換牌');
@@ -106,8 +114,8 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
       await focus(page, '#center-cards [data-card-id="w9"][data-tutorial-focus="center"]');
     }
     if (explanation === 2) {
-      await expect(page.locator('#black-play-hint')).toContainText('等號兩邊各最多兩位數');
-      await expect(page.locator('#black-play-hint')).toContainText('1、2 組成 12，再加 6；共用 3 張牌');
+      await expect(page.locator('#black-play-hint')).toContainText('算式中的每個數最多兩位數');
+      await expect(page.locator('#black-play-hint')).toContainText('1、2 組成 12，再加 6；這側用了 3 張手牌');
       await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'example');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
@@ -203,6 +211,7 @@ test('uses observation arrows for AI and restores the same focus after help', as
   await focus(page, '#white-equation [data-tutorial-focus="equation-hand"]', 3);
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-mode', 'observe');
   await expect(page.locator('#black-play-hint')).toContainText('白 1、2 能排成 12');
+  await expect(page.locator('#black-play-hint')).toContainText('這側的 3 張手牌分成 12 和 6');
   await expect(page.locator('#black-score')).toHaveText('2/5');
   await expect(page.locator('#black-turn-status')).toHaveText('看看對手');
   await expect(page.locator('#black-equation [data-tutorial-focus]')).toHaveCount(0);
@@ -210,6 +219,7 @@ test('uses observation arrows for AI and restores the same focus after help', as
   await expectNextAction(page);
   await next.click();
   await focus(page, '#white-equation [data-tutorial-focus="equation-target"]', 2);
+  await expect(page.locator('#black-play-hint')).toContainText('黑 1、8 組成 18；12 + 6 = 18');
   await expectNextAction(page);
   await page.screenshot({ path: testInfo.outputPath('ai-focused-result.png') });
   await page.locator('.utility-rules').click();

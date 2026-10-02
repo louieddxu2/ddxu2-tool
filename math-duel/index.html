@@ -103,7 +103,7 @@
         rules_init: '【初始設定】黑方拿 1~9，白方拿 1~8，場中央放白方 9。',
         rules_action: '【行動規則】輪到你時，打出 2~4 張牌，配上一個四則運算符號，湊出場中央的數字。湊成後，把場中央被湊成的牌收回手牌，打出的牌留在場上。',
         rules_limit: '【場地限制】場中央若超過 2 張牌，當回合玩家需選擇保留 2 張，其餘移出遊戲。',
-        rules_special: '【數字位數】等號兩邊各最多 2 位數；二位數用 2 張牌組成，例如 1、2 組成 12 或 21。6 與 9 可以翻轉互換。',
+        rules_special: '【數字位數】算式中的每個數最多 2 位；兩位數由 2 張牌組成。不是全式只能出 2 張牌：1、2、6 三張手牌可分成 12 + 6。6 與 9 可以翻轉互換。',
         rules_win: '【獲勝條件】回合結束時，手牌全部變成對手的顏色；或對手無牌可出、無法湊出算式。',
         close: '關閉'
       },
@@ -172,7 +172,7 @@
         rules_init: '[Initial] Black: 1-9, White: 1-8, Center: White 9.',
         rules_action: '[Action] Use 2-4 hand cards + 1 operator to match center. Take center cards, leave played cards.',
         rules_limit: '[Limit] If center > 2 cards, keep 2 and discard others.',
-        rules_special: '[Number length] Each side of the equation is at most 2 digits. A two-digit number uses 2 cards (e.g., 1 and 2 make 12 or 21). 6 and 9 can be flipped.',
+        rules_special: '[Number length] Each number in the equation is at most 2 digits; a two-digit number uses 2 cards. This is not a 2-card limit for the whole equation: hand cards 1, 2, 6 can form 12 + 6. 6 and 9 can be flipped.',
         rules_win: '[Victory] All your cards match opponent\'s color, or opponent has no valid moves.',
         close: 'Close'
       }
@@ -367,7 +367,7 @@
    <script src="rule-modes.js"></script>
   <script src="../shared/flow-guide.js?v=2"></script>
   <script src="../shared/guide-spotlight.js?v=4"></script>
-  <script src="tutorial.js?v=7"></script>
+  <script src="tutorial.js?v=8"></script>
   <script src="../shared/card-motion.js?v=2"></script>
   <script src="../shared/equation-witness.js?v=1"></script>
   <script>

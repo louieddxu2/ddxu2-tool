@@ -138,7 +138,7 @@ test('keeps opening explanations read-only, supports back, and does not skip on 
   await held(page, 'opening:1');
   await next(page).click();
   await held(page, 'opening:2');
-  await expect(page.locator('#black-play-hint')).toContainText('等號兩邊各最多兩位數');
+  await expect(page.locator('#black-play-hint')).toContainText('算式中的每個數最多兩位數');
   await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
   await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
   await back(page).click();
