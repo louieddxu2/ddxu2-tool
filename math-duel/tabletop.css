@@ -122,6 +122,8 @@ body.is-pvp.is-white-turn #center-area > #ui-center-label { transform: translate
 .play-hint.is-guidance { justify-self: center; width: calc(100% - 88px); height: 100%; padding: 1px 5px; color: #664719; background: #fff8e5; border: 1px solid #e5c477; border-radius: 7px; font-size: 11px; line-height: 12px; }
 .play-hint.is-guidance > .hint-line { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 4px; margin-inline: 0; text-align: left; }
 .play-hint.is-guidance .hint-kind { display: inline-flex; align-items: center; justify-content: center; padding: 0 3px; color: #735e3d; background: #f5e8c4; border-radius: 4px; font-size: .82em; line-height: 1.2; font-weight: 700; white-space: nowrap; }
+.play-hint.is-guidance .hint-kind[data-kind="rule"] { color: #315a96; background: #e7efff; }
+.play-hint.is-guidance .hint-kind[data-kind="description"] { color: #657083; background: #edf0f4; }
 .play-hint.is-guidance [data-hint] { display: block; min-width: 0; }
 .play-hint.is-guidance [data-hint="select"] { font-weight: 700; }
 .play-hint.is-guidance [data-hint="arrange"] { color: #735e3d; }
@@ -208,7 +210,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .equation-content { grid-template-rows: minmax(0, 1fr) auto; padding-block: 2px; }
   .play-hint { font-size: 9px; }
   .play-hint.is-guidance { min-height: 24px; font-size: 9px; line-height: 11px; }
-  .play-hint.is-guide-intro { padding-block: 4px; font-size: 10px; line-height: 13px; }
+  .play-hint.is-guide-intro { padding-block: 4px; font-size: 11px; line-height: 14px; }
   .play-hint:not(.is-guidance) > .hint-line { display: inline; }
   .play-hint:not(.is-guidance) > .hint-line + .hint-line { margin-inline-start: .5em; }
   .play-hint.is-guidance > .hint-line { display: grid; }

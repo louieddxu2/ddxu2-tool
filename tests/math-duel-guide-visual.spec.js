@@ -98,14 +98,18 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
       await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', `opening:${explanation}`);
     }
     if (explanation === 1) {
-      await expect(page.locator('#black-play-hint')).toContainText('算出場中央的數字，就能換牌');
-      await expect(page.locator('#black-play-hint')).toContainText('出牌留場，結果牌拿回手裡');
+      await expect(page.locator('#black-play-hint')).toContainText('算式要算出與場牌一樣的數字，才能交換');
+      await expect(page.locator('#black-play-hint')).toContainText('出牌留在場上；算式用到的場牌回到手裡');
       await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
+      await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
+      await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'description');
       await focus(page, '#center-cards [data-card-id="w9"][data-tutorial-focus="center"]');
     }
     if (explanation === 2) {
-      await expect(page.locator('#black-play-hint')).toContainText('每個數字最多兩位');
-      await expect(page.locator('#black-play-hint')).toContainText('黑 1、2 組成 12');
+      await expect(page.locator('#black-play-hint')).toContainText('等號兩邊各最多兩位數');
+      await expect(page.locator('#black-play-hint')).toContainText('1、2 組成 12，再加 6；共用 3 張牌');
+      await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
+      await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'example');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
       await focus(page, '#black-hand [data-tutorial-focus="hand"]', 3);
     }
@@ -268,7 +272,8 @@ test('keeps mask, rings and complete hints aligned after resizing, in both langu
         const controls = [...document.querySelectorAll('.utility-rail .table-icon')].map(element => element.getBoundingClientRect());
         return {
           maskOrigin: [mask.getAttribute('x'), mask.getAttribute('y')],
-          shade: shade.toJSON(), hint: hintBox.toJSON(), equation: equation.toJSON(),
+          shade: shade.toJSON(), shadeOpacity: getComputedStyle(document.querySelector('.guide-spotlight-shade')).fillOpacity,
+          hint: hintBox.toJSON(), equation: equation.toJSON(),
           noOverflow: document.body.scrollHeight <= innerHeight && document.body.scrollWidth <= innerWidth,
           textFits: text.every(rect => rect.top >= hintBox.top && rect.bottom <= hintBox.bottom && rect.left >= hintBox.left && rect.right <= hintBox.right),
           clearOfUtilities: controls.every(control => hintBox.bottom <= control.top || hintBox.top >= control.bottom || hintBox.right <= control.left || hintBox.left >= control.right),
@@ -279,6 +284,7 @@ test('keeps mask, rings and complete hints aligned after resizing, in both langu
       expect(geometry.maskOrigin).toEqual(['0', '0']);
       expect(geometry.shade.width).toBe(size.width);
       expect(geometry.shade.height).toBe(size.height);
+      expect(geometry.shadeOpacity).toBe('0.28');
       expect(geometry.passive).toBe('none');
       expect(geometry.noOverflow, JSON.stringify(geometry)).toBe(true);
       expect(geometry.textFits, JSON.stringify(geometry)).toBe(true);
@@ -297,16 +303,22 @@ test('keeps adjacent AI equation cards readable under spotlight', async ({ page 
   await focus(page, '#white-equation [data-tutorial-focus="equation-hand"]', 3);
   const geometry = await page.evaluate(() => {
     const rings = [...document.querySelectorAll('.guide-spotlight-card-ring')].map(element => element.getBoundingClientRect());
+    const cards = [...document.querySelectorAll('#white-equation [data-role="stage-hand-cards"] [data-card-id]')].map(element => element.getBoundingClientRect());
     const separated = rings.every((a, index) => rings.slice(index + 1).every(b =>
       a.right + 1 <= b.left || b.right + 1 <= a.left || a.bottom + 1 <= b.top || b.bottom + 1 <= a.top));
+    const ringsAvoidOtherCards = rings.every((ring, index) => cards.every((card, cardIndex) => cardIndex === index ||
+      ring.right <= card.left || card.right <= ring.left || ring.bottom <= card.top || card.bottom <= ring.top));
     return {
       count: rings.length,
       separated,
+      ringsAvoidOtherCards,
+      focusCueCount: document.querySelectorAll('[data-cue="focus"]').length,
+      actionCueCount: document.querySelectorAll('[data-cue="action"]').length,
       stroke: getComputedStyle(document.querySelector('.guide-spotlight-card-ring')).strokeWidth,
       targetCount: document.querySelectorAll('#white-equation [data-tutorial-focus="equation-hand"]').length
     };
   });
-  expect(geometry).toEqual({ count: 3, separated: true, stroke: '2px', targetCount: 3 });
+  expect(geometry).toEqual({ count: 3, separated: true, ringsAvoidOtherCards: true, focusCueCount: 0, actionCueCount: 1, stroke: '2px', targetCount: 3 });
   await page.screenshot({ path: testInfo.outputPath('ai-card-focus-separated.png') });
 });
 

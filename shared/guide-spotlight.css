@@ -5,7 +5,7 @@
 }
 .guide-spotlight[hidden] { display: none; }
 .guide-spotlight > svg { display: block; overflow: hidden; }
-.guide-spotlight-shade { fill: #182334; fill-opacity: .38; }
+.guide-spotlight-shade { fill: #182334; fill-opacity: .28; }
 .guide-spotlight-ring { fill: none; stroke: var(--guide-gold); stroke-width: 2.5; }
 .guide-spotlight-card-ring { stroke-width: 2; }
 .guide-spotlight-action-ring { fill: none; stroke: var(--guide-gold); stroke-width: 3; }

@@ -191,11 +191,15 @@ test('the opening explanation introduces the goal before the first of five actio
   assert.equal(rules.view.hint, 'corePlay');
   assert.equal(rules.view.detail, 'coreDetail');
   assert.equal(rules.view.hintKind, 'rule');
+  assert.equal(rules.view.detailKind, 'description');
+  assert.match(tutorial.text(rules.view.hint, 'zh'), /算式.*場牌.*才能交換/);
+  assert.match(tutorial.text(rules.view.detail, 'zh'), /出牌留在場上.*場牌回到手裡/);
   const digitRule = guide.advanceGuide(rules.state, tutorial.definition, { type: 'continue' }, { game });
   assert.equal(digitRule.view.hint, 'digitLimit');
   assert.equal(digitRule.view.hintKind, 'rule');
   assert.equal(digitRule.view.detailKind, 'example');
-  assert.match(tutorial.text(digitRule.view.hint, 'zh'), /最多兩位/);
+  assert.match(tutorial.text(digitRule.view.hint, 'zh'), /等號兩邊各最多兩位數/);
+  assert.match(tutorial.text(digitRule.view.detail, 'zh'), /組成 12.*共用 3 張牌/);
   const begun = guide.advanceGuide(digitRule.state, tutorial.definition, { type: 'continue' }, { game });
   assert.equal(begun.view.hint, 'choose');
   assert.equal(begun.state.stepIndex, 0, 'reading the objective is not a game action');

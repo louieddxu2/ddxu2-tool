@@ -113,8 +113,10 @@
         group.append(cue);
         pointer.append(group);
       }
-      // Keep the observation arrow on the lesson subject; point a hand at the real next action.
-      appendPointer(targets[0], current.mode || 'tap', 'focus');
+      // Multiple individual rings identify the whole card set; avoid implying that only
+      // its first card matters. A pointer is useful when there is just one focal target.
+      if (targets.length === 1) appendPointer(targets[0], current.mode || 'tap', 'focus');
+      // Keep the action hand on the actual next control, not on the cards being explained.
       if (action) appendPointer(action, 'tap', 'action');
     }
 
