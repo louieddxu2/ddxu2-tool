@@ -88,7 +88,8 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
   await page.evaluate(() => { LANG = 'zh'; render(); });
   await page.locator('#modal-close-btn').click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'opening:0');
-  await expect(page.locator('#black-play-hint')).toContainText('黑方手牌全白就能贏');
+  await expect(page.locator('#black-play-hint')).toContainText('把黑方手牌全部換成白牌，就能獲勝');
+  await expect(page.locator('#black-play-hint')).toContainText('每次用算式換牌，逐步清空黑牌');
   await expect(page.locator('#black-play-hint')).not.toContainText('交換牌');
   await expect(page.locator('#black-play-hint')).not.toContainText('點黑 1');
   await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('目標');
@@ -102,8 +103,8 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
       await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', `opening:${explanation}`);
     }
     if (explanation === 1) {
-      await expect(page.locator('#black-play-hint')).toContainText('算式結果要等於場牌才能交換');
-      await expect(page.locator('#black-play-hint')).toContainText('出牌留場；結果牌回手');
+      await expect(page.locator('#black-play-hint')).toContainText('算式結果要等於場牌排出的數字，才能交換');
+      await expect(page.locator('#black-play-hint')).toContainText('打出的牌留在場上；場牌回到手牌');
       await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
       await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'description');
@@ -111,8 +112,8 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
     }
     await expect(page.locator('[data-cue="focus"]')).toHaveCount(0);
     if (explanation === 2) {
-      await expect(page.locator('#black-play-hint')).toContainText('算式中的每個數最多兩位數');
-      await expect(page.locator('#black-play-hint')).toContainText('1、2 組成 12，再加 6');
+      await expect(page.locator('#black-play-hint')).toContainText('組成算式的每個數，最多兩位數');
+      await expect(page.locator('#black-play-hint')).toContainText('例如 1、2 可組成 12，再加 6');
       await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'example');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
@@ -132,17 +133,31 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
           expect(labels.size, `rule label size ${size.width} ${language}`).toBeGreaterThanOrEqual(9);
           expect(labels.colors[0], `rule and description colors ${size.width} ${language}`).not.toBe(labels.colors[1]);
         }
-        const fits = await page.evaluate(() => {
+        const fit = await page.evaluate(() => {
           const hint = document.getElementById('black-play-hint');
           const box = hint.getBoundingClientRect();
           const equation = document.getElementById('black-equation').getBoundingClientRect();
-          return box.top >= equation.top && box.bottom <= equation.bottom && [...hint.querySelectorAll('span')].every(span => {
+          const style = getComputedStyle(hint);
+          const overflowingText = [...hint.querySelectorAll('span')].flatMap(span => {
             const range = document.createRange(); range.selectNodeContents(span);
-            return [...range.getClientRects()].every(rect => rect.top >= box.top && rect.bottom <= box.bottom && rect.left >= box.left && rect.right <= box.right);
+            return [...range.getClientRects()].filter(rect => rect.top < box.top || rect.bottom > box.bottom || rect.left < box.left || rect.right > box.right)
+              .map(rect => ({ text: span.textContent.trim(), rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right } }));
           });
+          const lines = [...hint.querySelectorAll('.hint-line')].map(line => ({
+            box: line.getBoundingClientRect().toJSON(),
+            parts: [...line.querySelectorAll('span')].map(part => ({ text: part.textContent.trim(), box: part.getBoundingClientRect().toJSON() }))
+          }));
+          return {
+            hint: { top: box.top, bottom: box.bottom, left: box.left, right: box.right },
+            equation: { top: equation.top, bottom: equation.bottom },
+            style: { fontSize: style.fontSize, lineHeight: style.lineHeight, paddingBlock: `${style.paddingTop} ${style.paddingBottom}` },
+            lines,
+            overflowingText
+          };
         });
-        expect(fits, `opening ${size.width} ${language}`).toBe(true);
         await page.screenshot({ path: testInfo.outputPath(`concept-${explanation}-${size.width}-${language}.png`) });
+        expect(fit.hint.top >= fit.equation.top && fit.hint.bottom <= fit.equation.bottom && fit.overflowingText.length === 0,
+          `opening ${size.width} ${language}: ${JSON.stringify(fit)}`).toBe(true);
       }
     }
   }
@@ -151,7 +166,7 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
   await expect(begin).toHaveText('下一步');
   await begin.click();
   await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
-  await expect(page.locator('#black-play-hint')).toContainText('先點黑 1 和 8');
+  await expect(page.locator('#black-play-hint')).toContainText('先點黑 1 和黑 8');
   await expect(page.locator('#black-score')).toHaveText('1/5');
   await expect(page.locator('#black-turn-status')).toHaveText('你來出牌');
   await expect(page.locator('#black-actions')).not.toHaveClass(/is-guide-control/);
@@ -220,7 +235,7 @@ test('keeps AI observation highlights separate from the next action and restores
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-mode', 'observe');
   await expect(page.locator('[data-cue="focus"]')).toHaveCount(0);
   await expect(page.locator('#black-play-hint')).toContainText('白 1、2 排成 12，再加白 6');
-  await expect(page.locator('#black-play-hint')).toContainText('這三張手牌分成 12 和 6');
+  await expect(page.locator('#black-play-hint')).toContainText('白方算式：12 + 6');
   await expect(page.locator('#black-score')).toHaveText('2/5');
   await expect(page.locator('#black-turn-status')).toHaveText('看看對手');
   await expect(page.locator('#black-equation [data-tutorial-focus]')).toHaveCount(0);
@@ -228,7 +243,8 @@ test('keeps AI observation highlights separate from the next action and restores
   await expectNextAction(page);
   await next.click();
   await focus(page, '#white-equation [data-tutorial-focus="equation-target"]', 2);
-  await expect(page.locator('#black-play-hint')).toContainText('黑 1、8 組成 18；12 + 6 = 18');
+  await expect(page.locator('#black-play-hint')).toContainText('12 + 6 的結果是 18');
+  await expect(page.locator('#black-play-hint')).toContainText('黑 1、8 組成 18');
   await expectNextAction(page);
   await page.screenshot({ path: testInfo.outputPath('ai-focused-result.png') });
   await page.locator('.utility-rules').click();

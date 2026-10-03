@@ -67,7 +67,7 @@
       objective: 'Turn every black card in your hand white to win.',
       objectiveDetail: 'Trade cards with equations to clear the black cards.',
       corePlay: 'The equation must match the value formed by the table cards to trade.',
-      coreDetail: 'Played cards stay on the table; take the target cards into your hand.',
+      coreDetail: 'Played cards stay; table cards return to your hand.',
       digitLimit: 'Every number in an equation can have at most two digits.',
       digitLimitExample: 'For example, 1 and 2 form 12; add 6.',
       firstTrade: 'White 9 is back.', firstTradeDetail: '1, 8 stay; White next.',
