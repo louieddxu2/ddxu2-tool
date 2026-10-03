@@ -142,7 +142,7 @@ test('keeps opening explanations read-only, supports back, and does not skip on 
   await held(page, 'opening:1');
   await next(page).click();
   await held(page, 'opening:2');
-  await expect(page.locator('#black-play-hint')).toContainText('算式中的每個數最多兩位數');
+  await expect(page.locator('#black-play-hint')).toContainText('組成算式的每個數，最多兩位數');
   await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
   await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
   await back(page).click();
@@ -209,11 +209,11 @@ test('uses the opponent as the subject while the AI move is animating', async ({
   await held(page, 'before-exchange:1');
   await next(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-phase', 'resolving');
-  await expect(page.locator('#black-play-hint')).toContainText('對手的牌留在場上');
-  await expect(page.locator('#black-play-hint')).not.toContainText('你出的牌留下');
+  await expect(page.locator('#black-play-hint')).toContainText('對手出牌留場');
+  await expect(page.locator('#black-play-hint')).not.toContainText('出牌留場；結果回手。');
   await expectHintFits(page);
   await page.evaluate(() => { LANG = 'en'; render(); });
-  await expect(page.locator('#black-play-hint')).toContainText('AI takes results; its cards stay.');
+  await expect(page.locator('#black-play-hint')).toContainText(/AI cards stay; results return\.|Keep only two cards\./);
   await expectHintFits(page);
   await page.setViewportSize({ width: 800, height: 360 });
   await expectHintFits(page);
@@ -242,7 +242,7 @@ test('explains retention before accepting choices, reports the two-card limit, a
   await send(page, ['b3', 'b5', 'b6', 'b7'], ['w1', 'w2'], '-');
   await held(page, 'before-keep:0');
   await phase(page, 'keep');
-  await expect(page.locator('#black-play-hint')).toContainText('場上只留兩張');
+  await expect(page.locator('#black-play-hint')).toContainText('場上最多保留兩張牌');
   for (const id of ['b3', 'b6']) await expect(field(page, id)).toHaveAttribute('data-tutorial-focus', 'center');
   for (const id of ['b5', 'b7']) await expect(field(page, id)).not.toHaveAttribute('data-tutorial-focus');
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-target-count', '2');
@@ -257,7 +257,7 @@ test('explains retention before accepting choices, reports the two-card limit, a
   await field(page, 'b6').click();
   await field(page, 'b5').click();
   expect((await board(page)).keep).toEqual(['b3', 'b6']);
-  await expect(page.locator('#black-play-hint')).toContainText('只留兩張；再點已選的牌可取消');
+  await expect(page.locator('#black-play-hint')).toContainText('只能保留兩張；再點已選的牌可取消');
   await page.locator('.utility-rules').click();
   await page.locator('#rules-skip-tutorial').click();
   expect((await board(page)).actions).toBe(2);
@@ -273,21 +273,41 @@ test('makes the final hint directly available and explains overflow without chan
   await expect(hint).toHaveAccessibleName('提示');
   await expect(page.locator('#black-play-hint')).not.toContainText('選黑 2');
   for (const id of ['b2', 'b4', 'w1', 'w2']) await hand(page, id).click();
-  await expect(page.locator('#black-play-hint')).toContainText('點出牌區取消一張');
+  await expect(page.locator('#black-play-hint')).toContainText('先取消一張白牌');
   await expect(page.locator('#black-equation [data-tutorial-focus="equation-hand"]')).toHaveCount(2);
   const beforeOverflow = await board(page);
   await hand(page, 'b9').click();
   expect(await board(page)).toEqual(beforeOverflow);
-  await expect(page.locator('#black-play-hint')).toContainText('最多四張；先取消一張再選');
+  await expect(page.locator('#black-play-hint')).toContainText('最多選四張；取消一張後才能再選');
   await hint.click();
   await expect(page.locator('#rules-modal')).toBeHidden();
   await expect(hint).toBeFocused();
-  await expect(page.locator('#black-play-hint')).toContainText('點出牌區的白 1、白 2，取消選取');
+  await expect(page.locator('#black-play-hint')).toContainText('再點出牌區的白 1、白 2，取消選取');
   expect(await board(page)).toEqual(beforeOverflow);
   await page.locator('#black-equation [data-card-id="w1"]').click();
   await page.locator('#black-equation [data-card-id="w2"]').click();
   await hand(page, 'b9').click();
   await expect(page.locator('#black-play-hint')).toContainText('已選 3/4');
+});
+
+test('teaches the final division by guiding the player through its real controls', async ({ page }) => {
+  await finalMove(page);
+  for (const id of ['b2', 'b4', 'b9']) await hand(page, id).click();
+  await expect(page.locator('#black-play-hint')).toContainText('再選手牌白 9');
+  await expect(hand(page, 'w9')).toHaveAttribute('data-tutorial-focus', 'hand');
+  await hand(page, 'w9').click();
+  await expect(page.locator('#black-play-hint')).toContainText('再點 ÷，使用除法');
+  await expect(page.locator('#black-play-hint')).toContainText('黑 2、4 可組成 24');
+  await page.locator('#black-actions [data-op="/"]').click();
+  await expect(page.locator('#black-play-hint')).toContainText('點場牌白 4，作為結果');
+  await expect(field(page, 'w4')).toHaveAttribute('data-tutorial-focus', 'center');
+  await field(page, 'w4').click();
+  await expect(page.locator('#black-play-hint')).toContainText('算式完成了');
+  expect(await page.evaluate(() => MathDuelEquation.checkEquation(
+    game.blackHand.filter(card => game.selections.hand.includes(card.id)),
+    game.selections.operator,
+    game.center.filter(card => game.selections.center.includes(card.id))
+  ).eq)).toBe('96 ÷ 24 = 4');
 });
 
 test('accepts a different winning division, preserves any two field cards, and hands off to a clean normal game', async ({ page }, testInfo) => {
@@ -297,7 +317,7 @@ test('accepts a different winning division, preserves any two field cards, and h
   await send(page, ['b4', 'w1'], ['w4'], '/');
   expect((await board(page)).actions).toBe(4);
   expect((await board(page)).center).toEqual(beforeAttempt.center);
-  await expect(page.locator('#black-play-hint')).toContainText('用除法把剩下的黑牌換掉');
+  await expect(page.locator('#black-play-hint')).toContainText('最後一手用除法，換掉剩下的黑牌');
   await expect(page.locator('#black-play-hint')).not.toContainText('選黑 2');
   await page.locator('#black-equation [data-card-id="w1"]').click();
   await hand(page, 'b2').click();

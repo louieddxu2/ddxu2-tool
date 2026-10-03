@@ -142,7 +142,7 @@ test('points at live played cards for correction and counts retention separately
   const wrongHand = tutorial.getGuidance(0, { game });
   assert.equal(wrongHand.focus[0].area, 'equation-hand');
   assert.deepEqual(Array.from(wrongHand.focus[0].cardIds), ['b5']);
-  assert.equal(tutorial.text(wrongHand.hint, 'zh', wrongHand.values), '點出牌區的黑 5，取消選取');
+  assert.equal(tutorial.text(wrongHand.hint, 'zh', wrongHand.values), '再點出牌區的黑 5，取消選取。');
   game.selections = { hand: ['b3', 'b5', 'b6', 'b7'], center: ['w1', 'w6'], operator: '-' };
   assert.equal(tutorial.getGuidance(2, { game }).focus[0].area, 'equation-target');
   game.state = 'DISCARDING';
@@ -161,10 +161,10 @@ test('separates AI observation cues from tap tasks without per-checkpoint button
   assert.equal(explanations['before-exchange'][0].mode, 'observe');
   assert.equal(explanations['before-exchange'][0].hintKind, 'demonstration');
   assert.equal(explanations['before-exchange'][0].detailKind, 'description');
-  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'zh'), /這三張手牌分成 12 和 6/);
-  assert.match(tutorial.text(explanations['before-exchange'][1].detail, 'zh'), /黑 1、8 組成 18.*12 \+ 6 = 18/);
-  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'en'), /3 hand cards form 12 \+ 6/);
-  assert.match(tutorial.text(explanations['before-exchange'][1].detail, 'en'), /12 \+ 6 = 18; black 1, 8/);
+  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'zh'), /白方算式：12 \+ 6/);
+  assert.match(tutorial.text(explanations['before-exchange'][1].detail, 'zh'), /黑 1、8 組成 18/);
+  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'en'), /AI: 12 \+ 6/);
+  assert.match(tutorial.text(explanations['before-exchange'][1].detail, 'en'), /Black 1, 8 make 18/);
   assert.equal(tutorial.label('rule', 'zh'), '規則');
   assert.equal(tutorial.label('description', 'zh'), '描述');
   assert.equal(tutorial.label('example', 'en'), 'Example');
@@ -182,8 +182,8 @@ test('separates AI observation cues from tap tasks without per-checkpoint button
   assert.equal(resolving.detail, 'exchange', 'the learner is the actor during their own move');
   const opponentResolving = tutorial.getGuidance(1, { game: { turn: 'WHITE', state: 'ANIMATING' } });
   assert.equal(opponentResolving.detail, 'opponentExchange');
-  assert.equal(tutorial.text(opponentResolving.detail, 'zh'), '對手的牌留在場上；結果牌回手裡。');
-  assert.equal(tutorial.text(opponentResolving.detail, 'en'), 'AI takes results; its cards stay.');
+  assert.equal(tutorial.text(opponentResolving.detail, 'zh'), '對手出牌留場；結果牌回手。');
+  assert.equal(tutorial.text(opponentResolving.detail, 'en'), 'AI cards stay; results return.');
 });
 
 test('the opening explanation introduces the goal before the first of five actions', () => {
@@ -202,15 +202,15 @@ test('the opening explanation introduces the goal before the first of five actio
   assert.equal(rules.view.hintKind, 'rule');
   assert.equal(rules.view.detailKind, 'description');
   assert.match(tutorial.text(rules.view.hint, 'zh'), /算式.*場牌.*才能交換/);
-  assert.match(tutorial.text(rules.view.detail, 'zh'), /出牌留場.*結果牌回手/);
+  assert.match(tutorial.text(rules.view.detail, 'zh'), /打出的牌留在場上.*場牌回到手牌/);
   const digitRule = guide.advanceGuide(rules.state, tutorial.definition, { type: 'continue' }, { game });
   assert.equal(digitRule.view.hint, 'digitLimit');
   assert.equal(digitRule.view.hintKind, 'rule');
   assert.equal(digitRule.view.detailKind, 'example');
-  assert.match(tutorial.text(digitRule.view.hint, 'zh'), /每個數最多兩位數/);
+  assert.match(tutorial.text(digitRule.view.hint, 'zh'), /每個數，最多兩位數/);
   assert.match(tutorial.text(digitRule.view.detail, 'zh'), /組成 12，再加 6/);
-  assert.match(tutorial.text(digitRule.view.hint, 'en'), /Each value.*2 digits/);
-  assert.match(tutorial.text(digitRule.view.detail, 'en'), /1, 2 form 12; add 6/);
+  assert.match(tutorial.text(digitRule.view.hint, 'en'), /Every number.*at most two digits/);
+  assert.match(tutorial.text(digitRule.view.detail, 'en'), /1 and 2 form 12; add 6/);
   const begun = guide.advanceGuide(digitRule.state, tutorial.definition, { type: 'continue' }, { game });
   assert.equal(begun.view.hint, 'choose');
   assert.equal(begun.state.stepIndex, 0, 'reading the objective is not a game action');
@@ -249,6 +249,70 @@ function playAction(context, action, keep = action.keep) {
   }
   vm.runInContext('endTurn()', context);
 }
+
+function sentenceCount(text) {
+  return (text.match(/[.!?。！？]/g) || []).length;
+}
+
+function assertTwoLineDialogue(tutorial, view, language) {
+  const lines = [view.hint, view.detail].filter(Boolean).map(key => tutorial.text(key, language, view.values));
+  assert.ok(lines.length <= 2);
+  for (const line of lines) assert.ok(sentenceCount(line) <= 1, `${language} line exceeds one sentence: ${line}`);
+}
+
+test('keeps each storyboard beat to two sentences and guides the real five-move arithmetic', () => {
+  const context = makeContext();
+  const tutorial = context.MathDuelTutorial;
+  const game = readGame(context);
+  const views = tutorial.definition.steps.flatMap(step => Object.values(step.checkpoints).flat());
+
+  for (let index = 0; index < tutorial.actions.length; index += 1) {
+    const action = tutorial.actions[index];
+    if (action.side === 'WHITE') {
+      views.push(tutorial.getGuidance(index, { game }));
+      game.state = 'ANIMATING';
+      views.push(tutorial.getGuidance(index, { game }));
+      game.state = 'PLAYING';
+    } else {
+      game.selections = { hand: [], center: [], operator: null };
+      views.push(tutorial.getGuidance(index, { game }));
+      game.selections.hand = [action.hand[0]];
+      views.push(tutorial.getGuidance(index, { game }));
+      game.selections.hand = [...action.hand];
+      views.push(tutorial.getGuidance(index, { game }));
+      game.selections.operator = action.op;
+      views.push(tutorial.getGuidance(index, { game }));
+      game.selections.center = [...action.center];
+      views.push(tutorial.getGuidance(index, { game }));
+
+      if (index === 2) assert.match(tutorial.text('fourDetail', 'zh'), /57 − 36 = 21/);
+      if (index === 4) {
+        const beforeWhite = { ...game, selections: { hand: ['b2', 'b4', 'b9'], center: [], operator: null } };
+        const addWhite = tutorial.getGuidance(index, { game: beforeWhite });
+        views.push(addWhite);
+        assert.equal(addWhite.hint, 'practiceAddWhite');
+        assert.deepEqual(Array.from(addWhite.focus[0].cardIds), ['w9']);
+        assert.match(tutorial.text(addWhite.detail, 'zh'), /白 9 可當成 6/);
+        assert.match(tutorial.text('flipDetail', 'zh'), /白 4 \+ 白 5 = 9/);
+        assert.match(tutorial.text('practiceTargetDetail', 'zh'), /96 ÷ 24 = 4/);
+      }
+    }
+    if (index < tutorial.actions.length - 1) playAction(context, action);
+  }
+
+  for (const language of ['zh', 'en']) {
+    for (const view of views) assertTwoLineDialogue(tutorial, view, language);
+  }
+
+  const finalAction = tutorial.actions[4];
+  const finalCards = finalAction.hand.map(id => game.blackHand.find(card => card.id === id));
+  game.state = 'DISCARDING';
+  game.center = finalCards;
+  game.discardSelections = ['b2', 'b4'];
+  const flexibleKeep = tutorial.getGuidance(4, { game });
+  assert.equal(flexibleKeep.hint, 'keepReady', 'any two real center cards are valid in the final practice');
+  for (const language of ['zh', 'en']) assertTwoLineDialogue(tutorial, flexibleKeep, language);
+});
 
 test('accepts another winning division and any two real retention cards in final practice', () => {
   for (const ids of [['b2', 'b4', 'b9'], ['b2', 'b4', 'b9', 'w9']]) {

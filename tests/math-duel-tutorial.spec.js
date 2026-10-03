@@ -134,7 +134,7 @@ test('finishes five real moves with AI pauses, division and the ordinary win con
   expect(await page.evaluate(() => game.center.find(card => card.id === 'b6').val)).toBe(6);
   await continueButton(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-5');
-  await expect(page.locator('#black-play-hint')).toContainText('用除法把剩下的黑牌換掉');
+  await expect(page.locator('#black-play-hint')).toContainText('最後一手用除法，換掉剩下的黑牌');
   await expect(page.locator('#black-play-hint')).not.toContainText('選黑 2');
   await page.locator('.utility-rules').click();
   await page.locator('#rules-step-help').click();
@@ -192,7 +192,7 @@ test('rejects a different legal task without changing the board or claiming bad 
   await startLesson(page);
   await send(page, ['b1', 'b5'], ['w9'], '+');
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
-  await expect(page.locator('#black-play-hint')).toContainText('這步請用黑 1、8');
+  await expect(page.locator('#black-play-hint')).toContainText('這步請用黑 1、黑 8');
   expect(await fieldIds(page)).toEqual(['w9']);
   expect(await page.evaluate(() => game.blackHand.length)).toBe(9);
   await page.locator('#black-equation [data-card-id="b5"]').click();
@@ -235,7 +235,7 @@ test('keeps a wrong retention choice reversible without advancing the teaching a
   const before = await fieldIds(page);
   for (const id of ['b5', 'b7']) await page.locator(`#center-cards [data-card-id="${id}"]`).click();
   await page.locator('#black-actions [data-role="main-btn"]').click();
-  await expect(page.locator('#black-play-hint')).toContainText('請留下這步指定的兩張牌');
+  await expect(page.locator('#black-play-hint')).toContainText('請選兩張牌留在中央');
   expect(await fieldIds(page)).toEqual(before);
   expect(await page.evaluate(() => gameSession.action)).toBe(2);
   for (const id of ['b5', 'b7', 'b3', 'b6']) await page.locator(`#center-cards [data-card-id="${id}"]`).click();
@@ -344,7 +344,7 @@ test('holds the teaching AI after real animations while language and help remain
   await reachSecondMove(page);
   expect(await page.evaluate(() => ({ gate: Boolean(tutorialGate), automaticTimer: Boolean(aiPlanResolver), busy: game.uiBusy }))).toEqual({ gate: true, automaticTimer: false, busy: false });
   await page.locator('.utility-language').click();
-  await expect(page.locator('#black-play-hint')).toContainText('White 1, 2 make 12; add 6.');
+  await expect(page.locator('#black-play-hint')).toContainText('1, 2 make 12; add 6.');
   await expect(continueButton(page)).toHaveText('Next');
   await page.locator('.utility-rules').click();
   await page.locator('#modal-close-btn').click();
