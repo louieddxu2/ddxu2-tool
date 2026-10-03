@@ -110,7 +110,7 @@ async function onUpload() {
 
 ## 視覺引導與遊戲流程分開
 
-`guide-spotlight.js` 搭配 `guide-spotlight.css`，負責遊戲常見的聚光遮罩、目標光圈，以及「點按」手指／「觀看」箭頭。它只量測畫面上的元素，**不複製卡牌、不移動元素、不鎖定操作**。
+`guide-spotlight.js` 搭配 `guide-spotlight.css`，負責聚光遮罩與目標光圈。純講解時只圈出應看的內容；實際操作且只有一個明確目標時，才顯示點按手勢。下一步按鈕維持自身強調，不再額外疊加手勢。它只量測畫面上的元素，**不複製卡牌、不移動元素、不鎖定操作**。
 
 ```js
 const spotlight = GuideSpotlight.create();
@@ -118,9 +118,9 @@ spotlight.update({
   hint: document.getElementById('current-tip'), // 既有提示，不再印一份
   targets: [document.getElementById('current-target')],
   context: [document.getElementById('current-result')],
-  action: document.getElementById('next-button'), // 選用：講解時指向可點按的下一步
+  action: document.getElementById('next-button'), // 選用：保持下一步按鈕不被遮暗
   avoid: [document.getElementById('help-button')],
-  mode: 'tap' // 'observe' 改用觀看箭頭，適合暫停的 AI 行動
+  mode: 'tap' // 'observe' 只圈選內容，不暗示點按
 });
 // 打開規則、略過或回到一般流程：spotlight.clear()
 // 離開整個功能：spotlight.destroy()

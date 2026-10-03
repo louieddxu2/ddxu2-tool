@@ -75,7 +75,7 @@
         { rect: hint, padding: 5 },
         ...targetEntries.map(({ element, rect }) => ({ rect, padding: cardTarget(element) ? 1 : 5 })),
         ...context.map(rect => ({ rect, padding: 5 })),
-        ...(action ? [{ rect: action, padding: 5 }] : [])
+        ...(action ? [{ rect: action, padding: 0 }] : [])
       ];
       holes.replaceChildren(...holeBoxes.map(({ rect, padding }) => make('rect', box(rect, padding, width, height))));
       rings.replaceChildren(...targetEntries.map(({ element, rect }) => {
@@ -85,11 +85,9 @@
           class: `guide-spotlight-ring${isCard ? ' guide-spotlight-card-ring' : ''}`
         });
       }));
-      if (action) rings.append(make('rect', { ...box(action, 4, width, height), class: 'guide-spotlight-action-ring' }));
-
       pointer.replaceChildren();
       const avoid = (current.avoid || []).map(bounds).filter(Boolean);
-      function appendPointer(target, mode, kind) {
+      function appendTapPointer(target) {
         const size = 24;
         const cx = target.left + target.width / 2;
         const cy = target.top + target.height / 2;
@@ -100,24 +98,19 @@
           { x: target.right + 7, y: cy - size / 2, rotate: -90 }
         ];
         const obstacles = [hint, ...targets.filter(rect => rect !== target), ...context, ...avoid, ...(action && action !== target ? [action] : [])];
-        // A side cue stays in the control row, so it cannot look like a tap on the hand below.
-        const ordered = kind === 'action' ? [candidates[2], candidates[3], candidates[0], candidates[1]] : candidates;
-        const placement = ordered.find(item => item.x >= 4 && item.y >= 4 && item.x + size <= width - 4 && item.y + size <= height - 4 && !obstacles.some(rect => intersects({ ...item, size: size + 4, x: item.x - 2, y: item.y - 2 }, rect)));
+        const placement = candidates.find(item => item.x >= 4 && item.y >= 4 && item.x + size <= width - 4 && item.y + size <= height - 4 && !obstacles.some(rect => intersects({ ...item, size: size + 4, x: item.x - 2, y: item.y - 2 }, rect)));
         if (!placement) return;
-        const group = make('g', { 'data-cue': kind, transform: `translate(${placement.x} ${placement.y}) rotate(${placement.rotate} 12 12)` });
+        const group = make('g', { 'data-cue': 'focus', transform: `translate(${placement.x} ${placement.y}) rotate(${placement.rotate} 12 12)` });
         group.append(make('rect', { x: -2, y: -2, width: 28, height: 28, rx: 14, class: 'guide-pointer-disc' }));
-        const cue = make('g', { class: 'guide-pointer-cue', 'data-mode': mode });
-        cue.append(mode === 'observe'
-          ? make('path', { d: 'M12 3v17M6 9l6-6 6 6', class: 'guide-observe-arrow' })
-          : make('path', { d: 'M9 12V4a2 2 0 0 1 4 0v6l2-1 2 2 2 1v5c0 3-2 5-5 5h-3c-2 0-3-1-4-3l-3-5a2 2 0 0 1 3-2l2 2', class: 'guide-tap-hand' }));
+        const cue = make('g', { class: 'guide-pointer-cue', 'data-mode': 'tap' });
+        cue.append(make('path', { d: 'M9 12V4a2 2 0 0 1 4 0v6l2-1 2 2 2 1v5c0 3-2 5-5 5h-3c-2 0-3-1-4-3l-3-5a2 2 0 0 1 3-2l2 2', class: 'guide-tap-hand' }));
         group.append(cue);
         pointer.append(group);
       }
       // Multiple individual rings identify the whole card set; avoid implying that only
-      // its first card matters. A pointer is useful when there is just one focal target.
-      if (targets.length === 1) appendPointer(targets[0], current.mode || 'tap', 'focus');
-      // Keep the action hand on the actual next control, not on the cards being explained.
-      if (action) appendPointer(action, 'tap', 'action');
+      // its first card matters. Observation checkpoints use rings only; the blue Next
+      // button is already the action cue, so only live tap targets receive a hand.
+      if (targets.length === 1 && (current.mode || 'tap') === 'tap') appendTapPointer(targetEntries[0].rect);
     }
 
     function schedule() {

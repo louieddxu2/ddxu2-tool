@@ -34,34 +34,30 @@ async function expectNextAction(page, language = 'zh') {
   await expect(page.locator('#black-actions [data-role="operator-group"]')).toBeHidden();
   await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeHidden();
   await expect(page.locator('#black-actions [data-role="giveup-btn"]')).toBeHidden();
-  await expect(page.locator('.guide-spotlight-action-ring')).toHaveCount(1);
-  await expect(page.locator('[data-cue="action"] .guide-tap-hand')).toHaveCount(1);
+  await expect(page.locator('.guide-spotlight-action-ring')).toHaveCount(0);
+  await expect(page.locator('[data-cue="action"]')).toHaveCount(0);
   const measure = () => page.evaluate(() => {
     const button = document.querySelector('#black-actions [data-role="plan-continue-btn"]');
     const rect = button.getBoundingClientRect();
     const zone = document.getElementById('black-actions').getBoundingClientRect();
-    const ring = document.querySelector('.guide-spotlight-action-ring').getBoundingClientRect();
-    const hand = document.querySelector('[data-cue="action"]').getBoundingClientRect();
     const style = getComputedStyle(button);
     return {
       centered: Math.abs(rect.x + rect.width / 2 - zone.x - zone.width / 2) < 1,
       contained: rect.left >= zone.left && rect.right <= zone.right && rect.top >= zone.top && rect.bottom <= zone.bottom,
       width: rect.width, height: rect.height, font: parseFloat(style.fontSize),
-      ringAligned: Math.abs(rect.x + rect.width / 2 - ring.x - ring.width / 2) < 1 && Math.abs(rect.y + rect.height / 2 - ring.y - ring.height / 2) < 1,
-      handFits: hand.left >= 0 && hand.right <= innerWidth && hand.top >= 0 && hand.bottom <= innerHeight,
-      handInControlRow: hand.top >= zone.top && hand.bottom <= zone.bottom,
+      buttonAccent: style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.color === 'rgb(255, 255, 255)' && style.borderColor === 'rgb(229, 196, 119)',
+      nextArrow: getComputedStyle(button, '::after').content,
       topElement: document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === button,
       passive: getComputedStyle(document.querySelector('.guide-spotlight')).pointerEvents
     };
   });
-  // The passive presenter measures on the next frame after resize/render.
-  await expect.poll(measure).toMatchObject({ ringAligned: true, handFits: true, handInControlRow: true });
+  // The blue button and its inline arrow carry the action cue without a second pointer.
+  await expect.poll(measure).toMatchObject({ buttonAccent: true, nextArrow: '"→"' });
   const layout = await measure();
   expect(layout.centered, JSON.stringify(layout)).toBe(true);
   expect(layout.contained, JSON.stringify(layout)).toBe(true);
-  expect(layout.ringAligned, JSON.stringify(layout)).toBe(true);
-  expect(layout.handFits, JSON.stringify(layout)).toBe(true);
-  expect(layout.handInControlRow, JSON.stringify(layout)).toBe(true);
+  expect(layout.buttonAccent, JSON.stringify(layout)).toBe(true);
+  expect(layout.nextArrow, JSON.stringify(layout)).toBe('"→"');
   expect(layout.topElement).toBe(true);
   expect(layout.passive).toBe('none');
   expect(layout.width).toBeGreaterThanOrEqual(144);
@@ -106,16 +102,17 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
       await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', `opening:${explanation}`);
     }
     if (explanation === 1) {
-      await expect(page.locator('#black-play-hint')).toContainText('算式要算出與場牌一樣的數字，才能交換');
-      await expect(page.locator('#black-play-hint')).toContainText('出牌留在場上；算式用到的場牌回到手裡');
+      await expect(page.locator('#black-play-hint')).toContainText('算式結果要等於場牌才能交換');
+      await expect(page.locator('#black-play-hint')).toContainText('出牌留場；結果牌回手');
       await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
       await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'description');
       await focus(page, '#center-cards [data-card-id="w9"][data-tutorial-focus="center"]');
     }
+    await expect(page.locator('[data-cue="focus"]')).toHaveCount(0);
     if (explanation === 2) {
       await expect(page.locator('#black-play-hint')).toContainText('算式中的每個數最多兩位數');
-      await expect(page.locator('#black-play-hint')).toContainText('1、2 組成 12，再加 6；共出 3 張手牌');
+      await expect(page.locator('#black-play-hint')).toContainText('1、2 組成 12，再加 6');
       await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'example');
       await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
@@ -183,8 +180,10 @@ test('moves the tap cue through the real controls, including undo and previous c
   await start(page);
   await focus(page, '#black-hand [data-tutorial-focus="hand"]', 2);
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-mode', 'tap');
+  await expect(page.locator('[data-cue="focus"]')).toHaveCount(0);
   await page.locator('#black-hand [data-card-id="b1"]').click();
   await focus(page, '#black-hand [data-tutorial-focus="hand"][data-card-id="b8"]');
+  await expect(page.locator('[data-cue="focus"] .guide-tap-hand')).toHaveCount(1);
   await expect(page.locator('#black-play-hint')).toContainText('已選 1/2');
   await page.locator('#black-equation [data-card-id="b1"]').click();
   await focus(page, '#black-hand [data-tutorial-focus="hand"]', 2);
@@ -214,12 +213,13 @@ test('points corrections at the live played card, not a duplicated explanation',
   expect(await page.locator('#game-board [data-card-id="b5"]').count()).toBe(1);
 });
 
-test('uses observation arrows for AI and restores the same focus after help', async ({ page }, testInfo) => {
+test('keeps AI observation highlights separate from the next action and restores focus after help', async ({ page }, testInfo) => {
   await start(page);
   await firstMove(page);
   await focus(page, '#white-equation [data-tutorial-focus="equation-hand"]', 3);
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-mode', 'observe');
-  await expect(page.locator('#black-play-hint')).toContainText('白 1、2 能排成 12');
+  await expect(page.locator('[data-cue="focus"]')).toHaveCount(0);
+  await expect(page.locator('#black-play-hint')).toContainText('白 1、2 排成 12，再加白 6');
   await expect(page.locator('#black-play-hint')).toContainText('這三張手牌分成 12 和 6');
   await expect(page.locator('#black-score')).toHaveText('2/5');
   await expect(page.locator('#black-turn-status')).toHaveText('看看對手');
@@ -281,8 +281,10 @@ test('keeps mask, rings and complete hints aligned after resizing, in both langu
         const hint = document.getElementById('black-play-hint');
         const hintBox = hint.getBoundingClientRect();
         const equation = document.getElementById('black-equation').getBoundingClientRect();
-        const text = [...hint.querySelectorAll('span')].flatMap(span => {
-          const range = document.createRange(); range.selectNodeContents(span); return [...range.getClientRects()];
+        const overflowingText = [...hint.querySelectorAll('span')].filter(span => span.children.length === 0).flatMap(span => {
+          const range = document.createRange(); range.selectNodeContents(span);
+          return [...range.getClientRects()].filter(rect => rect.top < hintBox.top || rect.bottom > hintBox.bottom || rect.left < hintBox.left || rect.right > hintBox.right)
+            .map(rect => ({ text: span.textContent.trim(), top: Math.round(rect.top), bottom: Math.round(rect.bottom), left: Math.round(rect.left), right: Math.round(rect.right) }));
         });
         const rings = [...document.querySelectorAll('.guide-spotlight-ring')].map(ring => ring.getBoundingClientRect());
         const targets = [...document.querySelectorAll('#black-hand [data-tutorial-focus]')].map(element => element.getBoundingClientRect());
@@ -294,7 +296,7 @@ test('keeps mask, rings and complete hints aligned after resizing, in both langu
           shade: shade.toJSON(), shadeOpacity: getComputedStyle(document.querySelector('.guide-spotlight-shade')).fillOpacity,
           hint: hintBox.toJSON(), equation: equation.toJSON(),
           noOverflow: document.body.scrollHeight <= innerHeight && document.body.scrollWidth <= innerWidth,
-          textFits: text.every(rect => rect.top >= hintBox.top && rect.bottom <= hintBox.bottom && rect.left >= hintBox.left && rect.right <= hintBox.right),
+          textFits: overflowingText.length === 0, overflowingText,
           clearOfUtilities: controls.every(control => hintBox.bottom <= control.top || hintBox.top >= control.bottom || hintBox.right <= control.left || hintBox.left >= control.right),
           ringsAligned: rings.length === targets.length && rings.every((ring, index) => Math.abs(ring.x + ring.width / 2 - targets[index].x - targets[index].width / 2) < 1 && Math.abs(ring.y + ring.height / 2 - targets[index].y - targets[index].height / 2) < 1),
           passive: getComputedStyle(document.querySelector('.guide-spotlight')).pointerEvents
@@ -337,7 +339,7 @@ test('keeps adjacent AI equation cards readable under spotlight', async ({ page 
       targetCount: document.querySelectorAll('#white-equation [data-tutorial-focus="equation-hand"]').length
     };
   });
-  expect(geometry).toEqual({ count: 3, separated: true, ringsAvoidOtherCards: true, focusCueCount: 0, actionCueCount: 1, stroke: '2px', targetCount: 3 });
+  expect(geometry).toEqual({ count: 3, separated: true, ringsAvoidOtherCards: true, focusCueCount: 0, actionCueCount: 0, stroke: '2px', targetCount: 3 });
   await page.screenshot({ path: testInfo.outputPath('ai-card-focus-separated.png') });
 });
 

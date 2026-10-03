@@ -17,12 +17,12 @@
       labels: { objective: '目標', rule: '規則', description: '描述', example: '例子', demonstration: '示範', result: '結果', status: '狀態', next: '操作', tip: '提示' },
       objective: '黑方手牌全白就能贏',
       objectiveDetail: '這些黑牌就是你要換掉的',
-      corePlay: '算式要算出與場牌一樣的數字，才能交換。',
-      coreDetail: '出牌留在場上；算式用到的場牌回到手裡。',
+      corePlay: '算式結果要等於場牌才能交換。',
+      coreDetail: '出牌留場；結果牌回手。',
       digitLimit: '算式中的每個數最多兩位數。',
-      digitLimitExample: '1、2 組成 12，再加 6；共出 3 張手牌。',
+      digitLimitExample: '1、2 組成 12，再加 6。',
       firstTrade: '白 9 換回手裡了！', firstTradeDetail: '黑 1、8 留在場上，接著換對手',
-      choose: '先點黑 1 和 8', goal: '這回合先把場上的白 9 換回來',
+      choose: '先點黑 1 和 8', goal: '這回合先換回白 9',
       anyOrder: '順序不限；再點一次可取消', operator: '再點 ＋，我們來做加法',
       selected: '已選 {selected}/{total} 張；再點可取消',
       undoHand: '點出牌區的{cards}，取消選取',
@@ -63,12 +63,12 @@
       labels: { objective: 'Goal', rule: 'Rule', description: 'Description', example: 'Example', demonstration: 'Demo', result: 'Result', status: 'Status', next: 'Next', tip: 'Tip' },
       objective: 'Win with an all-white hand.',
       objectiveDetail: 'Trade away these black cards.',
-      corePlay: 'Your equation must match the table number to trade.',
-      coreDetail: 'Played cards stay; the matched table cards go to your hand.',
-      digitLimit: 'Each number in the equation is at most 2 digits.',
-      digitLimitExample: '1, 2 make 12; add 6, using 3 hand cards.',
+      corePlay: 'Match the table result to trade.',
+      coreDetail: 'Played cards stay; take results.',
+      digitLimit: 'Each value is at most 2 digits.',
+      digitLimitExample: '1, 2 form 12; add 6.',
       firstTrade: 'White 9 is now in your hand!', firstTradeDetail: 'Black 1, 8 stay; AI moves next.',
-      choose: 'First, tap black 1 and 8.', goal: 'This turn, bring table white 9 into your hand.',
+      choose: 'First, tap black 1 and 8.', goal: 'Trade for white 9.',
       anyOrder: 'Any order; tap again to undo.', operator: 'Tap + for addition.',
       selected: 'Selected {selected}/{total}; tap again to undo.',
       undoHand: 'Tap played {cards} to undo.', undoTarget: 'Tap result {cards} to undo.',
@@ -211,7 +211,7 @@
         'before-exchange': [observe('three', 'threeDetail', [focus('equation-hand', 'WHITE', action.hand)], 'demonstration', 'description'), observe('targetTwo', 'targetTwoDetail', [focus('equation-target', 'WHITE', action.center)], 'result', 'description')],
         'before-keep': [observe('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)], 'result', 'description')]
       } : index === 2 ? {
-        'before-keep': [observe('keepConcept', 'keepConceptDetail', [focus('center-area', 'BLACK')], 'rule', 'description')]
+        'before-keep': [observe('keepConcept', 'keepConceptDetail', [focus('center', 'BLACK', action.keep)], 'rule', 'description')]
       } : index === 3 ? {
         'before-exchange': [observe('flip', 'flipDetail', [focus('equation-target', 'WHITE', action.center)], 'rule', 'description')]
       } : {}

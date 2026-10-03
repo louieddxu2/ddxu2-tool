@@ -243,6 +243,10 @@ test('explains retention before accepting choices, reports the two-card limit, a
   await held(page, 'before-keep:0');
   await phase(page, 'keep');
   await expect(page.locator('#black-play-hint')).toContainText('場上只留兩張');
+  for (const id of ['b3', 'b6']) await expect(field(page, id)).toHaveAttribute('data-tutorial-focus', 'center');
+  for (const id of ['b5', 'b7']) await expect(field(page, id)).not.toHaveAttribute('data-tutorial-focus');
+  await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-target-count', '2');
+  await expect(page.locator('[data-cue="focus"]')).toHaveCount(0);
   const heldBoard = await board(page);
   await field(page, 'b3').click();
   expect(await board(page)).toEqual(heldBoard);
