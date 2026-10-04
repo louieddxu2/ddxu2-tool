@@ -15,13 +15,8 @@
   const COPY = {
     zh: {
       labels: { objective: '目標', rule: '規則', description: '描述', example: '例子', demonstration: '示範', result: '結果', status: '狀態', next: '操作', tip: '提示' },
-      objective: '把黑方手牌全部換成白牌，就能獲勝。',
-      objectiveDetail: '每次用算式換牌，逐步清空黑牌。',
-      corePlay: '算式結果要等於場牌排出的數字，才能交換。',
-      coreDetail: '打出的牌留在場上；場牌回到手牌。',
-      digitLimit: '組成算式的每個數，最多兩位數。',
-      digitLimitExample: '例如 1、2 可組成 12，再加 6。',
-      firstTrade: '白 9 已回手。', firstTradeDetail: '黑 1、8 留場；白方接手。',
+      firstTrade: '黑 1、8 留場，白 9 回手。',
+      firstTradeDetail: '每個數最多兩位數；看 AI 出牌。',
       choose: '先點黑 1 和黑 8。', goal: '目標是換回場牌白 9。',
       anyOrder: '牌的順序不限；再點一次可取消。', operator: '再點 ＋，使用加法。',
       selected: '已選 {selected}/{total} 張；再點可取消。',
@@ -47,9 +42,7 @@
       opponentExchange: '對手出牌留場；結果牌回手。',
       taskOne: '這步請用黑 1、黑 8 和 ＋。', taskOneDetail: '結果選場牌白 9，再點可取消。',
       waiting: '接著輪到白方行動。', resolving: '換牌動畫進行中。', history: '你的上一手留在場上，對手看得到。',
-      three: '白 1、2 排成 12，再加白 6。', threeDetail: '白方算式：12 + 6。',
-      targetTwo: '12 + 6 的結果是 18。', targetTwoDetail: '黑 1、8 組成 18。',
-      aiKeep: '中央最多留兩張牌。', aiKeepDetail: '白 1、2 留下；白 6 離場。',
+      aiKeep: '12 + 6 = 18，AI 換回黑 1、8。', aiKeepDetail: '最多留兩張；AI 留 1、2，6 離場。',
       four: '點黑 3、5、6、7。', fourDetail: '算式會排成 57 − 36 = 21，換回白 1、2。',
       keepConcept: '場上最多保留兩張牌。', keepConceptDetail: '這手留下黑 3、6；其他牌會離場。',
       keepThree: '點黑 3 和黑 6，讓它們留在場上。', keepDetail: '其餘牌會移出場中央。',
@@ -64,13 +57,8 @@
     },
     en: {
       labels: { objective: 'Goal', rule: 'Rule', description: 'Description', example: 'Example', demonstration: 'Demo', result: 'Result', status: 'Status', next: 'Next', tip: 'Tip' },
-      objective: 'Turn every black card in your hand white to win.',
-      objectiveDetail: 'Trade cards with equations to clear the black cards.',
-      corePlay: 'The equation must match the value formed by the table cards to trade.',
-      coreDetail: 'Played cards stay; table cards return to your hand.',
-      digitLimit: 'Every number in an equation can have at most two digits.',
-      digitLimitExample: 'For example, 1 and 2 form 12; add 6.',
-      firstTrade: 'White 9 is back.', firstTradeDetail: '1, 8 stay; White next.',
+      firstTrade: 'Black 1 and 8 stay; white 9 returns to your hand.',
+      firstTradeDetail: 'Two digits max; watch AI play.',
       choose: 'First, tap black 1 and black 8.', goal: 'Trade for the table white 9.',
       anyOrder: 'Card order does not matter; tap again to undo.', operator: 'Tap + for addition.',
       selected: 'Selected {selected}/{total}; tap again to undo.',
@@ -94,9 +82,7 @@
       opponentExchange: 'AI cards stay; results return.',
       taskOne: 'Use black 1, black 8, and + for this move.', taskOneDetail: 'Target table white 9; tap again to undo.',
       waiting: 'White moves next.', resolving: 'The trade animation is playing.', history: 'Your last move stays for White to see.',
-      three: '1, 2 make 12; add 6.', threeDetail: 'AI: 12 + 6.',
-      targetTwo: '12 + 6 = 18.', targetTwoDetail: 'Black 1, 8 make 18.',
-      aiKeep: 'Keep only two cards.', aiKeepDetail: '1, 2 stay; 6 leaves.',
+      aiKeep: '12 + 6 = 18, so AI takes black 1 and 8.', aiKeepDetail: 'Up to 2 stay; AI keeps 1, 2; 6 leaves.',
       four: 'Tap black 3, 5, 6, and 7.', fourDetail: 'They arrange as 57 − 36 = 21 to take white 1 and 2.',
       keepConcept: 'Keep no more than two cards.', keepConceptDetail: 'Keep black 3, 6; the rest leave.',
       keepThree: 'Keep black 3 and black 6 on the table.', keepDetail: 'The other cards leave the center.',
@@ -187,9 +173,9 @@
       if (missingBlack.length) {
         return view('division', 'practiceSelect', [focus('hand', 'BLACK', missingBlack.map(card => card.id))], { selected: selection.hand.length });
       }
-      if (!selection.hand.includes('w9')) return view('practiceAddWhite', 'practiceAddWhiteDetail', [focus('hand', 'BLACK', ['w9'])], {}, 'next', 'example');
-      if (selection.operator !== action.op) return view('practiceOperator', 'practiceOperatorDetail', [focus('operator', 'BLACK', [], '/')], {}, 'next', 'example');
-      if (!selection.center.length) return view('practiceTarget', 'practiceTargetDetail', [focus('center', 'BLACK', ['w4'])], {}, 'next', 'example');
+      if (!selection.hand.includes('w9')) return view('practiceAddWhite', 'practiceAddWhiteDetail', [focus('hand', 'BLACK', ['w9'])], {}, 'next', 'description');
+      if (selection.operator !== action.op) return view('practiceOperator', 'practiceOperatorDetail', [focus('operator', 'BLACK', [], '/')], {}, 'next', 'description');
+      if (!selection.center.length) return view('practiceTarget', 'practiceTargetDetail', [focus('center', 'BLACK', ['w4'])], {}, 'next', 'description');
       return view('practiceNoEquation', 'practiceExtra', [focus('equation-hand', 'BLACK', selection.hand)]);
     }
     if (ready) return view('ready', index === 0 ? 'exchange' : 'automatic', [focus('send', 'BLACK')]);
@@ -210,15 +196,10 @@
       id: `move-${index + 1}`,
       complete: event => event.type === 'turn.completed' && event.actor === action.side && event.action === index + 1,
       view: snapshot => getGuidance(index, snapshot),
-      checkpoints: index === 0 ? {
-        opening: [observe('objective', 'objectiveDetail', [focus('hand-area', 'BLACK')], 'objective', 'description'),
-          observe('corePlay', 'coreDetail', [focus('center', 'BLACK', ['w9'])], 'rule', 'description'),
-          observe('digitLimit', 'digitLimitExample', [focus('hand', 'BLACK', ['b1', 'b2', 'b6'])], 'rule', 'example')]
-      } : index === 1 ? {
-        'after-player-exchange': [{ ...observe('firstTrade', 'firstTradeDetail', [focus('hand', 'BLACK', ['w9'])], 'result', 'description'),
+      checkpoints: index === 1 ? {
+        'before-exchange': [{ ...observe('firstTrade', 'firstTradeDetail', [focus('equation-hand', 'WHITE', action.hand)], 'result', 'rule'),
           actionNumber: 1, context: [focus('center-area', 'BLACK')] }],
-        'before-exchange': [observe('three', 'threeDetail', [focus('equation-hand', 'WHITE', action.hand)], 'demonstration', 'description'), observe('targetTwo', 'targetTwoDetail', [focus('equation-target', 'WHITE', action.center)], 'result', 'description')],
-        'before-keep': [observe('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)], 'rule', 'description')]
+        'before-keep': [observe('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)], 'result', 'rule')]
       } : index === 2 ? {
         'before-keep': [observe('keepConcept', 'keepConceptDetail', [focus('center', 'BLACK', action.keep)], 'rule', 'description')]
       } : index === 3 ? {

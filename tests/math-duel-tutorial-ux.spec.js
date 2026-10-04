@@ -22,12 +22,8 @@ test.afterEach(async ({ page }) => expect(errors.get(page)).toEqual([]));
 async function start(page) {
   await page.goto('/math-duel/index.html');
   await page.locator('#welcome-start').click();
-  await held(page, 'opening:0');
-  await next(page).click();
-  await held(page, 'opening:1');
-  await next(page).click();
-  await held(page, 'opening:2');
-  await next(page).click();
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
+  await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
   await phase(page, 'play');
 }
 
@@ -41,15 +37,11 @@ async function send(page, cards, results, operator) {
 async function firstTrade(page) {
   await start(page);
   await send(page, ['b1', 'b8'], ['w9'], '+');
-  await held(page, 'after-player-exchange:0');
+  await held(page, 'before-exchange:0');
 }
 
 async function thirdMove(page) {
   await firstTrade(page);
-  await next(page).click();
-  await held(page, 'before-exchange:0');
-  await next(page).click();
-  await held(page, 'before-exchange:1');
   await next(page).click();
   await held(page, 'before-keep:0');
   await next(page).click();
@@ -114,67 +106,72 @@ async function expectHintFits(page) {
   expect(layout, JSON.stringify(layout)).toEqual({ inPlayedArea: true, linesFit: true, overflowingText: [], headerFits: true, equationFits: true, scroll: false });
 }
 
-test('keeps opening explanations read-only, supports back, and does not skip on double-click or key repeat', async ({ page }) => {
+test('starts on a real move and performs the AI move after one two-sentence cue', async ({ page }) => {
   await page.goto('/math-duel/index.html');
+  await expect(page.locator('#welcome-detail')).toContainText('目標是把黑牌換成白牌');
+  await expect(page.locator('#welcome-detail')).toContainText('用算式換回中央數值相同的牌');
+  const welcome = await page.locator('#welcome-detail').textContent();
+  expect((welcome.match(/[.!?。！？]/g) || []).length).toBe(1);
+  expect(welcome).not.toMatch(/\d/);
   await page.locator('#welcome-start').click();
-  await held(page, 'opening:0');
-  await expect(next(page)).toBeFocused();
-  const opening = await board(page);
-  await hand(page, 'b1').click();
-  await field(page, 'w9').click();
-  expect(await board(page)).toEqual(opening);
-  await next(page).dblclick();
-  await held(page, 'opening:1');
-  await expect(back(page)).toHaveAccessibleName('上一段說明');
-  const prevented = await next(page).evaluate(button => {
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
+  await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
+  await expect(page.locator('#black-play-hint')).toContainText('先點黑 1 和黑 8');
+  await expect(hand(page, 'b1')).toHaveAttribute('data-tutorial-focus', 'hand');
+  await expect(hand(page, 'b8')).toHaveAttribute('data-tutorial-focus', 'hand');
+  await expect(page.locator('#black-actions [data-role="operator-group"]')).toBeVisible();
+  await expect(next(page)).toBeHidden();
+  expect(await board(page)).toMatchObject({ actions: 0, turn: 'BLACK', state: 'PLAYING', center: ['w9'] });
+
+  await send(page, ['b1', 'b8'], ['w9'], '+');
+  await held(page, 'before-exchange:0');
+  await phase(page, 'watch');
+  await expect(page.locator('#black-play-hint')).toContainText('黑 1、8 留場，白 9 回手');
+  await expect(page.locator('#black-play-hint')).toContainText('每個數最多兩位數');
+  await expect(page.locator('#black-play-hint')).toContainText('看 AI 出牌');
+  await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('結果');
+  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('規則');
+  await expect(page.locator('#white-equation [data-role="stage-hand-cards"] [data-card-id]')).toHaveCount(3);
+  expect(await page.evaluate(() => ({ actions: gameSession.action, turn: game.turn, pending: aiRequestPending, planned: Boolean(game.aiMoveInfo) })))
+    .toEqual({ actions: 1, turn: 'WHITE', pending: true, planned: true });
+
+  const repeated = await next(page).evaluate(button => {
     const event = new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
     button.dispatchEvent(event);
     return event.defaultPrevented;
   });
-  expect(prevented).toBe(true);
-  await held(page, 'opening:1');
-  await back(page).click();
-  await held(page, 'opening:0');
+  expect(repeated).toBe(true);
+  await held(page, 'before-exchange:0');
+  await next(page).dblclick();
+  await held(page, 'before-keep:0');
+  await expect(page.locator('body')).toHaveAttribute('data-game-state', 'DISCARDING');
+  expect(await page.evaluate(() => game.center.map(card => card.id).sort())).toEqual(['w1', 'w2', 'w6']);
+  expect(await page.evaluate(() => gameSession.action)).toBe(1);
   await expect(back(page)).toBeHidden();
-  await expect(next(page)).toBeFocused();
-  expect(await board(page)).toEqual(opening);
+  await expect(page.locator('#black-play-hint')).toContainText('12 + 6 = 18');
+  await expect(page.locator('#black-play-hint')).toContainText('最多留兩張');
   await next(page).click();
-  await held(page, 'opening:1');
-  await next(page).click();
-  await held(page, 'opening:2');
-  await expect(page.locator('#black-play-hint')).toContainText('組成算式的每個數，最多兩位數');
-  await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
-  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
-  await back(page).click();
-  await held(page, 'opening:1');
-  await back(page).click();
-  await held(page, 'opening:0');
-  await next(page).click();
-  await next(page).click();
-  await next(page).click();
-  await phase(page, 'play');
-  await hand(page, 'b1').click();
-  expect((await board(page)).hand).toEqual(['b1']);
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-3');
+  expect(await page.evaluate(() => gameSession.action)).toBe(2);
 });
 
-test('reviews the real first trade before requesting AI, while help and bilingual compact layouts stay usable', async ({ page }, testInfo) => {
+test('explains the real first trade and AI equation in one cue, with compact bilingual layouts', async ({ page }, testInfo) => {
   await firstTrade(page);
-  await phase(page, 'review');
+  await phase(page, 'watch');
   await expect(page.locator('#black-score')).toHaveText('1/5');
-  await expect(page.locator('#black-turn-status')).toHaveText('換牌完成');
-  await expect(hand(page, 'w9')).toHaveAttribute('data-tutorial-focus', 'hand');
-  await expect(page.locator('#black-equation [data-tutorial-focus]')).toHaveCount(0);
+  await expect(page.locator('#black-turn-status')).toHaveText('看看對手');
+  await expect(page.locator('#white-equation [data-tutorial-focus="equation-hand"]')).toHaveCount(3);
   expect(await page.evaluate(() => ({ requested: aiRequestPending, prepared: Boolean(game.aiMoveInfo), turn: game.turn, actions: gameSession.action })))
-    .toEqual({ requested: false, prepared: false, turn: 'WHITE', actions: 1 });
+    .toEqual({ requested: true, prepared: true, turn: 'WHITE', actions: 1 });
   const review = await board(page);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelState_v1.6.0')));
   expect(saved.turn).toBe('WHITE');
   expect(saved.state).toBe('PLAYING');
   await page.locator('.utility-rules').click();
   await page.locator('#modal-close-btn').click();
-  await held(page, 'after-player-exchange:0');
+  await held(page, 'before-exchange:0');
   expect(await board(page)).toEqual(review);
-  expect(await page.evaluate(() => aiRequestPending)).toBe(false);
+  expect(await page.evaluate(() => aiRequestPending)).toBe(true);
   for (const size of [{ width: 802, height: 293 }, { width: 320, height: 480 }, { width: 390, height: 844 }, { width: 800, height: 360 }]) {
     await page.setViewportSize(size);
     for (const language of ['zh', 'en']) {
@@ -183,15 +180,6 @@ test('reviews the real first trade before requesting AI, while help and bilingua
       await page.screenshot({ path: testInfo.outputPath(`first-trade-${size.width}-${language}.png`) });
     }
   }
-  await next(page).click();
-  await held(page, 'before-exchange:0');
-  await next(page).click();
-  await held(page, 'before-exchange:1');
-  const beforeExchange = await board(page);
-  await back(page).click();
-  await held(page, 'before-exchange:0');
-  expect(await board(page)).toEqual(beforeExchange);
-  await next(page).click();
   await next(page).click();
   await held(page, 'before-keep:0');
   await next(page).click();
@@ -203,10 +191,6 @@ test('uses the opponent as the subject while the AI move is animating', async ({
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.setViewportSize({ width: 320, height: 480 });
   await firstTrade(page);
-  await next(page).click();
-  await held(page, 'before-exchange:0');
-  await next(page).click();
-  await held(page, 'before-exchange:1');
   await next(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-phase', 'resolving');
   await expect(page.locator('#black-play-hint')).toContainText('對手出牌留場');

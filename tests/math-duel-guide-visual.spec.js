@@ -13,15 +13,31 @@ test.afterEach(async ({ page }) => expect(errors.get(page)).toEqual([]));
 async function start(page) {
   await page.goto('/math-duel/index.html');
   await page.locator('#welcome-start').click();
-  await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
-  await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
-  await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
+  await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
   await expect(page.locator('.guide-spotlight')).toBeVisible();
 }
 
 async function focus(page, selector, count = 1) {
   await expect(page.locator(selector)).toHaveCount(count);
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-target-count', String(count));
+}
+
+async function expectHintFits(page) {
+  const layout = await page.evaluate(() => {
+    const hint = document.getElementById('black-play-hint');
+    const box = hint.getBoundingClientRect();
+    const equation = document.getElementById('black-equation').getBoundingClientRect();
+    const textFits = [...hint.querySelectorAll('span')].filter(span => span.children.length === 0).flatMap(span => {
+      const range = document.createRange(); range.selectNodeContents(span);
+      return [...range.getClientRects()];
+    }).every(rect => rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1 && rect.left >= box.left - 1 && rect.right <= box.right + 1);
+    const equationClear = [...document.querySelectorAll('#black-equation [data-card-id], #black-equation .operand-divider')]
+      .every(element => element.getBoundingClientRect().bottom <= box.top);
+    return { inside: box.top >= equation.top && box.bottom <= equation.bottom, textFits, equationClear,
+      noScroll: document.documentElement.scrollHeight <= innerHeight && document.documentElement.scrollWidth <= innerWidth };
+  });
+  expect(layout, JSON.stringify(layout)).toEqual({ inside: true, textFits: true, equationClear: true, noScroll: true });
 }
 
 async function expectNextAction(page, language = 'zh') {
@@ -71,13 +87,12 @@ async function firstMove(page) {
   await page.locator('#black-actions [data-op="+"]').click();
   await page.locator('#center-cards [data-card-id="w9"]').click();
   await page.locator('#black-actions [data-role="main-btn"]').click();
-  await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'after-player-exchange:0');
-  await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'before-exchange:0');
 }
 
-test('separates the goal, exchange rule and two-digit limit before any tap task', async ({ page }, testInfo) => {
+test('pairs the two-digit rule with the real AI move and keeps the live cue legible', async ({ page }, testInfo) => {
   await page.goto('/math-duel/index.html');
+  await expect(page.locator('#welcome-detail')).toContainText('目標是把黑牌換成白牌');
   await page.locator('#welcome-start').click();
   await page.locator('.utility-rules').click();
   await expect(page.locator('#rule-4')).toContainText('每個數最多 2 位');
@@ -87,109 +102,64 @@ test('separates the goal, exchange rule and two-digit limit before any tap task'
   await expect(page.locator('#rule-4')).toContainText('not a 2-card limit for the whole equation');
   await page.evaluate(() => { LANG = 'zh'; render(); });
   await page.locator('#modal-close-btn').click();
-  await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'opening:0');
-  await expect(page.locator('#black-play-hint')).toContainText('把黑方手牌全部換成白牌，就能獲勝');
-  await expect(page.locator('#black-play-hint')).toContainText('每次用算式換牌，逐步清空黑牌');
-  await expect(page.locator('#black-play-hint')).not.toContainText('交換牌');
-  await expect(page.locator('#black-play-hint')).not.toContainText('點黑 1');
-  await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('目標');
-  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('描述');
-  await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-mode', 'observe');
-  expect(await page.evaluate(() => ({ actions: gameSession.action, black: game.blackHand.length, white: game.whiteHand.length, field: game.center.map(card => card.id) }))).toEqual({ actions: 0, black: 9, white: 8, field: ['w9'] });
-  for (const explanation of [0, 1, 2]) {
-    if (explanation > 0) {
-      await page.evaluate(() => { LANG = 'zh'; render(); });
-      await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
-      await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', `opening:${explanation}`);
-    }
-    if (explanation === 1) {
-      await expect(page.locator('#black-play-hint')).toContainText('算式結果要等於場牌排出的數字，才能交換');
-      await expect(page.locator('#black-play-hint')).toContainText('打出的牌留在場上；場牌回到手牌');
-      await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
-      await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
-      await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'description');
-      await focus(page, '#center-cards [data-card-id="w9"][data-tutorial-focus="center"]');
-    }
-    await expect(page.locator('[data-cue="focus"]')).toHaveCount(0);
-    if (explanation === 2) {
-      await expect(page.locator('#black-play-hint')).toContainText('組成算式的每個數，最多兩位數');
-      await expect(page.locator('#black-play-hint')).toContainText('例如 1、2 可組成 12，再加 6');
-      await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveAttribute('data-kind', 'rule');
-      await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveAttribute('data-kind', 'example');
-      await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('例子');
-      await focus(page, '#black-hand [data-tutorial-focus="hand"]', 3);
-    }
-    for (const size of [{ width: 320, height: 480 }, { width: 390, height: 844 }, { width: 800, height: 360 }]) {
-      await page.setViewportSize(size);
-      for (const language of ['zh', 'en']) {
-        await page.evaluate(lang => { LANG = lang; render(); }, language);
-        await expectNextAction(page, language);
-        if (explanation === 1) {
-          const labels = await page.evaluate(() => {
-            const rule = document.querySelector('#black-play-hint .hint-kind[data-kind="rule"]');
-            const description = document.querySelector('#black-play-hint .hint-kind[data-kind="description"]');
-            return { size: parseFloat(getComputedStyle(rule).fontSize), colors: [getComputedStyle(rule).color, getComputedStyle(description).color] };
-          });
-          expect(labels.size, `rule label size ${size.width} ${language}`).toBeGreaterThanOrEqual(9);
-          expect(labels.colors[0], `rule and description colors ${size.width} ${language}`).not.toBe(labels.colors[1]);
-        }
-        const fit = await page.evaluate(() => {
-          const hint = document.getElementById('black-play-hint');
-          const box = hint.getBoundingClientRect();
-          const equation = document.getElementById('black-equation').getBoundingClientRect();
-          const style = getComputedStyle(hint);
-          const overflowingText = [...hint.querySelectorAll('span')].flatMap(span => {
-            const range = document.createRange(); range.selectNodeContents(span);
-            return [...range.getClientRects()].filter(rect => rect.top < box.top || rect.bottom > box.bottom || rect.left < box.left || rect.right > box.right)
-              .map(rect => ({ text: span.textContent.trim(), rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right } }));
-          });
-          const lines = [...hint.querySelectorAll('.hint-line')].map(line => ({
-            box: line.getBoundingClientRect().toJSON(),
-            parts: [...line.querySelectorAll('span')].map(part => ({ text: part.textContent.trim(), box: part.getBoundingClientRect().toJSON() }))
-          }));
-          return {
-            hint: { top: box.top, bottom: box.bottom, left: box.left, right: box.right },
-            equation: { top: equation.top, bottom: equation.bottom },
-            style: { fontSize: style.fontSize, lineHeight: style.lineHeight, paddingBlock: `${style.paddingTop} ${style.paddingBottom}` },
-            lines,
-            overflowingText
-          };
-        });
-        await page.screenshot({ path: testInfo.outputPath(`concept-${explanation}-${size.width}-${language}.png`) });
-        expect(fit.hint.top >= fit.equation.top && fit.hint.bottom <= fit.equation.bottom && fit.overflowingText.length === 0,
-          `opening ${size.width} ${language}: ${JSON.stringify(fit)}`).toBe(true);
-      }
-    }
-  }
-  await page.evaluate(() => { LANG = 'zh'; render(); });
-  const begin = page.locator('#black-actions [data-role="plan-continue-btn"]');
-  await expect(begin).toHaveText('下一步');
-  await begin.click();
+
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
   await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-phase', 'play');
   await expect(page.locator('#black-play-hint')).toContainText('先點黑 1 和黑 8');
-  await expect(page.locator('#black-score')).toHaveText('1/5');
-  await expect(page.locator('#black-turn-status')).toHaveText('你來出牌');
-  await expect(page.locator('#black-actions')).not.toHaveClass(/is-guide-control/);
-  await expect(page.locator('#black-actions [data-role="operator-group"]')).toBeVisible();
+  await focus(page, '#black-hand [data-tutorial-focus="hand"]', 2);
+  await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeVisible();
   await expect(page.locator('#black-actions [data-role="giveup-btn"]')).toBeVisible();
   await expect(page.locator('.guide-spotlight-action-ring')).toHaveCount(0);
   await expect(page.locator('[data-cue="action"]')).toHaveCount(0);
-  expect(await page.evaluate(() => gameSession.action)).toBe(0);
+
+  for (const size of [{ width: 320, height: 480 }, { width: 390, height: 844 }, { width: 800, height: 360 }]) {
+    await page.setViewportSize(size);
+    for (const language of ['zh', 'en']) {
+      await page.evaluate(lang => { LANG = lang; render(); }, language);
+      await expectHintFits(page);
+      await page.screenshot({ path: testInfo.outputPath(`first-action-${size.width}-${language}.png`) });
+    }
+  }
+
+  await page.evaluate(() => { LANG = 'zh'; render(); });
+  await firstMove(page);
+  await expect(page.locator('#black-play-hint')).toContainText('黑 1、8 留場，白 9 回手');
+  await expect(page.locator('#black-play-hint')).toContainText('每個數最多兩位數');
+  await expect(page.locator('#black-play-hint')).toContainText('看 AI 出牌');
+  await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('結果');
+  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('規則');
+  expect(await page.evaluate(() => ({ equation: game.aiMoveInfo.eq, action: gameSession.action, prepared: Boolean(game.aiMoveInfo) })))
+    .toEqual({ equation: '12 + 6 = 18', action: 1, prepared: true });
+  for (const size of [{ width: 320, height: 480 }, { width: 390, height: 844 }, { width: 800, height: 360 }]) {
+    await page.setViewportSize(size);
+    for (const language of ['zh', 'en']) {
+      await page.evaluate(lang => { LANG = lang; render(); }, language);
+      await expectNextAction(page, language);
+      await expectHintFits(page);
+    }
+  }
+  await page.evaluate(() => { LANG = 'zh'; render(); });
+  await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'before-keep:0');
+  await expect(page.locator('body')).toHaveAttribute('data-game-state', 'DISCARDING');
+  await expect(page.locator('#black-play-hint')).toContainText('12 + 6 = 18');
+  await expect(page.locator('#black-play-hint')).toContainText('最多留兩張');
+  expect(await page.evaluate(() => game.center.map(card => card.id).sort())).toEqual(['w1', 'w2', 'w6']);
+  await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-3');
 });
 
-for (const explanation of [0, 1, 2]) {
-  test(`can skip opening concept ${explanation} without making a move or completing the lesson`, async ({ page }) => {
-    await page.goto('/math-duel/index.html');
-    await page.locator('#welcome-start').click();
-    for (let index = 0; index < explanation; index++) await page.locator('#black-actions [data-role="plan-continue-btn"]').click();
-    await page.locator('.utility-rules').click();
-    await page.locator('#rules-skip-tutorial').click();
-    await expect(page.locator('body')).not.toHaveClass(/is-tutorial/);
-    await expect(page.locator('.guide-spotlight')).toBeHidden();
-    await expect(page.locator('[data-tutorial-focus]')).toHaveCount(0);
-    expect(await page.evaluate(() => ({ turn: game.turn, action: gameSession.action, cards: game.blackHand.length + game.whiteHand.length + game.center.length, completed: MathDuelTutorial.readPreferences(localStorage).completed, gate: Boolean(tutorialGate) }))).toEqual({ turn: 'BLACK', action: 0, cards: 18, completed: false, gate: false });
-  });
-}
+test('can skip from the first live action without performing it or marking the lesson complete', async ({ page }) => {
+  await start(page);
+  await page.locator('.utility-rules').click();
+  await page.locator('#rules-skip-tutorial').click();
+  await expect(page.locator('body')).not.toHaveClass(/is-tutorial/);
+  await expect(page.locator('.guide-spotlight')).toBeHidden();
+  await expect(page.locator('[data-tutorial-focus]')).toHaveCount(0);
+  expect(await page.evaluate(() => ({ turn: game.turn, action: gameSession.action, cards: game.blackHand.length + game.whiteHand.length + game.center.length, completed: MathDuelTutorial.readPreferences(localStorage).completed, gate: Boolean(tutorialGate) })))
+    .toEqual({ turn: 'BLACK', action: 0, cards: 18, completed: false, gate: false });
+});
 
 test('moves the tap cue through the real controls, including undo and previous choices', async ({ page }, testInfo) => {
   await start(page);
@@ -234,29 +204,27 @@ test('keeps AI observation highlights separate from the next action and restores
   await focus(page, '#white-equation [data-tutorial-focus="equation-hand"]', 3);
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-mode', 'observe');
   await expect(page.locator('[data-cue="focus"]')).toHaveCount(0);
-  await expect(page.locator('#black-play-hint')).toContainText('白 1、2 排成 12，再加白 6');
-  await expect(page.locator('#black-play-hint')).toContainText('白方算式：12 + 6');
-  await expect(page.locator('#black-score')).toHaveText('2/5');
+  await expect(page.locator('#black-play-hint')).toContainText('每個數最多兩位數');
+  await expect(page.locator('#black-play-hint')).toContainText('看 AI 出牌');
+  await expect(page.locator('#black-play-hint')).toContainText('黑 1、8 留場，白 9 回手');
+  await expect(page.locator('#black-score')).toHaveText('1/5');
   await expect(page.locator('#black-turn-status')).toHaveText('看看對手');
   await expect(page.locator('#black-equation [data-tutorial-focus]')).toHaveCount(0);
   const next = page.locator('#black-actions [data-role="plan-continue-btn"]');
   await expectNextAction(page);
   await next.click();
-  await focus(page, '#white-equation [data-tutorial-focus="equation-target"]', 2);
-  await expect(page.locator('#black-play-hint')).toContainText('12 + 6 的結果是 18');
-  await expect(page.locator('#black-play-hint')).toContainText('黑 1、8 組成 18');
-  await expectNextAction(page);
+  await focus(page, '#center-cards [data-tutorial-focus="center"]', 2);
+  await expect(page.locator('#black-play-hint')).toContainText('12 + 6 = 18');
+  await expect(page.locator('#black-play-hint')).toContainText('最多留兩張');
   await page.screenshot({ path: testInfo.outputPath('ai-focused-result.png') });
   await page.locator('.utility-rules').click();
   await expect(page.locator('.guide-spotlight')).toBeHidden();
   await page.locator('#modal-close-btn').click();
-  await focus(page, '#white-equation [data-tutorial-focus="equation-target"]', 2);
+  await focus(page, '#center-cards [data-tutorial-focus="center"]', 2);
   await page.locator('.utility-language').click();
   await expectNextAction(page, 'en');
   await next.click();
-  await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', 'before-keep:0');
-  await focus(page, '#center-cards [data-tutorial-focus="center"]', 2);
-  await expectNextAction(page, 'en');
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-3');
   await page.locator('.utility-rules').click();
   await page.locator('#rules-skip-tutorial').click();
   await expect(page.locator('.guide-spotlight')).toBeHidden();
@@ -266,10 +234,10 @@ test('keeps AI observation highlights separate from the next action and restores
   await expect(page.locator('[data-cue="action"]')).toHaveCount(0);
 });
 
-test('keeps the same centered next action through every AI explanation in portrait and landscape', async ({ page }, testInfo) => {
+test('keeps the same centered next action through AI exchange and keep beats in portrait and landscape', async ({ page }, testInfo) => {
   await start(page);
   await firstMove(page);
-  for (const checkpoint of ['before-exchange:0', 'before-exchange:1', 'before-keep:0']) {
+  for (const checkpoint of ['before-exchange:0', 'before-keep:0']) {
     await expect(page.locator('body')).toHaveAttribute('data-tutorial-checkpoint', checkpoint);
     for (const size of [{ width: 320, height: 480 }, { width: 390, height: 844 }, { width: 800, height: 360 }]) {
       await page.setViewportSize(size);

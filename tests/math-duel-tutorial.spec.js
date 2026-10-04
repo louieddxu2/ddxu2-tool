@@ -18,8 +18,7 @@ const checkpoint = (page, step, key) => Promise.all([
 ]);
 
 async function acknowledgeFirstTrade(page) {
-  await checkpoint(page, 2, 'after-player-exchange:0');
-  await continueButton(page).click();
+  await checkpoint(page, 2, 'before-exchange:0');
 }
 
 async function acknowledgeKeepRule(page) {
@@ -28,12 +27,9 @@ async function acknowledgeKeepRule(page) {
 }
 
 async function beginPlay(page) {
-  await checkpoint(page, 1, 'opening:0');
-  await continueButton(page).click();
-  await checkpoint(page, 1, 'opening:1');
-  await continueButton(page).click();
-  await checkpoint(page, 1, 'opening:2');
-  await continueButton(page).click();
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
+  await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
+  await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeVisible();
 }
 
 async function startLesson(page) {
@@ -58,12 +54,9 @@ async function reachSecondMove(page) {
   await startLesson(page);
   await send(page, ['b8', 'b1'], ['w9'], '+');
   await acknowledgeFirstTrade(page);
-  await checkpoint(page, 2, 'before-exchange:0');
 }
 
 async function finishSecondMove(page) {
-  await continueButton(page).click();
-  await checkpoint(page, 2, 'before-exchange:1');
   await continueButton(page).click();
   await checkpoint(page, 2, 'before-keep:0');
   await continueButton(page).click();
@@ -114,12 +107,9 @@ test('finishes five real moves with AI pauses, division and the ordinary win con
   expect(storedFirst.turn).toBe('WHITE');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelGuide_v2') || '{}').completed === true)).toBe(false);
   await continueButton(page).click();
-  await checkpoint(page, 2, 'before-exchange:1');
-  expect(await fieldIds(page)).toEqual(['b1', 'b8']);
-  await page.screenshot({ path: testInfo.outputPath('ai-two-digit-result.png') });
-  await continueButton(page).click();
   await checkpoint(page, 2, 'before-keep:0');
   expect(await fieldIds(page)).toEqual(['w1', 'w2', 'w6']);
+  await page.screenshot({ path: testInfo.outputPath('ai-two-digit-result.png') });
   await continueButton(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-3');
   await send(page, ['b7', 'b3', 'b6', 'b5'], ['w2', 'w1'], '-');
@@ -165,13 +155,9 @@ test('finishes five real moves with AI pauses, division and the ordinary win con
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelGuide_v2')).completed)).toBe(true);
 });
 
-for (const pause of ['before-exchange:0', 'before-exchange:1', 'before-keep:0', 'fourth-move']) {
+for (const pause of ['before-exchange:0', 'before-keep:0', 'fourth-move']) {
   test(`skips at ${pause} without duplicating the revealed AI action`, async ({ page }) => {
     await reachSecondMove(page);
-    if (pause === 'before-exchange:1' || pause === 'before-keep:0') {
-      await continueButton(page).click();
-      await checkpoint(page, 2, 'before-exchange:1');
-    }
     if (pause === 'before-keep:0') {
       await continueButton(page).click();
       await checkpoint(page, 2, 'before-keep:0');
@@ -199,7 +185,6 @@ test('rejects a different legal task without changing the board or claiming bad 
   await page.locator('#black-hand [data-card-id="b8"]').click();
   await page.locator('#black-actions [data-role="main-btn"]').click();
   await acknowledgeFirstTrade(page);
-  await checkpoint(page, 2, 'before-exchange:0');
 });
 
 test('restarts a held lesson and rejects the old worker and repeated continue callbacks', async ({ page }) => {
@@ -212,13 +197,12 @@ test('restarts a held lesson and rejects the old worker and repeated continue ca
     oldLessonWorker.onmessage({ data: { hand: ['w1', 'w2'], center: ['b1'], op: '+' } });
     continueAiPlan(); continueAiPlan();
   });
-  await checkpoint(page, 1, 'opening:2');
-  await continueButton(page).click();
+  await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
+  await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
   expect(await fieldIds(page)).toEqual(['w9']);
   expect(await page.evaluate(() => ({ action: gameSession.action, hand: game.blackHand.length, turn: game.turn, busy: game.uiBusy }))).toEqual({ action: 0, hand: 9, turn: 'BLACK', busy: false });
   await send(page, ['b1', 'b8'], ['w9'], '+');
   await acknowledgeFirstTrade(page);
-  await checkpoint(page, 2, 'before-exchange:0');
   await page.evaluate(() => { continueAiPlan(); continueAiPlan(); continueAiPlan(); });
   await checkpoint(page, 2, 'before-keep:0');
   await page.evaluate(() => { continueAiPlan(); continueAiPlan(); });
@@ -304,7 +288,6 @@ test('reloads a paused lesson as an ordinary saved game and safely leaves via ho
   await beginPlay(page);
   await send(page, ['b1', 'b8'], ['w9'], '+');
   await acknowledgeFirstTrade(page);
-  await checkpoint(page, 2, 'before-exchange:0');
   await page.locator('.utility-home').click();
   await expect(page).toHaveURL(/home=1/);
   await page.goto('/math-duel/index.html');
@@ -344,13 +327,11 @@ test('holds the teaching AI after real animations while language and help remain
   await reachSecondMove(page);
   expect(await page.evaluate(() => ({ gate: Boolean(tutorialGate), automaticTimer: Boolean(aiPlanResolver), busy: game.uiBusy }))).toEqual({ gate: true, automaticTimer: false, busy: false });
   await page.locator('.utility-language').click();
-  await expect(page.locator('#black-play-hint')).toContainText('1, 2 make 12; add 6.');
+  await expect(page.locator('#black-play-hint')).toContainText('Two digits max; watch AI play');
   await expect(continueButton(page)).toHaveText('Next');
   await page.locator('.utility-rules').click();
   await page.locator('#modal-close-btn').click();
   await checkpoint(page, 2, 'before-exchange:0');
-  await continueButton(page).click();
-  await checkpoint(page, 2, 'before-exchange:1');
   await continueButton(page).click();
   await checkpoint(page, 2, 'before-keep:0');
   await continueButton(page).click();
@@ -374,8 +355,7 @@ test('fits welcome, help and long teaching hints in portrait and short landscape
       await beginPlay(page);
       await send(page, ['b1', 'b8'], ['w9'], '+');
       await acknowledgeFirstTrade(page);
-      await checkpoint(page, 2, 'before-exchange:0');
-      for (const key of ['before-exchange:0', 'before-exchange:1', 'before-keep:0']) {
+      for (const key of ['before-exchange:0', 'before-keep:0']) {
         await checkpoint(page, 2, key);
         const layout = await page.evaluate(() => {
           const hint = document.getElementById('black-play-hint');

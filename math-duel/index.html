@@ -70,7 +70,7 @@
         play_hint_select: '點選手牌、運算符號與場牌（結果）',
         play_hint_arrange: '系統自動排列算式，不必依順序點選',
         welcome_title: '開始遊玩',
-        welcome_detail: '你出三手、對手示範兩手，邊玩邊學。隨時點「？」查看提示或略過。',
+        welcome_detail: '目標是把黑牌換成白牌；用算式換回中央數值相同的牌。',
         welcome_rules: '查看文字規則',
         welcome_hide: '不再顯示',
         tutorial_start: '開始教學',
@@ -81,7 +81,7 @@
         tutorial_help: '提示',
         tutorial_continue: '下一步',
         tutorial_back: '上一段說明', tutorial_play: '開始遊玩', tutorial_menu: '教學與規則',
-        tutorial_status_intro: '先看玩法', tutorial_status_review: '換牌完成', tutorial_status_watch: '看看對手',
+        tutorial_status_watch: '看看對手',
         tutorial_status_play: '你來出牌', tutorial_status_keep: '選保留牌', tutorial_status_complete: '教學完成',
         tutorial_status_resolving: '換牌中',
         tutorial_restart_confirm: '目前這局將重新開始，確定開始教學？',
@@ -139,7 +139,7 @@
         play_hint_select: 'Tap cards, an operator and a result.',
         play_hint_arrange: 'Auto-arranged; tap in any order.',
         welcome_title: 'Start playing',
-        welcome_detail: 'Play three moves and watch two. Tap ? anytime for help or to skip.',
+        welcome_detail: 'Turn every black card white by trading with equations that match the center cards.',
         welcome_rules: 'Read the rules',
         welcome_hide: "Don't show again",
         tutorial_start: 'Start tutorial',
@@ -150,7 +150,7 @@
         tutorial_help: 'Hint',
         tutorial_continue: 'Next',
         tutorial_back: 'Previous explanation', tutorial_play: 'Play a game', tutorial_menu: 'Tutorial and rules',
-        tutorial_status_intro: 'How to play', tutorial_status_review: 'Trade done', tutorial_status_watch: 'Watch AI',
+        tutorial_status_watch: 'Watch AI',
         tutorial_status_play: 'Your turn', tutorial_status_keep: 'Keep two', tutorial_status_complete: 'Complete',
         tutorial_status_resolving: 'Trading',
         tutorial_restart_confirm: 'This will restart the current game. Start the tutorial?',
@@ -538,9 +538,6 @@
       saveState();
       closeGameDialog();
       render();
-      // Establish the goal on the real opening board before teaching any taps.
-      // This checkpoint does not perform or count a game action.
-      void waitForTutorial('opening');
     }
 
     function requestTutorialHelp() {
@@ -1101,12 +1098,7 @@
       }
       if (game.state === 'GAMEOVER') { emitGuideEvent({ type: 'game.over', actor: turnJustEnded }); stopTutorial('cancel', false); }
       saveState(); render();
-      if (tutorialSession && completedAction?.number === 1) {
-        const reviewedGame = game;
-        void waitForTutorial('after-player-exchange').then(proceed => {
-          if (proceed && game === reviewedGame) checkAITurn();
-        });
-      } else checkAITurn();
+      checkAITurn();
     }
 
     function checkAITurn() {
@@ -1803,8 +1795,6 @@
       document.querySelectorAll('[data-guide-action]').forEach(button => { button.removeAttribute('data-guide-action'); button.removeAttribute('aria-label'); button.title = ''; });
       const hint = document.getElementById('black-play-hint');
       hint.classList.toggle('is-guidance', active || completedLesson);
-      const opening = active && tutorialSession.state.checkpoint?.key === 'opening';
-      hint.classList.toggle('is-guide-intro', opening);
       document.getElementById('mode-select').value = game.mode;
       document.getElementById('rule-mode-select').value = game.ruleMode;
       refreshDialogText();
@@ -1830,8 +1820,7 @@
       const guidance = completedLesson ? { hint: 'complete', detail: 'completeDetail', hintKind: 'result', detailKind: 'description', focus: [{ area: 'hand-area', side: 'BLACK' }], mode: 'observe' }
         : tutorialSession.state.checkpoint ? tutorialSession.view
         : MathDuelTutorial.getGuidance(tutorialSession.state.stepIndex, { game, help: tutorialSession.help, rejected: tutorialSession.rejected, notice: tutorialSession.notice });
-      const phase = completedLesson ? 'complete' : opening ? 'intro' : tutorialGate?.key === 'after-player-exchange' ? 'review' :
-        game.state === 'ANIMATING' || (game.state === 'DISCARDING' && game.uiBusy) ? 'resolving' :
+      const phase = completedLesson ? 'complete' : game.state === 'ANIMATING' || (game.state === 'DISCARDING' && game.uiBusy) ? 'resolving' :
         isAITurn() ? 'watch' : game.state === 'DISCARDING' ? 'keep' : 'play';
       document.body.dataset.tutorialPhase = phase;
       const status = document.getElementById('black-turn-status');
