@@ -109,7 +109,7 @@ async function expectHintFits(page) {
 test('starts on a real move and performs the AI move after one two-sentence cue', async ({ page }) => {
   await page.goto('/math-duel/index.html');
   await expect(page.locator('#welcome-detail')).toContainText('目標是把黑牌換成白牌');
-  await expect(page.locator('#welcome-detail')).toContainText('用算式換回中央數值相同的牌');
+  await expect(page.locator('#welcome-detail')).toContainText('算式結果要等於場牌數值才可交換');
   const welcome = await page.locator('#welcome-detail').textContent();
   expect((welcome.match(/[.!?。！？]/g) || []).length).toBe(1);
   expect(welcome).not.toMatch(/\d/);
@@ -117,6 +117,8 @@ test('starts on a real move and performs the AI move after one two-sentence cue'
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
   await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
   await expect(page.locator('#black-play-hint')).toContainText('先點黑 1 和黑 8');
+  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('規則');
+  await expect(page.locator('#black-play-hint [data-hint="arrange"]')).toContainText('結果等於場牌數值');
   await expect(hand(page, 'b1')).toHaveAttribute('data-tutorial-focus', 'hand');
   await expect(hand(page, 'b8')).toHaveAttribute('data-tutorial-focus', 'hand');
   await expect(page.locator('#black-actions [data-role="operator-group"]')).toBeVisible();

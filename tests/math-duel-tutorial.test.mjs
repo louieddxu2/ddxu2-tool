@@ -197,8 +197,11 @@ test('starts on a playable action and uses one two-sentence cue before each guid
   assert.equal(firstAction.mode, 'tap');
   assert.equal(firstAction.hint, 'choose');
   assert.equal(firstAction.detail, 'goal');
+  assert.equal(firstAction.detailKind, 'rule');
   assert.equal(tutorial.definition.steps[0].checkpoints.opening, undefined, 'no read-only opening pages precede the first move');
   assert.match(tutorial.text(firstAction.hint, 'zh'), /先點黑 1 和黑 8/);
+  assert.match(tutorial.text(firstAction.detail, 'zh'), /結果等於場牌數值/);
+  assert.match(tutorial.text(firstAction.detail, 'en'), /Result matches table value/);
   assertTwoLineDialogue(tutorial, firstAction, 'zh');
   const afterFirstAction = tutorial.definition.steps[1].checkpoints['before-exchange'];
   assert.equal(afterFirstAction.length, 1, 'only one guided pause precedes the AI exchange');

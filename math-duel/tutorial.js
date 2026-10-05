@@ -17,7 +17,7 @@
       labels: { objective: '目標', rule: '規則', description: '描述', example: '例子', demonstration: '示範', result: '結果', status: '狀態', next: '操作', tip: '提示' },
       firstTrade: '黑 1、8 留場，白 9 回手。',
       firstTradeDetail: '每個數最多兩位數；看 AI 出牌。',
-      choose: '先點黑 1 和黑 8。', goal: '目標是換回場牌白 9。',
+      choose: '先點黑 1 和黑 8。', goal: '結果等於場牌數值。',
       anyOrder: '牌的順序不限；再點一次可取消。', operator: '再點 ＋，使用加法。',
       selected: '已選 {selected}/{total} 張；再點可取消。',
       undoHand: '再點出牌區的{cards}，取消選取。',
@@ -59,7 +59,7 @@
       labels: { objective: 'Goal', rule: 'Rule', description: 'Description', example: 'Example', demonstration: 'Demo', result: 'Result', status: 'Status', next: 'Next', tip: 'Tip' },
       firstTrade: 'Black 1 and 8 stay; white 9 returns to your hand.',
       firstTradeDetail: 'Two digits max; watch AI play.',
-      choose: 'First, tap black 1 and black 8.', goal: 'Trade for the table white 9.',
+      choose: 'First, tap black 1 and black 8.', goal: 'Result matches table value.',
       anyOrder: 'Card order does not matter; tap again to undo.', operator: 'Tap + for addition.',
       selected: 'Selected {selected}/{total}; tap again to undo.',
       undoHand: 'Tap played {cards} again to undo.', undoTarget: 'Tap result {cards} again to undo.',
@@ -185,7 +185,7 @@
       [focus('equation-hand', 'BLACK', wrongHand)], { cards: wrongHand });
     if (wrongCenter.length) return view('undoTarget', index === 0 ? 'target' : index === 2 ? 'targetThree' : 'targetFive', [focus('equation-target', 'BLACK', wrongCenter)], { cards: wrongCenter });
     if (!sameIds(selection.hand, action.hand)) return view(index === 0 ? 'choose' : index === 2 ? 'four' : 'divisionHelp', !selection.hand.length && index === 0 ? 'goal' : !selection.hand.length && index === 2 ? 'fourDetail' : 'selected',
-      [focus('hand', 'BLACK', action.hand.filter(id => !selection.hand.includes(id)))], { selected: selection.hand.length, total: action.hand.length });
+      [focus('hand', 'BLACK', action.hand.filter(id => !selection.hand.includes(id)))], { selected: selection.hand.length, total: action.hand.length }, 'next', index === 0 && !selection.hand.length ? 'rule' : 'tip');
     if (selection.operator !== action.op) return view(index === 0 ? 'operator' : index === 2 ? 'subtract' : 'divide', 'automatic', [focus('operator', 'BLACK', [], action.op)]);
     return view(index === 0 ? 'target' : index === 2 ? 'targetThree' : 'targetFive', 'automatic', [focus('center', 'BLACK', action.center.filter(id => !selection.center.includes(id)))]);
   }

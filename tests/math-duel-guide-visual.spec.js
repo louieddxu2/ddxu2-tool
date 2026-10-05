@@ -93,6 +93,7 @@ async function firstMove(page) {
 test('pairs the two-digit rule with the real AI move and keeps the live cue legible', async ({ page }, testInfo) => {
   await page.goto('/math-duel/index.html');
   await expect(page.locator('#welcome-detail')).toContainText('目標是把黑牌換成白牌');
+  await expect(page.locator('#welcome-detail')).toContainText('算式結果要等於場牌數值才可交換');
   await page.locator('#welcome-start').click();
   await page.locator('.utility-rules').click();
   await expect(page.locator('#rule-4')).toContainText('每個數最多 2 位');
@@ -107,6 +108,8 @@ test('pairs the two-digit rule with the real AI move and keeps the live cue legi
   await expect(page.locator('body')).not.toHaveAttribute('data-tutorial-checkpoint');
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-phase', 'play');
   await expect(page.locator('#black-play-hint')).toContainText('先點黑 1 和黑 8');
+  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('規則');
+  await expect(page.locator('#black-play-hint [data-hint="arrange"]')).toContainText('結果等於場牌數值');
   await focus(page, '#black-hand [data-tutorial-focus="hand"]', 2);
   await expect(page.locator('#black-actions [data-role="main-btn"]')).toBeVisible();
   await expect(page.locator('#black-actions [data-role="giveup-btn"]')).toBeVisible();
