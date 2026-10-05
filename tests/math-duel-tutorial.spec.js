@@ -124,7 +124,7 @@ test('finishes five real moves with AI pauses, division and the ordinary win con
   expect(await page.evaluate(() => game.center.find(card => card.id === 'b6').val)).toBe(6);
   await continueButton(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-5');
-  await expect(page.locator('#black-play-hint')).toContainText('目標是把手上剩下的黑牌全換成白牌');
+  await expect(page.locator('#black-play-hint')).toContainText('讓手牌全部變成白牌，就能獲勝');
   await expect(page.locator('#black-play-hint')).not.toContainText('選黑 2');
   await page.locator('.utility-rules').click();
   await page.locator('#rules-step-help').click();
@@ -328,7 +328,7 @@ test('holds the teaching AI after real animations while language and help remain
   await reachSecondMove(page);
   expect(await page.evaluate(() => ({ gate: Boolean(tutorialGate), automaticTimer: Boolean(aiPlanResolver), busy: game.uiBusy }))).toEqual({ gate: true, automaticTimer: false, busy: false });
   await page.locator('.utility-language').click();
-  await expect(page.locator('#black-play-hint')).toContainText('Max two digits per number.');
+  await expect(page.locator('#black-play-hint')).toContainText('Each number in an equation has at most two digits.');
   await expect(continueButton(page)).toHaveText('Next');
   await page.locator('.utility-rules').click();
   await page.locator('#modal-close-btn').click();

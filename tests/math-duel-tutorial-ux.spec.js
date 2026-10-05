@@ -108,8 +108,8 @@ async function expectHintFits(page) {
 
 test('starts on a real move and performs the AI move after one two-sentence cue', async ({ page }) => {
   await page.goto('/math-duel/index.html');
-  await expect(page.locator('#welcome-detail')).toContainText('目標：把手牌全換成對手顏色');
-  await expect(page.locator('#welcome-detail')).toContainText('算式結果等於場牌組成的數字');
+  await expect(page.locator('#welcome-detail')).toContainText('目標：讓手牌全部變成對手的顏色');
+  await expect(page.locator('#welcome-detail')).toContainText('算式答案等於目標數字才能交換');
   const welcome = await page.locator('#welcome-detail').textContent();
   expect((welcome.match(/[.!?。！？]/g) || []).length).toBe(2);
   expect(welcome).not.toMatch(/\d+\s*[+×÷=]\s*\d+/);
@@ -119,7 +119,7 @@ test('starts on a real move and performs the AI move after one two-sentence cue'
   await expect(page.locator('#black-play-hint')).toContainText('請從手牌選黑 1、黑 8');
   await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('操作');
   await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('規則');
-  await expect(page.locator('#black-play-hint [data-hint="arrange"]')).toContainText('算式結果須等於所選場牌組成的數字');
+  await expect(page.locator('#black-play-hint [data-hint="arrange"]')).toContainText('算式答案要和中央目標相同');
   await expect(hand(page, 'b1')).toHaveAttribute('data-tutorial-focus', 'hand');
   await expect(hand(page, 'b8')).toHaveAttribute('data-tutorial-focus', 'hand');
   await expect(page.locator('#black-actions [data-role="operator-group"]')).toBeVisible();
@@ -129,11 +129,11 @@ test('starts on a real move and performs the AI move after one two-sentence cue'
   await send(page, ['b1', 'b8'], ['w9'], '+');
   await held(page, 'before-exchange:0');
   await phase(page, 'watch');
-  await expect(page.locator('#black-play-hint')).toContainText('黑 1、黑 8 留在場上；白 9 回到你手牌');
+  await expect(page.locator('#black-play-hint')).toContainText('AI 會用算式收下黑 1、8');
   await expect(page.locator('#black-play-hint')).toContainText('算式中的每個數最多兩位');
   await expect(page.locator('#black-turn-status')).toHaveText('輪到 AI');
-  await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('結果');
-  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('規則');
+  await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
+  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('示範');
   await expect(page.locator('#white-equation [data-role="stage-hand-cards"] [data-card-id]')).toHaveCount(3);
   expect(await page.evaluate(() => ({ actions: gameSession.action, turn: game.turn, pending: aiRequestPending, planned: Boolean(game.aiMoveInfo) })))
     .toEqual({ actions: 1, turn: 'WHITE', pending: true, planned: true });
@@ -151,8 +151,8 @@ test('starts on a real move and performs the AI move after one two-sentence cue'
   expect(await page.evaluate(() => game.center.map(card => card.id).sort())).toEqual(['w1', 'w2', 'w6']);
   expect(await page.evaluate(() => gameSession.action)).toBe(1);
   await expect(back(page)).toBeHidden();
-  await expect(page.locator('#black-play-hint')).toContainText('12 + 6 = 18');
-  await expect(page.locator('#black-play-hint')).toContainText('中央多於兩張，須留兩張');
+  await expect(page.locator('#black-play-hint')).toContainText('中央超過兩張時，選兩張留下');
+  await expect(page.locator('#black-play-hint')).toContainText('AI 會留白 1、白 2');
   await next(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-3');
   expect(await page.evaluate(() => gameSession.action)).toBe(2);
@@ -175,6 +175,8 @@ test('explains the real first trade and AI equation in one cue, with compact bil
   await held(page, 'before-exchange:0');
   expect(await board(page)).toEqual(review);
   expect(await page.evaluate(() => aiRequestPending)).toBe(true);
+  await page.setViewportSize({ width: 320, height: 480 });
+  await expectHintFits(page);
   for (const size of [{ width: 802, height: 293 }, { width: 320, height: 480 }, { width: 390, height: 844 }, { width: 800, height: 360 }]) {
     await page.setViewportSize(size);
     for (const language of ['zh', 'en']) {
@@ -185,6 +187,8 @@ test('explains the real first trade and AI equation in one cue, with compact bil
   }
   await next(page).click();
   await held(page, 'before-keep:0');
+  await page.setViewportSize({ width: 320, height: 480 });
+  await expectHintFits(page);
   await next(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-3');
   expect((await board(page)).actions).toBe(2);
@@ -196,12 +200,12 @@ test('uses the opponent as the subject while the AI move is animating', async ({
   await firstTrade(page);
   await next(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-phase', 'resolving');
-  await expect(page.locator('#black-play-hint')).toContainText('AI 出牌留場');
-  await expect(page.locator('#black-play-hint')).toContainText('AI 收回結果牌');
-  await expect(page.locator('#black-play-hint')).not.toContainText('你出牌留場');
+  await expect(page.locator('#black-play-hint')).toContainText('AI 出牌留中央');
+  await expect(page.locator('#black-play-hint')).toContainText('目標牌回手');
+  await expect(page.locator('#black-play-hint')).not.toContainText('你出的牌留在中央');
   await expectHintFits(page);
   await page.evaluate(() => { LANG = 'en'; render(); });
-  await expect(page.locator('#black-play-hint')).toContainText('AI cards stay; AI takes results.');
+  await expect(page.locator('#black-play-hint')).toContainText('AI cards stay; targets return.');
   await expectHintFits(page);
   await page.setViewportSize({ width: 800, height: 360 });
   await expectHintFits(page);
@@ -227,10 +231,18 @@ for (const exit of ['skip', 'reload']) {
 
 test('explains retention before accepting choices, reports the two-card limit, and allows skipping without an extra move', async ({ page }, testInfo) => {
   await thirdMove(page);
+  await expect(page.locator('#black-play-hint [data-hint-label="select"]')).toHaveText('規則');
+  await expect(page.locator('#black-play-hint [data-hint="select"]')).toContainText('每回合可出 2～4 張手牌');
+  await expect(page.locator('#black-play-hint [data-hint-label="arrange"]')).toHaveText('操作');
+  await expect(page.locator('#black-play-hint [data-hint="arrange"]')).toContainText('這一步請選黑 3、黑 5、黑 6、黑 7');
+  await page.setViewportSize({ width: 320, height: 480 });
+  await expectHintFits(page);
   await send(page, ['b3', 'b5', 'b6', 'b7'], ['w1', 'w2'], '-');
   await held(page, 'before-keep:0');
   await phase(page, 'keep');
-  await expect(page.locator('#black-play-hint')).toContainText('中央多於兩張，須留兩張');
+  await expect(page.locator('#black-play-hint')).toContainText('中央超過兩張時，選兩張留下');
+  await page.setViewportSize({ width: 320, height: 480 });
+  await expectHintFits(page);
   for (const id of ['b3', 'b6']) await expect(field(page, id)).toHaveAttribute('data-tutorial-focus', 'center');
   for (const id of ['b5', 'b7']) await expect(field(page, id)).not.toHaveAttribute('data-tutorial-focus');
   await expect(page.locator('.guide-spotlight')).toHaveAttribute('data-target-count', '2');
@@ -281,13 +293,13 @@ test('makes the final hint directly available and explains overflow without chan
 test('teaches the final division by guiding the player through its real controls', async ({ page }) => {
   await finalMove(page);
   for (const id of ['b2', 'b4', 'b9']) await hand(page, id).click();
-  await expect(page.locator('#black-play-hint')).toContainText('接著選手牌白 9');
+  await expect(page.locator('#black-play-hint')).toContainText('再選手牌白 9，翻面當作 6');
   await expect(hand(page, 'w9')).toHaveAttribute('data-tutorial-focus', 'hand');
   await hand(page, 'w9').click();
   await expect(page.locator('#black-play-hint')).toContainText('請點「÷」，選擇除法');
-  await expect(page.locator('#black-play-hint')).toContainText('本次算式用黑 2、黑 4 組成除數 24');
+  await expect(page.locator('#black-play-hint')).toContainText('黑 2、黑 4 排成 24');
   await page.locator('#black-actions [data-op="/"]').click();
-  await expect(page.locator('#black-play-hint')).toContainText('選場牌白 4 作為結果');
+  await expect(page.locator('#black-play-hint')).toContainText('選中央的白 4，作為目標牌');
   await expect(field(page, 'w4')).toHaveAttribute('data-tutorial-focus', 'center');
   await field(page, 'w4').click();
   await expect(page.locator('#black-play-hint')).toContainText('算式已成立');
@@ -305,14 +317,14 @@ test('accepts a different winning division, preserves any two field cards, and h
   await send(page, ['b4', 'w1'], ['w4'], '/');
   expect((await board(page)).actions).toBe(4);
   expect((await board(page)).center).toEqual(beforeAttempt.center);
-  await expect(page.locator('#black-play-hint')).toContainText('目標是把手上剩下的黑牌全換成白牌');
+  await expect(page.locator('#black-play-hint')).toContainText('讓手牌全部變成白牌，就能獲勝');
   await expect(page.locator('#black-play-hint')).not.toContainText('選黑 2');
   await page.locator('#black-equation [data-card-id="w1"]').click();
   await hand(page, 'b2').click();
   await hand(page, 'b9').click();
   await main(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-game-state', 'DISCARDING');
-  await expect(page.locator('#black-play-hint')).toContainText('還要選 2 張場牌');
+  await expect(page.locator('#black-play-hint')).toContainText('還要選 2 張中央牌');
   await field(page, 'b2').click();
   await field(page, 'b4').click();
   await main(page).click();

@@ -67,10 +67,10 @@
         turn_opponent: '輪到對手了',
         turn_ai: 'AI 回合',
         turn_wait: '等待中',
-        play_hint_select: '點選手牌、運算符號與場牌（結果）',
+        play_hint_select: '點選手牌、運算符號與中央目標牌',
         play_hint_arrange: '系統自動排列算式，不必依順序點選',
         welcome_title: '開始遊玩',
-        welcome_detail: '目標：把手牌全換成對手顏色。每回合選 2～4 張手牌、一個運算符號和場中央的結果牌；算式結果等於場牌組成的數字才能交換，出牌留場、結果牌回手。',
+        welcome_detail: '目標：讓手牌全部變成對手的顏色。每回合選手牌與運算符號組成算式，並選中央牌組成目標數字；算式答案等於目標數字才能交換。',
         welcome_rules: '查看文字規則',
         welcome_hide: '不再顯示',
         tutorial_start: '開始教學',
@@ -95,13 +95,13 @@
         ai_thinking_btn: 'AI 決定中...',
         giveup_confirm: '確定無法湊出算式嗎？對手將直接獲勝！',
         select_hand_err: '請從手牌選擇 2~4 張牌',
-        select_target_err: '請從場中選擇 1~2 張目標',
+        select_target_err: '請從中央選擇 1～2 張目標牌',
         select_op_err: '請選擇運算符號',
         discard_err: '請選擇要保留的 2 張牌！',
-        eq_error: '無法湊出這個結果！確認一下數字或符號是否有誤？',
+        eq_error: '算式答案和目標數字不同；請檢查選牌或運算符號。',
         rules_title: '遊戲規則',
         rules_init: '【初始設定】黑方起手 1～9，白方起手 1～8，場中央放白 9。',
-        rules_action: '【行動規則】輪到你時，選 2～4 張手牌和一個運算符號組成算式，再選 1～2 張場牌作結果。算式結果必須等於所選場牌組成的數字；交換後，出牌留在中央，結果牌回到手牌。',
+        rules_action: '【行動規則】每回合選 2～4 張手牌、一個運算符號和 1～2 張中央牌；中央牌組成目標數字。算式答案必須等於目標數字才能交換；出牌留在中央，目標牌回到手牌。',
         rules_limit: '【場地限制】場中央超過兩張牌時，當前玩家必須選兩張保留。其餘牌移出遊戲。',
         rules_special: '【數字位數】算式中的每個數最多兩位；兩位數要用兩張牌組成。6 和 9 可以翻面互換。',
         rules_win: '【獲勝條件】自己的手牌全部變成對手顏色，或對手無法組成有效算式時，你就獲勝。',
@@ -136,10 +136,10 @@
         turn_opponent: "Opponent's turn",
         turn_ai: 'AI turn',
         turn_wait: 'Waiting',
-        play_hint_select: 'Tap cards, an operator and a result.',
+        play_hint_select: 'Tap hand cards, an operator, and center target cards.',
         play_hint_arrange: 'Auto-arranged; tap in any order.',
         welcome_title: 'Start playing',
-        welcome_detail: 'Goal: turn your whole hand into the opponent’s color. Each turn, choose 2–4 hand cards, an operator, and center result cards; match the equation result to their value to trade, leaving played cards in the center and taking the result cards.',
+        welcome_detail: 'Goal: turn every card in your hand into the opponent’s color. Each turn, choose hand cards and an operator for an equation, plus center cards for a target number; trade when the equation answer matches the target number.',
         welcome_rules: 'Read the rules',
         welcome_hide: "Don't show again",
         tutorial_start: 'Start tutorial',
@@ -164,13 +164,13 @@
         ai_thinking_btn: 'AI deciding...',
         giveup_confirm: 'Are you sure? Opponent will win immediately!',
         select_hand_err: 'Please select 2-4 hand cards.',
-        select_target_err: 'Please select 1-2 targets.',
+        select_target_err: 'Choose 1–2 target cards from the center.',
         select_op_err: 'Please select an operator.',
         discard_err: 'Please select 2 cards to keep!',
-        eq_error: 'Invalid equation! Check your numbers or operator.',
+        eq_error: 'The equation answer does not match the target number; check your cards or operator.',
         rules_title: 'Game Rules',
         rules_init: '[Initial setup] Black starts with 1–9, White with 1–8, and White 9 goes in the center.',
-        rules_action: '[Turn] Choose 2–4 hand cards and one operator, then choose 1–2 center cards as the result. The equation result must match their value; played cards stay in the center and result cards return to your hand.',
+        rules_action: '[Turn] Choose 2–4 hand cards, one operator, and 1–2 center cards; the center cards make the target number. The equation answer must match it to trade; played cards stay in the center and target cards return to your hand.',
         rules_limit: '[Center limit] If more than two cards are in the center, keep two. Remove the rest from the game.',
         rules_special: '[Number length] Each number in the equation can have at most two digits; a two-digit number uses two cards. 6 and 9 can be flipped.',
         rules_win: '[Victory] Win when all cards in your hand are the opponent’s color, or when your opponent cannot form a valid equation.',
@@ -262,7 +262,7 @@
                 <div class="play-stage-cards" data-role="stage-hand-cards"></div>
               </div>
               <div class="play-stage-operator" data-role="stage-operator-symbol">=</div>
-              <div class="play-stage-slot" data-role="stage-center-slot" aria-label="result cards">
+              <div class="play-stage-slot" data-role="stage-center-slot" aria-label="target cards">
                 <div class="play-stage-cards" data-role="stage-center-cards"></div>
               </div>
             </div>
@@ -286,7 +286,7 @@
                 <div class="play-stage-cards" data-role="stage-hand-cards"></div>
               </div>
               <div class="play-stage-operator" data-role="stage-operator-symbol">=</div>
-              <div class="play-stage-slot" data-role="stage-center-slot" aria-label="result cards">
+              <div class="play-stage-slot" data-role="stage-center-slot" aria-label="target cards">
                 <div class="play-stage-cards" data-role="stage-center-cards"></div>
               </div>
             </div>
@@ -367,7 +367,7 @@
    <script src="rule-modes.js"></script>
   <script src="../shared/flow-guide.js?v=2"></script>
   <script src="../shared/guide-spotlight.js?v=5"></script>
-  <script src="tutorial.js?v=8"></script>
+  <script src="tutorial.js?v=9"></script>
   <script src="../shared/card-motion.js?v=2"></script>
   <script src="../shared/equation-witness.js?v=1"></script>
   <script>

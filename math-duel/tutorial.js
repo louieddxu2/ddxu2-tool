@@ -15,78 +15,82 @@
   const COPY = {
     zh: {
       labels: { objective: '目標', rule: '規則', description: '說明', example: '例子', demonstration: '示範', result: '結果', status: '狀態', next: '操作', tip: '說明' },
-      firstTrade: '黑 1、黑 8 留在場上；白 9 回到你手牌。',
-      firstTradeDetail: '算式中的每個數最多兩位數。',
-      choose: '請從手牌選{cards}。', goal: '算式結果須等於所選場牌組成的數字。',
+      twoDigitRule: '算式中的每個數最多兩位數。',
+      aiTrade: 'AI 會用算式收下黑 1、8。',
+      choose: '請從手牌選{cards}。', goal: '算式答案要和中央目標相同。',
       anyOrder: '手牌可依任意順序選；再點已選牌可取消。', operator: '請點「＋」，選擇加法。',
       selected: '已選 {selected}/{total} 張；點已選牌可取消。',
-      undoHand: '再點出牌區的{cards}，取消選取。', undoTarget: '再點結果區的{cards}，取消選取。',
+      undoHand: '再點出牌區的{cards}，取消選取。', undoTarget: '再點目標區的{cards}，取消選取。',
       requiredOne: '這一步要用黑 1 和黑 8。', requiredThree: '這一步要用黑 3、黑 5、黑 6、黑 7。',
       requiredFive: '這一步要用黑 2、黑 4、黑 9 和白 9。',
       subtract: '請點「−」，選擇減法。', divide: '請點「÷」，選擇除法。',
-      targetThree: '選場牌{cards}作為結果。', targetFive: '選場牌{cards}作結果；白 9 翻面代表 6。',
+      targetThree: '選中央的{cards}，組成目標數字。', targetFive: '選中央的{cards}作為目標牌；白 9 翻面當作 6。',
       undoKeep: '再點已選的{cards}，取消保留。', keepCount: '已選 {selected}/2 張；未選的中央牌會移出遊戲。',
-      practiceStart: '先試著用除法完成交換。', practiceSelect: '請再選亮起的手牌。',
-      practiceAddWhite: '接著選手牌白 9。', practiceAddWhiteDetail: '白 9 翻面為 6，和黑 9 組成 96。',
-      practiceOperator: '請點「÷」，選擇除法。', practiceOperatorDetail: '本次算式用黑 2、黑 4 組成除數 24。',
-      practiceTarget: '選場牌白 4 作為結果。', practiceTargetDetail: '系統會排成 96 ÷ 24 = 4。',
-      practiceNoEquation: '目前算式不成立；換手牌或運算符號再試。',
-      practiceExtra: '白牌也能出；牌面 6、9 可翻面互換。', practiceMakeRoom: '點出牌區已選白牌，取消一張。',
-      handLimit: '手牌最多四張；取消一張已選牌。', targetLimit: '結果最多兩張；取消一張已選牌。',
+      practiceStart: '先試著用除法完成這次交換。', practiceSelect: '請再選亮起的黑牌。',
+      practiceAddWhite: '再選手牌白 9，翻面當作 6。', practiceAddWhiteDetail: '再和黑 9 組成 96。',
+      practiceOperator: '請點「÷」，選擇除法。', practiceOperatorDetail: '黑 2、黑 4 排成 24。',
+      practiceTarget: '選中央的白 4，作為目標牌。', practiceTargetDetail: '系統會排成 96 ÷ 24 = 4。',
+      practiceNoEquation: '目前算式答案和目標數字不同；換手牌或運算符號再試。',
+      practiceExtra: '白牌也能出；6 和 9 可以翻面互換。', practiceMakeRoom: '點出牌區已選白牌，取消一張。',
+      handLimit: '手牌最多四張；取消一張已選牌。', targetLimit: '目標牌最多兩張；取消一張已選牌。',
       keepLimit: '中央最多留兩張；取消一張已選牌。',
-      target: '選場牌{cards}作為結果。', automatic: '系統會自動排好算式。',
-      ready: '算式已成立；請按「送出算式」交換牌。', exchange: '你出牌留場；你收回結果牌。',
-      opponentExchange: 'AI 出牌留場；AI 收回結果牌。',
-      taskOne: '請改選黑 1、黑 8 和「＋」。', taskOneDetail: '結果選白 9；已選牌再點一次可取消。',
-      waiting: '現在輪到白方行動。', resolving: '交換牌張中。', history: '你的上一手算式留在場上，對手看得到。',
-      aiKeep: 'AI 用 12 + 6 = 18，換回黑 1、黑 8。', aiKeepDetail: '中央多於兩張，須留兩張；其餘移出。',
-      four: '請從手牌選{cards}。', fourDetail: '這步會排成 57 − 36 = 21；再選白 1、白 2 作結果。',
-      keepConcept: '中央多於兩張，須留兩張；其餘移出。', keepConceptDetail: '請選黑 3、黑 6 保留。',
-      keepThree: '請選{cards}留在場中央。', keepDetail: '所選兩張留在中央；其他牌移出遊戲。',
+      target: '選中央的{cards}，組成目標數字。', automatic: '系統會自動排列算式。',
+      ready: '算式已成立；按「送出算式」交換。', exchange: '你出的牌留在中央；你選的目標牌回到手牌。',
+      opponentExchange: 'AI 出牌留中央；目標牌回手。',
+      taskOne: '請改選黑 1、黑 8 和「＋」。', taskOneDetail: '目標牌選白 9；已選牌再點一次可取消。',
+      waiting: '現在輪到白方行動。', resolving: '正在交換牌。', history: '你上一手的算式會留在場上給對手看。',
+      centerLimitRule: '中央超過兩張時，選兩張留下；其餘移出。', aiKeeps: 'AI 會留白 1、白 2。',
+      fourRule: '每回合可出 2～4 張手牌。', four: '這一步請選{cards}。',
+      fourEquation: '系統會排成 57 − 36 = 21。',
+      keepConcept: '中央超過兩張時，選兩張留下；其餘移出。', keepConceptDetail: '請選黑 3、黑 6 保留。',
+      keepThree: '請選{cards}，留在中央。', keepDetail: '選中的兩張留在中央；其他牌移出遊戲。',
       keepReady: '已選好兩張；按「確認保留」繼續。', taskKeep: '請從場中央選兩張牌留下。',
-      flip: '白方把黑 6 翻面，當作 9。', flipDetail: '白方以白 4 + 白 5 = 9，換回黑 6。',
-      division: '目標是把手上剩下的黑牌全換成白牌。', divisionHelp: '請選亮起的手牌，完成除法。',
-      divisionTarget: '選白 4 作結果；白 9 翻面代表 6。',
-      keepFive: '請從場中央選兩張留下。', keepPractice: '還要選 {remaining} 張場牌。',
-      wrongFive: '交換後手上仍有黑牌；調整出牌，直到手牌全變白。',
+      sixNineRule: '牌面 6 和 9 可以翻面互換。',
+      flipDemo: '白方用算式收下翻成 9 的黑 6。',
+      division: '讓手牌全部變成白牌，就能獲勝。', divisionHelp: '請選亮起的手牌，完成除法。',
+      divisionTarget: '選白 4 作為目標牌；白 9 翻面當作 6。',
+      keepFive: '從場中央選兩張留下。', keepPractice: '還要選 {remaining} 張中央牌。',
+      wrongFive: '這組牌沒能讓手牌全變白；重新選牌再試。',
       complete: '手牌全是白牌，你贏了！', completeDetail: '現在開始一般對局吧。'
     },
     en: {
       labels: { objective: 'Goal', rule: 'Rule', description: 'Details', example: 'Example', demonstration: 'Demo', result: 'Result', status: 'Status', next: 'Action', tip: 'Details' },
-      firstTrade: 'Black 1, 8 stay; take white 9.',
-      firstTradeDetail: 'Max two digits per number.',
-      choose: 'Choose {cards} from your hand.', goal: 'Result must match center value.',
+      twoDigitRule: 'Each number in an equation has at most two digits.',
+      aiTrade: 'AI takes black 1 and 8.',
+      choose: 'Choose {cards} from your hand.', goal: 'Match the answer to the center target.',
       anyOrder: 'Choose hand cards in any order; tap again to undo.', operator: 'Tap + to choose addition.',
       selected: '{selected}/{total} selected; tap a selected card to undo.',
-      undoHand: 'Tap {cards} in the play area to undo.', undoTarget: 'Tap {cards} in the result area to undo.',
+      undoHand: 'Tap {cards} in the play area to undo.', undoTarget: 'Tap {cards} in the target area to undo.',
       requiredOne: 'Use black 1 and black 8 for this move.', requiredThree: 'Use black 3, black 5, black 6, and black 7.',
       requiredFive: 'Use black 2, black 4, black 9, and white 9.',
       subtract: 'Tap − to choose subtraction.', divide: 'Tap ÷ to choose division.',
-      targetThree: 'Choose center {cards} as result.', targetFive: 'Choose {cards} as result; flip white 9 to 6.',
+      targetThree: 'Choose {cards} from the center to make the target number.', targetFive: 'Choose {cards} from the center as targets; flip white 9 to 6.',
       undoKeep: 'Tap {cards} again to undo keeping them.', keepCount: '{selected}/2 kept; other center cards leave play.',
-      practiceStart: 'Try trading with a division equation.', practiceSelect: 'Choose the highlighted hand cards.',
-      practiceAddWhite: 'Now choose white 9 from your hand.', practiceAddWhiteDetail: 'White 9 flips to 6; black 9 makes 96.',
-      practiceOperator: 'Tap ÷ to choose division.', practiceOperatorDetail: 'Black 2 and 4 make divisor 24.',
-      practiceTarget: 'Choose white 4 from the center as the result.', practiceTargetDetail: 'Auto-arranges: 96 ÷ 24 = 4.',
-      practiceNoEquation: 'This equation is not valid yet; change a card or operator.',
-      practiceExtra: 'White cards work; flip a 6 or 9.', practiceMakeRoom: 'Tap a selected white card to undo.',
-      handLimit: 'Four hand cards max; undo one.', targetLimit: 'Two result cards max; undo one.',
+      practiceStart: 'Try using division for this trade.', practiceSelect: 'Choose the highlighted black cards.',
+      practiceAddWhite: 'Choose white 9; flip it to make 6.', practiceAddWhiteDetail: 'Combine it with black 9 to make 96.',
+      practiceOperator: 'Tap ÷ to choose division.', practiceOperatorDetail: 'Black 2 and 4 make 24.',
+      practiceTarget: 'Choose white 4 from the center as the target card.', practiceTargetDetail: 'Auto-arranges: 96 ÷ 24 = 4.',
+      practiceNoEquation: 'The equation answer does not match the target number; change a card or operator.',
+      practiceExtra: 'White cards work; 6 and 9 can be flipped.', practiceMakeRoom: 'Tap a selected white card to undo.',
+      handLimit: 'Four hand cards max; undo one.', targetLimit: 'Two target cards max; undo one.',
       keepLimit: 'Keep two center cards max; undo one.',
-      target: 'Choose center {cards} as result.', automatic: 'The equation arranges itself.',
-      ready: 'Equation is ready; tap Send Equation to trade.', exchange: 'Your cards stay; you take results.',
-      opponentExchange: 'AI cards stay; AI takes results.',
-      taskOne: 'Use black 1, black 8, and + for this move.', taskOneDetail: 'Choose white 9 as the result; tap it again to undo.',
-      waiting: 'White moves now.', resolving: 'Cards are trading.', history: 'Your last equation stays visible to your opponent.',
-      aiKeep: 'AI: 12 + 6 = 18; takes black 1, 8.', aiKeepDetail: 'Center >2: keep two; remove rest.',
-      four: 'Choose {cards} from your hand.', fourDetail: '57 − 36 = 21; choose white 1, 2 as result.',
-      keepConcept: 'Center >2: keep two; remove rest.', keepConceptDetail: 'Choose black 3 and 6 to keep.',
-      keepThree: 'Keep {cards} in the center.', keepDetail: 'The other center cards leave play.',
+      target: 'Choose {cards} from the center to make the target number.', automatic: 'The equation arranges itself.',
+      ready: 'Equation is ready; tap Send Equation to trade.', exchange: 'Your played cards stay in the center; your target cards return to your hand.',
+      opponentExchange: 'AI cards stay; targets return.',
+      taskOne: 'Use black 1, black 8, and + for this move.', taskOneDetail: 'Choose white 9 as the target; tap again to undo.',
+      waiting: 'White moves now.', resolving: 'Cards are trading.', history: 'Your last equation stays on the table for your opponent to see.',
+      centerLimitRule: 'Center over 2: keep two; remove the rest.', aiKeeps: 'AI keeps white 1 and 2.',
+      fourRule: 'Use 2–4 hand cards on each turn.', four: 'Choose {cards} for this move.',
+      fourEquation: 'The equation auto-arranges as 57 − 36 = 21.',
+      keepConcept: 'Center over 2: keep two; remove the rest.', keepConceptDetail: 'Keep black 3 and 6.',
+      keepThree: 'Keep {cards} in the center.', keepDetail: 'The two selected cards stay; the others leave play.',
       keepReady: 'Two selected; tap Confirm Keep to continue.', taskKeep: 'Choose two cards from the center to keep.',
-      flip: 'White flips black 6 to 9.', flipDetail: 'White uses 4 + 5 = 9 to take black 6.',
-      division: 'Goal: turn remaining black cards white.', divisionHelp: 'Choose highlighted cards for division.',
-      divisionTarget: 'Choose white 4 as result; flip white 9 to 6.',
+      sixNineRule: 'A 6 or 9 can be flipped to become the other number.',
+      flipDemo: 'White uses its equation to take flipped black 6.',
+      division: 'Turn every card in your hand white to win.', divisionHelp: 'Choose the highlighted cards for division.',
+      divisionTarget: 'Choose white 4 as the target card; flip white 9 to 6.',
       keepFive: 'Choose two center cards to keep.', keepPractice: 'Choose {remaining} more center card(s).',
-      wrongFive: 'Black cards remain; adjust your trade.',
+      wrongFive: 'That set did not turn every hand card white; choose again.',
       complete: 'Your hand is all white—you win!', completeDetail: 'Tutorial complete. Start a game!'
     }
   };
@@ -211,13 +215,16 @@
     if (wrongCenter.length) return view('undoTarget', 'targetLimit', [focus('equation-target', 'BLACK', wrongCenter)], { cards: wrongCenter }, 'next', 'rule');
     if (!sameIds(selection.hand, action.hand)) {
       const missingHand = action.hand.filter(id => !selection.hand.includes(id));
-      return view(index === 0 ? 'choose' : index === 2 ? 'four' : 'divisionHelp', !selection.hand.length && index === 0 ? 'goal' : !selection.hand.length && index === 2 ? 'fourDetail' : 'selected',
+      if (index === 2 && !selection.hand.length) {
+        return view('fourRule', 'four', [focus('hand', 'BLACK', missingHand)], { cards: missingHand }, 'rule', 'next');
+      }
+      return view(index === 0 ? 'choose' : index === 2 ? 'four' : 'divisionHelp', !selection.hand.length && index === 0 ? 'goal' : 'selected',
         [focus('hand', 'BLACK', missingHand)], { selected: selection.hand.length, total: action.hand.length, cards: missingHand }, 'next', index === 0 && !selection.hand.length ? 'rule' : 'description');
     }
     if (selection.operator !== action.op) return view(index === 0 ? 'operator' : index === 2 ? 'subtract' : 'divide', 'automatic', [focus('operator', 'BLACK', [], action.op)]);
     const missingTarget = action.center.filter(id => !selection.center.includes(id));
-    return view(index === 0 ? 'target' : index === 2 ? 'targetThree' : 'targetFive', 'automatic',
-      [focus('center', 'BLACK', missingTarget)], { cards: missingTarget });
+    return view(index === 0 ? 'target' : index === 2 ? 'targetThree' : 'targetFive', index === 2 ? 'fourEquation' : 'automatic',
+      [focus('center', 'BLACK', missingTarget)], { cards: missingTarget }, 'next', index === 2 ? 'demonstration' : 'description');
   }
 
   const definition = {
@@ -227,13 +234,13 @@
       complete: event => event.type === 'turn.completed' && event.actor === action.side && event.action === index + 1,
       view: snapshot => getGuidance(index, snapshot),
         checkpoints: index === 1 ? {
-        'before-exchange': [{ ...observe('firstTrade', 'firstTradeDetail', [focus('equation-hand', 'WHITE', action.hand)], 'result', 'rule'),
+        'before-exchange': [{ ...observe('twoDigitRule', 'aiTrade', [focus('equation-hand', 'WHITE', action.hand)], 'rule', 'demonstration'),
           actionNumber: 1, context: [focus('center-area', 'BLACK')] }],
-        'before-keep': [observe('aiKeep', 'aiKeepDetail', [focus('center', 'WHITE', action.keep)], 'result', 'rule')]
+        'before-keep': [observe('centerLimitRule', 'aiKeeps', [focus('center', 'WHITE', action.keep)], 'rule', 'next')]
       } : index === 2 ? {
         'before-keep': [observe('keepConcept', 'keepConceptDetail', [focus('center', 'BLACK', action.keep)], 'rule', 'next')]
       } : index === 3 ? {
-        'before-exchange': [observe('flip', 'flipDetail', [focus('equation-target', 'WHITE', action.center)], 'rule', 'description')]
+        'before-exchange': [observe('sixNineRule', 'flipDemo', [focus('equation-target', 'WHITE', action.center)], 'rule', 'demonstration')]
       } : {}
     }))
   };
