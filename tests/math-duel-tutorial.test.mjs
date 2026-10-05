@@ -108,7 +108,11 @@ test('the final action is goal-only until help is requested, and keep guidance r
   const game = readGame(context);
   const tutorial = context.MathDuelTutorial;
   assert.equal(tutorial.getGuidance(4, { game }).hint, 'division');
-  assert.equal(tutorial.getGuidance(4, { game }).detail, 'practiceSelect');
+  const firstDivisionCue = tutorial.getGuidance(4, { game });
+  assert.equal(firstDivisionCue.detail, 'practiceStart');
+  assert.equal(firstDivisionCue.focus[0].area, 'hand-area');
+  assert.doesNotMatch(tutorial.text(firstDivisionCue.hint, 'zh'), /黑 [0-9]/, 'the opening challenge does not reveal the card solution');
+  assert.doesNotMatch(tutorial.text(firstDivisionCue.detail, 'zh'), /黑 [0-9]/);
   assert.equal(tutorial.getGuidance(4, { game, help: true }).hint, 'divisionHelp');
   game.state = 'DISCARDING';
   assert.equal(tutorial.getGuidance(4, { game }).hint, 'keepPractice');
@@ -147,12 +151,17 @@ test('points at live played cards for correction and counts retention separately
   assert.equal(tutorial.getGuidance(2, { game }).focus[0].area, 'equation-target');
   game.state = 'DISCARDING';
   game.discardSelections = ['b3'];
-  assert.equal(tutorial.getGuidance(2, { game }).values.selected, 1);
-  assert.deepEqual(Array.from(tutorial.getGuidance(2, { game }).focus[0].cardIds), ['b6']);
+  const keepCue = tutorial.getGuidance(2, { game });
+  assert.equal(keepCue.values.selected, 1);
+  assert.deepEqual(Array.from(keepCue.focus[0].cardIds), ['b6']);
+  assert.equal(tutorial.text(keepCue.hint, 'zh', keepCue.values), '請選黑 6留在場中央。');
   game.discardSelections = ['b3', 'b7'];
   const wrongKeep = tutorial.getGuidance(2, { game });
   assert.equal(wrongKeep.hint, 'undoKeep');
   assert.deepEqual(Array.from(wrongKeep.focus[0].cardIds), ['b7']);
+  const keepLimit = tutorial.getGuidance(2, { game, notice: 'keep' });
+  assert.equal(keepLimit.detail, 'keepLimit');
+  assert.deepEqual(Array.from(keepLimit.focus[0].cardIds), ['b3', 'b7']);
 });
 
 test('separates AI observation cues from tap tasks without per-checkpoint button labels', () => {
@@ -162,15 +171,14 @@ test('separates AI observation cues from tap tasks without per-checkpoint button
   assert.equal(explanations['before-exchange'].length, 1, 'the first move result and AI setup share one pause');
   assert.equal(explanations['before-exchange'][0].hintKind, 'result');
   assert.equal(explanations['before-exchange'][0].detailKind, 'rule');
-  assert.match(tutorial.text(explanations['before-exchange'][0].hint, 'zh'), /黑 1、8 留場，白 9 回手/);
-  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'zh'), /每個數最多兩位數/);
-  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'en'), /Two digits max/);
-  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'zh'), /看 AI 出牌/);
-  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'en'), /Two digits max; watch AI play/);
+  assert.match(tutorial.text(explanations['before-exchange'][0].hint, 'zh'), /黑 1、黑 8 留在場上；白 9 回到你手牌/);
+  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'zh'), /算式中的每個數最多兩位/);
+  assert.match(tutorial.text(explanations['before-exchange'][0].detail, 'en'), /Max two digits per number/);
   assert.match(tutorial.text(explanations['before-keep'][0].hint, 'zh'), /12 \+ 6 = 18/);
   assert.equal(explanations['before-keep'][0].detailKind, 'rule');
   assert.equal(tutorial.label('rule', 'zh'), '規則');
-  assert.equal(tutorial.label('description', 'zh'), '描述');
+  assert.equal(tutorial.label('description', 'zh'), '說明');
+  assert.equal(tutorial.label('next', 'zh'), '操作');
   assert.equal(tutorial.label('example', 'en'), 'Example');
   for (const step of tutorial.definition.steps) {
     for (const views of Object.values(step.checkpoints)) {
@@ -186,8 +194,8 @@ test('separates AI observation cues from tap tasks without per-checkpoint button
   assert.equal(resolving.detail, 'exchange', 'the learner is the actor during their own move');
   const opponentResolving = tutorial.getGuidance(1, { game: { turn: 'WHITE', state: 'ANIMATING' } });
   assert.equal(opponentResolving.detail, 'opponentExchange');
-  assert.equal(tutorial.text(opponentResolving.detail, 'zh'), '對手出牌留場；結果牌回手。');
-  assert.equal(tutorial.text(opponentResolving.detail, 'en'), 'AI cards stay; results return.');
+  assert.equal(tutorial.text(opponentResolving.detail, 'zh'), 'AI 出牌留場；AI 收回結果牌。');
+  assert.equal(tutorial.text(opponentResolving.detail, 'en'), 'AI cards stay; AI takes results.');
 });
 
 test('starts on a playable action and uses one two-sentence cue before each guided operation', () => {
@@ -199,9 +207,9 @@ test('starts on a playable action and uses one two-sentence cue before each guid
   assert.equal(firstAction.detail, 'goal');
   assert.equal(firstAction.detailKind, 'rule');
   assert.equal(tutorial.definition.steps[0].checkpoints.opening, undefined, 'no read-only opening pages precede the first move');
-  assert.match(tutorial.text(firstAction.hint, 'zh'), /先點黑 1 和黑 8/);
-  assert.match(tutorial.text(firstAction.detail, 'zh'), /結果等於場牌數值/);
-  assert.match(tutorial.text(firstAction.detail, 'en'), /Result matches table value/);
+  assert.match(tutorial.text(firstAction.hint, 'zh', firstAction.values), /請從手牌選黑 1、黑 8/);
+  assert.match(tutorial.text(firstAction.detail, 'zh'), /算式結果須等於所選場牌組成的數字/);
+  assert.match(tutorial.text(firstAction.detail, 'en'), /Result must match center value/);
   assertTwoLineDialogue(tutorial, firstAction, 'zh');
   const afterFirstAction = tutorial.definition.steps[1].checkpoints['before-exchange'];
   assert.equal(afterFirstAction.length, 1, 'only one guided pause precedes the AI exchange');
@@ -299,7 +307,7 @@ test('keeps each storyboard beat to two sentences and guides the real five-move 
         views.push(addWhite);
         assert.equal(addWhite.hint, 'practiceAddWhite');
         assert.deepEqual(Array.from(addWhite.focus[0].cardIds), ['w9']);
-        assert.match(tutorial.text(addWhite.detail, 'zh'), /白 9 可當成 6/);
+        assert.match(tutorial.text(addWhite.detail, 'zh'), /白 9 翻面為 6，和黑 9 組成 96/);
         assert.match(tutorial.text('flipDetail', 'zh'), /白 4 \+ 白 5 = 9/);
         assert.match(tutorial.text('practiceTargetDetail', 'zh'), /96 ÷ 24 = 4/);
       }
@@ -351,7 +359,11 @@ test('final practice still requires legal division and trading all remaining bla
   game.selections = { hand: ['b4', 'w1'], center: ['w4'], operator: '/' };
   assert.equal(context.MathDuelEquation.checkEquation(game.blackHand.filter(card => game.selections.hand.includes(card.id)), '/', game.center.filter(card => game.selections.center.includes(card.id))).success, true);
   assert.equal(tutorial.matchesTask(4, game), false, 'a legal equation that leaves black cards is not the lesson goal');
-  assert.equal(tutorial.getGuidance(4, { game, rejected: true }).hint, 'division', 'retry should reinforce the goal, not reveal the reference answer');
+  const retry = tutorial.getGuidance(4, { game, rejected: true });
+  assert.equal(retry.hint, 'division', 'retry should reinforce the goal, not reveal the reference answer');
+  assert.equal(retry.detail, 'wrongFive');
+  assert.doesNotMatch(tutorial.text(retry.detail, 'zh'), /黑 [0-9]/);
+  assert.equal(retry.focus[0].area, 'hand-area');
   game.selections = { hand: ['b2', 'b4', 'b9', 'unknown'], center: ['w4'], operator: '/' };
   assert.equal(tutorial.matchesTask(4, game), false);
   game.selections = { hand: ['b2', 'b4', 'b9', 'b9'], center: ['w4'], operator: '/' };
@@ -369,6 +381,42 @@ test('explains selection limits and room for missing black cards without changin
   const before = JSON.stringify(game);
   assert.equal(tutorial.getGuidance(4, { game }).detail, 'practiceMakeRoom');
   assert.equal(tutorial.getGuidance(4, { game }).focus[0].area, 'equation-hand');
+  const makeRoom = tutorial.getGuidance(4, { game });
+  assert.deepEqual(Array.from(makeRoom.focus[0].cardIds), ['w1', 'w2', 'w9']);
+  assert.equal(tutorial.text(makeRoom.detail, 'zh'), '點出牌區已選白牌，取消一張。');
   assert.equal(tutorial.getGuidance(4, { game, notice: 'hand' }).detail, 'handLimit');
+  const correction = tutorial.getGuidance(4, { game, notice: 'hand' });
+  assert.equal(correction.hint, 'undoHand');
+  assert.equal(correction.focus[0].area, 'equation-hand');
+  assert.deepEqual(Array.from(correction.focus[0].cardIds), ['w1', 'w2', 'w9']);
+  assert.match(tutorial.text(correction.hint, 'zh', correction.values), /再點出牌區的白 1、白 2、白 9/);
   assert.equal(JSON.stringify(game), before);
+});
+
+test('keeps the highlighted card and instruction aligned after partial selections and limit errors', () => {
+  const { MathDuelTutorial: tutorial } = makeContext();
+  const game = readGame(makeContext());
+  game.selections.hand = ['b1'];
+  const handCue = tutorial.getGuidance(0, { game });
+  assert.deepEqual(Array.from(handCue.focus[0].cardIds), ['b8']);
+  assert.equal(tutorial.text(handCue.hint, 'zh', handCue.values), '請從手牌選黑 8。');
+
+  game.selections = { hand: ['b1', 'b8'], center: [], operator: '+' };
+  const resultCue = tutorial.getGuidance(0, { game });
+  assert.deepEqual(Array.from(resultCue.focus[0].cardIds), ['w9']);
+  assert.equal(tutorial.text(resultCue.hint, 'zh', resultCue.values), '選場牌白 9作為結果。');
+
+  game.selections = { hand: ['b1', 'b8', 'b2', 'b3'], center: [], operator: null };
+  const handLimit = tutorial.getGuidance(0, { game, notice: 'hand' });
+  assert.equal(handLimit.hint, 'undoHand');
+  assert.equal(handLimit.detail, 'handLimit');
+  assert.equal(handLimit.focus[0].area, 'equation-hand');
+  assert.deepEqual(Array.from(handLimit.focus[0].cardIds), ['b2', 'b3']);
+
+  game.selections.center = ['w9'];
+  const targetLimit = tutorial.getGuidance(0, { game, notice: 'target' });
+  assert.equal(targetLimit.hint, 'undoTarget');
+  assert.equal(targetLimit.detail, 'targetLimit');
+  assert.equal(targetLimit.focus[0].area, 'equation-target');
+  assert.deepEqual(Array.from(targetLimit.focus[0].cardIds), ['w9']);
 });

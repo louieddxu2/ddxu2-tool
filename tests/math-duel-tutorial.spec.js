@@ -124,11 +124,12 @@ test('finishes five real moves with AI pauses, division and the ordinary win con
   expect(await page.evaluate(() => game.center.find(card => card.id === 'b6').val)).toBe(6);
   await continueButton(page).click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-5');
-  await expect(page.locator('#black-play-hint')).toContainText('最後一手用除法，換掉剩下的黑牌');
+  await expect(page.locator('#black-play-hint')).toContainText('目標是把手上剩下的黑牌全換成白牌');
   await expect(page.locator('#black-play-hint')).not.toContainText('選黑 2');
   await page.locator('.utility-rules').click();
   await page.locator('#rules-step-help').click();
-  await expect(page.locator('#black-play-hint')).toContainText('選黑 2、4、9 和白 9');
+  await expect(page.locator('#black-play-hint')).toContainText('請選亮起的手牌，完成除法');
+  await expect(page.locator('#black-hand [data-tutorial-focus="hand"]')).toHaveCount(4);
   // Check the solver's effective digits before sending the last play.
   await page.locator('#center-cards [data-card-id="w4"]').click();
   await page.locator('#black-actions [data-op="/"]').click();
@@ -178,7 +179,7 @@ test('rejects a different legal task without changing the board or claiming bad 
   await startLesson(page);
   await send(page, ['b1', 'b5'], ['w9'], '+');
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
-  await expect(page.locator('#black-play-hint')).toContainText('這步請用黑 1、黑 8');
+  await expect(page.locator('#black-play-hint')).toContainText('請改選黑 1、黑 8 和「＋」');
   expect(await fieldIds(page)).toEqual(['w9']);
   expect(await page.evaluate(() => game.blackHand.length)).toBe(9);
   await page.locator('#black-equation [data-card-id="b5"]').click();
@@ -219,7 +220,7 @@ test('keeps a wrong retention choice reversible without advancing the teaching a
   const before = await fieldIds(page);
   for (const id of ['b5', 'b7']) await page.locator(`#center-cards [data-card-id="${id}"]`).click();
   await page.locator('#black-actions [data-role="main-btn"]').click();
-  await expect(page.locator('#black-play-hint')).toContainText('請選兩張牌留在中央');
+  await expect(page.locator('#black-play-hint')).toContainText('請從場中央選兩張牌留下');
   expect(await fieldIds(page)).toEqual(before);
   expect(await page.evaluate(() => gameSession.action)).toBe(2);
   for (const id of ['b5', 'b7', 'b3', 'b6']) await page.locator(`#center-cards [data-card-id="${id}"]`).click();
@@ -327,7 +328,7 @@ test('holds the teaching AI after real animations while language and help remain
   await reachSecondMove(page);
   expect(await page.evaluate(() => ({ gate: Boolean(tutorialGate), automaticTimer: Boolean(aiPlanResolver), busy: game.uiBusy }))).toEqual({ gate: true, automaticTimer: false, busy: false });
   await page.locator('.utility-language').click();
-  await expect(page.locator('#black-play-hint')).toContainText('Two digits max; watch AI play');
+  await expect(page.locator('#black-play-hint')).toContainText('Max two digits per number.');
   await expect(continueButton(page)).toHaveText('Next');
   await page.locator('.utility-rules').click();
   await page.locator('#modal-close-btn').click();
