@@ -139,6 +139,23 @@ async function waitForWindowFunction(name, timeoutMs = 5000) {
   throw new Error(`${name} was not ready within ${timeoutMs}ms`);
 }
 
+async function waitForSharedCardHistory(timeoutMs = 2500) {
+  const startedAt = Date.now();
+  while (!window.UIState?.isDBReady && Date.now() - startedAt < timeoutMs) {
+    await waitForSharedContent(50);
+  }
+}
+
+function clearSharedContentUrl(url) {
+  url.searchParams.delete("shared");
+  url.searchParams.delete("share_error");
+  window.history.replaceState(
+    {},
+    document.title,
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
 function showSharedContentError(code, details = "") {
   console.error("[share-target] share failed", { code, details });
 
@@ -184,14 +201,16 @@ async function consumeCachedSharedContent() {
 
   if (!hasSharedFlag && !urlError) clearSharedContentError();
 
+  let cache = null;
+  let consumedImageKey = null;
+  let status = null;
   try {
-    const cache = await caches.open("share-target-cache");
+    cache = await caches.open("share-target-cache");
     const attempts = hasSharedFlag || urlError ? 30 : 1;
     let payloadRes = null;
     let imgRes = null;
     let zipRes = null;
     let statusRes = null;
-    let status = null;
 
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       [payloadRes, imgRes, zipRes, statusRes] = await Promise.all([
@@ -225,13 +244,7 @@ async function consumeCachedSharedContent() {
           ? `Android 只送出欄位：${receivedFields.join(", ")}，沒有附加檔案。`
           : "分享資料未成功進入工具。");
       showSharedContentError(code, details);
-      currentUrl.searchParams.delete("shared");
-      currentUrl.searchParams.delete("share_error");
-      window.history.replaceState(
-        {},
-        document.title,
-        `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
-      );
+      clearSharedContentUrl(currentUrl);
       return false;
     }
 
@@ -267,6 +280,7 @@ async function consumeCachedSharedContent() {
         ? detected.type
         : (blob.type.startsWith("image/") ? blob.type : "image/jpeg");
       const file = new File([blob], fileName, { type: imageType });
+      consumedImageKey = consumedKey;
       await handleSharedImage(file);
     } else if (detected.kind === "zip") {
       await processSharedZip(blob);
@@ -281,16 +295,30 @@ async function consumeCachedSharedContent() {
       cache.delete(LEGACY_SHARED_ZIP_KEY),
     ]);
 
-    currentUrl.searchParams.delete("shared");
-    currentUrl.searchParams.delete("share_error");
-    window.history.replaceState(
-      {},
-      document.title,
-      `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`,
-    );
+    clearSharedContentError();
+    clearSharedContentUrl(currentUrl);
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (cache && consumedImageKey) {
+      try {
+        // A failed image is a completed share attempt, not pending work to
+        // reopen on every pageshow or visibilitychange. Keep only diagnostics.
+        await cache.delete(consumedImageKey);
+        await cache.put(SHARED_STATUS_KEY, new Response(JSON.stringify({
+          ...status,
+          timestamp: Date.now(),
+          ok: false,
+          stage: "page-process-failed",
+          error: message,
+        }), {
+          headers: { "Content-Type": "application/json" },
+        }));
+      } catch (cleanupError) {
+        console.error("[share-target] failed to clean up image", cleanupError);
+      }
+      clearSharedContentUrl(currentUrl);
+    }
     showSharedContentError("page-process-failed", message);
     return false;
   }
@@ -329,6 +357,7 @@ async function handleSharedImage(file) {
   }
 
   const openCrop = await waitForWindowFunction("openCropView");
+  await waitForSharedCardHistory();
   const url = URL.createObjectURL(file);
   await new Promise((resolve, reject) => {
     let settled = false;

@@ -186,6 +186,52 @@ test('consumes a cached image when Android resumes an existing PWA window', asyn
   await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
 });
 
+test('waits for card history before choosing the shared image crop ratio', async ({ page }) => {
+  await page.goto('/Chinese-card/');
+  await expect.poll(() => page.evaluate(() => window.UIState?.isDBReady)).toBe(true);
+  await page.evaluate(() => {
+    window.dbCards = [];
+    window.UIState.isDBReady = false;
+  });
+  await shareGeneratedPng(page);
+
+  const openedBeforeHistory = await page.evaluate(async () => {
+    const processing = checkForSharedContent();
+    // Keep history pending long enough to observe an early crop, then release it.
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const opened = window.UIState.isCropViewOpen;
+    window.dbCards = [{
+      id: 'history-card', game: '', type: '', number: '', ratio: '70:120',
+      blob: new Blob(['history'], { type: 'image/png' }),
+    }];
+    window.UIState.isDBReady = true;
+    await processing;
+    return opened;
+  });
+
+  expect(openedBeforeHistory).toBe(false);
+  await expect(page.locator('#view-crop')).toBeVisible();
+  expect(await page.evaluate(() => window.cropRatio)).toBeCloseTo(70 / 120);
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
+});
+
+test('still opens a shared image if card history never becomes ready', async ({ page }) => {
+  await page.goto('/Chinese-card/');
+  await expect.poll(() => page.evaluate(() => window.UIState?.isDBReady)).toBe(true);
+  await page.evaluate(() => {
+    window.dbCards = [];
+    window.UIState.isDBReady = false;
+  });
+  await shareGeneratedPng(page);
+  await page.evaluate(() => checkForSharedContent());
+
+  expect(await page.evaluate(() => window.UIState.isDBReady)).toBe(false);
+  await expect(page.locator('#view-crop')).toBeVisible();
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
+});
+
 test('does not accept zip files from an unrelated share field', async ({ page }) => {
   await page.evaluate(async () => {
     const form = new FormData();
@@ -296,7 +342,7 @@ test('waits for a payload that arrives after the PWA page resumes', async ({ pag
   await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
 });
 
-test('keeps an undecodable payload and reports the page processing stage', async ({ page }) => {
+test('discards an undecodable image without replaying it on resume or reload', async ({ page }) => {
   await page.evaluate(async ({ cacheName, payloadKey }) => {
     const cache = await caches.open(cacheName);
     await cache.put(payloadKey, new Response(new Uint8Array([1, 2, 3, 4]), {
@@ -314,5 +360,33 @@ test('keeps an undecodable payload and reports the page processing stage', async
   await expect.poll(() => page.evaluate(async ({ cacheName, payloadKey }) => {
     const cache = await caches.open(cacheName);
     return Boolean(await cache.match(payloadKey));
-  }, { cacheName: SHARE_CACHE, payloadKey: SHARED_PAYLOAD })).toBe(true);
+  }, { cacheName: SHARE_CACHE, payloadKey: SHARED_PAYLOAD })).toBe(false);
+  await expect(page).toHaveURL(/\/Chinese-card\/$/);
+
+  const status = await page.evaluate(async ({ cacheName, statusKey }) => {
+    const cache = await caches.open(cacheName);
+    const response = await cache.match(statusKey);
+    return response ? response.json() : null;
+  }, { cacheName: SHARE_CACHE, statusKey: SHARED_STATUS });
+  expect(status.ok).toBe(false);
+  expect(status.stage).toBe('page-process-failed');
+  expect(status.error).toContain('could not be decoded');
+
+  await page.evaluate(async () => {
+    window.dispatchEvent(new Event('pageshow'));
+    document.dispatchEvent(new Event('visibilitychange'));
+    await checkForSharedContent();
+  });
+  await expect(error).toHaveCount(0);
+  await expect(page.locator('#view-crop')).toBeHidden();
+
+  await page.reload();
+  await expect(error).toHaveCount(0);
+  await expect(page.locator('#view-crop')).toBeHidden();
+
+  await shareGeneratedPng(page);
+  await expect(page.locator('#view-crop')).toBeVisible();
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 2);
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 3);
+  await expect(error).toHaveCount(0);
 });

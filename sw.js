@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ddxu2-launcher-v40';
+const CACHE_NAME = 'ddxu2-launcher-v41';
 const CACHE_NAME_PREFIX = 'ddxu2-launcher-';
 const SHARE_CACHE_NAME = 'share-target-cache';
 const SHARED_PAYLOAD_KEY = '/_shared_payload';
