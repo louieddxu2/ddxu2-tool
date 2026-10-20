@@ -1,158 +1,139 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('裁切核心邏輯測試 (TDD)', () => {
+async function openTestImage(page) {
+  await page.evaluate(async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1000;
+    canvas.height = 1000;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 讓兩種預設比例的裁切框都位於圖片內，避免觸發邊界限制。
+    localStorage.setItem('bg_crop_widthPct', '0.4');
+    localStorage.setItem('bg_crop_centerYPct', '0.85');
+    localStorage.setItem('bg_crop_angle', '0');
+    await new Promise((resolve, reject) => {
+      window.openCropView(canvas.toDataURL(), '', {
+        onLoad: resolve,
+        onError: reject,
+      });
+    });
+  });
+  await expect(page.locator('#view-crop')).toBeVisible();
+  await expect(page.locator('#crop-loading')).toBeHidden();
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('width', 1000);
+  await expect(page.locator('#canvas-source')).toHaveJSProperty('height', 1000);
+}
+
+async function readCropGeometry(page) {
+  return page.locator('#crop-polygon').evaluate((polygon) => {
+    const points = polygon.getAttribute('points').split(' ').map((point) => {
+      const [x, y] = point.split(',').map(Number);
+      return { x, y };
+    });
+    const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    return {
+      top: points.slice(0, 2),
+      bottom: [points[3], points[2]],
+      width: distance(points[3], points[2]),
+      height: distance(points[3], points[0]),
+    };
+  });
+}
+
+function expectBottomUnchanged(actual, expected) {
+  for (let index = 0; index < expected.bottom.length; index += 1) {
+    expect(actual.bottom[index].x).toBeCloseTo(expected.bottom[index].x, 6);
+    expect(actual.bottom[index].y).toBeCloseTo(expected.bottom[index].y, 6);
+  }
+}
+
+async function clickImageCenter(page) {
+  const box = await page.locator('#canvas-source').boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+test.describe('裁切核心邏輯測試', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/Chinese-card/index.html');
-    await page.waitForLoadState('domcontentloaded');
+    await expect.poll(() => page.evaluate(() => window.UIState?.isDBReady)).toBe(true);
+
+    // 手機瀏覽器會顯示安裝提示；先以正常操作關閉，才能操作裁切工具。
+    const prompt = page.locator('#pwa-prompt');
+    await prompt.getByRole('button', { name: '我了解了', exact: true }).click();
+    await expect(prompt).toHaveCount(0);
+    await openTestImage(page);
   });
 
-  test('切換比例時，底邊 (p1/p2) 必須固定不動', async ({ page }) => {
-    // 注入一張測試圖片
-    await page.evaluate(() => {
-      const base64Data = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-      const byteCharacters = atob(base64Data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/png' });
-      
-      const url = URL.createObjectURL(blob);
-      window.openCropView(url);
-    });
+  test('切換預設比例時，底邊兩端必須固定不動', async ({ page }) => {
+    const before = await readCropGeometry(page);
 
-    // 等待初始化
-    await page.waitForTimeout(500);
+    const ratioButton = page.locator('.ratio-btn[data-ratio="70:120"]');
+    await ratioButton.click();
+    await expect(ratioButton).toHaveClass(/bg-emerald-600/);
+    const after = await readCropGeometry(page);
 
-    const p1 = page.locator('#ind-p1');
-    const p2 = page.locator('#ind-p2');
+    expectBottomUnchanged(after, before);
+    expect(after.height).not.toBeCloseTo(before.height, 6);
+    expect(await page.evaluate(() => window.cropRatio)).toBeCloseTo(70 / 120, 6);
+  });
 
-    // 取得原本的座標
-    const originalP1 = await p1.boundingBox();
-    const originalP2 = await p2.boundingBox();
+  test('自訂模式可拖曳上緣線調整高度，切回預設時隱藏上緣線', async ({ page }) => {
+    const edge = page.locator('#ind-top-edge');
+    await expect(edge).toHaveCount(0);
+    await page.locator('#custom-ratio-box').click();
+    // 水平 SVG 線的幾何高度為零，應檢查顯示狀態並實際拖曳驗證。
+    await expect(edge).toHaveCSS('display', 'block');
+    await expect(page.locator('#crop-svg')).toBeVisible();
+    await expect(page.locator('#ind-p3')).toHaveCount(0);
 
-    // 點擊另一個預設比例按鈕 (例如 70:120)
+    const before = await readCropGeometry(page);
+    const canvasBox = await page.locator('#canvas-source').boundingBox();
+    expect(canvasBox).not.toBeNull();
+    const edgeX = canvasBox.x + (before.top[0].x + before.top[1].x) / 2;
+    const edgeY = canvasBox.y + (before.top[0].y + before.top[1].y) / 2;
+    await page.mouse.move(edgeX, edgeY);
+    await page.mouse.down();
+    await page.mouse.move(edgeX, edgeY + canvasBox.height * 0.1, { steps: 5 });
+    await page.mouse.up();
+    const after = await readCropGeometry(page);
+
+    expect(after.height).toBeLessThan(before.height);
+    expectBottomUnchanged(after, before);
+
     await page.locator('.ratio-btn[data-ratio="70:120"]').click();
-
-    // 取得切換後的座標
-    const newP1 = await p1.boundingBox();
-    const newP2 = await p2.boundingBox();
-
-    // 斷言：切換比例後，底線 (p1, p2) 的座標必須完全不變
-    // 在原本的 Bug 中，因為以中心放大，p1 和 p2 會往下移，所以這個測試會失敗！
-    expect(newP1.x).toBeCloseTo(originalP1.x, 0);
-    expect(newP1.y).toBeCloseTo(originalP1.y, 0);
-    expect(newP2.x).toBeCloseTo(originalP2.x, 0);
-    expect(newP2.y).toBeCloseTo(originalP2.y, 0);
+    await expect(edge).toHaveCSS('display', 'none');
   });
 
-  test('點擊自訂比例時，應出現第三控制點 (ind-p3)', async ({ page }) => {
-    await page.evaluate(() => {
-      const canvas = document.createElement('canvas');
-      window.openCropView(canvas.toDataURL());
-    });
-    await page.waitForTimeout(500);
+  test('自訂模式點擊底邊上方可調整高度，底邊兩端保持不動', async ({ page }) => {
+    const customButton = page.locator('#custom-ratio-box');
+    await customButton.click();
+    await expect(customButton).toHaveClass(/bg-emerald-600/);
+    await expect(page.locator('#ind-top-edge')).toHaveCSS('display', 'block');
+    const before = await readCropGeometry(page);
 
-    const p3 = page.locator('#ind-p3');
-    
-    // 一開始預設是 63:88，不該有 p3
-    await expect(p3).toBeHidden();
+    await clickImageCenter(page);
+    const after = await readCropGeometry(page);
 
-    // 點擊自訂比例按鈕
-    const customBtn = page.locator('#custom-ratio-box');
-    await customBtn.click();
-
-    // 斷言：點擊後必須出現第三控制點
-    await expect(p3).toBeVisible();
+    expect(after.height).not.toBeCloseTo(before.height, 6);
+    expectBottomUnchanged(after, before);
   });
 
-  test('在自訂模式下單擊上方，應能改變裁切框高度 (3-Tap)', async ({ page }) => {
-    await page.evaluate(() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 1000;
-      canvas.height = 1000;
-      window.openCropView(canvas.toDataURL());
-    });
-    await page.waitForTimeout(500);
+  test('標準模式點擊移動底角後，仍維持原本長寬比', async ({ page }) => {
+    expect(await page.evaluate(() => Boolean(window.isCustomMode))).toBe(false);
+    const before = await readCropGeometry(page);
 
-    // 1. 進入自訂模式
-    const customBtn = page.locator('#custom-ratio-box');
-    await customBtn.click();
-    
-    // 檢查樣式是否變為選中狀態 (bg-emerald-600)
-    await expect(customBtn).toHaveClass(/bg-emerald-600/);
-    
-    // 檢查 p3 是否出現
-    const p3 = page.locator('#ind-p3');
-    await expect(p3).toBeVisible();
+    await clickImageCenter(page);
+    const after = await readCropGeometry(page);
 
-    const polygon = page.locator('#crop-polygon');
-    const getPoints = async () => {
-      const ptsStr = await polygon.getAttribute('points');
-      return ptsStr.split(' ').map(p => {
-        const [x, y] = p.split(',').map(Number);
-        return { x, y };
-      });
-    };
-
-    const initialPoints = await getPoints();
-    const initialTopY = initialPoints[0].y;
-
-    // 2. 在畫面上方點擊 (Y=100)
-    const container = page.locator('#crop-container');
-    const box = await container.boundingBox();
-    // 我們直接使用 dispatchEvent 來模擬精確的點擊，避免 mouse.click 可能的偏移
-    await page.mouse.click(box.x + box.width / 2, box.y + 100);
-
-    await page.waitForTimeout(500);
-
-    // 3. 驗證高度是否改變
-    const newPoints = await getPoints();
-    const newTopY = newPoints[0].y;
-
-    console.log(`Initial TopY: ${initialTopY}, New TopY: ${newTopY}`);
-
-    // 在自訂模式下，高度應該改變
-    expect(newTopY).not.toBeCloseTo(initialTopY, 1);
-    
-    // 驗證底線 (p1, p2) 依然沒動 (p3 is bottom-left in calculatePolygon [p4, p3, p2, p1])
-    // Wait, pts[3] is p1 (bottom-left).
-    expect(newPoints[3].y).toBeCloseTo(initialPoints[3].y, 1);
-  });
-
-  test('在標準模式下，單擊上方不應改變裁切框高度', async ({ page }) => {
-    await page.evaluate(() => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 1000;
-      canvas.height = 1000;
-      window.openCropView(canvas.toDataURL());
-    });
-    await page.waitForTimeout(500);
-
-    const polygon = page.locator('#crop-polygon');
-    const getPoints = async () => {
-      const ptsStr = await polygon.getAttribute('points');
-      return ptsStr.split(' ').map(p => {
-        const [x, y] = p.split(',').map(Number);
-        return { x, y };
-      });
-    };
-
-    const initialPoints = await getPoints();
-    const initialTopY = initialPoints[0].y;
-
-    // 在畫面上方點擊
-    const container = page.locator('#crop-container');
-    const box = await container.boundingBox();
-    await page.mouse.click(box.x + box.width / 2, box.y + 100);
-
-    await page.waitForTimeout(500);
-
-    const newPoints = await getPoints();
-    const newTopY = newPoints[0].y;
-
-    // 在標準模式下，高度不應改變 (應該只是移動了 p1 或 p2)
-    expect(newTopY).toBeCloseTo(initialTopY, 1);
+    // 確認點擊確實移動了底角，再檢查幾何比例，避免未操作就誤判通過。
+    expect(after.bottom).not.toEqual(before.bottom);
+    expect(before.width).toBeGreaterThan(0);
+    expect(before.height).toBeGreaterThan(0);
+    expect(after.width).toBeGreaterThan(0);
+    expect(after.height).toBeGreaterThan(0);
+    expect(after.width / after.height).toBeCloseTo(before.width / before.height, 6);
   });
 });
