@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
+console.log(`[Build] Node.js ${process.version}`);
+
 const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '';
 
 // 我們只注入 API Key，Client ID 既然已經寫在代碼裡就先不變動（除非環境變數有提供覆蓋）

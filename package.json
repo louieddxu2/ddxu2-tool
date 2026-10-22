@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "description": "Static launcher + tools for Vercel",
+  "engines": {
+    "node": "^24.22.1"
+  },
   "scripts": {
     "dev:win": "powershell -NoProfile -Command \"$ErrorActionPreference='Stop'; Set-Location -LiteralPath $env:npm_config_local_prefix; node .\\\\node_modules\\\\http-server\\\\bin\\\\http-server . -p 5500 -c-1\"",
     "dev:win:open": "powershell -NoProfile -Command \"$ErrorActionPreference='Stop'; Set-Location -LiteralPath $env:npm_config_local_prefix; node .\\\\node_modules\\\\http-server\\\\bin\\\\http-server . -p 5500 -c-1 -o /\"",
