@@ -98,9 +98,11 @@ test('pairs the two-digit rule with the real AI move and keeps the live cue legi
   await page.locator('.utility-rules').click();
   await expect(page.locator('#rule-4')).toContainText('算式中的每個數最多兩位');
   await expect(page.locator('#rule-4')).toContainText('6 和 9 可以翻面互換');
+  await expect(page.locator('#rule-5')).toHaveText('【獲勝條件】在回合結束時，自己的手牌全部變成對手顏色，或對手無法組成有效算式時，你就獲勝。');
   await page.evaluate(() => { LANG = 'en'; render(); });
   await expect(page.locator('#rule-4')).toContainText('Each number in the equation can have at most two digits');
   await expect(page.locator('#rule-4')).toContainText('6 and 9 can be flipped');
+  await expect(page.locator('#rule-5')).toHaveText('[Victory] At the end of a turn, win if every card in your hand has become the opponent’s color, or if your opponent cannot form a valid equation.');
   await page.evaluate(() => { LANG = 'zh'; render(); });
   await page.locator('#modal-close-btn').click();
 
