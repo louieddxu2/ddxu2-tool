@@ -254,3 +254,101 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   .play-stage-cards [data-card-id] { width: 26px; height: min(34px, 100%); font-size: 19px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+/* Desktop keeps the same face-to-face table, but gives the cards room to read. */
+@media (min-width: 960px) and (min-height: 680px) {
+  :root { --desktop-board-width: min(calc(100vw - 176px), 1560px); }
+
+  #game-board {
+    width: var(--desktop-board-width);
+    max-width: none;
+    padding: clamp(10px, 1.3vh, 14px) 0;
+    gap: clamp(8px, 1vh, 12px);
+    grid-template-rows: minmax(126px, .8fr) minmax(360px, 2.3fr) minmax(126px, .8fr);
+  }
+
+  #white-area, #black-area {
+    padding: 12px clamp(16px, 1.8vw, 28px) !important;
+    grid-template-rows: 20px minmax(0, 1fr);
+    gap: 6px;
+  }
+  .player-area-header { position: relative; inset: auto; z-index: auto; pointer-events: none; }
+  #white-area .hand-grid, #black-area .hand-grid { grid-row: 2; }
+  #white-area > div:first-child, #black-area > div:first-child { min-height: 20px; }
+  #white-label, #black-label { font-size: 12px; line-height: 16px; }
+  .player-turn-status, .player-score { font-size: 11px; line-height: 15px; }
+
+  .hand-grid {
+    --hand-rows: 1;
+    --hand-gap: clamp(8px, .85vw, 14px);
+    width: min(100%, 1240px);
+    padding-inline: 0;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+  }
+  .hand-grid:has(> :nth-child(11)) { --hand-rows: 1; }
+  .hand-grid:has(> :nth-child(16)) { --hand-rows: 2; }
+  .hand-grid [data-card-id], .hand-card-slot {
+    width: clamp(54px, 4.25vw, 66px);
+    height: min(76px, calc((100% - var(--hand-gap) * (var(--hand-rows) - 1)) / var(--hand-rows)));
+    flex: 0 1 clamp(54px, 4.25vw, 66px);
+  }
+  .hand-grid [data-card-id] { font-size: clamp(32px, 2.9vw, 40px); }
+
+  #table-surface {
+    grid-template-rows: minmax(58px, .65fr) minmax(88px, 1.35fr) minmax(88px, 1.1fr) minmax(88px, 1.35fr) minmax(58px, .65fr);
+  }
+  .action-content {
+    width: min(100%, 960px);
+    grid-template-columns: 116px minmax(0, 1fr) 132px;
+    gap: 12px;
+    padding: 2px 18px;
+  }
+  .op-btn { width: 50px !important; height: 48px !important; font-size: 29px; }
+  .action-content [data-role="main-btn"], .action-content [data-role="giveup-btn"], .action-content [data-role="pass-btn"], .action-content [data-role="plan-continue-btn"] {
+    height: 38px;
+    padding: 5px 9px !important;
+    font-size: 13px;
+    line-height: 16px;
+  }
+
+  .equation-content {
+    width: min(100%, 900px);
+    grid-template-rows: minmax(0, 1fr) 30px;
+    gap: 4px;
+    padding: 4px 12px;
+  }
+  .play-stage-grid { grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr); gap: 10px; padding-inline: 18px; }
+  .play-stage-cards { gap: 7px; }
+  .play-stage-cards [data-card-id] {
+    width: clamp(40px, 3.2vw, 50px);
+    height: min(64px, 100%);
+    font-size: clamp(27px, 2.4vw, 34px);
+  }
+  .play-stage-operator { font-size: 30px; }
+  .operand-divider { padding-inline: 5px; font-size: 28px; }
+  .play-hint { font-size: 12px; line-height: 15px; }
+  .play-hint.is-guidance { font-size: 12px; line-height: 14px; }
+
+  #center-area { min-height: 88px; padding: 7px 24px !important; }
+  #ui-center-label { left: clamp(24px, 3.2vw, 56px); font-size: 12px; line-height: 16px; }
+  #center-cards { min-height: 72px !important; gap: clamp(8px, .75vw, 12px) !important; }
+  #center-cards [data-card-id] {
+    width: clamp(44px, 3.7vw, 56px);
+    height: min(74px, 8vh);
+    font-size: clamp(30px, 2.6vw, 38px);
+  }
+
+  .utility-rail .table-icon { width: 46px; height: 46px; font-size: 9px; line-height: 10px; }
+  .utility-rail-left .table-icon { left: calc((100vw - var(--desktop-board-width)) / 2 - 58px); right: auto; }
+  .utility-rail-right .table-icon { left: auto; right: calc((100vw - var(--desktop-board-width)) / 2 - 58px); }
+  .utility-rail-left .table-icon:nth-child(1) { top: calc(var(--utility-center-y, 50vh) - 54px); }
+  .utility-rail-left .table-icon:nth-child(2) { top: calc(var(--utility-center-y, 50vh) + 8px); }
+  .utility-rail-right .table-icon:nth-child(1) { top: calc(var(--utility-center-y, 50vh) - 104px); }
+  .utility-rail-right .table-icon:nth-child(2) { top: calc(var(--utility-center-y, 50vh) - 50px); }
+  .utility-rail-right .table-icon:nth-child(3) { top: calc(var(--utility-center-y, 50vh) + 4px); }
+  .utility-rail-right .table-icon:nth-child(4) { top: calc(var(--utility-center-y, 50vh) + 58px); }
+  .utility-rail .utility-cycle { width: 48px; height: 48px; }
+  .utility-rail .utility-cycle [data-role="utility-label"] { max-width: 42px; font-size: 9px; line-height: 10px; }
+}
