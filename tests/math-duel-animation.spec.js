@@ -164,6 +164,32 @@ test('animates a card exchange and resolves it into the correct zones', async ({
   await expect(page.locator('#white-area')).toHaveClass(/border-blue-500/);
 });
 
+test('shows the division symbol consistently while selecting and resolving a move', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
+  await page.goto('/math-duel/index.html');
+
+  await page.locator('#black-hand [data-card-id="b9"]').click();
+  await page.locator('#black-hand [data-card-id="b1"]').click();
+  await page.locator('#black-actions [data-op="/"]').click();
+  await expect(page.locator('#black-equation [data-role="stage-operator-symbol"]')).toHaveText('÷');
+
+  await page.locator('#center-cards [data-card-id="w9"]').click();
+  const division = page.locator('#black-equation .operand-divider');
+  await expect(division).toHaveText('÷');
+  const preview = page.locator('#black-equation [data-role="move-preview"] .equation-line');
+  await expect(preview).toContainText('÷');
+
+  await page.locator('#black-actions [data-role="main-btn"]').click();
+  await expect(page.locator('#status-banner')).toContainText('行動結算中', { timeout: 1000 });
+  await expect(page.locator('#black-equation [data-role="move-preview"]')).toHaveClass(/is-resolving/);
+  await expect(preview).toContainText('÷');
+  await expect(division).toHaveText('÷');
+
+  await expect(page.locator('body')).toHaveClass(/is-white-turn/, { timeout: 7000 });
+  await expect(page.locator('#black-equation .operand-divider')).toHaveText('÷');
+});
+
 test('does not mirror active control highlights into the opponent action zone', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('mathDuelLang', 'zh'));
   await page.goto('/math-duel/index.html');

@@ -1375,6 +1375,16 @@
         zone.classList.remove('is-working');
       }
 
+      function formatOperatorSymbol(operator) {
+        if (operator === '*') return '×';
+        if (operator === '/') return '÷';
+        return operator || '?';
+      }
+
+      function formatEquationDisplay(equation) {
+        return String(equation || '').replace(/\s([*/])\s/g, (_, operator) => ` ${formatOperatorSymbol(operator)} `);
+      }
+
       function renderEquationWitness(zone, witness, interactive = true) {
         if (!zone || !witness?.left?.cards?.length || !witness?.right?.cards?.length || !witness?.target?.cards?.length) return;
         const handArea = zone.querySelector('[data-role="stage-hand-cards"]');
@@ -1387,7 +1397,7 @@
         const centerLocation = interactive ? 'stage-center' : 'history-center';
         handArea.className = 'play-stage-cards is-expression';
         centerArea.className = 'play-stage-cards is-expression';
-        handArea.innerHTML = `${renderStageOperand(witness.left, handLocation)}<span class="operand-divider">${escapeHtml(witness.operator)}</span>${renderStageOperand(witness.right, handLocation)}`;
+        handArea.innerHTML = `${renderStageOperand(witness.left, handLocation)}<span class="operand-divider">${escapeHtml(formatOperatorSymbol(witness.operator || witness.op))}</span>${renderStageOperand(witness.right, handLocation)}`;
         centerArea.innerHTML = renderStageOperand(witness.target, centerLocation);
         operator.innerText = '=';
         handSlot.classList.add('is-active');
@@ -1417,7 +1427,7 @@
         centerArea.className = 'play-stage-cards';
         handArea.innerHTML = selectedHand.map(c => generateCardHTML(c, 'stage-hand')).join('');
         centerArea.innerHTML = selectedCenter.map(c => generateCardHTML(c, 'stage-center')).join('');
-        operator.innerText = game.selections.operator ? game.selections.operator : '?';
+        operator.innerText = formatOperatorSymbol(game.selections.operator);
         handSlot.classList.toggle('is-active', selectedHand.length > 0);
         centerSlot.classList.toggle('is-active', selectedCenter.length > 0);
         activeZone.classList.toggle('is-working', selectedHand.length > 0 || selectedCenter.length > 0);
@@ -1447,7 +1457,7 @@
          return;
        }
 
-       const formula = witness?.eq || eq;
+       const formula = formatEquationDisplay(witness?.eq || eq);
        const tone = mode === 'resolving' ? 'is-resolving' : '';
        area.className = `block operation-result ${tone} text-center mt-1`;
        area.innerHTML = `<div class="equation-line" data-equation="${escapeHtml(formula)}" aria-label="${escapeHtml(formula)}">${escapeHtml(formula)}</div>`;
@@ -2056,7 +2066,7 @@
       centerArea.className = 'play-stage-cards is-expression';
       handArea.innerHTML = playedCards.map(card => generateCardHTML(card, 'history-hand')).join('');
       centerArea.innerHTML = targetCards.map(card => generateCardHTML(card, 'history-center')).join('');
-      operator.innerText = op === '*' ? '×' : (op === '/' ? '÷' : (op || '?'));
+      operator.innerText = formatOperatorSymbol(op);
       handSlot.classList.add('is-active');
       centerSlot.classList.add('is-active');
       zone.classList.add('is-working');
