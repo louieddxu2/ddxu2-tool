@@ -11,7 +11,7 @@
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
   <link rel="stylesheet" href="../shared/guide-spotlight.css?v=5">
-  <link rel="stylesheet" href="tabletop.css?v=2.8.0">
+  <link rel="stylesheet" href="tabletop.css?v=2.9.0">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -453,6 +453,7 @@
 
     function clearGameMotion() {
       document.getElementById('card-motion-layer')?.remove();
+      cancelDesktopTurnSwap();
       if (viewTurnTimer) clearTimeout(viewTurnTimer);
       viewTurnTimer = null;
       lastViewTurnKey = null;
@@ -1460,11 +1461,119 @@
      let lastRenderState = { white: '', black: '', center: '', title: '', lang: '' };
      let lastViewTurnKey = null;
      let viewTurnTimer = null;
+     let turnSwapFrame = 0;
+     let turnSwapRun = null;
+
+     const DESKTOP_TABLETOP_QUERY = '(min-width: 960px) and (min-height: 680px)';
+     const TURN_SWAP_DURATION = 520;
+     const TURN_SWAP_EASING = 'cubic-bezier(.65, 0, .35, 1)';
+     const TURN_LABEL_SELECTORS = ['#white-label', '#black-label'];
+
+     function cancelDesktopTurnSwap() {
+       if (turnSwapFrame) {
+         window.cancelAnimationFrame(turnSwapFrame);
+         turnSwapFrame = 0;
+       }
+       const run = turnSwapRun;
+       turnSwapRun = null;
+       if (!run) return;
+       run.items.forEach(({ label, ghost, animation, previousVisibility }) => {
+         animation.cancel();
+         ghost.remove();
+         label.style.visibility = previousVisibility;
+       });
+       run.layer.remove();
+     }
+
+     function captureDesktopSeatLabels() {
+       return new Map(TURN_LABEL_SELECTORS.map(selector => {
+         const label = document.querySelector(selector);
+         const rect = CardMotion.getRect(label);
+         return [selector, rect ? { ...rect, text: label.textContent } : null];
+       }));
+     }
+
+     function animateDesktopTurnSwap(beforeLayout) {
+       if (!beforeLayout) return;
+       turnSwapFrame = window.requestAnimationFrame(() => {
+         turnSwapFrame = 0;
+         if (!document.body.classList.contains('is-pvp') ||
+             !document.body.classList.contains('is-turning') ||
+             !window.matchMedia(DESKTOP_TABLETOP_QUERY).matches ||
+             CardMotion.prefersReducedMotion(document)) return;
+
+         const layer = document.createElement('div');
+         layer.id = 'turn-swap-motion-layer';
+         layer.setAttribute('aria-hidden', 'true');
+         document.body.append(layer);
+         const items = [];
+
+         TURN_LABEL_SELECTORS.forEach(selector => {
+           const label = document.querySelector(selector);
+           const before = beforeLayout.get(selector);
+           const after = CardMotion.getRect(label);
+           if (!label || !before || !after) return;
+
+           const dx = after.left - before.left;
+           const dy = after.top - before.top;
+           if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+           const ghost = document.createElement('div');
+           ghost.className = 'turn-swap-nameplate';
+           ghost.dataset.playerSide = selector === '#white-label' ? 'WHITE' : 'BLACK';
+           ghost.dataset.fromY = String(before.top);
+           ghost.dataset.toY = String(after.top);
+           ghost.textContent = before.text;
+           ghost.style.left = `${before.left}px`;
+           ghost.style.top = `${before.top}px`;
+           ghost.style.width = `${before.width}px`;
+           ghost.style.height = `${before.height}px`;
+           const previousVisibility = label.style.visibility;
+           label.style.visibility = 'hidden';
+           layer.append(ghost);
+
+           const laneOffset = selector === '#white-label' ? 36 : -36;
+           const animation = ghost.animate([
+             { transform: 'translate3d(0, 0, 0)', offset: 0 },
+             { transform: `translate3d(${dx / 2 + laneOffset}px, ${dy / 2}px, 0)`, offset: 0.5 },
+             { transform: `translate3d(${dx}px, ${dy}px, 0)`, offset: 1 }
+           ], { duration: TURN_SWAP_DURATION, easing: TURN_SWAP_EASING, fill: 'both' });
+           items.push({ label, ghost, animation, previousVisibility, complete: false });
+         });
+
+         if (!items.length) {
+           layer.remove();
+           return;
+         }
+         const run = { layer, items };
+         turnSwapRun = run;
+         items.forEach(item => {
+           item.animation.addEventListener('finish', () => {
+             item.complete = true;
+             item.animation.cancel();
+             item.ghost.remove();
+             item.label.style.visibility = item.previousVisibility;
+             if (items.every(entry => entry.complete)) {
+               layer.remove();
+               if (turnSwapRun === run) turnSwapRun = null;
+             }
+           }, { once: true });
+         });
+       });
+     }
 
      function syncViewOrientation() {
        const isPvp = game.mode === 'PVP';
        const nextKey = isPvp ? game.turn : 'SOLO';
        const shouldAnimate = lastViewTurnKey !== null && lastViewTurnKey !== nextKey;
+       let desktopSwapBefore = null;
+
+       if (shouldAnimate) {
+         cancelDesktopTurnSwap();
+         if (isPvp && window.matchMedia(DESKTOP_TABLETOP_QUERY).matches && !CardMotion.prefersReducedMotion(document)) {
+           desktopSwapBefore = captureDesktopSeatLabels();
+         }
+       }
 
        document.body.classList.toggle('is-pvp', isPvp);
        document.body.classList.toggle('is-white-turn', isPvp && game.turn === 'WHITE');
@@ -1473,12 +1582,13 @@
          if (viewTurnTimer) clearTimeout(viewTurnTimer);
          document.body.classList.add('is-turning');
          document.body.setAttribute('aria-busy', 'true');
-         const duration = CardMotion.prefersReducedMotion(document) ? 0 : 520;
+         const duration = CardMotion.prefersReducedMotion(document) ? 0 : TURN_SWAP_DURATION;
          viewTurnTimer = setTimeout(() => {
            document.body.classList.remove('is-turning');
            document.body.removeAttribute('aria-busy');
            viewTurnTimer = null;
          }, duration);
+         animateDesktopTurnSwap(desktopSwapBefore);
        }
 
        lastViewTurnKey = nextKey;
@@ -2019,6 +2129,7 @@
     window.addEventListener('resize', () => {
       syncUtilityRailPosition();
       closeUtilityMenus();
+      if (!window.matchMedia(DESKTOP_TABLETOP_QUERY).matches) cancelDesktopTurnSwap();
     });
     window.addEventListener('pagehide', () => { cancelGameWork(); game = { ...game }; });
     window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });

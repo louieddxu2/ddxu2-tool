@@ -119,6 +119,7 @@ test('keeps desktop hot-seat content upright and places the active player neares
   await expect(page.locator('body')).toHaveClass(/is-white-turn/, { timeout: 7000 });
 
   const whiteTurn = await getLayout();
+  await expect(page.locator('#turn-swap-motion-layer')).toHaveCount(0);
   expect(whiteTurn.blackSeat.bottom).toBeLessThan(whiteTurn.table.top);
   expect(whiteTurn.whiteSeat.top).toBeGreaterThan(whiteTurn.table.bottom);
   const expectedOrder = ['#black-actions', '#black-equation', '#center-area', '#white-equation', '#white-actions'];
@@ -129,4 +130,87 @@ test('keeps desktop hot-seat content upright and places the active player neares
   expect(whiteTurn.transforms.every(value => value === 'none')).toBe(true);
   expect(whiteTurn.actionBorders).toEqual(['1px', '0px']);
   expect(whiteTurn.centerLabelMatrix).toMatch(/^matrix\(1, 0, 0, 1,/);
+});
+
+test('animates desktop player labels toward their exchanged sides', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => {
+    localStorage.setItem('mathDuelLang', 'zh');
+    localStorage.setItem('mathDuelGuide_v2', JSON.stringify({ dontShow: true, completed: false }));
+  });
+  await page.goto('/math-duel/index.html');
+
+  const labelSelectors = ['#white-label', '#black-label'];
+  const centerTop = await page.locator('#center-area').evaluate(element => element.getBoundingClientRect().top);
+  const initialLabels = await page.evaluate(selectors => Object.fromEntries(selectors.map(selector => {
+    const element = document.querySelector(selector);
+    return [selector, { top: element.getBoundingClientRect().top, text: element.textContent }];
+  })), labelSelectors);
+
+  await page.locator('#black-hand [data-card-id="b1"]').click();
+  await page.locator('#black-hand [data-card-id="b5"]').click();
+  await page.locator('#center-cards [data-card-id="w9"]').click();
+  await page.locator('#black-actions [data-op="+"]').click();
+  await page.locator('#black-actions [data-role="main-btn"]').click();
+  await expect(page.locator('body')).toHaveClass(/is-white-turn/, { timeout: 7000 });
+  await expect(page.locator('body')).toHaveClass(/is-turning/);
+
+  await page.waitForFunction(() => {
+    const ghosts = [...document.querySelectorAll('#turn-swap-motion-layer .turn-swap-nameplate')];
+    return ghosts.length === 2 && ghosts.every(ghost => ghost.getAnimations().some(animation =>
+      animation.effect?.getTiming().duration === 520 &&
+      animation.effect.getKeyframes().some(frame => frame.transform?.includes('translate3d(')),
+    ));
+  });
+
+  const animationState = await page.evaluate(() => ({
+    labels: [...document.querySelectorAll('#turn-swap-motion-layer .turn-swap-nameplate')].map(ghost => {
+      const animation = ghost.getAnimations().find(candidate => candidate.effect?.getTiming().duration === 520);
+      const frames = animation?.effect.getKeyframes() || [];
+      return {
+        side: ghost.dataset.playerSide,
+        text: ghost.textContent,
+        fromY: Number(ghost.dataset.fromY),
+        toY: Number(ghost.dataset.toY),
+        duration: animation?.effect.getTiming().duration,
+        frames: frames.map(frame => frame.transform),
+      };
+    }),
+    centerTop: document.querySelector('#center-area').getBoundingClientRect().top,
+    liveLabelsHidden: ['#white-label', '#black-label'].every(selector =>
+      getComputedStyle(document.querySelector(selector)).visibility === 'hidden',
+    ),
+    overlayIsClickThrough: getComputedStyle(document.querySelector('#turn-swap-motion-layer')).pointerEvents === 'none',
+    seatsExchanged: document.querySelector('#white-area').getBoundingClientRect().top >
+      document.querySelector('#table-area').getBoundingClientRect().bottom &&
+      document.querySelector('#black-area').getBoundingClientRect().bottom <
+        document.querySelector('#table-area').getBoundingClientRect().top,
+  }));
+
+  expect(animationState.labels).toHaveLength(2);
+  expect(animationState.labels.every(label => label.duration === 520 && label.frames.length === 3)).toBe(true);
+  expect(animationState.labels.find(label => label.side === 'WHITE').fromY)
+    .toBeLessThan(animationState.labels.find(label => label.side === 'WHITE').toY);
+  expect(animationState.labels.find(label => label.side === 'BLACK').fromY)
+    .toBeGreaterThan(animationState.labels.find(label => label.side === 'BLACK').toY);
+  expect(animationState.labels.map(label => label.text)).toEqual([initialLabels['#white-label'].text, initialLabels['#black-label'].text]);
+  expect(animationState.centerTop).toBe(centerTop);
+  expect(animationState.liveLabelsHidden).toBe(true);
+  expect(animationState.overlayIsClickThrough).toBe(true);
+  expect(animationState.seatsExchanged).toBe(true);
+
+  await page.waitForTimeout(150);
+  const inMotion = await page.locator('#turn-swap-motion-layer .turn-swap-nameplate').evaluateAll(ghosts =>
+    ghosts.map(ghost => ghost.getAnimations()[0]?.currentTime),
+  );
+  expect(inMotion.every(time => time > 100 && time < 520)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('desktop-player-labels-in-motion.png') });
+  await page.locator('#white-actions [data-op="+"]').click();
+  await expect(page.locator('#white-actions [data-op="+"]')).toHaveClass(/bg-blue-600/);
+
+  await expect(page.locator('body')).not.toHaveClass(/is-turning/, { timeout: 2000 });
+  await expect(page.locator('#turn-swap-motion-layer')).toHaveCount(0);
+  await expect(page.locator('#white-label')).toHaveCSS('visibility', 'visible');
+  await expect(page.locator('#black-label')).toHaveCSS('visibility', 'visible');
 });

@@ -358,6 +358,12 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
   body.is-pvp.is-white-turn #white-actions { grid-row: 5; }
   body.is-pvp.is-white-turn #black-actions { border-bottom: 1px solid var(--line); }
   body.is-pvp.is-white-turn #white-actions { border-bottom: 0; }
+  #turn-swap-motion-layer { position: fixed; inset: 0; z-index: 1100; overflow: visible; pointer-events: none; }
+  .turn-swap-nameplate {
+    position: fixed; display: flex; align-items: center; box-sizing: border-box;
+    color: var(--blue); font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: .03em;
+    text-shadow: 0 1px 4px #fff, 0 2px 8px #2563eb38;
+  }
 
   .utility-rail .table-icon { width: 46px; height: 46px; font-size: 9px; line-height: 10px; }
   .utility-rail-left .table-icon { left: calc((100vw - var(--desktop-board-width)) / 2 - 58px); right: auto; }
