@@ -71,3 +71,62 @@ test('uses the wide tabletop and makes cards readable on desktop', async ({ page
   expect(mobileLayout.handCard.height).toBeLessThanOrEqual(50);
   expect(mobileLayout.noScroll).toBe(true);
 });
+
+test('keeps desktop hot-seat content upright and places the active player nearest', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => {
+    localStorage.setItem('mathDuelLang', 'en');
+    localStorage.setItem('mathDuelGuide_v2', JSON.stringify({ dontShow: true, completed: false }));
+  });
+  await page.goto('/math-duel/index.html');
+
+  const getLayout = () => page.evaluate(() => {
+    const rect = selector => document.querySelector(selector).getBoundingClientRect();
+    const transform = selector => getComputedStyle(document.querySelector(selector)).transform;
+    return {
+      whiteSeat: rect('#white-area').toJSON(),
+      blackSeat: rect('#black-area').toJSON(),
+      table: rect('#table-area').toJSON(),
+      zoneTops: ['#white-actions', '#white-equation', '#center-area', '#black-equation', '#black-actions']
+        .map(selector => ({ selector, top: rect(selector).top })),
+      transforms: [
+        '#white-area', '#white-actions .action-content', '#black-actions .action-content',
+        '#white-equation .equation-content', '#black-equation .equation-content', '#center-cards',
+      ].map(transform),
+      actionBorders: ['#black-actions', '#white-actions'].map(selector =>
+        getComputedStyle(document.querySelector(selector)).borderBottomWidth,
+      ),
+      centerLabelMatrix: transform('#ui-center-label'),
+    };
+  });
+
+  await expect(page.locator('body')).toHaveClass(/is-pvp/);
+  const blackTurn = await getLayout();
+  expect(blackTurn.whiteSeat.bottom).toBeLessThan(blackTurn.table.top);
+  expect(blackTurn.blackSeat.top).toBeGreaterThan(blackTurn.table.bottom);
+  expect(blackTurn.zoneTops.map(zone => zone.top)).toEqual(
+    [...blackTurn.zoneTops.map(zone => zone.top)].sort((a, b) => a - b),
+  );
+  expect(blackTurn.transforms.every(value => value === 'none')).toBe(true);
+  expect(blackTurn.centerLabelMatrix).toMatch(/^matrix\(1, 0, 0, 1,/);
+
+  await page.locator('#black-hand [data-card-id="b1"]').click();
+  await page.locator('#black-hand [data-card-id="b5"]').click();
+  await page.locator('#center-cards [data-card-id="w9"]').click();
+  await page.locator('#black-actions [data-op="+"]').click();
+  await page.locator('#black-actions [data-role="main-btn"]').click();
+  await expect(page.locator('body')).toHaveClass(/is-white-turn/, { timeout: 7000 });
+
+  const whiteTurn = await getLayout();
+  expect(whiteTurn.blackSeat.bottom).toBeLessThan(whiteTurn.table.top);
+  expect(whiteTurn.whiteSeat.top).toBeGreaterThan(whiteTurn.table.bottom);
+  const expectedOrder = ['#black-actions', '#black-equation', '#center-area', '#white-equation', '#white-actions'];
+  const expectedTops = await page.evaluate(selectors => selectors.map(selector =>
+    document.querySelector(selector).getBoundingClientRect().top,
+  ), expectedOrder);
+  expect(expectedTops).toEqual([...expectedTops].sort((a, b) => a - b));
+  expect(whiteTurn.transforms.every(value => value === 'none')).toBe(true);
+  expect(whiteTurn.actionBorders).toEqual(['1px', '0px']);
+  expect(whiteTurn.centerLabelMatrix).toMatch(/^matrix\(1, 0, 0, 1,/);
+});

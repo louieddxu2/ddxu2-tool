@@ -340,6 +340,25 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid
     font-size: clamp(30px, 2.6vw, 38px);
   }
 
+  /* On desktop, hot-seat play follows the active player instead of rotating the screen. */
+  body.is-pvp #white-area,
+  body.is-pvp .action-zone[data-side="WHITE"] .action-content,
+  body.is-pvp .equation-zone .equation-content,
+  body.is-pvp #center-area > #center-cards { transform: none; }
+  body.is-pvp.is-white-turn .equation-zone .equation-content { transform: none; }
+  body.is-pvp #center-area > #ui-center-label { transform: translateY(-50%); }
+  body.is-pvp.is-white-turn #center-area > #ui-center-label { transform: translateY(-50%); }
+
+  body.is-pvp.is-white-turn #white-area { grid-row: 3; }
+  body.is-pvp.is-white-turn #black-area { grid-row: 1; }
+  body.is-pvp.is-white-turn #black-actions { grid-row: 1; }
+  body.is-pvp.is-white-turn #black-equation { grid-row: 2; }
+  body.is-pvp.is-white-turn #center-area { grid-row: 3; }
+  body.is-pvp.is-white-turn #white-equation { grid-row: 4; }
+  body.is-pvp.is-white-turn #white-actions { grid-row: 5; }
+  body.is-pvp.is-white-turn #black-actions { border-bottom: 1px solid var(--line); }
+  body.is-pvp.is-white-turn #white-actions { border-bottom: 0; }
+
   .utility-rail .table-icon { width: 46px; height: 46px; font-size: 9px; line-height: 10px; }
   .utility-rail-left .table-icon { left: calc((100vw - var(--desktop-board-width)) / 2 - 58px); right: auto; }
   .utility-rail-right .table-icon { left: auto; right: calc((100vw - var(--desktop-board-width)) / 2 - 58px); }
