@@ -8,15 +8,15 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
   });
   await page.goto('/math-duel/index.html');
 
-  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.8.0');
+  await expect(page.locator('link[href*="tabletop.css"]')).toHaveAttribute('href', 'tabletop.css?v=2.10.0');
   await expect(page.locator('#black-turn-status')).toHaveText('輪到你了');
   await expect(page.locator('#white-turn-status')).toHaveText('輪到對手了');
   const leftRail = page.locator('.utility-rail-left');
   const rightRail = page.locator('.utility-rail-right');
-  const controls = page.locator('.utility-rail .table-icon');
-  await expect(leftRail.locator('.table-icon')).toHaveCount(2);
-  await expect(rightRail.locator('.table-icon')).toHaveCount(4);
-  await expect(controls).toHaveCount(6);
+  const controls = page.locator('.utility-rail .table-icon:visible');
+  await expect(leftRail.locator('.table-icon:visible')).toHaveCount(2);
+  await expect(rightRail.locator('.table-icon:visible')).toHaveCount(3);
+  await expect(controls).toHaveCount(5);
   for (const control of await controls.all()) {
     await expect(control).toBeVisible();
     await expect(control).toHaveCSS('position', 'fixed');
@@ -24,7 +24,8 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
   await expect(leftRail.locator('[data-home-link]')).toBeVisible();
   await expect(leftRail.locator('.utility-language')).toBeVisible();
   await expect(rightRail.locator('[data-role="utility-mode"]')).toBeVisible();
-  await expect(rightRail.locator('[data-role="utility-rule"]')).toBeVisible();
+  await expect(rightRail.locator('[data-role="utility-rule"]')).toBeHidden();
+  await expect(page.locator('#utility-rule-menu [data-rule-mode="RACE2"]')).toHaveCount(1);
   await expect(rightRail.locator('[data-role="utility-rules"]')).toBeVisible();
   await expect(rightRail.locator('.utility-reset')).toBeVisible();
   await expect(page.locator('#table-settings')).toHaveCount(0);
@@ -36,14 +37,10 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
   await rightRail.locator('[data-role="utility-mode"]').click();
   await expect(page.locator('#utility-mode-menu')).toHaveClass(/hidden/);
 
-  await rightRail.locator('[data-role="utility-rule"]').click();
-  await expect(page.locator('#utility-rule-menu')).toBeVisible();
-  await expect(page.locator('#utility-rule-menu [data-rule-mode="CLASSIC"]')).toHaveClass(/is-selected/);
-  await rightRail.locator('[data-role="utility-rule"]').click();
-  await expect(page.locator('#utility-rule-menu')).toHaveClass(/hidden/);
-
   const geometry = await page.evaluate(() => {
-    const controls = [...document.querySelectorAll('.utility-rail .table-icon')].map((el) => {
+    const controls = [...document.querySelectorAll('.utility-rail .table-icon')]
+      .filter(el => !el.hidden && getComputedStyle(el).display !== 'none')
+      .map((el) => {
       const rect = el.getBoundingClientRect();
       return { right: rect.right, y: rect.y, bottom: rect.bottom };
     });
@@ -61,15 +58,14 @@ test('keeps all utility actions as usable viewport-floating controls', async ({ 
     };
   });
 
-  expect(geometry.controls).toHaveLength(6);
+  expect(geometry.controls).toHaveLength(5);
   expect(geometry.controls.every(({ right }) => right <= geometry.viewportWidth)).toBe(true);
   expect(geometry.controls[1].y).toBeGreaterThan(geometry.controls[0].bottom);
   expect(geometry.controls[3].y).toBeGreaterThan(geometry.controls[2].bottom);
   expect(geometry.controls[4].y).toBeGreaterThan(geometry.controls[3].bottom);
-  expect(geometry.controls[5].y).toBeGreaterThan(geometry.controls[4].bottom);
   expect(geometry.centerLabel.left).toBeGreaterThanOrEqual(geometry.leftHome.right);
   const leftRailCenter = (geometry.controls[0].y + geometry.controls[1].bottom) / 2;
-  const rightRailCenter = (geometry.controls[2].y + geometry.controls[5].bottom) / 2;
+  const rightRailCenter = (geometry.controls[2].y + geometry.controls[4].bottom) / 2;
   expect(Math.abs(leftRailCenter - geometry.tableArea.center)).toBeLessThan(1);
   expect(Math.abs(rightRailCenter - geometry.tableArea.center)).toBeLessThan(1);
   expect(geometry.railsOutsideGameBoard).toBe(true);

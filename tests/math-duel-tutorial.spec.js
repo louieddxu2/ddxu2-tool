@@ -260,8 +260,7 @@ test('confirms a manual restart, lets mode and rule changes end the lesson, and 
   expect(await page.evaluate(() => game.mode)).toBe('PVP');
   await page.locator('.utility-rules').click();
   await page.locator('#rules-start-tutorial').click();
-  await page.locator('[data-role="utility-rule"]').click();
-  await page.locator('#utility-rule-menu [data-rule-mode="RACE2"]').click();
+  await page.evaluate(() => changeRuleMode('RACE2'));
   await expect(page.locator('body')).not.toHaveClass(/is-tutorial/);
   expect(await page.evaluate(() => game.ruleMode)).toBe('RACE2');
   await page.locator('.utility-rules').click();
