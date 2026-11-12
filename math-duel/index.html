@@ -1137,7 +1137,11 @@
         }
         scheduleGameTask(() => {
           const winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
-          const msg = game.turn === 'BLACK' ? (LANG === 'zh' ? '你已無路可走！' : 'No moves left!') : (LANG === 'zh' ? 'AI 已無路可走！' : 'AI has no moves left!');
+          // Name the stuck side by who controls it, not by colour: the human may play either colour.
+          const sideName = game.turn === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
+          const msg = !game.mode.startsWith('AI')
+            ? (LANG === 'zh' ? `${sideName}已無路可走！` : `${sideName} has no moves left!`)
+            : isAITurn() ? (LANG === 'zh' ? 'AI 已無路可走！' : 'AI has no moves left!') : (LANG === 'zh' ? '你已無路可走！' : 'No moves left!');
           alert(msg);
           game.winner = winner;
           game.state = 'GAMEOVER';
@@ -1309,7 +1313,8 @@
     }
 
     function giveUp() {
-      if (game.turn === 'BLACK' || game.mode === 'PVP') if (!confirm(t('giveup_confirm'))) return;
+      // Only a human giving up is asked to confirm; the AI concedes without prompting the player.
+      if (!isAITurn() && !confirm(t('giveup_confirm'))) return;
       game.winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
       game.state = 'GAMEOVER';
       stopTutorial('cancel', false);
