@@ -11,7 +11,7 @@
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
   <link rel="stylesheet" href="../shared/guide-spotlight.css?v=5">
-  <link rel="stylesheet" href="tabletop.css?v=2.10.0">
+  <link rel="stylesheet" href="tabletop.css?v=2.10.1">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -55,6 +55,9 @@
         confirm_reset: '確定要重新開始遊戲嗎？',
          ai_thinking_easy: '新手 AI 思考中...',
          ai_thinking_hard: '大師級推演中 (深度 3)',
+         ai_forecast_win: '🔮 AI 已算出必勝：最多再 {n} 步就贏',
+         ai_forecast_win_now: '🔮 AI 已算出必勝：你已無路可走',
+         ai_forecast_loss: '✨ AI 算出自己輸定了：你有必勝走法！',
          ai_plan: 'AI 的行動計畫',
          move_resolving: '行動結算中...',
          discard_resolving: '正在移除多餘卡牌...',
@@ -124,6 +127,9 @@
         confirm_reset: 'Are you sure you want to restart the game?',
          ai_thinking_easy: 'AI thinking...',
          ai_thinking_hard: 'Master AI deducing (Depth 3)',
+         ai_forecast_win: '🔮 AI found a forced win within {n} moves',
+         ai_forecast_win_now: '🔮 AI found a forced win: no moves left',
+         ai_forecast_loss: '✨ AI sees it has lost: you can force a win!',
          ai_plan: 'AI action plan',
          move_resolving: 'Resolving move...',
          discard_resolving: 'Removing extra cards...',
@@ -1192,6 +1198,7 @@
       if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
       if (!isAITurn() || game.state !== 'PLAYING') return;
       const move = e.data;
+      game.aiForecast = game.mode === 'AI_HARD' && move?.forecast ? move.forecast : null;
       if (!move) {
         scheduleGameTask(() => {
           if (isRace2Mode() && isAITurn() && game.state === 'PLAYING') {
@@ -1643,12 +1650,27 @@
         const showHint = game.state === 'PLAYING' && game.turn === side && !isAITurn();
         hint.classList.toggle('is-visible', showHint);
         hint.setAttribute('aria-hidden', String(!showHint));
+        // Master AI only: once its search proves the outcome, the second hint line tells the player.
+        const forecast = showHint ? getAiForecast() : null;
         for (const part of ['select', 'arrange']) {
           const line = hint.querySelector(`[data-hint="${part}"]`);
-          const text = t(`play_hint_${part}`);
+          const showForecast = part === 'arrange' && !!forecast;
+          const text = showForecast ? aiForecastText(forecast) : t(`play_hint_${part}`);
           if (line.textContent !== text) line.textContent = text;
+          line.toggleAttribute('data-forecast', showForecast);
+          if (showForecast) line.dataset.forecast = forecast.result;
         }
       });
+    }
+
+    function getAiForecast() {
+      if (game.mode !== 'AI_HARD' || tutorialSession || game.state !== 'PLAYING') return null;
+      return game.aiForecast || null;
+    }
+
+    function aiForecastText(forecast) {
+      if (forecast.result === 'loss') return t('ai_forecast_loss');
+      return forecast.aiMovesLeft > 0 ? t('ai_forecast_win').replace('{n}', forecast.aiMovesLeft) : t('ai_forecast_win_now');
     }
 
     function render() {
@@ -1838,6 +1860,8 @@
            sb.innerHTML = `🤖 ${t('ai_plan')}`;
          } else if (!isAITurn() || !sb.innerHTML.includes(t('ai_thinking_easy').slice(0, 4))) {
            sb.innerHTML = `${t('turn_label')}<span class="text-xl mx-1">${pName}</span>`;
+           const forecast = isAITurn() ? null : getAiForecast();
+           if (forecast) sb.innerHTML += `<div class="ai-forecast">${aiForecastText(forecast)}</div>`;
          }
         const canSend = canSendCurrentSelection();
         mb.innerText = isAITurn() ? t('ai_thinking_btn') : t('send_eq');

@@ -21,8 +21,21 @@ function pickStrongMove(aiHand, opponentHand, centerCards, aiColor, budgetMs) {
   });
   if (!result) return null;
   const allMoves = generateValidMoves(aiHand, centerCards, Infinity);
-  return allMoves.find(m => toMask(m.hand) === result.h && toMask(m.center) === result.t
+  const move = allMoves.find(m => toMask(m.hand) === result.h && toMask(m.center) === result.t
     && (m.discard.length === 0 || toMask(m.discard) === result.keep)) || null;
+  return move ? { ...move, forecast: strongForecast(result.score) } : null;
+}
+
+// A mate score means the search proved the outcome against every reply (noise only touches non-mate evals).
+function strongForecast(score) {
+  const MATE = MathDuelStrong.MATE;
+  if (score > MATE - 1000) {
+    // Plies until the win, counted from the AI's current move; AI moves still needed after this one.
+    const aiMovesLeft = Math.max(0, Math.ceil((MATE - score - 1) / 2));
+    return { result: 'win', aiMovesLeft };
+  }
+  if (score < -MATE + 1000) return { result: 'loss' };
+  return null;
 }
 
 function getCombinations(arr, size) {
@@ -316,6 +329,7 @@ self.onmessage = function(e) {
     eq: bestMove.eq,
     cardsA: bestMove.cardsA,
     cardsB: bestMove.cardsB,
-    witness: bestMove.witness
+    witness: bestMove.witness,
+    forecast: bestMove.forecast || null
   });
 };

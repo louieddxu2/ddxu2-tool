@@ -141,7 +141,7 @@
     function legalCount(B, W, C, turn) { return gen(turn ? W : B, C, turn ? WHITEC : BLACKC, BUF[0], false); }
     return { choose, listMoves, legalCount, maskCards, popcnt, BLACKC, WHITEC, MATE };
   }
-  const api = { create, cardIndex: (c) => (c.color === 'b' ? 0 : 9) + c.val - 1 };
+  const api = { create, MATE, cardIndex: (c) => (c.color === 'b' ? 0 : 9) + c.val - 1 };
   root.MathDuelStrong = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

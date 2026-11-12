@@ -78,6 +78,9 @@ body.is-pvp #white-area { transform: rotate(180deg); }
 .play-hint.is-visible { visibility: visible; }
 .play-hint > .hint-line { display: block; }
 .play-hint .hint-kind { display: none; }
+.play-hint [data-forecast] { font-weight: 700; }
+.play-hint [data-forecast="win"] { color: #b42318; }
+.play-hint [data-forecast="loss"] { color: #067647; }
 .player-score { position: absolute; right: 0; top: 50%; color: var(--muted); font-size: 10px; line-height: 14px; font-weight: 700; transform: translateY(-50%); }
 #table-surface { min-height: 0; display: grid; grid-template-rows: minmax(52px, .82fr) minmax(48px, 1fr) minmax(54px, .95fr) minmax(48px, 1fr) minmax(52px, .82fr); background: transparent; }
 .table-zone { min-height: 0; min-width: 0; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border-bottom: 1px solid var(--line); }
