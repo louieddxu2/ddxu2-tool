@@ -1,8 +1,29 @@
 const __workerVersion = new URL(self.location.href).searchParams.get('v') || 'dev';
 importScripts(`ai-race2-strategy.js?v=${encodeURIComponent(__workerVersion)}`);
 importScripts(`../shared/equation-witness.js?v=${encodeURIComponent(__workerVersion)}`);
+importScripts(`strong-engine.js?v=${encodeURIComponent(__workerVersion)}`);
 
 const checkEquation = MathDuelEquation.checkEquation;
+
+// Hard mode (CLASSIC): bitboard search from strong-engine.js. Returns one of `allMoves`, or null to fall back.
+let strongEngine = null;
+// Small per-session randomness in near-equal positions, so the AI cannot be beaten by replaying one memorised line.
+const strongNoiseSeed = (Math.random() * 0x7fffffff) | 0;
+function pickStrongMove(aiHand, opponentHand, centerCards, aiColor, budgetMs) {
+  if (!strongEngine) strongEngine = MathDuelStrong.create(checkEquation);
+  const toMask = cards => cards.reduce((m, c) => m | (1 << MathDuelStrong.cardIndex(c)), 0);
+  const aiMask = toMask(aiHand), oppMask = toMask(opponentHand), centerMask = toMask(centerCards);
+  const turn = aiColor === 'w' ? 1 : 0;
+  const result = strongEngine.choose(turn ? oppMask : aiMask, turn ? aiMask : oppMask, centerMask, turn, {
+    timeMs: Math.max(300, budgetMs - 350), // leave room for building the reply below
+    noiseAmp: 5,
+    noiseSeed: strongNoiseSeed,
+  });
+  if (!result) return null;
+  const allMoves = generateValidMoves(aiHand, centerCards, Infinity);
+  return allMoves.find(m => toMask(m.hand) === result.h && toMask(m.center) === result.t
+    && (m.discard.length === 0 || toMask(m.discard) === result.keep)) || null;
+}
 
 function getCombinations(arr, size) {
   if (size === 0) return [[]];
@@ -274,6 +295,8 @@ self.onmessage = function(e) {
         break;
       }
     }
+
+    if (!bestMove) bestMove = pickStrongMove(initialState.whiteHand, initialState.blackHand, initialState.centerCards, aiColor, hardBudgetMs);
 
     if (!bestMove) {
       const searchResult = alphaBetaRoot(initialState, aiColor, moves, deadline);
