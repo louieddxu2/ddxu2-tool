@@ -43,6 +43,7 @@
         mode_pvp: '🎮 雙人同機對戰',
         mode_ai_easy: '🤖 單人打 AI (新手)',
         mode_ai_hard: '💀 單人打 AI (大師)',
+        mode_ai_grand: '👑 單人打 AI (宗師)',
         loading: '載入中...',
         white_hand_ai: '白方手牌 (AI)',
         white_hand: '白方手牌',
@@ -55,6 +56,7 @@
         confirm_reset: '確定要重新開始遊戲嗎？',
          ai_thinking_easy: '新手 AI 思考中...',
          ai_thinking_hard: '大師級推演中 (深度 3)',
+         ai_thinking_grand: '宗師級窮舉推演中...',
          ai_forecast_win: '🔮 AI 已算出必勝：最多再 {n} 步就贏',
          ai_forecast_win_now: '🔮 AI 已算出必勝：你已無路可走',
          ai_forecast_loss: '✨ AI 算出自己輸定了：你有必勝走法！',
@@ -115,6 +117,7 @@
         mode_pvp: '🎮 Local PVP',
         mode_ai_easy: '🤖 vs AI (Novice)',
         mode_ai_hard: '💀 vs AI (Master)',
+        mode_ai_grand: '👑 vs AI (Grandmaster)',
         loading: 'Loading...',
         white_hand_ai: 'White Hand (AI)',
         white_hand: 'White Hand',
@@ -127,6 +130,7 @@
         confirm_reset: 'Are you sure you want to restart the game?',
          ai_thinking_easy: 'AI thinking...',
          ai_thinking_hard: 'Master AI deducing (Depth 3)',
+         ai_thinking_grand: 'Grandmaster AI searching...',
          ai_forecast_win: '🔮 AI found a forced win within {n} moves',
          ai_forecast_win_now: '🔮 AI found a forced win: no moves left',
          ai_forecast_loss: '✨ AI sees it has lost: you can force a win!',
@@ -217,6 +221,7 @@
         <option value="PVP"></option>
         <option value="AI_EASY"></option>
         <option value="AI_HARD"></option>
+        <option value="AI_GRAND"></option>
       </select>
       <select id="rule-mode-select" onchange="changeRuleMode(this.value)"
         class="bg-slate-700 text-sm text-white px-3 py-1.5 rounded-full border border-slate-600 outline-none focus:ring-2 focus:ring-blue-500 transition-shadow">
@@ -1155,8 +1160,8 @@
           stopTutorial('skip', false);
         }
         if (game.aiMoveInfo) { resumeAiPlan(game); return; }
-        const difficulty = game.mode === 'AI_HARD' ? 'hard' : 'easy';
-        document.getElementById('status-banner').innerHTML = `<span class="ai-thinking">🧠 ${difficulty === 'hard' ? t('ai_thinking_hard') : t('ai_thinking_easy')}</span>`;
+        const difficulty = game.mode === 'AI_GRAND' ? 'grand' : game.mode === 'AI_HARD' ? 'hard' : 'easy';
+        document.getElementById('status-banner').innerHTML = `<span class="ai-thinking">🧠 ${t(`ai_thinking_${difficulty}`)}</span>`;
 
         // 核心修正：明確告知 AI 誰才是它的手牌
         const aiHand = game.turn === 'BLACK' ? game.blackHand : game.whiteHand;
@@ -1198,7 +1203,7 @@
       if (aiTimeoutToken) { clearTimeout(aiTimeoutToken); aiTimeoutToken = null; }
       if (!isAITurn() || game.state !== 'PLAYING') return;
       const move = e.data;
-      game.aiForecast = game.mode === 'AI_HARD' && move?.forecast ? move.forecast : null;
+      game.aiForecast = game.mode === 'AI_GRAND' && move?.forecast ? move.forecast : null;
       if (!move) {
         scheduleGameTask(() => {
           if (isRace2Mode() && isAITurn() && game.state === 'PLAYING') {
@@ -1664,7 +1669,7 @@
     }
 
     function getAiForecast() {
-      if (game.mode !== 'AI_HARD' || tutorialSession || game.state !== 'PLAYING') return null;
+      if (game.mode !== 'AI_GRAND' || tutorialSession || game.state !== 'PLAYING') return null;
       return game.aiForecast || null;
     }
 
@@ -1687,6 +1692,7 @@
         document.querySelector('#mode-select option[value="PVP"]').innerText = t('mode_pvp');
         document.querySelector('#mode-select option[value="AI_EASY"]').innerText = t('mode_ai_easy');
         document.querySelector('#mode-select option[value="AI_HARD"]').innerText = t('mode_ai_hard');
+        document.querySelector('#mode-select option[value="AI_GRAND"]').innerText = t('mode_ai_grand');
         document.querySelector('#rule-mode-select option[value="CLASSIC"]').innerText = LANG === 'zh' ? '基本模式' : 'Classic';
         document.querySelector('#rule-mode-select option[value="RACE2"]').innerText = LANG === 'zh' ? '搶 2 分' : 'Race to 2';
          document.getElementById('ui-center-label').innerText = LANG === 'zh' ? '場牌' : 'TABLE';
@@ -1737,8 +1743,8 @@
       const utilityRule = document.querySelector('[data-role="utility-rule"]');
       if (utilityMode) {
         const modeLabel = LANG === 'zh'
-          ? (game.mode === 'PVP' ? '雙人' : game.mode === 'AI_HARD' ? '大師' : '新手')
-          : (game.mode === 'PVP' ? 'PVP' : game.mode === 'AI_HARD' ? 'Hard' : 'Easy');
+          ? (game.mode === 'PVP' ? '雙人' : game.mode === 'AI_GRAND' ? '宗師' : game.mode === 'AI_HARD' ? '大師' : '新手')
+          : (game.mode === 'PVP' ? 'PVP' : game.mode === 'AI_GRAND' ? 'Grand' : game.mode === 'AI_HARD' ? 'Hard' : 'Easy');
         utilityMode.querySelector('[data-role="utility-label"]').innerText = modeLabel;
         utilityMode.title = `${LANG === 'zh' ? '模式' : 'Mode'}: ${modeLabel}`;
         utilityMode.setAttribute('aria-label', utilityMode.title);
@@ -1754,6 +1760,7 @@
         utilityModeMenu.querySelector('[data-mode="PVP"]').innerText = t('mode_pvp');
         utilityModeMenu.querySelector('[data-mode="AI_EASY"]').innerText = t('mode_ai_easy');
         utilityModeMenu.querySelector('[data-mode="AI_HARD"]').innerText = t('mode_ai_hard');
+        utilityModeMenu.querySelector('[data-mode="AI_GRAND"]').innerText = t('mode_ai_grand');
         utilityModeMenu.querySelectorAll('[data-mode]').forEach(option => {
           const isSelected = option.dataset.mode === game.mode;
           option.classList.toggle('is-selected', isSelected);
@@ -1851,7 +1858,7 @@
       } else {
         let pName;
         if (game.mode.startsWith('AI')) {
-          pName = game.turn === game.aiSide ? (game.mode === 'AI_HARD' ? t('mode_ai_hard') : t('mode_ai_easy')) : (LANG === 'zh' ? '你' : 'You');
+          pName = game.turn === game.aiSide ? (game.mode === 'AI_GRAND' ? t('mode_ai_grand') : game.mode === 'AI_HARD' ? t('mode_ai_hard') : t('mode_ai_easy')) : (LANG === 'zh' ? '你' : 'You');
         } else {
           pName = game.turn === 'BLACK' ? (LANG === 'zh' ? '黑方' : 'Black') : (LANG === 'zh' ? '白方' : 'White');
         }
@@ -2127,7 +2134,7 @@
     modeMenu.id = 'utility-mode-menu';
     modeMenu.className = 'utility-menu hidden';
     modeMenu.setAttribute('role', 'menu');
-    modeMenu.innerHTML = '<button type="button" role="menuitemradio" data-mode="PVP" onclick="selectUtilityMode(\'PVP\')"></button><button type="button" role="menuitemradio" data-mode="AI_EASY" onclick="selectUtilityMode(\'AI_EASY\')"></button><button type="button" role="menuitemradio" data-mode="AI_HARD" onclick="selectUtilityMode(\'AI_HARD\')"></button>';
+    modeMenu.innerHTML = '<button type="button" role="menuitemradio" data-mode="PVP" onclick="selectUtilityMode(\'PVP\')"></button><button type="button" role="menuitemradio" data-mode="AI_EASY" onclick="selectUtilityMode(\'AI_EASY\')"></button><button type="button" role="menuitemradio" data-mode="AI_HARD" onclick="selectUtilityMode(\'AI_HARD\')"></button><button type="button" role="menuitemradio" data-mode="AI_GRAND" onclick="selectUtilityMode(\'AI_GRAND\')"></button>';
 
     const ruleMenu = document.createElement('div');
     ruleMenu.id = 'utility-rule-menu';

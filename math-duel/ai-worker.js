@@ -5,7 +5,7 @@ importScripts(`strong-engine.js?v=${encodeURIComponent(__workerVersion)}`);
 
 const checkEquation = MathDuelEquation.checkEquation;
 
-// Hard mode (CLASSIC): bitboard search from strong-engine.js. Returns one of `allMoves`, or null to fall back.
+// Grandmaster mode (CLASSIC): bitboard search from strong-engine.js. Returns one of `allMoves`, or null to fall back.
 let strongEngine = null;
 // Small per-session randomness in near-equal positions, so the AI cannot be beaten by replaying one memorised line.
 const strongNoiseSeed = (Math.random() * 0x7fffffff) | 0;
@@ -277,7 +277,8 @@ self.onmessage = function(e) {
   const aiColor = sentAiColor || (aiHand[0] ? aiHand[0].color : 'b');
   const whiteHand = aiHand;
   const blackHand = opponentHand;
-  const isHard = difficulty === 'hard';
+  const isGrand = difficulty === 'grand'; // strong-engine AI, added alongside the original master AI
+  const isHard = difficulty === 'hard' || isGrand;
   const initialState = normalizeState({ whiteHand, blackHand, centerCards });
 
   const moves = generateValidMoves(initialState.whiteHand, initialState.centerCards, isHard ? 10 : 4);
@@ -309,7 +310,7 @@ self.onmessage = function(e) {
       }
     }
 
-    if (!bestMove) bestMove = pickStrongMove(initialState.whiteHand, initialState.blackHand, initialState.centerCards, aiColor, hardBudgetMs);
+    if (!bestMove && isGrand) bestMove = pickStrongMove(initialState.whiteHand, initialState.blackHand, initialState.centerCards, aiColor, hardBudgetMs);
 
     if (!bestMove) {
       const searchResult = alphaBetaRoot(initialState, aiColor, moves, deadline);
