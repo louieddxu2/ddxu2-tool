@@ -56,8 +56,8 @@ test('keeps the play hint after selections and moves it to the next human player
   expect(whiteGeometry.hintBelowCardsFromWhiteView, JSON.stringify(whiteGeometry)).toBe(true);
   expect(await history.innerHTML()).toBe(historyBefore);
 
-  page.on('dialog', dialog => dialog.accept());
   await page.locator('#white-actions [data-role="giveup-btn"]').click();
+  await page.locator('#notice-ok').click();
   await expect(whiteHint).toBeHidden();
   await expect(blackHint).toBeHidden();
 });
@@ -217,7 +217,7 @@ test('anchors deselection animation to the live card when history repeats its id
     const w3 = card('w3', 3, 'w');
     const b3 = card('b3', 3, 'b');
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.6.0', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.6.1', JSON.stringify({
       mode: 'PVP',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',
@@ -280,7 +280,7 @@ test('anchors deselection animation to the live card when history repeats its id
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.6.0', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.6.1', JSON.stringify({
       mode: 'AI_EASY',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',

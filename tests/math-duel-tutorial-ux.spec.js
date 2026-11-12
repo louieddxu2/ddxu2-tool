@@ -167,7 +167,7 @@ test('explains the real first trade and AI equation in one cue, with compact bil
   expect(await page.evaluate(() => ({ requested: aiRequestPending, prepared: Boolean(game.aiMoveInfo), turn: game.turn, actions: gameSession.action })))
     .toEqual({ requested: true, prepared: true, turn: 'WHITE', actions: 1 });
   const review = await board(page);
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelState_v1.6.0')));
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelState_v1.6.1')));
   expect(saved.turn).toBe('WHITE');
   expect(saved.state).toBe('PLAYING');
   await page.locator('.utility-rules').click();

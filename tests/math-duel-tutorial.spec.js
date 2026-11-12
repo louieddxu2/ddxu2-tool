@@ -74,6 +74,15 @@ async function reachFourthMove(page) {
   await checkpoint(page, 4, 'before-exchange:0');
 }
 
+// Accepts every in-game confirm (#notice-modal) for the rest of this page's life, like page.on('dialog', accept).
+async function acceptGameNotices(page) {
+  await page.evaluate(() => {
+    const modal = document.getElementById('notice-modal');
+    new MutationObserver(() => { if (!modal.classList.contains('hidden')) document.getElementById('notice-ok').click(); })
+      .observe(modal, { attributes: true, attributeFilter: ['class'] });
+  });
+}
+
 test('offers teaching or written rules, remembers the checkbox, and keeps manual replay', async ({ page }) => {
   await page.goto('/math-duel/index.html');
   await expect(page.locator('#welcome-modal')).toBeVisible();
@@ -103,7 +112,7 @@ test('finishes five real moves with AI pauses, division and the ordinary win con
   await expect(page.locator('#white-equation [data-role="stage-hand-cards"] [data-card-id]')).toHaveCount(3);
   await expect(page.locator('#white-equation [data-role="stage-center-cards"] [data-card-id]')).toHaveCount(2);
   await expect(page.locator('#black-equation [data-tutorial-focus]')).toHaveCount(0);
-  const storedFirst = await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelState_v1.6.0')));
+  const storedFirst = await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelState_v1.6.1')));
   expect(storedFirst.turn).toBe('WHITE');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelGuide_v2') || '{}').completed === true)).toBe(false);
   await continueButton(page).click();
@@ -149,8 +158,8 @@ test('finishes five real moves with AI pauses, division and the ordinary win con
   await page.reload();
   await expect(page.locator('#welcome-modal')).toBeHidden();
   await page.locator('.utility-rules').click();
-  page.once('dialog', dialog => dialog.accept());
   await page.locator('#rules-start-tutorial').click();
+  await page.locator('#notice-ok').click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
   expect(await page.evaluate(() => gameSession.action)).toBe(0);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelGuide_v2')).completed)).toBe(true);
@@ -191,7 +200,7 @@ test('rejects a different legal task without changing the board or claiming bad 
 test('restarts a held lesson and rejects the old worker and repeated continue callbacks', async ({ page }) => {
   await reachSecondMove(page);
   await page.evaluate(() => { window.oldLessonWorker = worker; });
-  page.on('dialog', dialog => dialog.accept());
+  await acceptGameNotices(page);
   await page.locator('.utility-reset').click();
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-step', 'move-1');
   await page.evaluate(() => {
@@ -246,12 +255,12 @@ test('confirms a manual restart, lets mode and rule changes end the lesson, and 
   await page.locator('#welcome-play').click();
   await page.locator('#black-hand [data-card-id="b1"]').click();
   await page.locator('.utility-rules').click();
-  page.once('dialog', dialog => dialog.dismiss());
   await page.locator('#rules-start-tutorial').click();
+  await page.locator('#notice-cancel').click();
   await expect(page.locator('#rules-modal')).toBeVisible();
   await expect(page.locator('body')).not.toHaveClass(/is-tutorial/);
   expect(await page.evaluate(() => game.selections.hand)).toEqual(['b1']);
-  page.on('dialog', dialog => dialog.accept());
+  await acceptGameNotices(page);
   await page.locator('#rules-start-tutorial').click();
   await expect(page.locator('#black-actions [data-role="giveup-btn"]')).toHaveText('放棄');
   await page.locator('[data-role="utility-mode"]').click();
@@ -283,8 +292,8 @@ test('reloads a paused lesson as an ordinary saved game and safely leaves via ho
   await expect(page.locator('#black-turn-status')).toHaveText('輪到你了');
   expect(await fieldIds(page)).toEqual(['w1', 'w2']);
   await page.locator('.utility-rules').click();
-  page.once('dialog', dialog => dialog.accept());
   await page.locator('#rules-start-tutorial').click();
+  await page.locator('#notice-ok').click();
   await beginPlay(page);
   await send(page, ['b1', 'b8'], ['w9'], '+');
   await acknowledgeFirstTrade(page);
@@ -387,7 +396,7 @@ test('fits welcome, help and long teaching hints in portrait and short landscape
         expect(box.y + box.height).toBeLessThanOrEqual(size.height);
       }
       await page.screenshot({ path: testInfo.outputPath(`lesson-help-${size.width}-${language}.png`) });
-      await page.evaluate(() => { localStorage.removeItem('mathDuelState_v1.6.0'); });
+      await page.evaluate(() => { localStorage.removeItem('mathDuelState_v1.6.1'); });
     }
   }
 });

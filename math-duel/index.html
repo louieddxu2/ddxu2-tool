@@ -11,7 +11,7 @@
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
   <link rel="stylesheet" href="../shared/guide-spotlight.css?v=5">
-  <link rel="stylesheet" href="tabletop.css?v=2.10.2">
+  <link rel="stylesheet" href="tabletop.css?v=2.10.3">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -111,7 +111,11 @@
         rules_limit: '【場地限制】場中央超過兩張牌時，當前玩家必須選兩張保留。其餘牌移出遊戲。',
         rules_special: '【數字位數】算式中的每個數最多兩位；兩位數要用兩張牌組成。6 和 9 可以翻面互換。',
         rules_win: '【獲勝條件】在回合結束時，自己的手牌全部變成對手顏色，或對手無法組成有效算式時，你就獲勝。',
-        close: '關閉'
+        close: '關閉',
+        notice_title: '提示',
+        confirm_title: '確認',
+        ok: '確定',
+        cancel: '取消'
       },
       en: {
         title: 'Math Duel',
@@ -186,7 +190,11 @@
         rules_limit: '[Center limit] If more than two cards are in the center, keep two. Remove the rest from the game.',
         rules_special: '[Number length] Each number in the equation can have at most two digits; a two-digit number uses two cards. 6 and 9 can be flipped.',
         rules_win: '[Victory] At the end of a turn, win if every card in your hand has become the opponent’s color, or if your opponent cannot form a valid equation.',
-        close: 'Close'
+        close: 'Close',
+        notice_title: 'Notice',
+        confirm_title: 'Confirm',
+        ok: 'OK',
+        cancel: 'Cancel'
       }
     };
 
@@ -377,6 +385,21 @@
     </div>
   </div>
 
+  <!-- In-game replacement for the browser's alert()/confirm(). -->
+  <div id="notice-modal" class="game-dialog hidden" role="alertdialog" aria-modal="true" aria-labelledby="notice-title" aria-describedby="notice-message">
+    <div class="dialog-card notice-card">
+      <div class="dialog-heading">
+        <h3 id="notice-title"></h3>
+        <button type="button" class="dialog-close" onclick="closeGameDialog()" data-dialog-close aria-label="關閉">×</button>
+      </div>
+      <p id="notice-message" class="notice-body"></p>
+      <div class="dialog-actions notice-actions">
+        <button type="button" id="notice-cancel" class="dialog-secondary" onclick="settleNotice(false)"></button>
+        <button type="button" id="notice-ok" class="dialog-primary" onclick="settleNotice(true)" data-autofocus></button>
+      </div>
+    </div>
+  </div>
+
    <script src="rule-modes.js"></script>
   <script src="../shared/flow-guide.js?v=2"></script>
   <script src="../shared/guide-spotlight.js?v=5"></script>
@@ -408,6 +431,9 @@
     let currentDialog = null;
     let dialogOpener = null;
     const dialogWaiters = new Set();
+    let noticeResolver = null;
+    let noticeResult = false;
+    let noticeReturnTo = null;
 
     // --- 2. 存檔 Key 也綁定版號 (徹底預防讀取到舊版卡死狀態) ---
     const SAVE_KEY = `mathDuelState_v${APP_VERSION}`;
@@ -542,10 +568,10 @@
       resetAiWorker();
     }
 
-    function startTutorial(alreadyConfirmed = false) {
+    async function startTutorial(alreadyConfirmed = false) {
       const hasProgress = Boolean(game.lastMove || game.state !== 'PLAYING' || game.selections.hand.length ||
         game.selections.center.length || game.selections.operator || (tutorialSession && tutorialSession.state.stepIndex > 0));
-      if (hasProgress && !alreadyConfirmed && !confirm(t('tutorial_restart_confirm'))) return;
+      if (hasProgress && !alreadyConfirmed && !(await askConfirm(t('tutorial_restart_confirm')))) return;
       replaceGame(createInitialState('AI_EASY', MathDuelRuleModes.RULE_MODE.CLASSIC, 'WHITE'));
       tutorialSession = { state: FlowGuide.createGuideState(MathDuelTutorial.definition), view: null, help: false, rejected: false };
       emitGuideEvent({ type: 'start' });
@@ -612,10 +638,25 @@
       document.querySelectorAll('.game-dialog').forEach(modal => modal.classList.toggle('hidden', modal.id !== id));
       document.querySelectorAll('#game-board, .utility-rail, .utility-menu').forEach(element => { element.inert = true; });
       const modal = document.getElementById(id);
-      (modal.querySelector('#welcome-start') || modal.querySelector('[data-dialog-close]')).focus();
+      (modal.querySelector('[data-autofocus]') || modal.querySelector('#welcome-start') || modal.querySelector('[data-dialog-close]')).focus();
     }
 
     function closeGameDialog() {
+      const resolveNotice = noticeResolver;
+      const result = noticeResult;
+      noticeResolver = null;
+      noticeResult = false;
+      // A notice raised from another dialog (e.g. rules → replay tutorial) returns to it; the caller may then close it.
+      const returnTo = currentDialog === 'notice-modal' ? noticeReturnTo : null;
+      noticeReturnTo = null;
+      if (returnTo) {
+        currentDialog = returnTo;
+        document.querySelectorAll('.game-dialog').forEach(modal => modal.classList.toggle('hidden', modal.id !== returnTo));
+        const modal = document.getElementById(returnTo);
+        (modal.querySelector('[data-autofocus]') || modal.querySelector('#welcome-start') || modal.querySelector('[data-dialog-close]')).focus();
+        resolveNotice?.(result);
+        return;
+      }
       currentDialog = null;
       document.querySelectorAll('.game-dialog').forEach(modal => modal.classList.add('hidden'));
       document.querySelectorAll('#game-board, .utility-rail, .utility-menu').forEach(element => { element.inert = false; });
@@ -627,6 +668,33 @@
       dialogWaiters.clear();
       renderTutorial();
       checkAITurn();
+      resolveNotice?.(result);
+    }
+
+    // Resolves true for OK, false for Cancel, × or Escape. Opening one while another is pending cancels the older one.
+    function openNotice(message, { confirm = false, title, okLabel } = {}) {
+      return new Promise(resolve => {
+        noticeResolver?.(false);
+        noticeResolver = resolve;
+        noticeResult = false;
+        if (currentDialog !== 'notice-modal') noticeReturnTo = currentDialog;
+        document.getElementById('notice-title').textContent = title || t(confirm ? 'confirm_title' : 'notice_title');
+        document.getElementById('notice-message').textContent = message;
+        document.getElementById('notice-ok').textContent = okLabel || t('ok');
+        const cancel = document.getElementById('notice-cancel');
+        cancel.textContent = t('cancel');
+        cancel.hidden = !confirm;
+        document.querySelector('#notice-modal .notice-actions').classList.toggle('is-single', !confirm);
+        openGameDialog('notice-modal');
+      });
+    }
+
+    function showNotice(message, options) { return openNotice(message, options).then(() => undefined); }
+    function askConfirm(message, options) { return openNotice(message, { ...options, confirm: true }); }
+
+    function settleNotice(result) {
+      noticeResult = result;
+      closeGameDialog();
     }
 
     function waitForGameDialog(capturedGame) {
@@ -671,8 +739,8 @@
       finishAiPlanWait(false);
     }
 
-    function changeMode(newMode) {
-      if (confirm(t('confirm_change_mode'))) {
+    async function changeMode(newMode) {
+      if (await askConfirm(t('confirm_change_mode'))) {
         replaceGame(createInitialState(newMode, game.ruleMode));
         saveState(); render(); checkAITurn();
       } else {
@@ -680,8 +748,8 @@
       }
     }
 
-    function changeRuleMode(newRuleMode) {
-      if (confirm(t('confirm_change_mode'))) {
+    async function changeRuleMode(newRuleMode) {
+      if (await askConfirm(t('confirm_change_mode'))) {
         replaceGame(createInitialState(game.mode, newRuleMode));
         saveState(); render(); checkAITurn();
       } else {
@@ -728,8 +796,8 @@
       if (ruleMode !== game.ruleMode) changeRuleMode(ruleMode);
     }
 
-    function resetGame(force = false) {
-      if (force && !confirm(t('confirm_reset'))) return;
+    async function resetGame(force = false) {
+      if (force && !(await askConfirm(t('confirm_reset')))) return;
       if (tutorialSession) { startTutorial(true); return; }
       // Keep the learner's seat for the first ordinary game after the lesson.
       replaceGame(createInitialState(game.mode, game.ruleMode, completedLesson ? game.aiSide : null));
@@ -1053,7 +1121,7 @@
        if (currentDialog || tutorialGate) return;
        if (game.state === 'ANIMATING' || game.uiBusy) return;
        if (game.state === 'DISCARDING') {
-         if (game.discardSelections.length !== 2) return alert(t('discard_err'));
+         if (game.discardSelections.length !== 2) return showNotice(t('discard_err'));
          if (tutorialSession && !MathDuelTutorial.matchesTask(tutorialSession.state.stepIndex, game, 'keep')) {
            tutorialSession.rejected = true;
            emitGuideEvent({ type: 'task.rejected' });
@@ -1069,12 +1137,12 @@
        const cCards = game.center.filter(c => game.selections.center.includes(c.id));
        const op = game.selections.operator;
 
-       if (hCards.length < 2 || hCards.length > 4) return alert(t('select_hand_err'));
-       if (cCards.length < 1 || cCards.length > 2) return alert(t('select_target_err'));
-       if (!op) return alert(t('select_op_err'));
+       if (hCards.length < 2 || hCards.length > 4) return showNotice(t('select_hand_err'));
+       if (cCards.length < 1 || cCards.length > 2) return showNotice(t('select_target_err'));
+       if (!op) return showNotice(t('select_op_err'));
 
        const eqResult = checkEquation(hCards, op, cCards);
-       if (!eqResult.success) return alert(t('eq_error'));
+       if (!eqResult.success) return showNotice(t('eq_error'));
        if (tutorialSession && !MathDuelTutorial.matchesTask(tutorialSession.state.stepIndex, game)) {
          tutorialSession.rejected = true;
          emitGuideEvent({ type: 'task.rejected' });
@@ -1142,11 +1210,11 @@
           const msg = !game.mode.startsWith('AI')
             ? (LANG === 'zh' ? `${sideName}已無路可走！` : `${sideName} has no moves left!`)
             : isAITurn() ? (LANG === 'zh' ? 'AI 已無路可走！' : 'AI has no moves left!') : (LANG === 'zh' ? '你已無路可走！' : 'No moves left!');
-          alert(msg);
           game.winner = winner;
           game.state = 'GAMEOVER';
           stopTutorial('cancel', false);
           saveState(); render();
+          showNotice(msg, { title: t('game_over') });
         }, 300);
         return;
       }
@@ -1312,9 +1380,13 @@
       }
     }
 
-    function giveUp() {
+    async function giveUp() {
       // Only a human giving up is asked to confirm; the AI concedes without prompting the player.
-      if (!isAITurn() && !confirm(t('giveup_confirm'))) return;
+      if (!isAITurn()) {
+        const askedGame = game, askedTurn = game.turn;
+        if (!(await askConfirm(t('giveup_confirm')))) return;
+        if (game !== askedGame || game.state !== 'PLAYING' || game.turn !== askedTurn) return;
+      }
       game.winner = game.turn === 'BLACK' ? 'WHITE' : 'BLACK';
       game.state = 'GAMEOVER';
       stopTutorial('cancel', false);
