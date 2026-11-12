@@ -11,7 +11,7 @@
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%231e293b'/%3E%3C/svg%3E">
   <meta name="theme-color" content="#1e293b">
   <link rel="stylesheet" href="../shared/guide-spotlight.css?v=5">
-  <link rel="stylesheet" href="tabletop.css?v=2.10.1">
+  <link rel="stylesheet" href="tabletop.css?v=2.10.2">
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans selection:bg-blue-200">
@@ -47,6 +47,7 @@
         loading: '載入中...',
         white_hand_ai: '白方手牌 (AI)',
         white_hand: '白方手牌',
+        white_hand_you: '白方手牌 (你)',
         black_hand_you: '黑方手牌 (你)',
         black_hand: '黑方手牌',
         center_target: '場中央 (目標)',
@@ -121,6 +122,7 @@
         loading: 'Loading...',
         white_hand_ai: 'White Hand (AI)',
         white_hand: 'White Hand',
+        white_hand_you: 'White Hand (You)',
         black_hand_you: 'Black Hand (You)',
         black_hand: 'Black Hand',
         center_target: 'Center (Target)',
@@ -1599,6 +1601,8 @@
 
        document.body.classList.toggle('is-pvp', isPvp);
        document.body.classList.toggle('is-white-turn', isPvp && game.turn === 'WHITE');
+       document.body.classList.toggle('is-solo', !isPvp);
+       document.body.classList.toggle('is-human-white', !isPvp && game.playerColor === 'w');
 
        if (shouldAnimate) {
          if (viewTurnTimer) clearTimeout(viewTurnTimer);
@@ -1723,7 +1727,7 @@
       renderStage();
 
       // 3. 標籤與 Banner 更新 (僅在文字改變時)
-      const whiteLabel = game.mode.startsWith('AI') ? (game.aiSide === 'WHITE' ? t('white_hand_ai') : t('white_hand')) : t('white_hand');
+      const whiteLabel = game.mode.startsWith('AI') ? (game.aiSide === 'WHITE' ? t('white_hand_ai') : t('white_hand_you')) : t('white_hand');
       const blackLabel = game.mode.startsWith('AI') ? (game.aiSide === 'BLACK' ? (LANG === 'zh' ? '黑方手牌 (AI)' : 'Black Hand (AI)') : t('black_hand_you')) : t('black_hand');
 
       if (document.getElementById('white-label').innerText !== whiteLabel) document.getElementById('white-label').innerText = whiteLabel;

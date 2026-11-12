@@ -103,6 +103,15 @@ body.is-pvp #white-area { transform: rotate(180deg); }
 [data-tutorial-focus], [data-tutorial-focus] [data-card-id] { opacity: 1 !important; }
 .action-content { width: min(100%, 460px); height: 100%; min-height: 0; display: grid; grid-template-columns: 74px minmax(0, 1fr) 92px; grid-template-rows: minmax(0, 1fr); align-items: center; gap: 8px; padding: 4px 12px; transform-origin: center; }
 .action-zone[data-side="WHITE"] .action-content { transform: rotate(180deg); }
+/* Single player vs AI: nothing rotates, and the human's seat is always at the bottom. */
+body.is-solo .action-zone[data-side="WHITE"] .action-content { transform: none; }
+body.is-solo.is-human-white #white-area { grid-row: 3; }
+body.is-solo.is-human-white #black-area { grid-row: 1; }
+body.is-solo.is-human-white #black-actions { grid-row: 1; border-bottom: 1px solid var(--line); }
+body.is-solo.is-human-white #black-equation { grid-row: 2; }
+body.is-solo.is-human-white #center-area { grid-row: 3; }
+body.is-solo.is-human-white #white-equation { grid-row: 4; }
+body.is-solo.is-human-white #white-actions { grid-row: 5; border-bottom: 0; }
 .operator-group { grid-area: 1 / 2; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 4px; }
 .op-btn { width: 38px !important; height: 42px !important; min-height: 0; padding: 0 !important; color: #475569; background: var(--surface-soft) !important; border: 1px solid var(--line) !important; border-radius: 8px !important; box-shadow: none !important; font-size: 24px; line-height: 1; transform: none !important; }
 .op-btn.bg-blue-600, .op-btn[data-selected="true"] { color: #fff; background: var(--blue) !important; border-color: var(--blue) !important; }
