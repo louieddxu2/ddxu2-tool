@@ -1893,7 +1893,11 @@
 
       const sb = document.getElementById('status-banner');
       const actionZones = [...document.querySelectorAll('.action-zone')];
-      const activeActions = document.querySelector(`#${game.turn.toLowerCase()}-actions`);
+      // After the game the controls (play again) belong to the human vs AI, whoever moved last.
+      const controlSide = game.state === 'GAMEOVER' && game.mode.startsWith('AI')
+        ? (game.playerColor === 'w' ? 'WHITE' : 'BLACK')
+        : game.turn;
+      const activeActions = document.querySelector(`#${controlSide.toLowerCase()}-actions`);
       const mb = activeActions?.querySelector('[data-role="main-btn"]');
       const pc = activeActions?.querySelector('[data-role="plan-continue-btn"]');
       const gb = activeActions?.querySelector('[data-role="giveup-btn"]');
@@ -1972,7 +1976,8 @@
           const target = zone.querySelector(`[data-role="${role}"]`);
           if (!source || !target) return;
           target.innerText = source.innerText;
-          const isHidden = source.classList.contains('hidden');
+          // Vs AI the finished game offers "play again" only on the human side.
+          const isHidden = source.classList.contains('hidden') || (game.state === 'GAMEOVER' && game.mode.startsWith('AI'));
           target.className = isHidden
             ? 'hidden'
             : role === 'giveup-btn'
