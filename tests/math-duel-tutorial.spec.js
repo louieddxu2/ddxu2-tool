@@ -112,7 +112,7 @@ test('finishes five real moves with AI pauses, division and the ordinary win con
   await expect(page.locator('#white-equation [data-role="stage-hand-cards"] [data-card-id]')).toHaveCount(3);
   await expect(page.locator('#white-equation [data-role="stage-center-cards"] [data-card-id]')).toHaveCount(2);
   await expect(page.locator('#black-equation [data-tutorial-focus]')).toHaveCount(0);
-  const storedFirst = await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelState_v1.6.1')));
+  const storedFirst = await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelState_v1.6.2')));
   expect(storedFirst.turn).toBe('WHITE');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('mathDuelGuide_v2') || '{}').completed === true)).toBe(false);
   await continueButton(page).click();
@@ -396,7 +396,7 @@ test('fits welcome, help and long teaching hints in portrait and short landscape
         expect(box.y + box.height).toBeLessThanOrEqual(size.height);
       }
       await page.screenshot({ path: testInfo.outputPath(`lesson-help-${size.width}-${language}.png`) });
-      await page.evaluate(() => { localStorage.removeItem('mathDuelState_v1.6.1'); });
+      await page.evaluate(() => { localStorage.removeItem('mathDuelState_v1.6.2'); });
     }
   }
 });

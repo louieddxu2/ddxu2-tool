@@ -217,7 +217,7 @@ test('anchors deselection animation to the live card when history repeats its id
     const w3 = card('w3', 3, 'w');
     const b3 = card('b3', 3, 'b');
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.6.1', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.6.2', JSON.stringify({
       mode: 'PVP',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',
@@ -280,7 +280,7 @@ test('anchors deselection animation to the live card when history repeats its id
 test('reveals the AI plan in the play area before resolving it', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mathDuelLang', 'zh');
-    localStorage.setItem('mathDuelState_v1.6.1', JSON.stringify({
+    localStorage.setItem('mathDuelState_v1.6.2', JSON.stringify({
       mode: 'AI_EASY',
       ruleMode: 'CLASSIC',
       turn: 'BLACK',

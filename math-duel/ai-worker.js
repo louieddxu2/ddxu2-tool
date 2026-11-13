@@ -5,11 +5,11 @@ importScripts(`strong-engine.js?v=${encodeURIComponent(__workerVersion)}`);
 
 const checkEquation = MathDuelEquation.checkEquation;
 
-// Grandmaster mode (CLASSIC): bitboard search from strong-engine.js. Returns one of `allMoves`, or null to fall back.
+// Grandmaster and master modes (CLASSIC): bitboard search from strong-engine.js. Returns one of `allMoves`, or null to fall back.
 let strongEngine = null;
 // Small per-session randomness in near-equal positions, so the AI cannot be beaten by replaying one memorised line.
 const strongNoiseSeed = (Math.random() * 0x7fffffff) | 0;
-function pickStrongMove(aiHand, opponentHand, centerCards, aiColor, budgetMs) {
+function pickStrongMove(aiHand, opponentHand, centerCards, aiColor, budgetMs, searchOptions = {}) {
   if (!strongEngine) strongEngine = MathDuelStrong.create(checkEquation);
   const toMask = cards => cards.reduce((m, c) => m | (1 << MathDuelStrong.cardIndex(c)), 0);
   const aiMask = toMask(aiHand), oppMask = toMask(opponentHand), centerMask = toMask(centerCards);
@@ -18,12 +18,22 @@ function pickStrongMove(aiHand, opponentHand, centerCards, aiColor, budgetMs) {
     timeMs: Math.max(300, budgetMs - 350), // leave room for building the reply below
     noiseAmp: 5,
     noiseSeed: strongNoiseSeed,
+    ...searchOptions,
   });
   if (!result) return null;
   const allMoves = generateValidMoves(aiHand, centerCards, Infinity);
   const move = allMoves.find(m => toMask(m.hand) === result.h && toMask(m.center) === result.t
     && (m.discard.length === 0 || toMask(m.discard) === result.keep)) || null;
   return move ? { ...move, forecast: strongForecast(result.score) } : null;
+}
+
+// Master = a weaker strong-engine player, tuned separately per colour by simulated matches (black moves first and
+// holds a large edge between strong players), each move picking one of two search settings at random:
+// - as black: depth 3 (p 0.8) or depth 4 → wins ~48% against grandmaster's white (152 games);
+// - as white: depth 4 (p 0.65) or grandmaster's full search → white wins ~30% in master self-play (152 games each at 0.3 / 0.4).
+function masterSearchOptions(aiColor) {
+  if (aiColor === 'w') return Math.random() < 0.35 ? {} : { maxDepth: 4 };
+  return { maxDepth: Math.random() < 0.8 ? 3 : 4 };
 }
 
 // A mate score means the search proved the outcome against every reply (noise only touches non-mate evals).
@@ -277,7 +287,7 @@ self.onmessage = function(e) {
   const aiColor = sentAiColor || (aiHand[0] ? aiHand[0].color : 'b');
   const whiteHand = aiHand;
   const blackHand = opponentHand;
-  const isGrand = difficulty === 'grand'; // strong-engine AI, added alongside the original master AI
+  const isGrand = difficulty === 'grand'; // full-strength strong engine; 'hard' (master) uses a weakened setting of it
   const isHard = difficulty === 'hard' || isGrand;
   const initialState = normalizeState({ whiteHand, blackHand, centerCards });
 
@@ -310,7 +320,8 @@ self.onmessage = function(e) {
       }
     }
 
-    if (!bestMove && isGrand) bestMove = pickStrongMove(initialState.whiteHand, initialState.blackHand, initialState.centerCards, aiColor, hardBudgetMs);
+    if (!bestMove) bestMove = pickStrongMove(initialState.whiteHand, initialState.blackHand, initialState.centerCards, aiColor, hardBudgetMs,
+      isGrand ? {} : masterSearchOptions(aiColor));
 
     if (!bestMove) {
       const searchResult = alphaBetaRoot(initialState, aiColor, moves, deadline);
